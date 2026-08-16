@@ -13,9 +13,10 @@
  *   claude-cli://open?cwd=/path/to/project
  *
  * Security: values are URL-decoded, Unicode-sanitized, and rejected if they
- * contain ASCII control characters (newlines etc. can act as command
- * separators). All values are single-quote shell-escaped at the point of
- * use (terminalLauncher.ts) — that escaping is the injection boundary.
+ * contain ASCII control characters. Encoded newlines/tabs in `q` are allowed
+ * (multi-line prompts). cwd still rejects all control characters. All values
+ * are single-quote shell-escaped at the point of use (terminalLauncher.ts) —
+ * that escaping is the injection boundary.
  */
 
 import { partiallySanitizeUnicode } from '../sanitization.js'
@@ -33,10 +34,16 @@ export type DeepLinkAction = {
  * These can act as command separators in shells (newlines, carriage returns, etc.).
  * Allows printable ASCII and Unicode (CJK, emoji, accented chars, etc.).
  */
-function containsControlChars(s: string): boolean {
+function containsControlChars(
+  s: string,
+  { allowNewlineAndTab = false }: { allowNewlineAndTab?: boolean } = {},
+): boolean {
   for (let i = 0; i < s.length; i++) {
     const code = s.charCodeAt(i)
     if (code <= 0x1f || code === 0x7f) {
+      if (allowNewlineAndTab && (code === 10 || code === 9)) {
+        continue
+      }
       return true
     }
   }
@@ -137,9 +144,11 @@ export function parseDeepLink(uri: string): DeepLinkAction {
 
   let query: string | undefined
   if (rawQuery && rawQuery.trim().length > 0) {
-    // Strip hidden Unicode characters (ASCII smuggling / hidden prompt injection)
-    query = partiallySanitizeUnicode(rawQuery.trim())
-    if (containsControlChars(query)) {
+    // Strip hidden Unicode characters (ASCII smuggling / hidden prompt injection).
+    // Normalize encoded CRLF so %0A / %0D%0A become a single LF; those are
+    // allowed in q so claude-cli://open?q= can carry multi-line prompts.
+    query = partiallySanitizeUnicode(rawQuery.trim()).replace(/\r\n?/g, '\n')
+    if (containsControlChars(query, { allowNewlineAndTab: true })) {
       throw new Error('Deep link query contains disallowed control characters')
     }
     if (query.length > MAX_QUERY_LENGTH) {

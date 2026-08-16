@@ -1,4 +1,4 @@
-import { dirname, sep } from 'path'
+import { basename, dirname, sep } from 'path'
 import { logEvent } from 'src/services/analytics/index.js'
 import { z } from 'zod/v4'
 import { getFeatureValue_CACHED_MAY_BE_STALE } from '../../services/analytics/growthbook.js'
@@ -152,6 +152,24 @@ export const FileWriteTool = buildTool({
   },
   async validateInput({ file_path, content }, toolUseContext: ToolUseContext) {
     const fullFilePath = expandPath(file_path)
+
+    // Official 2.1.91 tengu_sub_nomdrep_q7k: subagents must return findings
+    // as text, not Write REPORT/SUMMARY/FINDINGS/ANALYSIS*.md files.
+    if (
+      getFeatureValue_CACHED_MAY_BE_STALE('tengu_sub_nomdrep_q7k', false) &&
+      toolUseContext.agentId &&
+      /^(REPORT|SUMMARY|FINDINGS|ANALYSIS).*\.md$/i.test(basename(fullFilePath))
+    ) {
+      logEvent('tengu_subagent_md_report_blocked', {
+        contentBytes: Buffer.byteLength(content),
+      })
+      return {
+        result: false,
+        message:
+          'Subagents should return findings as text, not write report files. Include this content in your final response instead.',
+        errorCode: 5,
+      }
+    }
 
     // Reject writes to team memory files that contain secrets
     const secretError = checkTeamMemSecrets(fullFilePath, content)

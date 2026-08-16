@@ -1198,7 +1198,7 @@ async function checkPermissionsAndCallTool(
         resultingMessages.push({
           message: createUserMessage({
             content:
-              'The PermissionDenied hook indicated this command is now approved. You may retry it if you would like.',
+              'The PermissionDenied hook indicated you may retry this tool call.',
             isMeta: true,
           }),
         })
@@ -1516,6 +1516,7 @@ async function checkPermissionsAndCallTool(
             preMappedBlock,
             tool.name,
             tool.maxResultSizeChars,
+            tool.persistenceThresholdCeiling,
           )
         : await processToolResultBlock(tool, toolUseResult, toolUseID)
 

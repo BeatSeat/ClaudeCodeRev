@@ -187,8 +187,14 @@ function startDetachedPoll(
           e instanceof UltraplanPollError ? e.rejectCount : undefined,
       })
       enqueuePendingNotification({
-        value: `Ultraplan failed: ${errorMessage(e)}\n\nSession: ${url}`,
+        value: `Ultraplan terminated: ${errorMessage(e)}\n\nSession: ${url}`,
         mode: 'task-notification',
+      })
+      enqueuePendingNotification({
+        value:
+          "Remote Ultraplan session failed. Wait for the user's next instructions.",
+        mode: 'task-notification',
+        isMeta: true,
       })
       // Error path owns cleanup; teleport path defers to the dialog; remote
       // path handled its own cleanup above.
@@ -455,6 +461,12 @@ async function launchDetached(opts: {
     enqueuePendingNotification({
       value: `ultraplan: unexpected error — ${errorMessage(e)}`,
       mode: 'task-notification',
+    })
+    enqueuePendingNotification({
+      value:
+        "Ultraplan hit an unexpected error during launch. Wait for the user's next instructions.",
+      mode: 'task-notification',
+      isMeta: true,
     })
     if (sessionId) {
       // Error after teleport succeeded — archive so the remote doesn't sit
