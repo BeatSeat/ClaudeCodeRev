@@ -6,6 +6,7 @@ import type {
 import type { CanUseToolFn } from './hooks/useCanUseTool.js'
 import { FallbackTriggeredError } from './services/api/withRetry.js'
 import {
+  AUTOCOMPACT_THRASH_MESSAGE,
   calculateTokenWarningState,
   isAutoCompactEnabled,
   type AutoCompactTrackingState,
@@ -451,7 +452,12 @@ async function* queryLoop(
     )
 
     queryCheckpoint('query_autocompact_start')
-    const { compactionResult, consecutiveFailures } = await deps.autocompact(
+    const {
+      compactionResult,
+      consecutiveFailures,
+      consecutiveRapidRefills,
+      rapidRefillBreakerTripped,
+    } = await deps.autocompact(
       messagesForQuery,
       toolUseContext,
       {
@@ -466,6 +472,20 @@ async function* queryLoop(
       snipTokensFreed,
     )
     queryCheckpoint('query_autocompact_end')
+
+    if (rapidRefillBreakerTripped) {
+      logEvent('tengu_auto_compact_rapid_refill_breaker', {
+        consecutiveRapidRefills: tracking?.consecutiveRapidRefills ?? 0,
+        turnsSincePreviousCompact: tracking?.turnCounter ?? -1,
+        queryChainId: queryChainIdForAnalytics,
+        queryDepth: queryTracking.depth,
+      })
+      yield createAssistantAPIErrorMessage({
+        content: AUTOCOMPACT_THRASH_MESSAGE,
+        error: 'invalid_request',
+      })
+      return { reason: 'rapid_refill_breaker' }
+    }
 
     if (compactionResult) {
       const {
@@ -523,6 +543,7 @@ async function* queryLoop(
         turnId: deps.uuid(),
         turnCounter: 0,
         consecutiveFailures: 0,
+        consecutiveRapidRefills,
       }
 
       const postCompactMessages = buildPostCompactMessages(compactionResult)
@@ -1358,6 +1379,7 @@ async function* queryLoop(
     }
 
     let shouldPreventContinuation = false
+    let toolDeferred = false
     let updatedToolUseContext = toolUseContext
 
     queryCheckpoint('query_tool_execution_start')
@@ -1390,6 +1412,12 @@ async function* queryLoop(
           update.message.attachment.type === 'hook_stopped_continuation'
         ) {
           shouldPreventContinuation = true
+        }
+        if (
+          update.message.type === 'attachment' &&
+          update.message.attachment.type === 'hook_deferred_tool'
+        ) {
+          toolDeferred = true
         }
 
         toolResults.push(
@@ -1513,6 +1541,10 @@ async function* queryLoop(
         })
       }
       return { reason: 'aborted_tools' }
+    }
+
+    if (toolDeferred) {
+      return { reason: 'tool_deferred' }
     }
 
     // If a hook indicated to prevent continuation, stop here

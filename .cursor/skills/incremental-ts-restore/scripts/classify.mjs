@@ -185,24 +185,29 @@ function classifyPair(fromFn, toFn) {
   return null
 }
 
-function bestMatch(toFn, fromFns, usedFrom) {
-  // Exact hash match first
+function takeFromList(map, key, usedFrom) {
+  const list = map.get(key)
+  if (!list) return -1
+  for (const i of list) {
+    if (!usedFrom.has(i)) return i
+  }
+  return -1
+}
+
+function bestMatch(toFn, fromFns, usedFrom, byExact, byString, leftoverFrom) {
   const exactKey = fnId(toFn)
-  for (let i = 0; i < fromFns.length; i++) {
-    if (usedFrom.has(i)) continue
-    if (fnId(fromFns[i]) === exactKey) return { index: i, result: classifyPair(fromFns[i], toFn) }
+  const exactIdx = takeFromList(byExact, exactKey, usedFrom)
+  if (exactIdx >= 0) {
+    return { index: exactIdx, result: classifyPair(fromFns[exactIdx], toFn) }
   }
-  // Same stringHash
-  for (let i = 0; i < fromFns.length; i++) {
-    if (usedFrom.has(i)) continue
-    if (fromFns[i].stringHash === toFn.stringHash) {
-      const result = classifyPair(fromFns[i], toFn)
-      if (result) return { index: i, result }
-    }
+  const strIdx = takeFromList(byString, toFn.stringHash, usedFrom)
+  if (strIdx >= 0) {
+    const result = classifyPair(fromFns[strIdx], toFn)
+    if (result) return { index: strIdx, result }
   }
-  // Same skeletonHash + high string overlap
+  // Only scan unmatched leftovers (typically << 1% of a hop)
   let best = null
-  for (let i = 0; i < fromFns.length; i++) {
+  for (const i of leftoverFrom) {
     if (usedFrom.has(i)) continue
     const fromFn = fromFns[i]
     const overlap = jaccard(fromFn.strings || [], toFn.strings || [])
@@ -236,11 +241,47 @@ const toFp = JSON.parse(readFileSync(flags.to, 'utf8'))
 const fromFns = fromFp.functions || []
 const toFns = toFp.functions || []
 
+const byExact = new Map()
+const byString = new Map()
+for (let i = 0; i < fromFns.length; i++) {
+  const fn = fromFns[i]
+  const exact = fnId(fn)
+  if (!byExact.has(exact)) byExact.set(exact, [])
+  byExact.get(exact).push(i)
+  if (!byString.has(fn.stringHash)) byString.set(fn.stringHash, [])
+  byString.get(fn.stringHash).push(i)
+}
+
+const usedFrom = new Set()
+const pending = []
+for (const toFn of toFns) {
+  const exactKey = fnId(toFn)
+  const exactIdx = takeFromList(byExact, exactKey, usedFrom)
+  if (exactIdx >= 0) {
+    usedFrom.add(exactIdx)
+    pending.push({ toFn, match: { index: exactIdx, result: classifyPair(fromFns[exactIdx], toFn) } })
+    continue
+  }
+  pending.push({ toFn, match: null })
+}
+
+const leftoverFrom = []
+for (let i = 0; i < fromFns.length; i++) {
+  if (!usedFrom.has(i)) leftoverFrom.push(i)
+}
+console.log(`Exact matches: ${usedFrom.size}; leftover from=${leftoverFrom.length} to=${pending.filter((p) => !p.match).length}`)
+
+for (const row of pending) {
+  if (row.match) continue
+  const match = bestMatch(row.toFn, fromFns, usedFrom, byExact, byString, leftoverFrom)
+  if (match) usedFrom.add(match.index)
+  row.match = match
+}
+
 console.log(`Indexing src under ${flags.src} …`)
 const stringIndex = buildStringIndex(flags.src)
 console.log(`String index keys: ${stringIndex.size}`)
 
-const usedFrom = new Set()
 const functions = []
 const counts = {
   unchanged: 0,
@@ -251,9 +292,8 @@ const counts = {
   removed: 0,
 }
 
-for (const toFn of toFns) {
+for (const { toFn, match } of pending) {
   const id = fnId(toFn)
-  const match = bestMatch(toFn, fromFns, usedFrom)
   const srcFile = guessSrcFile(toFn, stringIndex)
 
   if (!match || !match.result) {

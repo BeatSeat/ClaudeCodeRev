@@ -324,11 +324,11 @@ export const SettingsSchema = lazySchema(() =>
         ),
       cleanupPeriodDays: z
         .number()
-        .nonnegative()
         .int()
+        .positive()
         .optional()
         .describe(
-          'Number of days to retain chat transcripts (default: 30). Setting to 0 disables session persistence entirely: no transcripts are written and existing transcripts are deleted at startup.',
+          'Number of days to retain chat transcripts before automatic cleanup (default: 30). Minimum 1. Use a large value for long retention; use --no-session-persistence to disable transcript writes entirely.',
         ),
       env: EnvironmentVariablesSchema()
         .optional()
@@ -709,6 +709,14 @@ export const SettingsSchema = lazySchema(() =>
         .optional()
         .catch(undefined)
         .describe('Persisted effort level for supported models.'),
+      autoCompactWindow: z
+        .number()
+        .int()
+        .min(100_000)
+        .max(1_000_000)
+        .optional()
+        .catch(undefined)
+        .describe('Auto-compact window size'),
       advisorModel: z
         .string()
         .optional()

@@ -18,7 +18,12 @@ import type {
   NormalizedUserMessage,
 } from '../types/message.js'
 import { PERMISSION_MODES } from '../types/permissions.js'
-import { suppressNextSkillListing } from './attachments.js'
+import {
+  suppressNextSkillListing,
+  type HookDeferredToolAttachment,
+} from './attachments.js'
+import { tailFile } from './fsOperations.js'
+import { safeParseJSON } from './json.js'
 import {
   copyFileHistoryForResume,
   type FileHistorySnapshot,
@@ -163,6 +168,7 @@ export function deserializeMessages(serializedMessages: Message[]): Message[] {
  */
 export function deserializeMessagesWithInterruptDetection(
   serializedMessages: Message[],
+  keepToolUseIds?: Set<string>,
 ): DeserializeResult {
   try {
     // Transform legacy attachment types before processing
@@ -186,6 +192,7 @@ export function deserializeMessagesWithInterruptDetection(
     // Filter out unresolved tool uses and any synthetic messages that follow them
     const filteredToolUses = filterUnresolvedToolUses(
       migratedMessages,
+      keepToolUseIds,
     ) as NormalizedMessage[]
 
     // Filter out orphaned thinking-only assistant messages that can cause API errors
@@ -201,7 +208,10 @@ export function deserializeMessagesWithInterruptDetection(
       filteredThinking,
     ) as NormalizedMessage[]
 
-    const internalState = detectTurnInterruption(filteredMessages)
+    // Official 2.1.89+: a kept deferred tool_use is not an interrupted turn.
+    const internalState = keepToolUseIds?.size
+      ? ({ kind: 'none' } as const)
+      : detectTurnInterruption(filteredMessages)
 
     // Transform mid-turn interruptions into interrupted_prompt by appending
     // a synthetic continuation message. This unifies both interruption kinds
@@ -453,6 +463,60 @@ export async function loadMessagesFromJsonlPath(path: string): Promise<{
  *   transcript lives outside the current project dir.
  * @returns Object containing the deserialized messages and the original log, or null if not found
  */
+const DEFERRED_TOOL_SCAN_BYTES = 1_048_576
+
+/**
+ * Scan the transcript tail for an unresolved PreToolUse deferral.
+ * Official 2.1.89 do1: last hook_deferred_tool attachment with no later
+ * tool_result for that tool_use_id.
+ */
+export async function findUnresolvedDeferredTool(
+  transcriptPath: string,
+): Promise<HookDeferredToolAttachment | null> {
+  try {
+    const { content, bytesRead, bytesTotal } = await tailFile(
+      transcriptPath,
+      DEFERRED_TOOL_SCAN_BYTES,
+    )
+    const lines = content.split('\n')
+    if (bytesRead < bytesTotal) {
+      lines.shift()
+    }
+    let deferred: HookDeferredToolAttachment | null = null
+    let deferredIndex = -1
+    for (let i = lines.length - 1; i >= 0; i--) {
+      const line = lines[i]!.trim()
+      if (!line.includes('"hook_deferred_tool"')) {
+        continue
+      }
+      const parsed = safeParseJSON(line) as {
+        type?: string
+        attachment?: HookDeferredToolAttachment
+      } | null
+      if (
+        parsed?.type === 'attachment' &&
+        parsed.attachment?.type === 'hook_deferred_tool'
+      ) {
+        deferred = parsed.attachment
+        deferredIndex = i
+        break
+      }
+    }
+    if (!deferred) {
+      return null
+    }
+    const resultNeedle = `"tool_use_id":"${deferred.toolUseID}"`
+    for (let i = deferredIndex + 1; i < lines.length; i++) {
+      if (lines[i]!.includes(resultNeedle)) {
+        return null
+      }
+    }
+    return deferred
+  } catch {
+    return null
+  }
+}
+
 export async function loadConversationForResume(
   source: string | LogOption | undefined,
   sourceJsonlFile: string | undefined,
@@ -478,6 +542,7 @@ export async function loadConversationForResume(
   prRepository?: string
   // Full path to the session file (for cross-directory resume)
   fullPath?: string
+  deferredToolUse?: HookDeferredToolAttachment
 } | null> {
   try {
     let log: LogOption | null = null
@@ -557,8 +622,17 @@ export async function loadConversationForResume(
     // This ensures skills survive multiple compaction cycles after resume.
     restoreSkillStateFromMessages(messages!)
 
-    // Deserialize messages to handle unresolved tool uses and ensure proper format
-    const deserialized = deserializeMessagesWithInterruptDetection(messages!)
+    const fullPath = log?.fullPath ?? sourceJsonlFile
+    const deferredToolUse = fullPath
+      ? ((await findUnresolvedDeferredTool(fullPath)) ?? undefined)
+      : undefined
+
+    // Deserialize messages to handle unresolved tool uses and ensure proper format.
+    // Keep the deferred tool_use so -p --resume can re-emit it through PreToolUse.
+    const deserialized = deserializeMessagesWithInterruptDetection(
+      messages!,
+      deferredToolUse ? new Set([deferredToolUse.toolUseID]) : undefined,
+    )
     messages = deserialized.messages
 
     // Process session start hooks for resume
@@ -589,6 +663,7 @@ export async function loadConversationForResume(
       prRepository: log?.prRepository,
       // Include full path for cross-directory resume
       fullPath: log?.fullPath,
+      deferredToolUse,
     }
   } catch (error) {
     logError(error as Error)

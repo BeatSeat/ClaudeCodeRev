@@ -18,6 +18,7 @@ import {
 import { FILE_WRITE_TOOL_NAME } from '../tools/FileWriteTool/prompt.js'
 import type { Message } from '../types/message.js'
 import type { OrphanedPermission } from '../types/textInputTypes.js'
+import type { HookDeferredToolAttachment } from './attachments.js'
 import { logForDebugging } from './debug.js'
 import { isEnvTruthy } from './envUtils.js'
 import { isFsInaccessible } from './errors.js'
@@ -218,6 +219,69 @@ export function* normalizeMessage(message: Message): Generator<SDKMessage> {
       return
     default:
     // yield nothing
+  }
+}
+
+export async function* handleDeferredToolResume(
+  deferred: HookDeferredToolAttachment,
+  canUseTool: CanUseToolFn,
+  mutableMessages: Message[],
+  processUserInputContext: ProcessUserInputContext,
+): AsyncGenerator<SDKMessage, void, unknown> {
+  const persistSession = !isSessionPersistenceDisabled()
+  const currentMode =
+    processUserInputContext.getAppState().toolPermissionContext.mode
+  if (currentMode !== deferred.permissionMode) {
+    logForDebugging(
+      `Deferred tool resume: permissionMode mismatch (deferred under '${deferred.permissionMode}', resuming under '${currentMode}'). --resume does not restore permissionMode — pass --permission-mode ${deferred.permissionMode} to match.`,
+      { level: 'warn' },
+    )
+  }
+
+  const assistantMessage = mutableMessages.findLast(
+    message =>
+      message.type === 'assistant' &&
+      Array.isArray(message.message.content) &&
+      message.message.content.some(
+        block => block.type === 'tool_use' && block.id === deferred.toolUseID,
+      ),
+  )
+  if (!assistantMessage || assistantMessage.type !== 'assistant') {
+    logForDebugging(
+      `Deferred tool resume: tool_use ${deferred.toolUseID} not found in transcript`,
+      { level: 'warn' },
+    )
+    return
+  }
+
+  const toolUseBlock = assistantMessage.message.content.find(
+    block => block.type === 'tool_use' && block.id === deferred.toolUseID,
+  )
+  if (!toolUseBlock || toolUseBlock.type !== 'tool_use') {
+    return
+  }
+
+  logForDebugging(
+    `Deferred tool resume: re-emitting ${deferred.toolName} (${deferred.toolUseID}) through PreToolUse`,
+  )
+
+  for await (const update of runTools(
+    [toolUseBlock],
+    [assistantMessage],
+    canUseTool,
+    processUserInputContext,
+  )) {
+    if (update.message) {
+      mutableMessages.push(update.message)
+      if (persistSession) {
+        await recordTranscript(mutableMessages)
+      }
+      yield {
+        ...update.message,
+        session_id: getSessionId(),
+        parent_tool_use_id: null,
+      } as SDKMessage
+    }
   }
 }
 
