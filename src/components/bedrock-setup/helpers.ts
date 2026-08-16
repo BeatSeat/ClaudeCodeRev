@@ -176,11 +176,7 @@ function applyBedrockClientAuth<T extends Record<string, unknown>>(
     case 'bearer':
       return {
         ...args,
-        skipAuth: true,
-        defaultHeaders: {
-          ...(args.defaultHeaders as Record<string, string> | undefined),
-          Authorization: `Bearer ${auth.token}`,
-        },
+        apiKey: auth.token,
       }
     case 'sigv4':
       return {
