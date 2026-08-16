@@ -157,6 +157,7 @@ import chrome from './commands/chrome/index.js'
 import stickers from './commands/stickers/index.js'
 import advisor from './commands/advisor.js'
 import stopHook from './commands/stop-hook/index.js'
+import teamOnboarding from './commands/team-onboarding/index.js'
 import { logError } from './utils/log.js'
 import { toError } from './utils/errors.js'
 import { logForDebugging } from './utils/debug.js'
@@ -342,6 +343,7 @@ const COMMANDS = memoize((): Command[] => [
   sandboxToggle,
   setupBedrock,
   stopHook,
+  teamOnboarding,
   ...(!isUsing3PServices() ? [logout, login()] : []),
   passes,
   ...(peersCmd ? [peersCmd] : []),

@@ -349,6 +349,7 @@ import {
   removeTranscriptMessage,
   restoreSessionMetadata,
   getCurrentSessionTitle,
+  subscribeSessionTitleChanged,
   isEphemeralToolProgress,
   isLoggableMessage,
   saveWorktreeState,
@@ -1566,9 +1567,13 @@ export function REPL({
   // all fall back to the product name.
   const terminalTitleFromRename =
     useAppState(s => s.settings.terminalTitleFromRename) !== false
-  const sessionTitle = terminalTitleFromRename
-    ? getCurrentSessionTitle(getSessionId())
-    : undefined
+  const sessionTitle = React.useSyncExternalStore(
+    subscribeSessionTitleChanged,
+    () =>
+      terminalTitleFromRename
+        ? getCurrentSessionTitle(getSessionId())
+        : undefined,
+  )
   const [haikuTitle, setHaikuTitle] = useState<string>()
   // Gates the one-shot Haiku call that generates the tab title. Seeded true
   // on resume (initialMessages present) so we don't re-title a resumed

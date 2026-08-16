@@ -45,7 +45,11 @@ import {
 import {
   getTranscriptPathForSession,
   getAgentTranscriptPath,
+  getCurrentSessionTitle,
+  saveCustomTitle,
+  saveAgentName,
 } from './sessionStorage.js'
+import { isTeammate } from './teammate.js'
 import type { AgentId } from '../types/ids.js'
 import {
   getSettings_DEPRECATED,
@@ -380,6 +384,7 @@ export interface HookResult {
   permissionBehavior?: 'ask' | 'deny' | 'allow' | 'passthrough' | 'defer'
   hookPermissionDecisionReason?: string
   additionalContext?: string
+  sessionTitle?: string
   initialUserMessage?: string
   updatedInput?: Record<string, unknown>
   updatedMCPToolOutput?: unknown
@@ -400,6 +405,7 @@ export type AggregatedHookResult = {
   hookSource?: string
   permissionBehavior?: PermissionResult['behavior'] | 'defer'
   additionalContexts?: string[]
+  sessionTitle?: string
   initialUserMessage?: string
   updatedInput?: Record<string, unknown>
   updatedMCPToolOutput?: unknown
@@ -664,6 +670,7 @@ function processHookJSONOutput({
         break
       case 'UserPromptSubmit':
         result.additionalContext = json.hookSpecificOutput.additionalContext
+        result.sessionTitle = json.hookSpecificOutput.sessionTitle
         break
       case 'SessionStart':
         result.additionalContext = json.hookSpecificOutput.additionalContext
@@ -862,6 +869,19 @@ async function execCommandHook(
   // as opaque — not re-interpreted as a template.
   let command = hook.command
   let pluginOpts: ReturnType<typeof loadPluginOptions> | undefined
+  for (const [varName, available] of [
+    ['CLAUDE_PLUGIN_ROOT', pluginRoot || skillRoot],
+    ['CLAUDE_PLUGIN_DATA', pluginRoot],
+  ] as const) {
+    if (available || !command.includes(`\${${varName}}`)) {
+      continue
+    }
+    throw new Error(
+      skillRoot
+        ? `Hook command references \${${varName}} but only \${CLAUDE_PLUGIN_ROOT} is available for skill hooks (\${CLAUDE_PLUGIN_DATA} is plugin-only). Command: ${command}`
+        : `Hook command references \${${varName}} but the hook is not associated with a plugin. This variable is only available in hooks defined in a plugin's hooks/hooks.json file, not in settings.json. Command: ${command}`,
+    )
+  }
   if (pluginRoot) {
     // Plugin directory gone (orphan GC race, concurrent session deleted it):
     // throw so callers yield a non-blocking error. Running would fail — and
@@ -2875,6 +2895,15 @@ async function* executeHooks({
       }
     }
 
+    if (result.sessionTitle) {
+      logForDebugging(
+        `Hook ${hookEvent} (${getHookDisplayText(result.hook)}) provided sessionTitle (${[...result.sessionTitle].length} chars)`,
+      )
+      yield {
+        sessionTitle: result.sessionTitle,
+      }
+    }
+
     // Yield updatedMCPToolOutput if provided (from PostToolUse hooks)
     if (result.updatedMCPToolOutput) {
       logForDebugging(
@@ -3890,6 +3919,38 @@ export async function* executeTaskCompletedHooks(
   })
 }
 
+const HOOK_SESSION_TITLE_MAX_CODE_POINTS = 200
+
+function sanitizeHookSessionTitle(title: string): string {
+  return [...title.replace(/[\x00-\x1f\x7f-\x9f]/g, '')]
+    .slice(0, HOOK_SESSION_TITLE_MAX_CODE_POINTS)
+    .join('')
+}
+
+/**
+ * Apply a UserPromptSubmit hook sessionTitle (same effect as /rename).
+ * Skipped for teammates. No-ops when empty or unchanged after sanitize.
+ */
+export async function applyHookSessionTitle(title: string): Promise<void> {
+  if (isTeammate()) {
+    return
+  }
+  const sanitized = sanitizeHookSessionTitle(title)
+  if (!sanitized) {
+    return
+  }
+  const sessionId = getSessionId()
+  const current = getCurrentSessionTitle(sessionId)
+  if (sanitized === (current && sanitizeHookSessionTitle(current))) {
+    return
+  }
+  logForDebugging(
+    `Hook sessionTitle applied (${[...sanitized].length} chars)`,
+  )
+  await saveCustomTitle(sessionId, sanitized, undefined, 'hook')
+  await saveAgentName(sessionId, sanitized, undefined, 'hook')
+}
+
 /**
  * Execute start hooks if configured
  * @param prompt The user prompt that will be passed to the tool
@@ -3916,6 +3977,7 @@ export async function* executeUserPromptSubmitHooks(
     ...createBaseHookInput(permissionMode),
     hook_event_name: 'UserPromptSubmit',
     prompt,
+    session_title: getCurrentSessionTitle(getSessionId()),
   }
 
   yield* executeHooks({

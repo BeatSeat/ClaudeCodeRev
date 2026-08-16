@@ -16,6 +16,7 @@ import {
   getAPIProvider,
   isAnthropicAwsEnabled,
   isFirstPartyAnthropicBaseUrl,
+  isMantleEnabled,
 } from 'src/utils/model/providers.js'
 import { getProxyFetchOptions } from 'src/utils/proxy.js'
 import {
@@ -150,6 +151,50 @@ export async function getAnthropicClient({
     ...(resolvedFetch && {
       fetch: resolvedFetch,
     }),
+  }
+  const useMantleClient =
+    isMantleEnabled() &&
+    (isEnvTruthy(process.env.CLAUDE_CODE_USE_BEDROCK) ||
+      getAPIProvider() === 'mantle')
+  if (useMantleClient) {
+    const bedrockSdk = await import('@anthropic-ai/bedrock-sdk')
+    const MantleClient =
+      (
+        bedrockSdk as typeof bedrockSdk & {
+          AnthropicBedrockMantle?: typeof bedrockSdk.AnthropicBedrock
+        }
+      ).AnthropicBedrockMantle ?? bedrockSdk.AnthropicBedrock
+    const awsRegion = getAWSRegion()
+    const mantleBaseURL =
+      process.env.ANTHROPIC_BEDROCK_MANTLE_BASE_URL ??
+      (awsRegion
+        ? `https://bedrock-mantle.${awsRegion}.api.aws/anthropic`
+        : undefined)
+    const skipMantleAuth = isEnvTruthy(process.env.CLAUDE_CODE_SKIP_MANTLE_AUTH)
+    const mantleArgs: ConstructorParameters<
+      typeof bedrockSdk.AnthropicBedrock
+    >[0] = {
+      ...ARGS,
+      awsRegion,
+      ...(mantleBaseURL && { baseURL: mantleBaseURL }),
+      ...(skipMantleAuth && { skipAuth: true }),
+      ...(isDebugToStdErr() && { logger: createStderrLogger() }),
+    }
+    if (process.env.AWS_BEARER_TOKEN_BEDROCK) {
+      mantleArgs.skipAuth = true
+      mantleArgs.defaultHeaders = {
+        ...mantleArgs.defaultHeaders,
+        Authorization: `Bearer ${process.env.AWS_BEARER_TOKEN_BEDROCK}`,
+      }
+    } else if (!skipMantleAuth) {
+      const cachedCredentials = await refreshAndGetAwsCredentials()
+      if (cachedCredentials) {
+        mantleArgs.awsAccessKey = cachedCredentials.accessKeyId
+        mantleArgs.awsSecretKey = cachedCredentials.secretAccessKey
+        mantleArgs.awsSessionToken = cachedCredentials.sessionToken
+      }
+    }
+    return new MantleClient(mantleArgs) as unknown as Anthropic
   }
   if (isEnvTruthy(process.env.CLAUDE_CODE_USE_BEDROCK)) {
     const { AnthropicBedrock } = await import('@anthropic-ai/bedrock-sdk')

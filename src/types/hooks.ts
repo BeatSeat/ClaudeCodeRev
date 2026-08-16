@@ -81,6 +81,10 @@ export const syncHookResponseSchema = lazySchema(() =>
         z.object({
           hookEventName: z.literal('UserPromptSubmit'),
           additionalContext: z.string().optional(),
+          sessionTitle: z
+            .string()
+            .describe('Set the session title (same effect as /rename)')
+            .optional(),
         }),
         z.object({
           hookEventName: z.literal('SessionStart'),
