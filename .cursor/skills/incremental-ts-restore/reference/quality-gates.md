@@ -20,10 +20,11 @@ Fails if:
 
 ## Human / agent gate (not scripted yet)
 
-- `bun run typecheck` on the restored tree
-- `bun run build` produces `dist/cli.js`
+- `bun run build` produces `dist/cli.js` (this is the bar; `bun run typecheck` has many pre-existing errors)
+- Every astdiff **product** hit for this hop was reviewed; counts + real adds are in `ledger.notes`
 - α-normalized coverage vs the **target** `cli.js` is recorded in the ledger (`coverage` field, optional until the matcher lands)
 - no hop skipped (88→89→…→112, then 113…)
+- hop commit matches the allowlist in `SKILL.md` (no `_snip` / astdiff dumps)
 
 ## Ledger shape
 

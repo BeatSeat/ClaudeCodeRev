@@ -5,6 +5,6 @@ dist/
 restore-work/artifacts/
 restore-work/astdiff/
 restore-work/ledgers/*.fp.json
-restore-work/ledgers/_*.mjs
-restore-work/ledgers/_*.txt
+restore-work/ledgers/_*
+!restore-work/ledgers/_template.json
 .cursor/skills/incremental-ts-restore/node_modules/
