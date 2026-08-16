@@ -61,6 +61,11 @@ import { count } from '../../utils/array.js'
 import { createAttachmentMessage } from '../../utils/attachments.js'
 import { logForDebugging } from '../../utils/debug.js'
 import {
+  getFileModificationTime,
+  readFileSyncCached,
+} from '../../utils/file.js'
+import { expandPath } from '../../utils/path.js'
+import {
   AbortError,
   errorMessage,
   getErrnoCode,
@@ -135,6 +140,61 @@ export const HOOK_TIMING_DISPLAY_THRESHOLD_MS = 500
 /** Log a debug warning when hooks/permission-decision block for this long. Matches
  * BashTool's PROGRESS_THRESHOLD_MS — the collapsed view feels stuck past this. */
 const SLOW_PHASE_LOG_THRESHOLD_MS = 2000
+
+function resyncReadFileStateAfterPostToolUse(
+  toolName: string,
+  toolUseID: string,
+  input: unknown,
+  readFileState: ToolUseContext['readFileState'],
+) {
+  if (toolName !== FILE_EDIT_TOOL_NAME && toolName !== FILE_WRITE_TOOL_NAME) {
+    return null
+  }
+  if (
+    typeof input !== 'object' ||
+    input === null ||
+    !('file_path' in input) ||
+    typeof input.file_path !== 'string'
+  ) {
+    return null
+  }
+  try {
+    const filePath = expandPath(input.file_path)
+    const previous = readFileState.get(filePath)
+    if (!previous || previous.offset !== undefined || previous.limit !== undefined) {
+      return null
+    }
+    const mtime = getFileModificationTime(filePath)
+    if (mtime <= previous.timestamp) {
+      return null
+    }
+    const content = readFileSyncCached(filePath)
+    readFileState.set(filePath, {
+      content,
+      timestamp: mtime,
+      offset: undefined,
+      limit: undefined,
+    })
+    if (content === previous.content) {
+      return null
+    }
+    logForDebugging(
+      `PostToolUse hook modified ${filePath} after ${toolName} — re-synced readFileState`,
+      { level: 'info' },
+    )
+    return createAttachmentMessage({
+      type: 'hook_additional_context',
+      content: [
+        `PostToolUse hook modified ${filePath} after your edit (likely a formatter). Your next Edit will not fail with a stale-file error, but if its old_string targets a region the hook reformatted, Read the file first.`,
+      ],
+      hookName: `PostToolUse:${toolName}`,
+      toolUseID,
+      hookEvent: 'PostToolUse',
+    })
+  } catch {
+    return null
+  }
+}
 
 /**
  * Classify a tool execution error into a telemetry-safe string.
@@ -1575,6 +1635,15 @@ async function checkPermissionsAndCallTool(
       }
     }
     const postToolHookDurationMs = Date.now() - postToolHookStart
+    const resynced = resyncReadFileStateAfterPostToolUse(
+      tool.name,
+      toolUseID,
+      processedInput,
+      toolUseContext.readFileState,
+    )
+    if (resynced) {
+      resultingMessages.push({ message: resynced })
+    }
     if (postToolHookDurationMs >= SLOW_PHASE_LOG_THRESHOLD_MS) {
       logForDebugging(
         `Slow PostToolUse hooks: ${postToolHookDurationMs}ms for ${tool.name} (${postToolHookInfos.length} hooks)`,

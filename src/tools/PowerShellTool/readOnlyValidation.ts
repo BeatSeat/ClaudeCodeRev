@@ -27,7 +27,10 @@ import {
   GIT_READ_ONLY_COMMANDS,
   validateFlags,
 } from '../../utils/shell/readOnlyCommandValidation.js'
-import { COMMON_PARAMETERS } from './commonParameters.js'
+import {
+  COMMON_PARAMETERS,
+  hasUnsafeActionPreference,
+} from './commonParameters.js'
 
 const DOTNET_READ_ONLY_FLAGS = new Set([
   '--version',
@@ -607,11 +610,6 @@ export const CMDLET_ALLOWLIST: Record<string, CommandConfig> = Object.assign(
         '-DestinationPrefix',
       ],
     },
-    'get-dnsclientcache': {
-      // SECURITY: -CimSession/-ThrottleLimit excluded. -CimSession connects to
-      // a remote host (network request). Previously empty config = all flags OK.
-      safeFlags: ['-Entry', '-Name', '-Type', '-Status', '-Section', '-Data'],
-    },
     'get-dnsclient': {
       safeFlags: ['-InterfaceIndex', '-InterfaceAlias'],
     },
@@ -701,7 +699,7 @@ export const CMDLET_ALLOWLIST: Record<string, CommandConfig> = Object.assign(
       // are SKIPPED. Reject any positional argument — only bare `ipconfig` or
       // `ipconfig /all` (read-only display) allowed. Windows ipconfig only uses
       // /flags (display), macOS ipconfig uses subcommands (get/set/waitall).
-      safeFlags: ['/all', '/displaydns', '/allcompartments'],
+      safeFlags: ['/all', '/allcompartments'],
       additionalCommandIsDangerousCallback: (
         _cmd: string,
         element?: ParsedCommandElement,
@@ -1443,6 +1441,10 @@ export function isAllowlistedCommand(
   // not a flag. We detect cmdlets by checking if the command resolves to a
   // Verb-Noun canonical name (either directly or via alias).
   const isCmdlet = canonical.includes('-')
+
+  if (isCmdlet && hasUnsafeActionPreference(cmd.args)) {
+    return false
+  }
 
   // SECURITY: if allowAllFlags is set, skip flag validation (command's entire
   // flag surface is read-only). Otherwise, missing/empty safeFlags means

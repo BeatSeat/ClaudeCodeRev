@@ -15,7 +15,10 @@
 
 import { feature } from 'bun:bundle'
 import { basename } from 'path'
-import { getIsRemoteMode } from '../../bootstrap/state.js'
+import {
+  getIsRemoteMode,
+  getMemoryToggledOff,
+} from '../../bootstrap/state.js'
 import type { CanUseToolFn } from '../../hooks/useCanUseTool.js'
 import { ENTRYPOINT_NAME } from '../../memdir/memdir.js'
 import {
@@ -147,6 +150,56 @@ function hasMemoryWritesSince(
   return false
 }
 
+/** Official 2.1.90 aDK — user text must have at least this many words to count as prose. */
+const MIN_USER_PROSE_WORDS = 3
+
+function countWords(text: string): number {
+  return count(text.split(/\s+/), Boolean)
+}
+
+function isUserProseMessage(message: Message): boolean {
+  if (message.type !== 'user' || message.isMeta) {
+    return false
+  }
+  const content = message.message.content
+  if (typeof content === 'string') {
+    return countWords(content) >= MIN_USER_PROSE_WORDS
+  }
+  if (!Array.isArray(content)) {
+    return false
+  }
+  return content.some(
+    block =>
+      block.type === 'text' && countWords(block.text) >= MIN_USER_PROSE_WORDS,
+  )
+}
+
+/**
+ * Official 2.1.90 U_Y: true if a non-meta user message with ≥3 words exists
+ * after the extraction cursor (or anywhere if the cursor was compacted away).
+ */
+function hasUserProseSince(
+  messages: Message[],
+  sinceUuid: string | undefined,
+): boolean {
+  let foundStart = sinceUuid === undefined
+  for (const message of messages) {
+    if (!foundStart) {
+      if (message.uuid === sinceUuid) {
+        foundStart = true
+      }
+      continue
+    }
+    if (isUserProseMessage(message)) {
+      return true
+    }
+  }
+  if (!foundStart) {
+    return messages.some(isUserProseMessage)
+  }
+  return false
+}
+
 // ============================================================================
 // Tool Permissions
 // ============================================================================
@@ -170,6 +223,13 @@ function denyAutoMemTool(tool: Tool, reason: string) {
  */
 export function createAutoMemCanUseTool(memoryDir: string): CanUseToolFn {
   return async (tool: Tool, input: Record<string, unknown>) => {
+    if (getMemoryToggledOff()) {
+      return denyAutoMemTool(
+        tool,
+        'Memory is toggled off. Run /toggle-memory to re-enable automemory.',
+      )
+    }
+
     // Allow REPL — when REPL mode is enabled (ant-default), primitive tools
     // are hidden from the tool list so the forked agent calls REPL instead.
     // REPL's VM context re-invokes this canUseTool for each inner primitive
@@ -354,6 +414,20 @@ export function initExtractMemories(): void {
         lastMemoryMessageUuid = lastMessage.uuid
       }
       logEvent('tengu_extract_memories_skipped_direct_write', {
+        message_count: newMessageCount,
+      })
+      return
+    }
+
+    if (!hasUserProseSince(messages, lastMemoryMessageUuid)) {
+      logForDebugging(
+        '[extractMemories] skipping — no user prose since last extraction',
+      )
+      const lastMessage = messages.at(-1)
+      if (lastMessage?.uuid) {
+        lastMemoryMessageUuid = lastMessage.uuid
+      }
+      logEvent('tengu_extract_memories_skipped_no_prose', {
         message_count: newMessageCount,
       })
       return

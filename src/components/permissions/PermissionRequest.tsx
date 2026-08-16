@@ -71,7 +71,9 @@ const MonitorPermissionRequest = feature('MONITOR_TOOL')
 import type { ContentBlockParam } from '@anthropic-ai/sdk/resources/messages.mjs'
 /* eslint-enable @typescript-eslint/no-require-imports */
 import type { z } from 'zod/v4'
+import { logError } from '../../utils/log.js'
 import type { PermissionUpdate } from '../../utils/permissions/PermissionUpdateSchema.js'
+import { formatZodValidationError } from '../../utils/toolErrors.js'
 import type { WorkerBadgeProps } from './WorkerBadge.js'
 
 function permissionComponentForTool(
@@ -202,7 +204,10 @@ export function PermissionRequest({
   workerBadge,
   setStickyFooter,
 }: PermissionRequestProps): React.ReactNode {
-  // Handle Ctrl+C (app:interrupt) to reject
+  const parsed = toolUseConfirm.tool.inputSchema.safeParse(toolUseConfirm.input)
+  const rejectedInvalidInput = React.useRef(false)
+
+  // Handle Ctrl+C (app:interrupt) to reject — only while a valid dialog is up
   useKeybinding(
     'app:interrupt',
     () => {
@@ -210,11 +215,33 @@ export function PermissionRequest({
       onReject()
       toolUseConfirm.onReject()
     },
-    { context: 'Confirmation' },
+    { context: 'Confirmation', isActive: parsed.success },
   )
 
-  const notificationMessage = getNotificationMessage(toolUseConfirm)
+  const notificationMessage = parsed.success
+    ? getNotificationMessage(toolUseConfirm)
+    : ''
   useNotifyAfterTimeout(notificationMessage, 'permission_prompt')
+
+  React.useEffect(() => {
+    if (parsed.success || rejectedInvalidInput.current) return
+    rejectedInvalidInput.current = true
+    const detail = formatZodValidationError(
+      toolUseConfirm.tool.name,
+      parsed.error,
+    )
+    logError(
+      new Error(
+        `Permission dialog opened with invalid input — upstream should have validated. ${detail}`,
+      ),
+    )
+    toolUseConfirm.onReject(detail)
+    onDone()
+  }, [parsed, toolUseConfirm, onDone])
+
+  if (!parsed.success) {
+    return null
+  }
 
   const PermissionComponent = permissionComponentForTool(toolUseConfirm.tool)
 

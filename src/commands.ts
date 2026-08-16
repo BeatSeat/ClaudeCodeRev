@@ -24,7 +24,9 @@ import diff from './commands/diff/index.js'
 import ctx_viz from './commands/ctx_viz/index.js'
 import doctor from './commands/doctor/index.js'
 import memory from './commands/memory/index.js'
+import toggleMemory from './commands/toggle-memory/index.js'
 import help from './commands/help/index.js'
+import powerup from './commands/powerup/index.js'
 import ide from './commands/ide/index.js'
 import init from './commands/init.js'
 import initVerifiers from './commands/init-verifiers.js'
@@ -283,6 +285,7 @@ const COMMANDS = memoize((): Command[] => [
   files,
   heapDump,
   help,
+  powerup,
   ide,
   init,
   keybindings,
@@ -290,6 +293,7 @@ const COMMANDS = memoize((): Command[] => [
   installSlackApp,
   mcp,
   memory,
+  toggleMemory,
   mobile,
   model,
   outputStyle,

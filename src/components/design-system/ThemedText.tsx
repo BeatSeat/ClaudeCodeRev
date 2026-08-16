@@ -5,11 +5,9 @@ import type { Color, Styles } from '../../ink/styles.js'
 import { getTheme, type Theme } from '../../utils/theme.js'
 import { useTheme } from './ThemeProvider.js'
 
-/** Colors uncolored ThemedText in the subtree. Precedence: explicit `color` >
- *  this > dimColor. Crosses Box boundaries (Ink's style cascade doesn't). */
-export const TextHoverColorContext = React.createContext<
-  keyof Theme | undefined
->(undefined)
+/** When true, hover is active: dimColor is suppressed so click-to-expand
+ *  text stays readable on light themes. */
+export const TextHoverColorContext = React.createContext(false)
 
 export type Props = {
   /**
@@ -102,15 +100,14 @@ export default function ThemedText({
 }: Props): React.ReactNode {
   const [themeName] = useTheme()
   const theme = getTheme(themeName)
-  const hoverColor = useContext(TextHoverColorContext)
+  const hovered = useContext(TextHoverColorContext)
 
-  // Resolve theme keys to raw colors
+  // Resolve theme keys to raw colors. Hover turns dim off so the text uses
+  // the normal theme color (official 2.1.90 light-theme click-to-expand fix).
   const resolvedColor =
-    !color && hoverColor
-      ? resolveColor(hoverColor, theme)
-      : dimColor
-        ? (theme.inactive as Color)
-        : resolveColor(color, theme)
+    dimColor && !hovered
+      ? (theme.inactive as Color)
+      : resolveColor(color, theme)
   const resolvedBackgroundColor = backgroundColor
     ? (theme[backgroundColor] as Color)
     : undefined
