@@ -2,6 +2,7 @@ import type { BetaUsage } from '@anthropic-ai/sdk/resources/beta/messages/messag
 import { getFeatureValue_CACHED_MAY_BE_STALE } from '../services/analytics/growthbook.js'
 import { shouldIncludeFirstPartyOnlyBetas } from './betas.js'
 import { isEnvTruthy } from './envUtils.js'
+import { getAPIProvider } from './model/providers.js'
 import { getInitialSettings } from './settings/settings.js'
 
 // The SDK does not yet have types for advisor blocks.
@@ -52,7 +53,7 @@ type AdvisorConfig = {
 
 function getAdvisorConfig(): AdvisorConfig {
   return getFeatureValue_CACHED_MAY_BE_STALE<AdvisorConfig>(
-    'tengu_sage_compass',
+    'tengu_sage_compass2',
     {},
   )
 }
@@ -61,8 +62,8 @@ export function isAdvisorEnabled(): boolean {
   if (isEnvTruthy(process.env.CLAUDE_CODE_DISABLE_ADVISOR_TOOL)) {
     return false
   }
-  // The advisor beta header is first-party only (Bedrock/Vertex 400 on it).
-  if (!shouldIncludeFirstPartyOnlyBetas()) {
+  // Official 2.1.98 QI: exact firstParty (not 1P-family) + first-party-only betas.
+  if (getAPIProvider() !== 'firstParty' || !shouldIncludeFirstPartyOnlyBetas()) {
     return false
   }
   return getAdvisorConfig().enabled ?? false

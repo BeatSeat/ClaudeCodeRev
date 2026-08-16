@@ -3806,11 +3806,14 @@ async function run(): Promise<CommanderCommand> {
         // Mirrors useManageMCPConnections — push pending first (so ToolSearch's
         // pending-check at ToolSearchTool.ts:334 sees them), then replace with
         // connected/failed as each server settles.
+        // Official 2.1.98 Pz: one promise per server so the wait can proceed
+        // when only a subset is still connecting.
         const connectMcpBatch = (
           configs: Record<string, ScopedMcpServerConfig>,
           label: string,
-        ): Promise<void> => {
-          if (Object.keys(configs).length === 0) return Promise.resolve()
+        ): Promise<void>[] => {
+          const names = Object.keys(configs)
+          if (names.length === 0) return []
           headlessStore.setState(prev => ({
             ...prev,
             mcp: {
@@ -3825,7 +3828,14 @@ async function run(): Promise<CommanderCommand> {
               ],
             },
           }))
-          return getMcpToolsCommandsAndResources(
+          const settle = new Map<string, () => void>()
+          const perServer = names.map(
+            name =>
+              new Promise<void>(resolve => {
+                settle.set(name, resolve)
+              }),
+          )
+          void getMcpToolsCommandsAndResources(
             ({ client, tools, commands }) => {
               headlessStore.setState(prev => ({
                 ...prev,
@@ -3840,11 +3850,17 @@ async function run(): Promise<CommanderCommand> {
                   commands: uniqBy([...prev.mcp.commands, ...commands], 'name'),
                 },
               }))
+              settle.get(client.name)?.()
             },
             configs,
-          ).catch(err =>
-            logForDebugging(`[MCP] ${label} connect error: ${err}`),
           )
+            .catch(err =>
+              logForDebugging(`[MCP] ${label} connect error: ${err}`),
+            )
+            .finally(() => {
+              for (const resolve of settle.values()) resolve()
+            })
+          return perServer
         }
         // Await all MCP configs — print mode is often single-turn, so
         // "late-connecting servers visible next turn" doesn't help. SDK init
@@ -3858,27 +3874,71 @@ async function run(): Promise<CommanderCommand> {
           process.env.MCP_CONNECTION_NONBLOCKING,
         )
         const MCP_CONFIG_WAIT_MS = 5_000
+        /** Official 2.1.98 fB4. */
+        const countUnsettledAfterDeadline = async (
+          pending: Promise<void>[],
+          ms: number,
+        ): Promise<number> => {
+          if (pending.length === 0) return 0
+          let timer: ReturnType<typeof setTimeout> | undefined
+          const deadline = new Promise<'deadline'>(resolve => {
+            timer = setTimeout(resolve, ms, 'deadline')
+          })
+          try {
+            const results = await Promise.all(
+              pending.map(p =>
+                Promise.race([
+                  p.then(
+                    () => 'settled' as const,
+                    () => 'settled' as const,
+                  ),
+                  deadline,
+                ]),
+              ),
+            )
+            return results.filter(result => result === 'deadline').length
+          } finally {
+            if (timer) clearTimeout(timer)
+          }
+        }
         const waitForMcpOrProceed = async (
-          pending: Promise<void>,
+          pending: Promise<void>[] | Promise<Promise<void>[]>,
           label: string,
         ): Promise<void> => {
           if (mcpNonblocking) {
+            void Promise.resolve(pending).catch(() => {})
             logForDebugging(
               `[MCP] ${label} running fully async (MCP_CONNECTION_NONBLOCKING)`,
             )
             return
           }
-          let timer: ReturnType<typeof setTimeout> | undefined
-          const timedOut = await Promise.race([
-            pending.then(() => false),
-            new Promise<boolean>(resolve => {
-              timer = setTimeout(() => resolve(true), MCP_CONFIG_WAIT_MS)
-            }),
-          ])
-          if (timer) clearTimeout(timer)
-          if (timedOut) {
+          const started = Date.now()
+          let servers: Promise<void>[]
+          if (Array.isArray(pending)) {
+            servers = pending
+          } else {
+            let timer: ReturnType<typeof setTimeout> | undefined
+            const raced = await Promise.race([
+              pending,
+              new Promise<'deadline'>(resolve => {
+                timer = setTimeout(resolve, MCP_CONFIG_WAIT_MS, 'deadline')
+              }),
+            ])
+            if (timer) clearTimeout(timer)
+            if (raced === 'deadline') {
+              void pending.catch(() => {})
+              logForDebugging(
+                `[MCP] ${label} not ready after ${MCP_CONFIG_WAIT_MS}ms — proceeding; background connection continues`,
+              )
+              return
+            }
+            servers = raced
+          }
+          const remaining = Math.max(0, MCP_CONFIG_WAIT_MS - (Date.now() - started))
+          const notReady = await countUnsettledAfterDeadline(servers, remaining)
+          if (notReady > 0) {
             logForDebugging(
-              `[MCP] ${label} not ready after ${MCP_CONFIG_WAIT_MS}ms — proceeding; background connection continues`,
+              `[MCP] ${label}: ${notReady}/${servers.length} not ready after ${MCP_CONFIG_WAIT_MS}ms — proceeding; background connection continues`,
             )
           }
         }
@@ -3922,7 +3982,8 @@ async function run(): Promise<CommanderCommand> {
                 void clearServerCache(c.name, c.config).catch(() => {})
               }
               headlessStore.setState(prev => {
-                let { clients, tools, commands, resources } = prev.mcp
+                let { clients, tools, commands, resources, resourceTemplates } =
+                  prev.mcp
                 clients = clients.filter(c => !suppressed.has(c.name))
                 tools = tools.filter(
                   t => !t.mcpInfo || !suppressed.has(t.mcpInfo.serverName),
@@ -3930,10 +3991,21 @@ async function run(): Promise<CommanderCommand> {
                 for (const name of suppressed) {
                   commands = excludeCommandsByServer(commands, name)
                   resources = excludeResourcesByServer(resources, name)
+                  resourceTemplates = excludeResourcesByServer(
+                    resourceTemplates,
+                    name,
+                  )
                 }
                 return {
                   ...prev,
-                  mcp: { ...prev.mcp, clients, tools, commands, resources },
+                  mcp: {
+                    ...prev.mcp,
+                    clients,
+                    tools,
+                    commands,
+                    resources,
+                    resourceTemplates,
+                  },
                 }
               })
             }
@@ -4106,6 +4178,7 @@ async function run(): Promise<CommanderCommand> {
         settings: getInitialSettings(),
         tasks: {},
         agentNameRegistry: new Map(),
+        agentTypesInvokedThisSession: new Set(),
         verbose: verbose ?? getGlobalConfig().verbose ?? false,
         mainLoopModel: initialMainLoopModel,
         mainLoopModelForSession: null,
@@ -4133,6 +4206,7 @@ async function run(): Promise<CommanderCommand> {
           tools: [],
           commands: [],
           resources: {},
+          resourceTemplates: {},
           pluginReconnectKey: 0,
         },
         plugins: {

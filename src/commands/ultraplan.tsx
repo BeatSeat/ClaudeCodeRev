@@ -29,10 +29,10 @@ import {
   UltraplanPollError,
 } from '../utils/ultraplan/ccrSession.js'
 
-// Official 2.1.90: I8("tengu_ultraplan_timeout_seconds", 1800)*1000
+// Official 2.1.98: I8("tengu_ultraplan_timeout_seconds", 5400)*1000
 function getUltraplanTimeoutMs(): number {
   return (
-    getFeatureValue_CACHED_MAY_BE_STALE('tengu_ultraplan_timeout_seconds', 1800) *
+    getFeatureValue_CACHED_MAY_BE_STALE('tengu_ultraplan_timeout_seconds', 5400) *
     1000
   )
 }
@@ -457,6 +457,7 @@ async function launchDetached(opts: {
     logEvent('tengu_ultraplan_create_failed', {
       reason:
         'unexpected_error' as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
+      error_name: e instanceof Error ? e.name : undefined,
     })
     enqueuePendingNotification({
       value: `ultraplan: unexpected error — ${errorMessage(e)}`,

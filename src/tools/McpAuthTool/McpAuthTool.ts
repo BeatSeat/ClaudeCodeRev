@@ -9,6 +9,7 @@ import {
   buildMcpToolName,
   getMcpPrefix,
 } from '../../services/mcp/mcpStringUtils.js'
+import { mergeServerResourceMap } from '../../services/mcp/utils.js'
 import type {
   McpHTTPServerConfig,
   McpSSEServerConfig,
@@ -154,9 +155,16 @@ export function createMcpAuthTool(
                 ...reject(prev.mcp.commands, c => c.name?.startsWith(prefix)),
                 ...result.commands,
               ],
-              resources: result.resources
-                ? { ...prev.mcp.resources, [serverName]: result.resources }
-                : prev.mcp.resources,
+              resources: mergeServerResourceMap(
+                prev.mcp.resources,
+                serverName,
+                result.resources,
+              ),
+              resourceTemplates: mergeServerResourceMap(
+                prev.mcp.resourceTemplates,
+                serverName,
+                result.resourceTemplates,
+              ),
             },
           }))
           logMCPDebug(

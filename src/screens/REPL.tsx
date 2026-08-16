@@ -457,6 +457,8 @@ import {
   type ActiveSpeculationState,
 } from '../services/PromptSuggestion/speculation.js'
 import { IdeOnboardingDialog } from '../components/IdeOnboardingDialog.js'
+import { UltraplanChoiceDialog } from '../components/UltraplanChoiceDialog.js'
+import { UltraplanLaunchDialog } from '../components/UltraplanLaunchDialog.js'
 import {
   EffortCallout,
   shouldShowEffortCallout,

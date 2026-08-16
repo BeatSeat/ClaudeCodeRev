@@ -232,15 +232,8 @@ export const NotebookEditTool = buildTool({
         errorCode: 9,
       }
     }
-    if (getFileModificationTime(fullPath) > readTimestamp.timestamp) {
-      return {
-        result: false,
-        message:
-          'File has been modified since read, either by the user or by a linter. Read it again before attempting to write it.',
-        errorCode: 10,
-      }
-    }
 
+    // Official 2.1.98: Perforce (11) before the stale-mtime check (10).
     try {
       const fileStat = await getFsImplementation().stat(fullPath)
       if (isPerforceReadOnly(fileStat.mode)) {
@@ -252,6 +245,15 @@ export const NotebookEditTool = buildTool({
       }
     } catch {
       // Missing file is handled below.
+    }
+
+    if (getFileModificationTime(fullPath) > readTimestamp.timestamp) {
+      return {
+        result: false,
+        message:
+          'File has been modified since read, either by the user or by a linter. Read it again before attempting to write it.',
+        errorCode: 10,
+      }
     }
 
     let content: string

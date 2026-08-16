@@ -59,6 +59,7 @@ import {
   logEvent,
   type AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
 } from 'src/services/analytics/index.js'
+import { stringWidth } from '../ink/stringWidth.js'
 import { logOTelEvent } from './telemetry/events.js'
 import { ALLOWED_OFFICIAL_MARKETPLACE_NAMES } from './plugins/schemas.js'
 import {
@@ -4784,6 +4785,18 @@ export async function executeStatusLineCommand(
           logForDebugging(
             `StatusLine [${statusLine.command}] completed with status ${result.status}`,
           )
+          const lines = output.split('\n')
+          let visualWidth = 0
+          for (const line of lines) {
+            const width = stringWidth(line)
+            if (width > visualWidth) visualWidth = width
+          }
+          logEvent('tengu_status_line_result', {
+            char_length: output.length,
+            visual_width: visualWidth,
+            line_count: lines.length,
+            command_length: statusLine.command.length,
+          })
         }
         return output
       }
