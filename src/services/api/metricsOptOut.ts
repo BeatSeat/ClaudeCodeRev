@@ -6,7 +6,6 @@ import { errorMessage } from '../../utils/errors.js'
 import { getAuthHeaders, withOAuth401Retry } from '../../utils/http.js'
 import { logError } from '../../utils/log.js'
 import { memoizeWithTTLAsync } from '../../utils/memoize.js'
-import { isEssentialTrafficOnly } from '../../utils/privacyLevel.js'
 import { getClaudeCodeUserAgent } from '../../utils/userAgent.js'
 
 type MetricsEnabledResponse = {
@@ -51,13 +50,10 @@ async function _fetchMetricsEnabled(): Promise<MetricsEnabledResponse> {
 }
 
 async function _checkMetricsEnabledAPI(): Promise<MetricsStatus> {
-  // Incident kill switch: skip the network call when nonessential traffic is disabled.
-  // Returning enabled:false sheds load at the consumer (bigqueryExporter skips
-  // export). Matches the non-subscriber early-return shape below.
-  if (isEssentialTrafficOnly()) {
-    return { enabled: false, hasError: false }
-  }
-
+  // Official 2.1.105 yxz: do not early-return {enabled:false,hasError:false}
+  // for CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC. That shape was written into
+  // ~/.claude.json metricsStatusCache and permanently disabled metrics for
+  // every project on the machine.
   try {
     const data = await withOAuth401Retry(_fetchMetricsEnabled, {
       also403Revoked: true,

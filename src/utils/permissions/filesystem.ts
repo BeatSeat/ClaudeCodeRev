@@ -1446,9 +1446,18 @@ export function generateSuggestions(
   // everything is allowed; in acceptEdits it's a no-op. Suggesting it
   // anyway and having the SDK host apply it on "Always allow" silently
   // downgrades auto → acceptEdits, which then prompts for MCP/Bash.
+  // Official _x4: leaving plan must not suggest acceptEdits when prePlanMode
+  // was already a higher permission (auto / bypass / acceptEdits / dontAsk).
+  const leavingPlanWouldDowngrade =
+    toolPermissionContext.mode === 'plan' &&
+    (toolPermissionContext.prePlanMode === 'auto' ||
+      toolPermissionContext.prePlanMode === 'bypassPermissions' ||
+      toolPermissionContext.prePlanMode === 'acceptEdits' ||
+      toolPermissionContext.prePlanMode === 'dontAsk')
   const shouldSuggestAcceptEdits =
-    toolPermissionContext.mode === 'default' ||
-    toolPermissionContext.mode === 'plan'
+    (toolPermissionContext.mode === 'default' ||
+      toolPermissionContext.mode === 'plan') &&
+    !leavingPlanWouldDowngrade
 
   if (operationType === 'write' || operationType === 'create') {
     const updates: PermissionUpdate[] = shouldSuggestAcceptEdits

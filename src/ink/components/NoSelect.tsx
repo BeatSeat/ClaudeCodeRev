@@ -38,7 +38,11 @@ export function NoSelect({
   ...boxProps
 }: PropsWithChildren<Props>): React.ReactNode {
   return (
-    <Box {...boxProps} noSelect={fromLeftEdge ? 'from-left-edge' : true}>
+    <Box
+      {...boxProps}
+      alignSelf={fromLeftEdge ? 'stretch' : undefined}
+      noSelect={fromLeftEdge ? 'from-left-edge' : true}
+    >
       {children}
     </Box>
   )

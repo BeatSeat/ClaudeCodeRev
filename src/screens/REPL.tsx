@@ -307,6 +307,7 @@ import { mergeAndFilterTools } from '../utils/toolPool.js'
 import { useMergedCommands } from '../hooks/useMergedCommands.js'
 import { useSkillsChange } from '../hooks/useSkillsChange.js'
 import { useManagePlugins } from '../hooks/useManagePlugins.js'
+import { usePluginMonitors } from '../hooks/usePluginMonitors.js'
 import { Messages } from '../components/Messages.js'
 import { TaskListV2 } from '../components/TaskListV2.js'
 import { TeammateViewHeader } from '../components/TeammateViewHeader.js'
@@ -1171,6 +1172,7 @@ export function REPL({
 
   // Initialize plugin management
   useManagePlugins({ enabled: !isRemoteSession })
+  usePluginMonitors({ enabled: !isRemoteSession })
 
   const tasksV2 = useTasksV2WithCollapseEffect()
 

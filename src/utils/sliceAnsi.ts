@@ -23,6 +23,38 @@ function filterStartCodes(codes: AnsiCode[]): AnsiCode[] {
  * Unlike the slice-ansi package, this properly handles OSC 8 hyperlink
  * sequences because @alcalzone/ansi-tokenize tokenizes them correctly.
  */
+const OSC8_ST = '\x1b\\'
+const OSC8_BEL = '\x07'
+
+/**
+ * Official wL_: rewrite OSC 8 hyperlinks that end with ST (`ESC \`) to BEL
+ * so the tokenizer does not leak the ST bytes into copied bash output.
+ */
+function rewriteOsc8StToBel(str: string): string {
+  let out = ''
+  let i = 0
+  while (i < str.length) {
+    const start = str.indexOf('\x1b]8;', i)
+    if (start === -1) {
+      return out + str.slice(i)
+    }
+    out += str.slice(i, start)
+    const after = start + 4
+    const st = str.indexOf(OSC8_ST, after)
+    const bel = str.indexOf(OSC8_BEL, after)
+    if (st !== -1 && (bel === -1 || st < bel)) {
+      out += str.slice(start, st) + OSC8_BEL
+      i = st + OSC8_ST.length
+    } else if (bel !== -1) {
+      out += str.slice(start, bel + 1)
+      i = bel + 1
+    } else {
+      return out + str.slice(start)
+    }
+  }
+  return out
+}
+
 export default function sliceAnsi(
   str: string,
   start: number,
@@ -30,7 +62,7 @@ export default function sliceAnsi(
 ): string {
   // Don't pass `end` to tokenize — it counts code units, not display cells,
   // so it drops tokens early for text with zero-width combining marks.
-  const tokens = tokenize(str)
+  const tokens = tokenize(rewriteOsc8StToBel(str))
   let activeCodes: AnsiCode[] = []
   let position = 0
   let result = ''

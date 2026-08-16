@@ -794,6 +794,74 @@ export const LspServerConfigSchema = lazySchema(() =>
  * - Object: inline server configs { "serverName": {...} }
  * - Array: mix of strings and objects
  */
+/**
+ * Official rc5: one plugin background monitor.
+ * `when` defaults to "always" (arm at session start / plugin reload).
+ * "on-skill-invoke:<skill>" arms the first time that skill is dispatched.
+ */
+export const PluginMonitorSchema = lazySchema(() =>
+  z.strictObject({
+    name: z
+      .string()
+      .min(1)
+      .describe(
+        'Identifier for this monitor, unique within the plugin. Used to dedupe so re-arming (plugin reload, repeat skill invoke) does not spawn duplicates.',
+      ),
+    command: z
+      .string()
+      .min(1)
+      .describe(
+        'Shell command to run as a persistent background monitor. Each stdout line is delivered to the model as a <task_notification> event; the process runs for the session lifetime. ${CLAUDE_PLUGIN_ROOT}, ${CLAUDE_PLUGIN_DATA}, ${user_config.*}, and ${ENV_VAR} are substituted. Runs in the session cwd — prefix with `cd "${CLAUDE_PLUGIN_ROOT}" && ` if the script needs its own directory.',
+      ),
+    description: z
+      .string()
+      .min(1)
+      .describe(
+        'Short human-readable description of what is being monitored (shown in task panel and notification summary).',
+      ),
+    when: z
+      .union([
+        z.literal('always'),
+        z
+          .string()
+          .startsWith('on-skill-invoke:')
+          .refine(value => value.length > 16, {
+            message: 'on-skill-invoke: must specify a skill name',
+          }),
+      ])
+      .default('always')
+      .describe(
+        'Arm trigger. "always" arms at session start and on plugin reload. "on-skill-invoke:<skill>" arms the first time that skill is dispatched (via Skill tool or slash command).',
+      ),
+  }),
+)
+
+export const PluginMonitorsArraySchema = lazySchema(() =>
+  z.array(PluginMonitorSchema()).refine(
+    monitors => new Set(monitors.map(m => m.name)).size === monitors.length,
+    { message: 'Monitor names must be unique within a plugin' },
+  ),
+)
+
+const PluginManifestMonitorsSchema = lazySchema(() =>
+  z.object({
+    monitors: z
+      .union([
+        RelativeJSONPath().describe(
+          'Path to a JSON file containing the monitors array, relative to the plugin root',
+        ),
+        PluginMonitorsArraySchema(),
+      ])
+      .describe(
+        'Background watch scripts the host arms as persistent Monitor tasks (unsandboxed, same trust tier as hooks) so plugins need not instruct the model to arm them. When omitted, monitors/monitors.json at the plugin root is loaded if present.',
+      ),
+  }),
+)
+
+export type PluginMonitorDefinition = z.infer<
+  ReturnType<typeof PluginMonitorSchema>
+>
+
 const PluginManifestLspServerSchema = lazySchema(() =>
   z.object({
     lspServers: z.union([
@@ -892,6 +960,7 @@ export const PluginManifestSchema = lazySchema(() =>
     ...PluginManifestChannelsSchema().partial().shape,
     ...PluginManifestMcpServerSchema().partial().shape,
     ...PluginManifestLspServerSchema().partial().shape,
+    ...PluginManifestMonitorsSchema().partial().shape,
     ...PluginManifestSettingsSchema().partial().shape,
     ...PluginManifestUserConfigSchema().partial().shape,
   }),

@@ -137,11 +137,28 @@ export async function fetchOfficialMarketplaceFromGcs(
     }
     await writeFile(join(staging, '.gcs-sha'), sha)
 
-    // Atomic swap: rm old, rename staging. Brief window where installLocation
-    // doesn't exist — acceptable for a background refresh (caller retries next
-    // startup if it crashes here).
-    await rm(installLocation, { recursive: true, force: true })
-    await rename(staging, installLocation)
+    // Official 2.1.105: rename current → .backup, staging → current, roll
+    // back if the second rename fails. Avoids EBUSY from rm-while-open.
+    const backup = `${installLocation}.backup`
+    await rm(backup, { recursive: true, force: true }).catch(() => {})
+    let movedCurrent = false
+    try {
+      await rename(installLocation, backup)
+      movedCurrent = true
+    } catch (e) {
+      if (getErrnoCode(e) !== 'ENOENT') {
+        throw e
+      }
+    }
+    try {
+      await rename(staging, installLocation)
+    } catch (e) {
+      if (movedCurrent) {
+        await rename(backup, installLocation).catch(() => {})
+      }
+      throw e
+    }
+    await rm(backup, { recursive: true, force: true }).catch(() => {})
 
     outcome = 'updated'
     return sha

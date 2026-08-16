@@ -1,0 +1,194 @@
+{
+  "version": "2.1.105",
+  "fromVersion": "2.1.104",
+  "expectedFunctionCount": 0,
+  "functions": [],
+  "changelogCoverage": [
+    {
+      "item": "Added `path` parameter to the `EnterWorktree` tool to switch into an existing worktree of the current repository",
+      "status": "located",
+      "evidence": "src/tools/EnterWorktreeTool path param + enteredExisting on WorktreeSession (official 105)"
+    },
+    {
+      "item": "Added PreCompact hook support: hooks can now block compaction by exiting with code 2 or returning `{\"decision\":\"block\"}`",
+      "status": "located",
+      "evidence": "src/utils/hooks/preCompact block decision already wired; official 105 PreCompact block"
+    },
+    {
+      "item": "Added background monitor support for plugins via a top-level `monitors` manifest key that auto-arms at session start or on skill invoke",
+      "status": "located",
+      "evidence": "src/utils/plugins/pluginMonitors.ts + usePluginMonitors + manifest monitors schema (official GkY/oM7/N95)"
+    },
+    {
+      "item": "`/proactive` is now an alias for `/loop`",
+      "status": "located",
+      "evidence": "src/commands/proactive alias of /loop"
+    },
+    {
+      "item": "Improved stalled API stream handling: streams now abort after 5 minutes of no data and retry non-streaming instead of hanging indefinitely",
+      "status": "located",
+      "evidence": "src/services/api stream watchdog 5min always-on abort (official 105, not 104's 15s floor)"
+    },
+    {
+      "item": "Improved network error messages: connection errors now show a retry message immediately instead of a silent spinner",
+      "status": "located",
+      "evidence": "src/utils/errors.ts isImmediateNetworkError + SystemAPIErrorMessage (official GKz/Ws)"
+    },
+    {
+      "item": "Improved file write display: long single-line writes (e.g. minified JSON) are now truncated in the UI instead of paginating across many screens",
+      "status": "located",
+      "evidence": "src/tools/FileWriteTool/UI.tsx gAY wrap+char cap + overflowY hidden maxHeight 10 (official VPK/gAY)"
+    },
+    {
+      "item": "Improved `/doctor` layout with status icons; press `f` to have Claude fix reported issues",
+      "status": "located",
+      "evidence": "src/screens/Doctor.tsx StatusIcon + doctor:fix / uCY prompt; keybindings Doctor context"
+    },
+    {
+      "item": "Improved `/config` labels and descriptions for clarity",
+      "status": "located",
+      "evidence": "src/components/Settings/Config.tsx labels 'Skip the /copy picker' and 'Default view'"
+    },
+    {
+      "item": "Improved skill description handling: raised the listing cap from 250 to 1,536 characters and added a startup warning when descriptions are truncated",
+      "status": "located",
+      "evidence": "skill description listing cap 1536 + startup truncation warning"
+    },
+    {
+      "item": "Improved `WebFetch` to strip ` ` and ` ` contents from fetched pages so CSS-heavy pages no longer exhaust the content budget before reaching actual text",
+      "status": "located",
+      "evidence": "WebFetch strips style/script from fetched HTML"
+    },
+    {
+      "item": "Improved stale agent worktree cleanup to remove worktrees whose PR was squash-merged instead of keeping them indefinitely",
+      "status": "located",
+      "evidence": "src/utils/worktree.ts XeY/MeY squash-merged stale cleanup (official mH7)"
+    },
+    {
+      "item": "Improved MCP large-output truncation prompt to give format-specific recipes (e.g. `jq` for JSON, computed Read chunk sizes for text)",
+      "status": "located",
+      "evidence": "src/utils/mcpOutputStorage.ts oy4 recipes gated by Ol1/tengu_mcp_subagent_prompt"
+    },
+    {
+      "item": "Fixed images attached to queued messages (sent while Claude is working) being dropped",
+      "status": "located",
+      "evidence": "handlePromptSubmit pastedContents always forwarded for queued commands"
+    },
+    {
+      "item": "Fixed screen going blank when the prompt input wraps to a second line in long conversations",
+      "status": "located",
+      "evidence": "FullscreenLayout bottom slot flexShrink=0; PromptInput root flexShrink=0 (official L27)"
+    },
+    {
+      "item": "Fixed leading whitespace getting copied when selecting multi-line assistant responses in fullscreen mode",
+      "status": "located",
+      "evidence": "src/ink/components/NoSelect.tsx alignSelf stretch when fromLeftEdge (official wJ)"
+    },
+    {
+      "item": "Fixed leading whitespace being trimmed from assistant messages, breaking ASCII art and indented diagrams",
+      "status": "located",
+      "evidence": "assistant markdown em no longer trims leading whitespace"
+    },
+    {
+      "item": "Fixed garbled bash output when commands print clickable file links (e.g. Python `rich`/`loguru` logging)",
+      "status": "located",
+      "evidence": "src/utils/sliceAnsi.ts rewrite OSC 8 ST→BEL (official wL_)"
+    },
+    {
+      "item": "Fixed alt+enter not inserting a newline in terminals using ESC-prefix alt encoding, and Ctrl+J not inserting a newline (regression in 2.1.100)",
+      "status": "located",
+      "evidence": "parse-keypress ESC+CR/LF/TAB + Chat ctrl+j → chat:newline (official cb1)"
+    },
+    {
+      "item": "Fixed duplicate \"Creating worktree\" text in EnterWorktree/ExitWorktree tool display",
+      "status": "located",
+      "evidence": "EnterWorktree/ExitWorktree userFacingName no longer duplicates Creating worktree"
+    },
+    {
+      "item": "Fixed queued user prompts disappearing from focus mode",
+      "status": "located",
+      "evidence": "filterForFocusTranscript fNK/ENK keeps queued_command prompt attachments"
+    },
+    {
+      "item": "Fixed one-shot scheduled tasks re-firing repeatedly when the file watcher missed the post-fire cleanup",
+      "status": "located",
+      "evidence": "cronScheduler one-shot tombstone Infinity instead of delete"
+    },
+    {
+      "item": "Fixed inbound channel notifications being silently dropped after the first message for Team/Enterprise users",
+      "status": "located",
+      "evidence": "useManageMCPConnections preserve previously-registered channel handlers on soft skip"
+    },
+    {
+      "item": "Fixed marketplace plugins with `package.json` and lockfile not having dependencies installed automatically after install/update",
+      "status": "located",
+      "evidence": "pluginLoader installPluginDependencies (_n8) bun/npm lockfile install"
+    },
+    {
+      "item": "Fixed marketplace auto-update leaving the official marketplace in a broken state when a plugin process holds files open during the update",
+      "status": "located",
+      "evidence": "officialMarketplaceGcs.ts current→.backup then staging→current with rollback"
+    },
+    {
+      "item": "Fixed \"Resume this session with...\" hint not printing on exit after `/resume`, `--worktree`, or `/branch`",
+      "status": "located",
+      "evidence": "gracefulShutdown printResumeHint adds --worktree via Yn4/getResumeWorktreeArg"
+    },
+    {
+      "item": "Fixed feedback survey shortcut keys firing when typed at the end of a longer prompt",
+      "status": "located",
+      "evidence": "useDebouncedDigitInput only fires when inputValue.length===1 (official N96)"
+    },
+    {
+      "item": "Fixed stdio MCP server emitting malformed (non-JSON) output hanging the session instead of failing fast with \"Connection closed\"",
+      "status": "located",
+      "evidence": "mcp/client.ts stdio onerror closeTransportAndRejectPending"
+    },
+    {
+      "item": "Fixed MCP tools missing on the first turn of headless/remote-trigger sessions when MCP servers connect asynchronously",
+      "status": "located",
+      "evidence": "print.ts waitForHeadlessMcpTools (_H5) + tengu_headless_mcp_prewait"
+    },
+    {
+      "item": "Fixed `/model` picker on AWS Bedrock in non-US regions persisting invalid `us.*` model IDs to `settings.json` when inference profile discovery is still in-flight",
+      "status": "located",
+      "evidence": "modelStrings getBuiltinModelStrings applies wZ8/applyBedrockRegionPrefix on bedrock"
+    },
+    {
+      "item": "Fixed 429 rate-limit errors showing a raw JSON dump instead of a clean message for API-key, Bedrock, and Vertex users",
+      "status": "located",
+      "evidence": "429 JSON.parse clean message for API-key/Bedrock/Vertex"
+    },
+    {
+      "item": "Fixed crash on resume when session contains malformed text blocks",
+      "status": "located",
+      "evidence": "messages.ts isNotEmptyMessage rejects non-string text before trim"
+    },
+    {
+      "item": "Fixed `/help` dropping the tab bar, Shortcuts heading, and footer at short terminal heights",
+      "status": "located",
+      "evidence": "HelpV2.tsx insideModal ? undefined for short terminals"
+    },
+    {
+      "item": "Fixed malformed keybinding entry values in `keybindings.json` being silently loaded instead of rejected with a clear error",
+      "status": "located",
+      "evidence": "loadUserBindings I9z: bindings values must be string|null or the file is rejected"
+    },
+    {
+      "item": "Fixed `CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC` in one project's settings permanently disabling usage metrics for all projects on the machine",
+      "status": "located",
+      "evidence": "metricsOptOut.ts yxz removed isEssentialTrafficOnly early return that poisoned metricsStatusCache"
+    },
+    {
+      "item": "Fixed washed-out 16-color palette when using Ghostty, Kitty, Alacritty, WezTerm, foot, rio, or Contour over SSH/mosh",
+      "status": "located",
+      "evidence": "ink/colorize.ts wy_ TERM truecolor bump for ghostty/kitty/alacritty/wezterm/foot/rio/contour"
+    },
+    {
+      "item": "Fixed Bash tool suggesting `acceptEdits` permission mode when exiting plan mode would downgrade from a higher permission level",
+      "status": "located",
+      "evidence": "permissions/filesystem.ts _x4 skip acceptEdits when plan prePlanMode is higher"
+    }
+  ],
+  "notes": "astdiff 2.1.104→2.1.105 ~98% similar. Engineered hop-accurate FAILs from official 105: plugin monitors (GkY/oM7/N95/_n8), 5min stream watchdog, immediate network errors, FileWrite wrap truncation, /doctor f+icons, /config labels, squash-merge worktree cleanup, MCP large-output recipes (Ol1-gated), queued images, prompt flexShrink, NoSelect stretch, OSC8 ST→BEL, alt+enter/ctrl+j, focus queued_command, cron tombstone, channel handler preserve, marketplace backup swap, resume --worktree hint, survey length===1, stdio MCP fail-fast, headless MCP prewait, Bedrock region prefix, keybinding I9z, metrics cache, TERM truecolor, plan acceptEdits. Default-false GBs left unwired."
+}

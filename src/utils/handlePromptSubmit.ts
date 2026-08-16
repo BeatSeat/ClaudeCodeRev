@@ -479,7 +479,7 @@ async function executeUserInput(params: ExecuteUserInputParams): Promise<void> {
           mode: cmd.mode,
           setToolJSX,
           context: makeContext(),
-          pastedContents: isFirst ? cmd.pastedContents : undefined,
+          pastedContents: cmd.pastedContents,
           messages,
           setUserInputOnProcessing: isFirst
             ? setUserInputOnProcessing

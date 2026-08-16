@@ -5,6 +5,7 @@ import type {
   CommandMetadata,
   PluginAuthor,
   PluginManifest,
+  PluginMonitorDefinition,
 } from '../utils/plugins/schemas.js'
 import type { HooksSettings } from '../utils/settings/types.js'
 
@@ -66,6 +67,8 @@ export type LoadedPlugin = {
   hooksConfig?: HooksSettings
   mcpServers?: Record<string, McpServerConfig>
   lspServers?: Record<string, LspServerConfig>
+  /** Official GkY — background monitors from manifest.monitors or monitors/monitors.json */
+  monitors?: PluginMonitorDefinition[]
   settings?: Record<string, unknown>
 }
 
@@ -75,6 +78,7 @@ export type PluginComponent =
   | 'skills'
   | 'hooks'
   | 'output-styles'
+  | 'monitors'
 
 /**
  * Discriminated union of plugin error types.
@@ -101,6 +105,13 @@ export type PluginComponent =
 export type PluginError =
   | {
       type: 'path-not-found'
+      source: string
+      plugin?: string
+      path: string
+      component: PluginComponent
+    }
+  | {
+      type: 'path-traversal'
       source: string
       plugin?: string
       path: string
@@ -298,6 +309,8 @@ export function getPluginErrorMessage(error: PluginError): string {
       return error.error
     case 'path-not-found':
       return `Path not found: ${error.path} (${error.component})`
+    case 'path-traversal':
+      return `Path escapes plugin directory: ${error.path} (${error.component})`
     case 'git-auth-failed':
       return `Git authentication failed (${error.authType}): ${error.gitUrl}`
     case 'git-timeout':

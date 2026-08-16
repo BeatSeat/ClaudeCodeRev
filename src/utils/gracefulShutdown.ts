@@ -41,6 +41,7 @@ import { logForDebugging } from './debug.js'
 import { logForDiagnosticsNoPII } from './diagLogs.js'
 import { isEnvTruthy } from './envUtils.js'
 import { getCurrentSessionTitle, sessionIdExists } from './sessionStorage.js'
+import { getResumeWorktreeArg } from './worktree.js'
 import { sleep } from './sleep.js'
 import { profileReport } from './startupProfiler.js'
 
@@ -170,10 +171,12 @@ function printResumeHint(): void {
         resumeArg = sessionId
       }
 
+      const worktree = getResumeWorktreeArg()
+      const worktreeFlag = worktree ? `--worktree ${worktree} ` : ''
       writeSync(
         1,
         chalk.dim(
-          `\nResume this session with:\nclaude --resume ${resumeArg}\n`,
+          `\nResume this session with:\nclaude ${worktreeFlag}--resume ${resumeArg}\n`,
         ),
       )
       resumeHintPrinted = true
