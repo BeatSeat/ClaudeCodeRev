@@ -1,0 +1,102 @@
+{
+  "v94": {
+    "Oh": {
+      "start": 3493305,
+      "code": "function Oh(){return MK()===\"pro\"}function hU(){let q=awq();if(q!==null)return q;if(!FJ())return null;let K=s7();if(!K)return null;return K.rateLimitTier??null}function IG8(){switch(MK()){case\"enterprise\":return\"Claude Enterprise\";case\"team\":return\"Claude Team\";case\"max\":return\"Claude Max\";case\"pro\":return\"Claude Pro\";default:return\"Claude API\"}}function I76(){return!!(p6(process.env.CLAUDE_CODE_USE_BEDROCK)||p6(process.env.CLAUDE_CODE_USE_VERTEX)||p6(process.env.CLAUDE_CODE_USE_FOUNDRY)||p6(pro"
+    },
+    "Yh": {
+      "start": 3493125,
+      "code": "function Yh(){return MK()===\"max\"}function kE1(){return MK()===\"team\"}function S16(){return MK()===\"team\"&&hU()===\"default_claude_max_5x\"}function LT6(){return MK()===\"enterprise\"}function Oh(){return MK()===\"pro\"}function hU(){let q=awq();if(q!==null)return q;if(!FJ())return null;let K=s7();if(!K)return null;return K.rateLimitTier??null}function IG8(){switch(MK()){case\"enterprise\":return\"Claude Enterprise\";case\"team\":return\"Claude Team\";case\"max\":return\"Claude Max\";case\"pro\":return\"Claude Pro\";"
+    },
+    "ho": {
+      "start": 4424188,
+      "code": "function ho(){return C8(\"tengu_turtle_carbon\",!0)}function VY4(q){return/\\bultrathink\\b/i.test(q)}function dN8(q){let K=[],_=q.matchAll(/\\bultrathink\\b/gi);for(let z of _)if(z.index!==void 0)K.push({word:z[0],start:z.index,end:z.index+z[0].length});return K}function $0(q,K=!1){let _=K?uB_:IB_;return _[q%_.length]}function NY4(q){let K=L76(q,\"thinking\");if(K!==void 0)return K;let _=yz(q);if(ru(IJ(q)))return!_.includes(\"claude-3-\");return _.includes(\"sonnet-4\")||_.includes(\"opus-4\")}function cN8(q"
+    },
+    "Ch": {
+      "start": 4425433,
+      "code": "function Ch(q){let K=q.toLowerCase();if(p6(process.env.CLAUDE_CODE_ALWAYS_ENABLE_EFFORT))return!0;let _=L76(q,\"effort\");if(_!==void 0)return _;if(K.includes(\"opus-4-6\")||K.includes(\"sonnet-4-6\"))return!0;if(K.includes(\"haiku\")||K.includes(\"sonnet\")||K.includes(\"opus\"))return!1;return ru(IJ(q))}function ro6(q){let K=L76(q,\"max_effort\");if(K!==void 0)return K;if(q.toLowerCase().includes(\"opus-4-6\"))return!0;return!1}function lN8(q){return Sh.includes(q)}function Rb(q){if(q===void 0||q===null||q==="
+    },
+    "oo6": {
+      "start": 4427373,
+      "code": "function oo6(){let q=C8(\"tengu_grey_step2\",EY4);return{...EY4,...q}}function ao6(q){if(q.toLowerCase().includes(\"opus-4-6\")){if(Oh())return\"medium\";if(oo6().enabled&&Yh())return\"medium\"}if(ho()&&Ch(q)&&(Oh()||Yh()))return\"medium\";return}var Sh,EY4;var Of=L(()=>{fy();o1();W7();r1();$_();XG8();p8();Sh=[\"low\",\"medium\",\"high\",\"max\"];EY4={enabled:!0,dialogTitle:\"We recommend medium effort for Opus\",dialogDescription:\"Effort determines how long Claude thinks for when completing your task. We recommend"
+    },
+    "ao6": {
+      "start": 4427441,
+      "code": "function ao6(q){if(q.toLowerCase().includes(\"opus-4-6\")){if(Oh())return\"medium\";if(oo6().enabled&&Yh())return\"medium\"}if(ho()&&Ch(q)&&(Oh()||Yh()))return\"medium\";return}var Sh,EY4;var Of=L(()=>{fy();o1();W7();r1();$_();XG8();p8();Sh=[\"low\",\"medium\",\"high\",\"max\"];EY4={enabled:!0,dialogTitle:\"We recommend medium effort for Opus\",dialogDescription:\"Effort determines how long Claude thinks for when completing your task. We recommend medium effort for most tasks to balance speed and intelligence and "
+    }
+  },
+  "v92": {
+    "_C": {
+      "start": 3498267,
+      "code": "function _C(){return HK()===\"pro\"}function YU(){let q=E$q();if(q!==null)return q;if(!CJ())return null;let K=s7();if(!K)return null;return K.rateLimitTier??null}function P08(){switch(HK()){case\"enterprise\":return\"Claude Enterprise\";case\"team\":return\"Claude Team\";case\"max\":return\"Claude Max\";case\"pro\":return\"Claude Pro\";default:return\"Claude API\"}}function $76(){return!!(U6(process.env.CLAUDE_CODE_USE_BEDROCK)||U6(process.env.CLAUDE_CODE_USE_VERTEX)||U6(process.env.CLAUDE_CODE_USE_FOUNDRY)||U6(pro"
+    },
+    "KC": {
+      "start": 3498087,
+      "code": "function KC(){return HK()===\"max\"}function yA6(){return HK()===\"team\"}function Y16(){return HK()===\"team\"&&YU()===\"default_claude_max_5x\"}function uv6(){return HK()===\"enterprise\"}function _C(){return HK()===\"pro\"}function YU(){let q=E$q();if(q!==null)return q;if(!CJ())return null;let K=s7();if(!K)return null;return K.rateLimitTier??null}function P08(){switch(HK()){case\"enterprise\":return\"Claude Enterprise\";case\"team\":return\"Claude Team\";case\"max\":return\"Claude Max\";case\"pro\":return\"Claude Pro\";"
+    },
+    "yA6": {
+      "start": 3498121,
+      "code": "function yA6(){return HK()===\"team\"}function Y16(){return HK()===\"team\"&&YU()===\"default_claude_max_5x\"}function uv6(){return HK()===\"enterprise\"}function _C(){return HK()===\"pro\"}function YU(){let q=E$q();if(q!==null)return q;if(!CJ())return null;let K=s7();if(!K)return null;return K.rateLimitTier??null}function P08(){switch(HK()){case\"enterprise\":return\"Claude Enterprise\";case\"team\":return\"Claude Team\";case\"max\":return\"Claude Max\";case\"pro\":return\"Claude Pro\";default:return\"Claude API\"}}functi"
+    },
+    "jo": {
+      "start": 4427973,
+      "code": "function jo(){return S8(\"tengu_turtle_carbon\",!0)}function uz4(q){return/\\bultrathink\\b/i.test(q)}function TV8(q){let K=[],_=q.matchAll(/\\bultrathink\\b/gi);for(let z of _)if(z.index!==void 0)K.push({word:z[0],start:z.index,end:z.index+z[0].length});return K}function UZ(q,K=!1){let _=K?tp_:sp_;return _[q%_.length]}function mz4(q){let K=K76(q,\"thinking\");if(K!==void 0)return K;let _=HY(q),z=Jq();if(z===\"foundry\"||z===\"firstParty\"||z===\"anthropicAws\")return!_.includes(\"claude-3-\");return _.includes"
+    },
+    "tL": {
+      "start": 4429321,
+      "code": "function tL(q){let K=q.toLowerCase();if(U6(process.env.CLAUDE_CODE_ALWAYS_ENABLE_EFFORT))return!0;let _=K76(q,\"effort\");if(_!==void 0)return _;if(K.includes(\"opus-4-6\")||K.includes(\"sonnet-4-6\"))return!0;if(K.includes(\"haiku\")||K.includes(\"sonnet\")||K.includes(\"opus\"))return!1;return K2()}function ir6(q){let K=K76(q,\"max_effort\");if(K!==void 0)return K;if(q.toLowerCase().includes(\"opus-4-6\"))return!0;return!1}function VV8(q){return sL.includes(q)}function eC(q){if(q===void 0||q===null||q===\"\")re"
+    },
+    "or6": {
+      "start": 4431324,
+      "code": "function or6(q){if(q.toLowerCase().includes(\"opus-4-6\")){if(_C())return\"medium\";if(rr6().enabled&&(KC()||yA6()))return\"medium\"}if(jo()&&tL(q))return\"medium\";return}var sL,Bz4;var pD=L(()=>{cN();r1();T7();s1();K_();iZ8();g8();sL=[\"low\",\"medium\",\"high\",\"max\"];Bz4={enabled:!0,dialogTitle:\"We recommend medium effort for Opus\",dialogDescription:\"Effort determines how long Claude thinks for when completing your task. We recommend medium effort for most tasks to balance speed and intelligence and maxim"
+    },
+    "rr6": {
+      "start": 4431256,
+      "code": "function rr6(){let q=S8(\"tengu_grey_step2\",Bz4);return{...Bz4,...q}}function or6(q){if(q.toLowerCase().includes(\"opus-4-6\")){if(_C())return\"medium\";if(rr6().enabled&&(KC()||yA6()))return\"medium\"}if(jo()&&tL(q))return\"medium\";return}var sL,Bz4;var pD=L(()=>{cN();r1();T7();s1();K_();iZ8();g8();sL=[\"low\",\"medium\",\"high\",\"max\"];Bz4={enabled:!0,dialogTitle:\"We recommend medium effort for Opus\",dialogDescription:\"Effort determines how long Claude thinks for when completing your task. We recommend medi"
+    }
+  },
+  "AnthropicBedrockMantle_uses": [
+    {
+      "index": 2551769,
+      "snippet": "ecretAccessKey:this.awsSecretAccessKey,awsSessionToken:this.awsSessionToken,awsProfile:this.awsProfile,providerChainResolver:this.providerChainResolver});q.headers=wc6([Y,q.headers]).values}}});var jc6={};Z8(jc6,{default:()=>B01,BaseAnthropic:()=>sz,AnthropicBedrockMantle:()=>F01,AnthropicBedrock:()=>B01});var Hc6=L(()=>{g01();H0q();g01()});var aD8=L(()=>{WD()});var U01=(q)=>(U01=Array.isArray,U01(q)),Q01;var sD8=L(()=>{aD8();Q01=U01});function*am9(q){if(!q)return;if(J0q in q){let{values:z,nulls:Y}=q;yield*z.entries();for(let O of Y)yield[O,null];return}let K=!1,_;if(q instanceof Headers)_=q.e"
+    },
+    {
+      "index": 3439425,
+      "snippet": "!process.env.ANTHROPIC_AWS_API_KEY&&!p6(process.env.CLAUDE_CODE_SKIP_ANTHROPIC_AWS_AUTH)){let G=await kC();if(G)f.awsAccessKey=G.accessKeyId,f.awsSecretAccessKey=G.secretAccessKey,f.awsSessionToken=G.sessionToken}return new D(f)}if(P===\"mantle\"){let{AnthropicBedrockMantle:D}=await Promise.resolve().then(() => (Hc6(),jc6)),f=p6(process.env.CLAUDE_CODE_SKIP_MANTLE_AUTH),G=!process.env.AWS_BEARER_TOKEN_BEDROCK&&!f?await kC():null;return new D({...X,awsRegion:WS(),...f&&{skipAuth:!0},...G&&{awsAccessKey:G.accessKeyId,awsSecretAccessKey:G.secretAccessKey,awsSessionToken:G.sessionToken},...TS()&&{lo"
+    }
+  ],
+  "cq": "function cq(){return p6(process.env.CLAUDE_CODE_USE_BEDROCK)?\"bedrock\":p6(process.env.CLAUDE_CODE_USE_FOUNDRY)?\"foundry\":p6(process.env.CLAUDE_CODE_USE_ANTHROPIC_AWS)?\"anthropicAws\":p6(process.env.CLAUDE_CODE_USE_MANTLE)?\"mantle\":p6(process.env.CLAUDE_CODE_USE_VERTEX)?\"vertex\":\"firstParty\"}function gi(){return cq()}function OW8(){if(cq()===\"bedrock\"&&p6(process.env.CLAUDE_CODE_USE_MANTLE))return\"mantle\";return null}function ID9(q){return q.startsWith(\"anthropic.\")&&!/-v\\d+(:\\d+)?$/.test(q)}function IJ(q){if(q){let K=OW8();if(K){if(K===\"mantle\"&&ID9(q))return K;let _=cq(),z=dwq(q);if(z&&z[_]===null&&z[K]!==null)return K}}return cq()}function M2(q=cq()){return q===\"firstParty\"||q===\"anthropicAws\"}function ru(q=cq()){return q===\"firstParty\"||q===\"anthropicAws\"||q===\"foundry\"||q===\"mantle\"}fun",
+  "IJ": "function IJ(q){if(q){let K=OW8();if(K){if(K===\"mantle\"&&ID9(q))return K;let _=cq(),z=dwq(q);if(z&&z[_]===null&&z[K]!==null)return K}}return cq()}function M2(q=cq()){return q===\"firstParty\"||q===\"anthropicAws\"}function ru(q=cq()){return q===\"firstParty\"||q===\"anthropicAws\"||q===\"foundry\"||q===\"mantle\"}function VM(){let q=process.env.ANTHROPIC_BASE_URL;if(!q)return!0;try{let K=new URL(q).host;return[\"api.anthropic.com\"].includes(K)}catch{return!1}}var $_=L(()=>{p8();MG6()});function AW8(q){let K=AD1.find((z)=>kM[z][q]!==null),_={};for(let z of AD1)_[z]=kM[z][q]??(K?kM[K][q]:kM[z].firstParty);return _}async function uD9(){let q=AW8(\"bedrock\"),K;try{K=await Td6()}catch(z){return j6(z),q}if(!K?.length)return q;let _={};for(let z of AD1){let Y=kM[z].firstParty;_[z]=dF(K,Y)||q[z]}return _}function cwq(q){let K=f7().modelOverrides;if(!K)return q;let _={...q};for(let[z,Y]of Object.entries(K)){let O=Qwq[z];if(O&&Y)_[O]=Y}return _}function $W8(q){let K;try{K=f7().modelOverrides}catch{return q}if(!K)return q;for(let[_,z]of Object.entries(K))if(z===q)return _;return q}function mD9(){if(yW6()!==null)return;if(cq()!==\"bedrock\"){bu6(AW8(cq()));return}lwq()}function U2(){let q=yW6();if(q===null)ret",
+  "skip_mantle": [
+    {
+      "index": 3439516,
+      "snippet": "6()}};if(!process.env.ANTHROPIC_AWS_API_KEY&&!p6(process.env.CLAUDE_CODE_SKIP_ANTHROPIC_AWS_AUTH)){let G=await kC();if(G)f.awsAccessKey=G.accessKeyId,f.awsSecretAccessKey=G.secretAccessKey,f.awsSessionToken=G.sessionToken}return new D(f)}if(P===\"mantle\"){let{AnthropicBedrockMantle:D}=await Promise.resolve().then(() => (Hc6(),jc6)),f=p6(process.env.CLAUDE_CODE_SKIP_MANTLE_AUTH),G=!process.env.AWS_BEARER_TOKEN_BEDROCK&&!f?await kC():null;return new D({...X,awsRegion:WS(),...f&&{skipAuth:!0},...G&&{awsAccessKey:G.accessKeyId,awsSecretAccessKey:G.secretAccessKey,awsSessionToken:G.sessionToken},...TS()&&{logger:MT6()}})}if(P==="
+    },
+    {
+      "index": 7036468,
+      "snippet": "_WORKSPACE_ID\",\"CLOUD_ML_REGION\",\"ANTHROPIC_API_KEY\",\"ANTHROPIC_AUTH_TOKEN\",\"CLAUDE_CODE_OAUTH_TOKEN\",\"AWS_BEARER_TOKEN_BEDROCK\",\"ANTHROPIC_FOUNDRY_API_KEY\",\"ANTHROPIC_AWS_API_KEY\",\"ANTHROPIC_BEDROCK_MANTLE_API_KEY\",\"CLAUDE_CODE_SKIP_BEDROCK_AUTH\",\"CLAUDE_CODE_SKIP_VERTEX_AUTH\",\"CLAUDE_CODE_SKIP_FOUNDRY_AUTH\",\"CLAUDE_CODE_SKIP_ANTHROPIC_AWS_AUTH\",\"CLAUDE_CODE_SKIP_MANTLE_AUTH\",\"ANTHROPIC_MODEL\",\"ANTHROPIC_DEFAULT_HAIKU_MODEL\",\"ANTHROPIC_DEFAULT_HAIKU_MODEL_DESCRIPTION\",\"ANTHROPIC_DEFAULT_HAIKU_MODEL_NAME\",\"ANTHROPIC_DEFAULT_HAIKU_MODEL_SUPPORTED_CAPABILITIES\",\"ANTHROPIC_DEFAULT_OPUS_MODEL\",\"ANTHROPIC_DEFAULT_OPUS_MODEL_DES"
+    },
+    {
+      "index": 7038611,
+      "snippet": "_DISABLE_EXPERIMENTAL_BETAS\",\"CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC\",\"CLAUDE_CODE_DISABLE_TERMINAL_TITLE\",\"CLAUDE_CODE_ENABLE_TELEMETRY\",\"CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS\",\"CLAUDE_CODE_IDE_SKIP_AUTO_INSTALL\",\"CLAUDE_CODE_MAX_OUTPUT_TOKENS\",\"CLAUDE_CODE_SKIP_BEDROCK_AUTH\",\"CLAUDE_CODE_SKIP_FOUNDRY_AUTH\",\"CLAUDE_CODE_SKIP_ANTHROPIC_AWS_AUTH\",\"CLAUDE_CODE_SKIP_MANTLE_AUTH\",\"CLAUDE_CODE_SKIP_VERTEX_AUTH\",\"CLAUDE_CODE_SUBAGENT_MODEL\",\"CLAUDE_CODE_USE_BEDROCK\",\"CLAUDE_CODE_USE_FOUNDRY\",\"CLAUDE_CODE_USE_ANTHROPIC_AWS\",\"CLAUDE_CODE_USE_MANTLE\",\"CLAUDE_CODE_USE_VERTEX\",\"DISABLE_AUTOUPDATER\",\"DISABLE_BUG_COMMAND\",\"DISABLE_COS"
+    },
+    {
+      "index": 7921701,
+      "snippet": "gion\",value:WS()}),p6(process.env.CLAUDE_CODE_SKIP_ANTHROPIC_AWS_AUTH))K.push({value:\"Claude Platform on AWS auth skipped\"})}if(q===\"mantle\"||OW8()===\"mantle\"){let O=process.env.ANTHROPIC_BEDROCK_MANTLE_BASE_URL;if(O)K.push({label:\"Amazon Bedrock (Mantle) base URL\",value:O});if(q===\"mantle\")K.push({label:\"AWS region\",value:WS()});if(p6(process.env.CLAUDE_CODE_SKIP_MANTLE_AUTH))K.push({value:\"Amazon Bedrock (Mantle) auth skipped\"})}let z=aL();if(z)K.push({label:\"Proxy\",value:z});let Y=tS();if(process.env.NODE_EXTRA_CA_CERTS)K.push({label:\"Additional CA cert(s)\",value:process.env.NODE_EXTRA_CA_CERTS});if(Y){if(Y.cert&&proces"
+    },
+    {
+      "index": 8188167,
+      "snippet": " voz;var zt1=L(()=>{T8();gH6();voz=[\"CLAUDE_CODE_USE_BEDROCK\",\"CLAUDE_CODE_USE_VERTEX\",\"CLAUDE_CODE_USE_FOUNDRY\",\"CLAUDE_CODE_USE_ANTHROPIC_AWS\",\"CLAUDE_CODE_USE_MANTLE\",\"ANTHROPIC_AWS_WORKSPACE_ID\",\"ANTHROPIC_AWS_BASE_URL\",\"ANTHROPIC_AWS_API_KEY\",\"CLAUDE_CODE_SKIP_ANTHROPIC_AWS_AUTH\",\"AWS_BEARER_TOKEN_BEDROCK\",\"ANTHROPIC_BEDROCK_MANTLE_BASE_URL\",\"CLAUDE_CODE_SKIP_MANTLE_AUTH\",\"AWS_REGION\",\"ANTHROPIC_BASE_URL\",\"CLAUDE_CONFIG_DIR\",\"CLAUDE_CODE_REMOTE\",\"CLAUDE_CODE_REMOTE_MEMORY_DIR\",\"HTTPS_PROXY\",\"https_proxy\",\"HTTP_PROXY\",\"http_proxy\",\"NO_PROXY\",\"no_proxy\",\"SSL_CERT_FILE\",\"NODE_EXTRA_CA_CERTS\",\"REQUESTS_CA_BUNDLE\",\"CURL_CA"
+    }
+  ],
+  "mantle_api_key": [
+    {
+      "index": 6817972,
+      "snippet": "et q=process.env.CLAUDE_CODE_MCP_ALLOWLIST_ENV;if(p6(q))return!0;if(B9(q))return!1;return process.env.CLAUDE_CODE_ENTRYPOINT===\"local-agent\"}var IDz,ku4;var Zj6=L(()=>{p8();IDz=[\"ANTHROPIC_API_KEY\",\"CLAUDE_CODE_OAUTH_TOKEN\",\"ANTHROPIC_AUTH_TOKEN\",\"ANTHROPIC_FOUNDRY_API_KEY\",\"ANTHROPIC_AWS_API_KEY\",\"ANTHROPIC_BEDROCK_MANTLE_API_KEY\",\"ANTHROPIC_CUSTOM_HEADERS\",\"OTEL_EXPORTER_OTLP_HEADERS\",\"OTEL_EXPORTER_OTLP_LOGS_HEADERS\",\"OTEL_EXPORTER_OTLP_METRICS_HEADERS\",\"OTEL_EXPORTER_OTLP_TRACES_HEADERS\",\"AWS_SECRET_ACCESS_KEY\",\"AWS_SESSION_TOKEN\",\"AWS_BEAR"
+    },
+    {
+      "index": 7036300,
+      "snippet": "ASE_URL\",\"ANTHROPIC_BEDROCK_MANTLE_BASE_URL\",\"ANTHROPIC_FOUNDRY_RESOURCE\",\"ANTHROPIC_VERTEX_PROJECT_ID\",\"ANTHROPIC_AWS_WORKSPACE_ID\",\"CLOUD_ML_REGION\",\"ANTHROPIC_API_KEY\",\"ANTHROPIC_AUTH_TOKEN\",\"CLAUDE_CODE_OAUTH_TOKEN\",\"AWS_BEARER_TOKEN_BEDROCK\",\"ANTHROPIC_FOUNDRY_API_KEY\",\"ANTHROPIC_AWS_API_KEY\",\"ANTHROPIC_BEDROCK_MANTLE_API_KEY\",\"CLAUDE_CODE_SKIP_BEDROCK_AUTH\",\"CLAUDE_CODE_SKIP_VERTEX_AUTH\",\"CLAUDE_CODE_SKIP_FOUNDRY_AUTH\",\"CLAUDE_CODE_SKIP_ANTHROPIC_AWS_AUTH\",\"CLAUDE_CODE_SKIP_MANTLE_AUTH\",\"ANTHROPIC_MODEL\",\"ANTHROPIC_DEFAULT_HAIKU_MODEL\",\"A"
+    }
+  ]
+}

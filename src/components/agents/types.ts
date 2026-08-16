@@ -15,6 +15,7 @@ export type ModeState =
   | { mode: 'main-menu' }
   | { mode: 'list-agents'; source: SettingSource | 'all' | 'built-in' }
   | ({ mode: 'agent-menu' } & WithAgent & WithPreviousMode)
+  | ({ mode: 'run-agent' } & WithAgent & WithPreviousMode)
   | ({ mode: 'view-agent' } & WithAgent & WithPreviousMode)
   | { mode: 'create-agent' }
   | ({ mode: 'edit-agent' } & WithAgent & WithPreviousMode)

@@ -894,6 +894,7 @@ async function handleSpawnInProcess(
     color: teammateColor,
     planModeRequired: plan_mode_required ?? false,
     model,
+    permissionMode: appState.toolPermissionContext.mode,
   }
 
   const result = await spawnInProcessTeammate(config, context)

@@ -1,0 +1,1 @@
+GP8="sonnet45",vP8="haiku45",sL9;var Fq=L(()=>{T8();T7();vD();g8();fi();ki();r1();K_();C_();lQ6();c06();sL9=["claude-opus-4-20250514","claude-opus-4-1-20250805","claude-opus-4-0","claude-opus-4-1"]});

@@ -34,6 +34,7 @@ import {
   registerTask,
   STOPPED_DISPLAY_MS,
 } from '../task/framework.js'
+import type { PermissionMode } from '../permissions/PermissionMode.js'
 import { createTeammateContext } from '../teammateContext.js'
 import {
   isPerfettoTracingEnabled,
@@ -69,6 +70,18 @@ export type InProcessSpawnConfig = {
   planModeRequired: boolean
   /** Optional model override for this teammate */
   model?: string
+  /** Leader permission mode to inherit (official h9Y). */
+  permissionMode?: PermissionMode
+}
+
+function inheritTeammatePermissionMode(
+  leaderMode: PermissionMode | undefined,
+  planModeRequired: boolean,
+): PermissionMode {
+  if (planModeRequired) return 'plan'
+  if (leaderMode === 'plan' || leaderMode === 'dontAsk') return 'default'
+  if (leaderMode) return leaderMode
+  return 'default'
 }
 
 /**
@@ -105,7 +118,8 @@ export async function spawnInProcessTeammate(
   config: InProcessSpawnConfig,
   context: SpawnContext,
 ): Promise<InProcessSpawnOutput> {
-  const { name, teamName, prompt, color, planModeRequired, model } = config
+  const { name, teamName, prompt, color, planModeRequired, model, permissionMode } =
+    config
   const { setAppState } = context
 
   // Generate deterministic agent ID
@@ -170,7 +184,10 @@ export async function spawnInProcessTeammate(
       awaitingPlanApproval: false,
       spinnerVerb: sample(getSpinnerVerbs()),
       pastTenseVerb: sample(TURN_COMPLETION_VERBS),
-      permissionMode: planModeRequired ? 'plan' : 'default',
+      permissionMode: inheritTeammatePermissionMode(
+        permissionMode,
+        planModeRequired,
+      ),
       isIdle: false,
       shutdownRequested: false,
       lastReportedToolCount: 0,

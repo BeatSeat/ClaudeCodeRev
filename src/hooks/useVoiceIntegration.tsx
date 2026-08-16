@@ -580,8 +580,15 @@ export function useVoiceKeybindingHandler({
     // hit the warmup else-branch (swallow only). Bare chars flow through
     // unconditionally — user may be typing during focus-recording.
     if (currentVoiceState !== 'idle') {
-      if (bareChar === null) e.stopImmediatePropagation()
-      return
+      // Official 2.1.98: processing swallows only modifiers. Bare space
+      // falls through to warmup instead of being eaten.
+      if (bareChar === null) {
+        e.stopImmediatePropagation()
+        return
+      }
+      if (currentVoiceState !== 'processing') {
+        return
+      }
     }
 
     const countBefore = rapidCountRef.current

@@ -9,6 +9,7 @@ import {
   isAutoCompactEnabled,
 } from '../services/compact/autoCompact.js'
 import { useCompactWarningSuppression } from '../services/compact/compactWarningHook.js'
+import { isEnvTruthy } from '../utils/envUtils.js'
 import { getUpgradeMessage } from '../utils/model/contextWindowUpgradeCheck.js'
 
 type Props = {
@@ -147,7 +148,9 @@ export function TokenWarning({ tokenUsage, model }: Props): React.ReactNode {
         >
           {upgradeMessage
             ? `Context low (${percentLeft}% remaining) \u00b7 ${upgradeMessage}`
-            : `Context low (${percentLeft}% remaining) \u00b7 Run /compact to compact & continue`}
+            : isEnvTruthy(process.env.DISABLE_COMPACT)
+              ? `Context low (${percentLeft}% remaining)`
+              : `Context low (${percentLeft}% remaining) \u00b7 Run /compact to compact & continue`}
         </Text>
       )}
     </Box>

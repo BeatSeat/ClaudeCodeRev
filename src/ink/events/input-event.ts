@@ -164,6 +164,19 @@ function parseKey(keypress: ParsedKey): [Key, string] {
     processedAsSpecialSequence = true
   }
 
+  // Kitty CSI-u / modifyOtherKeys report lowercase names + a shift modifier.
+  // Without this, Shift+letter is dropped to lowercase on xterm/VS Code.
+  if (
+    processedAsSpecialSequence &&
+    key.shift &&
+    !key.ctrl &&
+    input.length === 1 &&
+    input >= 'a' &&
+    input <= 'z'
+  ) {
+    input = input.toUpperCase()
+  }
+
   // Clear input for non-alphanumeric keys (arrows, function keys, etc.)
   // Skip this for CSI u and application keypad mode sequences since
   // those were already converted to their proper input characters.

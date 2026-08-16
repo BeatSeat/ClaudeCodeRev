@@ -1,0 +1,33 @@
+{
+  "UkK": [
+    "alizeAttachmentForAPI\",Error(`Unknown attachment type: ${q.type}`)),[]}function UkK(q){if(typeof q!==\"object\"||q===null)return q;let K=q;if(typeof K.originalFile===\"string\"&&K.originalFile.length>_DY)",
+    "Y,gitBranch:O,slug:w};if(M.type===\"user\"&&M.toolUseResult!=null)M.toolUseResult=UkK(M.toolUseResult);if(await this.appendEntry(M),T96(j))A=j.uuid}if(!K){let j=B58(q);if(j){let H=j.replaceAll(`\n`,\" \")."
+  ],
+  "VoK_call": [
+    "B38=L(()=>{T8();x2();gB();sV();K36();K8();bA();$7();rj();Oh8();r$7()});function VoK(q,K=!1,_=!1){let z=H8((H)=>H.teamContext),Y=qe.useRef(0),A=qe.useRef(void 0)",
+    "offset:void 0,limit:void 0,isPartialView:S8.contentDiffersFromDisk})}T85(drK()),VoK(C7,C7.length===z?.length,OK);let{sendBridgeResult:Se}=aoK(C7,aK,v$,lA,$6);W2"
+  ],
+  "reloadGen_j": [
+    "reloadGeneration:j=0,showAllProjects:H=!1,onToggleAllProjects:J,onAgenticSearch:",
+    {
+      "n": ",j]",
+      "snip": ".useState([]),[Y,A]=g9.useState([]),[O,$]=g9.useState(!0),[w,j]=g9.useState(!1),[H,J]=g9.useState(!1),{rows:M}=_7(),X=dv(),P=g9.useCallback("
+    },
+    {
+      "n": "[j]",
+      "snip": "1)=>$1.status===\"idle\"?$1:{status:\"idle\"}),j6(!1),d6(null)},[j]),b7.default.useEffect(()=>{if(z6.status!==\"idle\"&&z6.status!==\"searching\"){i"
+    },
+    {
+      "n": "j||",
+      "snip": "ay-per-use).\"),K[7]=P;else P=K[7];let D;if(K[8]!==J||K[9]!==j||K[10]!==Y)D=_l.default.createElement(u,{flexDirection:\"column\",gap:1},P,Y?_l."
+    },
+    {
+      "n": "!==j",
+      "snip": " (pay-per-use).\"),K[7]=P;else P=K[7];let D;if(K[8]!==J||K[9]!==j||K[10]!==Y)D=_l.default.createElement(u,{flexDirection:\"column\",gap:1},P,Y?"
+    }
+  ],
+  "runForked": [
+    "age.content,`\n`)||K}function kq8(q,K){let _=K?.abortController??(K?.shareAbortController?q.abortController:Sy(q.abortController)),z=K?.getAppState?K.getAppState:K?.shareAbortController?q.getAppState:()=>{let Y=q.getAppState();if(Y.toolPermissionContext.shouldAvoidPermissionPrompts)return Y;return{...Y,toolPermissionContext:{...Y.toolPermissionContext,shouldAvoidPermissionPrompts:!0}}};return{readFileState:no(K?.readF"
+  ],
+  "Zd_fork": "ript:j,skipCacheWrite:H}){let J=Date.now(),M=[],X={...kP},{systemPrompt:P,userContext:D,systemContext:W,toolUseContext:f,forkContextMessages:G}=K,Z=kq8(f,A),v=[...G,...q],V=j?void 0:dB(Y),k=null;if(V)await Zd(v,V).catch((x)=>N(`Forked agent [${Y}] failed to record initial transcript: ${x}`)),k=v.at(-1)?.uuid??null;let h=$??RvK,E=0;try{for await(let x of oy({messages:v,systemPrompt:P,userContext:D,"
+}

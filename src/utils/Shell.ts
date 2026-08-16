@@ -35,7 +35,9 @@ import { createBashShellProvider } from './shell/bashProvider.js'
 import { getCachedPowerShellPath } from './shell/powershellDetection.js'
 import { createPowerShellProvider } from './shell/powershellProvider.js'
 import type { ShellProvider, ShellType } from './shell/shellProvider.js'
-import { subprocessEnv } from './subprocessEnv.js'
+import { parseForSecurity } from './bash/ast.js'
+import { isEnvTruthy } from './envUtils.js'
+import { enforceScriptCaps, subprocessEnv } from './subprocessEnv.js'
 import { posixPathToWindowsPath } from './windowsPaths.js'
 
 const DEFAULT_TIMEOUT = 30 * 60 * 1000 // 30 minutes
@@ -237,6 +239,17 @@ export async function exec(
   // If already aborted, don't spawn the process at all
   if (abortSignal.aborted) {
     return createAbortedCommand()
+  }
+
+  // Official 2.1.98 db1: count SCRIPT_CAPS against parsed simple commands
+  // after CWD recovery / abort, not against the raw BashTool input.
+  if (isEnvTruthy(process.env.CLAUDE_CODE_SUBPROCESS_ENV_SCRUB)) {
+    const parsed = await parseForSecurity(command)
+    enforceScriptCaps(
+      parsed.kind === 'simple'
+        ? parsed.commands.map(c => c.text).join('\n')
+        : command,
+    )
   }
 
   const binShell = provider.shellPath

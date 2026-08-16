@@ -1101,7 +1101,7 @@ export async function cleanupStaleAgentWorktrees(
     const [status, unpushed] = await Promise.all([
       execFileNoThrowWithCwd(
         gitExe(),
-        ['--no-optional-locks', 'status', '--porcelain', '-uno'],
+        ['--no-optional-locks', 'status', '--porcelain'],
         { cwd: worktreePath },
       ),
       execFileNoThrowWithCwd(

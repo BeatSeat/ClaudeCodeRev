@@ -1,0 +1,89 @@
+{
+  "extraHits": {
+    "RK7": [
+      9484055,
+      9486250,
+      9487460
+    ],
+    "function RK7": [],
+    "RK7=": [
+      9487460
+    ],
+    "Monitor": [
+      9482587,
+      9483572,
+      9483739,
+      9484039,
+      9485153,
+      9485888,
+      9486894,
+      9486925,
+      9487169
+    ],
+    "timeout_ms": [
+      9484204,
+      9484607,
+      9484667,
+      9486343,
+      9486379
+    ],
+    "dTK=": [
+      9486141
+    ],
+    "const dTK": [],
+    "function dTK": [],
+    "streamEvent": [],
+    "stdout line": [
+      9486187
+    ],
+    "notification": [
+      9482678,
+      9484186,
+      9487534,
+      9490257,
+      9491121,
+      9491737,
+      9491793,
+      9491872,
+      9492231,
+      9494581
+    ],
+    "MonitorMcp": [],
+    "kind:\"monitor\"": [
+      9485746
+    ],
+    "isEnabled": [
+      9480960,
+      9486938
+    ],
+    "searchHint": [
+      9480805,
+      9487475
+    ],
+    "userFacingName": [
+      9486804
+    ]
+  },
+  "globalHits": {
+    "function RK7": [],
+    "RK7=": [
+      9487460
+    ],
+    "const dTK": [],
+    "dTK=": [
+      9486141
+    ],
+    "function dTK": [],
+    "var dTK": []
+  },
+  "lens": {
+    "monitorTool": 4000,
+    "monitorBefore": 2100,
+    "monitorAfter": 4200,
+    "permReq1": 2000,
+    "permReq2": 3200,
+    "monitorToolPrompt": 1000,
+    "monitorTool2": 800,
+    "monitorTool3": 1000
+  }
+}

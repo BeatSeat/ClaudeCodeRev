@@ -1,0 +1,70 @@
+{
+  "stdinEnc94new": [
+    {
+      "idx": 13181896,
+      "snip": "ype_determined\"),b_O(),i4(\"main_before_run\"),await m_O(),i4(\"main_after_run\")}async function u_O(q,K){if(!process.stdin.isTTY&&!process.argv.includes(\"mcp\")){if(K===\"stream-json\")return process.stdin.setEncoding(\"utf8\"),process.stdin;process.stdin.setEncoding(\"utf8\");let _=\"\",z=(O)=>{_+=O};process.stdin.on(\"data\",z);let Y=await ee8(process.stdin,3000);if(process.stdin.off(\"data\",z),Y)process.stderr.write(`Warning: no stdin data received in 3s, proceeding without it"
+    },
+    {
+      "idx": 13181944,
+      "snip": "it m_O(),i4(\"main_after_run\")}async function u_O(q,K){if(!process.stdin.isTTY&&!process.argv.includes(\"mcp\")){if(K===\"stream-json\")return process.stdin.setEncoding(\"utf8\"),process.stdin;process.stdin.setEncoding(\"utf8\");let _=\"\",z=(O)=>{_+=O};process.stdin.on(\"data\",z);let Y=await ee8(process.stdin,3000);if(process.stdin.off(\"data\",z),Y)process.stderr.write(`Warning: no stdin data received in 3s, proceeding without it. If piping from a slow command, redirect stdin "
+    }
+  ],
+  "stdinEnc92gone": [
+    {
+      "idx": 13095839,
+      "snip": "\"),M4O(),i4(\"main_before_run\"),await D4O(),i4(\"main_after_run\")}async function W4O(q,K){if(!process.stdin.isTTY&&!process.argv.includes(\"mcp\")){if(K===\"stream-json\")return process.stdin;process.stdin.setEncoding(\"utf8\");let _=\"\",z=(O)=>{_+=O};process.stdin.on(\"data\",z);let Y=await xt8(process.stdin,3000);if(process.stdin.off(\"data\",z),Y)process.stderr.write(`Warning: no stdin data received in 3s, proceeding without it. If piping from a slow command, redirect stdin "
+    }
+  ],
+  "stdinEnc92n": 9,
+  "stdinEnc94n": 10,
+  "inputFmt92": [],
+  "inputFmt94": [],
+  "streamJsonIn92": {
+    "idx": 13095804,
+    "snip": "l\");i4(\"main_client_type_determined\"),M4O(),i4(\"main_before_run\"),await D4O(),i4(\"main_after_run\")}async function W4O(q,K){if(!process.stdin.isTTY&&!process.argv.includes(\"mcp\")){if(K===\"stream-json\")return process.stdin;process.stdin.setEncoding(\"utf8\");let _=\"\",z=(O)=>{_+=O};process.stdin.on(\"data\",z);let Y=await xt8(process.stdin,3000);if(process.stdin.off(\"data\",z),Y)process.stderr.write(`Warning: no stdin data r"
+  },
+  "streamJsonIn94": {
+    "idx": 13181875,
+    "snip": "l\");i4(\"main_client_type_determined\"),b_O(),i4(\"main_before_run\"),await m_O(),i4(\"main_after_run\")}async function u_O(q,K){if(!process.stdin.isTTY&&!process.argv.includes(\"mcp\")){if(K===\"stream-json\")return process.stdin.setEncoding(\"utf8\"),process.stdin;process.stdin.setEncoding(\"utf8\");let _=\"\",z=(O)=>{_+=O};process.stdin.on(\"data\",z);let Y=await ee8(process.stdin,3000);if(process.stdin.off(\"data\",z),Y)process.stde"
+  },
+  "cnt": {
+    "cnt:signal.aborted": {
+      "c92": 80,
+      "c94": 83
+    },
+    "cnt:type:\"assistant\"": {
+      "c92": 13,
+      "c94": 14
+    }
+  },
+  "abortInterrupt92": {
+    "idx": 12293732,
+    "snip": "turn;if(q.hasInterruptibleToolInProgress)N(`[interrupt] Aborting current turn: streamMode=${q.streamMode}`),d(\"tengu_cancel\",{source:\"interrupt_on_submit\",streamMode:q.streamMode}),q.abortController?.abort(\"interrupt\");Fj({value:S.trim(),preExpansionValue:E.trim(),mode:R,pastedContents:p?m:void 0,skipSlashCommands:v,uuid:Z}),O(\"\"),k(0),A({}),y(),V();return}hq8(),await h85({queuedCommands:[{value:S,preExpansionValue:E,mode:R,pastedContents:p?m:void 0,skipSlashCommands:v,uuid:Z}],messages:j,mainLoopModel:H,ideSelection:J,querySource:q.querySource,commands:Y,queryGuard:_,setToolJSX:$,getToolUseContext:w,setUserInp"
+  },
+  "abortInterrupt94": {
+    "idx": 12366675,
+    "snip": "turn;if(q.hasInterruptibleToolInProgress)N(`[interrupt] Aborting current turn: streamMode=${q.streamMode}`),d(\"tengu_cancel\",{source:\"interrupt_on_submit\",streamMode:q.streamMode}),q.abortController?.abort(\"interrupt\");tj({value:R.trim(),preExpansionValue:y.trim(),mode:S,pastedContents:m?B:void 0,skipSlashCommands:v,uuid:Z}),O(\"\"),k(0),A({}),E(),V();return}U48(),await O75({queuedCommands:[{value:R,preExpansionValue:y,mode:S,pastedContents:m?B:void 0,skipSlashCommands:v,uuid:Z}],messages:j,mainLoopModel:H,ideSelection:J,querySource:q.querySource,commands:Y,queryGuard:_,setToolJSX:$,getToolUseContext:w,setUserInp"
+  },
+  "failedSave94new": [
+    {
+      "idx": 3488717,
+      "snip": "lace(/\\s*\\n\\s*/g,\"; \");throw d(\"tengu_api_key_keychain_error\",{error:w}),Error(`Failed to save API key to macOS Keychain${w?` (${w})`:\"\"}. Run \\`claude doctor\\` to diagnose keychain access.`)}d(\"tengu_api_key_saved_to_keychain\",{})}else d(\"tengu_api_key_"
+    },
+    {
+      "idx": 3703801,
+      "snip": "eturn z;return K=Sv8({...Y,projects:Oeq(z.projects)}),K})&&K)Cv8(K)}catch(_){N(`Failed to save config with lock: ${_}`,{level:\"error\"});let z=L$6(YW(),ir);if(xv8(z)){N(\"saveGlobalConfig fallback: re-read config is missing auth that cache has; refusing to"
+    },
+    {
+      "idx": 3710112,
+      "snip": "Y;return _=Sv8({...Y,projects:{...Y.projects,[K]:A}}),_})&&_)Cv8(_)}catch(z){N(`Failed to save config with lock: ${z}`,{level:\"error\"});let Y=L$6(YW(),ir);if(xv8(Y)){N(\"saveCurrentProjectConfig fallback: re-read config is missing auth that cache has; ref"
+    },
+    {
+      "idx": 12652593,
+      "snip": "7(q,(P)=>{return setTimeout(P,2000),BP.default.createElement(X,{color:\"error\"},\"Failed to save \",gH7[j.tier],\" upgrade to settings.\")})}else{if(process.env[j.envVar]=j.toBedrockId,j.tier===\"haiku\")process.env.ANTHROPIC_SMALL_FAST_MODEL=j.toBedrockId,proc"
+    }
+  ],
+  "doctorDiagnose94": {
+    "idx": 7886806,
+    "snip": "1,timeout:5000}),null;let O=(Y.stderr||Y.stdout||\"\").trim().replace(/\\s*\\n\\s*/g,\"; \");return{issue:`macOS Keychain is not writable${O?` (${O})`:\"\"}. Console login will fail to save your API key.`,fix:\"Run: security unlock-keychain ~/Library/Keychains/login.keychain-db — if that doesn't fix it, your login keychain password may be"
+  }
+}

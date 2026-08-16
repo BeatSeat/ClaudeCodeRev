@@ -91,9 +91,15 @@ export function matchWildcardPattern(
   pattern: string,
   command: string,
   caseInsensitive = false,
+  collapseWhitespace = false,
 ): boolean {
   // Trim leading/trailing whitespace from pattern
-  const trimmedPattern = pattern.trim()
+  const trimmedPattern = collapseWhitespace
+    ? pattern.trim().replace(/[ \t]+/g, ' ')
+    : pattern.trim()
+  if (collapseWhitespace) {
+    command = command.replace(/[ \t]+/g, ' ')
+  }
 
   // Process the pattern to handle escape sequences: \* and \\
   let processed = ''

@@ -10,7 +10,10 @@
  */
 
 import type { Command } from '../commands.js'
-import { getSystemPrompt } from '../constants/prompts.js'
+import {
+  getExcludedDynamicSectionsContent,
+  getSystemPrompt,
+} from '../constants/prompts.js'
 import { getSystemContext, getUserContext } from '../context.js'
 import type { MCPServerConnection } from '../services/mcp/types.js'
 import type { AppState } from '../state/AppStateStore.js'
@@ -47,30 +50,55 @@ export async function fetchSystemPromptParts({
   additionalWorkingDirectories,
   mcpClients,
   customSystemPrompt,
+  excludeDynamicSections,
 }: {
   tools: Tools
   mainLoopModel: string
   additionalWorkingDirectories: string[]
   mcpClients: MCPServerConnection[]
   customSystemPrompt: string | undefined
+  excludeDynamicSections?: boolean
 }): Promise<{
   defaultSystemPrompt: string[]
   userContext: { [k: string]: string }
   systemContext: { [k: string]: string }
 }> {
-  const [defaultSystemPrompt, userContext, systemContext] = await Promise.all([
-    customSystemPrompt !== undefined
-      ? Promise.resolve([])
-      : getSystemPrompt(
-          tools,
-          mainLoopModel,
-          additionalWorkingDirectories,
-          mcpClients,
-        ),
-    getUserContext(),
-    customSystemPrompt !== undefined ? Promise.resolve({}) : getSystemContext(),
-  ])
-  return { defaultSystemPrompt, userContext, systemContext }
+  const shouldExclude =
+    excludeDynamicSections === true && customSystemPrompt === undefined
+  const [defaultSystemPrompt, userContext, systemContext, excluded] =
+    await Promise.all([
+      customSystemPrompt !== undefined
+        ? Promise.resolve([])
+        : getSystemPrompt(
+            tools,
+            mainLoopModel,
+            additionalWorkingDirectories,
+            mcpClients,
+            { excludeDynamicSections: shouldExclude },
+          ),
+      getUserContext(),
+      customSystemPrompt !== undefined
+        ? Promise.resolve({})
+        : getSystemContext(),
+      shouldExclude
+        ? getExcludedDynamicSectionsContent(
+            mainLoopModel,
+            additionalWorkingDirectories,
+          )
+        : Promise.resolve({} as { [k: string]: string }),
+    ])
+  if (shouldExclude) {
+    return {
+      defaultSystemPrompt,
+      userContext: { ...userContext, ...systemContext, ...excluded },
+      systemContext: {},
+    }
+  }
+  return {
+    defaultSystemPrompt,
+    userContext: { ...userContext, ...excluded },
+    systemContext,
+  }
 }
 
 /**

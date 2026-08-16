@@ -266,6 +266,33 @@ export function startInteractionSpan(userPrompt: string): Span {
   return span
 }
 
+/**
+ * Official 2.1.98 Ib8: run a turn under the current interaction ALS so
+ * concurrent SDK calls do not leak span context, then clear if still bound.
+ */
+export function hasInteractionContext(): boolean {
+  return interactionContext.getStore() !== undefined
+}
+
+/**
+ * Official 2.1.98 Ib8(q,K): start an interaction span from the prompt,
+ * run under ALS, then clear if still bound.
+ */
+export function runWithInteractionContext<T>(
+  userPrompt: string,
+  fn: () => T,
+): T {
+  startInteractionSpan(userPrompt)
+  const store = interactionContext.getStore()
+  try {
+    return interactionContext.run(store, fn)
+  } finally {
+    if (interactionContext.getStore() === store) {
+      interactionContext.enterWith(undefined)
+    }
+  }
+}
+
 export function endInteractionSpan(): void {
   const spanContext = interactionContext.getStore()
   if (!spanContext) {

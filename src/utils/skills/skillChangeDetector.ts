@@ -167,6 +167,7 @@ export function dispose(): Promise<void> {
  * Subscribe to skill changes
  */
 export const subscribe = skillsChanged.subscribe
+export const notifySkillsChanged = skillsChanged.emit
 
 async function getWatchablePaths(): Promise<string[]> {
   const fs = getFsImplementation()

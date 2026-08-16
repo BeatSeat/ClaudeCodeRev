@@ -1,0 +1,420 @@
+{
+  "30000": {
+    "c96": 139,
+    "c97": 142,
+    "hits97": [
+      {
+        "idx": 210775,
+        "snip": "s[JW].emitClose()}function oM5(q,K){this[JW].emit(\"message\",q,K)}function aM5(q){let K=this[JW];if(K._autoPong)K.pong(q,!this._isServer,L07);K.emit(\"ping\",q)}function sM5(q){this[JW].emit(\"pong\",q)}function S07(q){q.resume()}function tM5(q){let K=this[JW];if(K.readyState===W9.CLOSED)return;if(K.readyState===W9.OPEN)K._readyState=W9.CLOSING,C07(K);if(this._socket.end(),!K._errorEmitted)K._errorEmitted=!0,K.emit(\"error\",q)}function C07(q){q._closeTimer=setTimeout(q._socket.destroy.bind(q._socket),30000)}function b07(){let q=this[JW];this.removeListener(\"close\",b07),this.removeListener(\"data\",qA8),this.removeListener(\"end\",x07),q._readyState=W9.CLOSING;let K;if(!this._readableState.endEmitted&&!q._closeFrameReceived&&!q._receiver._writableState.errorEmitted&&(K=q._socket.read())!==null)q._receiver.write(K);if(q._receiver.end(),this[JW]=void 0,clearTimeout(q._closeTimer),q._receiver._writableState.finished||q._receiver._writableState.errorEmitted)q.emitClose();else q._receiver.on(\"error\",y07),q"
+      },
+      {
+        "idx": 222200,
+        "snip": "ut(z),this.connected=!1,this.connecting=!1,this.scheduleReconnect()})}scheduleReconnect(){let{serverName:q,logger:K}=this.context;if(this.disableAutoReconnect)return;if(this.reconnectTimer){K.info(`[${q}] Reconnect already scheduled, skipping`);return}this.reconnectAttempts++;let _=100;if(this.reconnectAttempts>_){K.info(`[${q}] Giving up after ${_} attempts. Will retry on next tool call.`),this.reconnectAttempts=0;return}let z=Math.min(this.reconnectDelay*Math.pow(1.5,this.reconnectAttempts-1),30000);if(this.reconnectAttempts<=this.maxReconnectAttempts)K.info(`[${q}] Reconnecting in ${Math.round(z)}ms (attempt ${this.reconnectAttempts})`);else if(this.reconnectAttempts%10===0)K.info(`[${q}] Still polling for native host (attempt ${this.reconnectAttempts})`);this.reconnectTimer=setTimeout(()=>{this.reconnectTimer=null,this.connect()},z)}handleResponse(q){if(this.responseCallback){let K=this.responseCallback;this.responseCallback=null,K(q)}}setNotificationHandler(q){this.notificationHandler="
+      },
+      {
+        "idx": 223104,
+        "snip": "responseCallback;this.responseCallback=null,K(q)}}setNotificationHandler(q){this.notificationHandler=q}async ensureConnected(){let{serverName:q}=this.context;if(this.connected&&this.socket)return!0;if(!this.socket&&!this.connecting)await this.connect();return new Promise((K,_)=>{let z=null,Y=setTimeout(()=>{if(z)clearTimeout(z);_(new BT(`[${q}] Connection attempt timed out after 5000ms`))},5000),A=()=>{if(this.connected)clearTimeout(Y),K(!0);else z=setTimeout(A,500)};A()})}async sendRequest(q,K=30000){let{serverName:_}=this.context;if(!this.socket)throw new BT(`[${_}] Cannot send request: not connected`);let z=this.socket;return new Promise((Y,A)=>{let O=setTimeout(()=>{this.responseCallback=null,A(new BT(`[${_}] Tool request timed out after ${K}ms`))},K);this.responseCallback=(J)=>{clearTimeout(O),Y(J)};let $=JSON.stringify(q),w=Buffer.from($,\"utf-8\"),j=Buffer.allocUnsafe(4);j.writeUInt32LE(w.length,0);let H=Buffer.concat([j,w]);z.write(H)})}async callTool(q,K,_){let z={method:\"execute_too"
+      },
+      {
+        "idx": 240627,
+        "snip": ":\"text\",text:JSON.stringify({availableTabs:K})},{type:\"text\",text:`\n\nTab Context:\n- Available tabs:\n${_}`}]}}}return q[0]}scheduleReconnect(){let{logger:q,serverName:K,trackEvent:_}=this.context;if(this.reconnectTimer)return;if(this.reconnectAttempts++,this.reconnectAttempts>100){q.warn(`[${K}] Giving up bridge reconnection after 100 attempts`),_?.(\"chrome_bridge_reconnect_exhausted\",{total_attempts:100}),this.reconnectAttempts=0;return}let z=Math.min(2000*Math.pow(1.5,this.reconnectAttempts-1),30000);if(this.reconnectAttempts<=10||this.reconnectAttempts%10===0)q.info(`[${K}] Bridge reconnecting in ${Math.round(z)}ms (attempt ${this.reconnectAttempts})`);this.reconnectTimer=setTimeout(()=>{this.reconnectTimer=null,this.connect()},z)}closeSocket(){if(this.ws)this.ws.removeAllListeners(),this.ws.close(),this.ws=null;if(this.connected=!1,this.authenticated=!1,this.selectedDeviceId=void 0,this.discoveryComplete=!1,this.pendingPairingRequestId=void 0,this.pairingInProgress=!1,this.pendingSwitchR"
+      }
+    ],
+    "hits96first": [
+      {
+        "idx": 210231,
+        "snip": "yState===y9.OPEN)K._readyState=y9.CLOSING,HZ7(K);if(this._socket.end(),!K._errorEmitted)K._errorEmitted=!0,K.emit(\"error\",q)}function HZ7(q){q._closeTimer=setTimeout(q._socket.destroy.bind(q._socket),30000)}function JZ7(){let q=this[GD];this.removeListener(\"close\",JZ7),this.removeListener(\"data\",VO8),this.removeListener(\"end\",MZ7),q._readyState=y9.CLOSING;let K;if(!this._readableState.endEmitted&&!q._c"
+      }
+    ]
+  },
+  "git_worktree": {
+    "c96": 0,
+    "c97": 2,
+    "hits97": [
+      {
+        "idx": 4923065,
+        "snip": " to the conversation transcript\n     \"cwd\": \"string\",         // Current working directory\n     \"model\": {\n       \"id\": \"string\",           // Model ID (e.g., \"claude-3-5-sonnet-20241022\")\n       \"display_name\": \"string\"  // Display name (e.g., \"Claude 3.5 Sonnet\")\n     },\n     \"workspace\": {\n       \"current_dir\": \"string\",  // Current working directory path\n       \"project_dir\": \"string\",  // Project root directory path\n       \"added_dirs\": [\"string\"], // Directories added via /add-dir\n       \"git_worktree\": \"string\"  // Optional: git worktree name when cwd is in a linked worktree\n     },\n     \"version\": \"string\",        // Claude Code app version (e.g., \"1.0.71\")\n     \"output_style\": {\n       \"name\": \"string\",         // Output style name (e.g., \"default\", \"Explanatory\", \"Learning\")\n     },\n     \"context_window\": {\n       \"total_input_tokens\": number,       // Total input tokens used in session (cumulative)\n       \"total_output_tokens\": number,      // Total output tokens used in session (cumula"
+      },
+      {
+        "idx": 12204616,
+        "snip": "g(),j=Aj(),H=ru({permissionMode:q,mainLoopModel:A,exceeds200kTokens:K}),J=_?.outputStyle||Ak,M=Ps6(z),X=TV(H,OW()),P=lZ8(M,X),D=N8(),W=CD(D),f=LR4(),G={...f.five_hour&&{five_hour:{used_percentage:f.five_hour.utilization*100,resets_at:f.five_hour.resets_at}},...f.seven_day&&{seven_day:{used_percentage:f.seven_day.utilization*100,resets_at:f.seven_day.resets_at}}};return{...FA(),...W&&{session_name:W},model:{id:H,display_name:bH(H)},workspace:{current_dir:Z8(),project_dir:A7(),added_dirs:Y,...O&&{git_worktree:O}},version:{ISSUES_EXPLAINER:\"report the issue at https://github.com/anthropics/claude-code/issues\",PACKAGE_URL:\"@anthropic-ai/claude-code\",README_URL:\"https://code.claude.com/docs/en/overview\",VERSION:\"2.1.97\",FEEDBACK_CHANNEL:\"https://github.com/anthropics/claude-code/issues\",BUILD_TIME:\"2026-04-08T20:46:46Z\"}.VERSION,output_style:{name:J},cost:{total_cost_usd:XM(),total_duration_ms:YD6(),total_api_duration_ms:RG(),total_lines_added:v_6(),total_lines_removed:T_6()},context_window:{total_inpu"
+      }
+    ],
+    "hits96first": []
+  },
+  "refreshInterval": {
+    "c96": 3,
+    "c97": 5,
+    "hits97": [
+      {
+        "idx": 1052430,
+        "snip": "ces (e.g. [\"skills\", \"hooks\"]); `true` locks all four; `false` is an explicit no-op. Blocked: ~/.claude/{surface}/, .claude/{surface}/ (project), settings.json hooks, .mcp.json. NOT blocked: managed (policySettings) sources, plugin-provided customizations. '+\"Composes with strictKnownMarketplaces for end-to-end admin control — plugins gated by \"+\"marketplace allowlist, everything else blocked here.\"),statusLine:y.object({type:y.literal(\"command\"),command:y.string(),padding:y.number().optional(),refreshInterval:y.number().min(1).optional().catch(void 0).describe(\"Re-run the status line command every N seconds in addition to event-driven updates\")}).optional().describe(\"Custom status line display configuration\"),enabledPlugins:y.record(y.string(),y.union([y.array(y.string()),y.boolean(),y.undefined()])).optional().describe('Enabled plugins using plugin-id@marketplace-id format. Example: { \"formatter@anthropic-tools\": true }. Also supports extended format with version constraints.'),extraKnownMarketplac"
+      },
+      {
+        "idx": 8293883,
+        "snip": "Update={certificate:q.value,privateKey:K.value};else this.latestIdentityUpdate=null;if(_.status===\"fulfilled\")this.latestCaUpdate={caCertificate:_.value};else this.latestCaUpdate=null;for(let z of this.identityListeners)z(this.latestIdentityUpdate);for(let z of this.caListeners)z(this.latestCaUpdate)}),vm8(\"File watcher initiated certificate update\")}maybeStartWatchingFiles(){if(!this.refreshTimer){let q=this.lastUpdateTime?new Date().getTime()-this.lastUpdateTime.getTime():1/0;if(q>this.config.refreshIntervalMs)this.updateCertificates();if(q>this.config.refreshIntervalMs*2)this.latestCaUpdate=void 0,this.latestIdentityUpdate=void 0;this.refreshTimer=setInterval(()=>this.updateCertificates(),this.config.refreshIntervalMs),vm8(\"File watcher started watching\")}}maybeStopWatchingFiles(){if(this.caListeners.size===0&&this.identityListeners.size===0){if(this.fileResultPromise=null,this.refreshTimer)clearInterval(this.refreshTimer),this.refreshTimer=null}}addCaCertificateListener(q){if(this.caListeners.add"
+      },
+      {
+        "idx": 8293944,
+        "snip": "estIdentityUpdate=null;if(_.status===\"fulfilled\")this.latestCaUpdate={caCertificate:_.value};else this.latestCaUpdate=null;for(let z of this.identityListeners)z(this.latestIdentityUpdate);for(let z of this.caListeners)z(this.latestCaUpdate)}),vm8(\"File watcher initiated certificate update\")}maybeStartWatchingFiles(){if(!this.refreshTimer){let q=this.lastUpdateTime?new Date().getTime()-this.lastUpdateTime.getTime():1/0;if(q>this.config.refreshIntervalMs)this.updateCertificates();if(q>this.config.refreshIntervalMs*2)this.latestCaUpdate=void 0,this.latestIdentityUpdate=void 0;this.refreshTimer=setInterval(()=>this.updateCertificates(),this.config.refreshIntervalMs),vm8(\"File watcher started watching\")}}maybeStopWatchingFiles(){if(this.caListeners.size===0&&this.identityListeners.size===0){if(this.fileResultPromise=null,this.refreshTimer)clearInterval(this.refreshTimer),this.refreshTimer=null}}addCaCertificateListener(q){if(this.caListeners.add(q),this.maybeStartWatchingFiles(),this.latestCaUpdate!==void"
+      },
+      {
+        "idx": 8294096,
+        "snip": "teners)z(this.latestIdentityUpdate);for(let z of this.caListeners)z(this.latestCaUpdate)}),vm8(\"File watcher initiated certificate update\")}maybeStartWatchingFiles(){if(!this.refreshTimer){let q=this.lastUpdateTime?new Date().getTime()-this.lastUpdateTime.getTime():1/0;if(q>this.config.refreshIntervalMs)this.updateCertificates();if(q>this.config.refreshIntervalMs*2)this.latestCaUpdate=void 0,this.latestIdentityUpdate=void 0;this.refreshTimer=setInterval(()=>this.updateCertificates(),this.config.refreshIntervalMs),vm8(\"File watcher started watching\")}}maybeStopWatchingFiles(){if(this.caListeners.size===0&&this.identityListeners.size===0){if(this.fileResultPromise=null,this.refreshTimer)clearInterval(this.refreshTimer),this.refreshTimer=null}}addCaCertificateListener(q){if(this.caListeners.add(q),this.maybeStartWatchingFiles(),this.latestCaUpdate!==void 0)process.nextTick(q,this.latestCaUpdate)}removeCaCertificateListener(q){this.caListeners.delete(q),this.maybeStopWatchingFiles()}addIdentityCertificat"
+      }
+    ],
+    "hits96first": [
+      {
+        "idx": 7790207,
+        "snip": ")}),kI8(\"File watcher initiated certificate update\")}maybeStartWatchingFiles(){if(!this.refreshTimer){let q=this.lastUpdateTime?new Date().getTime()-this.lastUpdateTime.getTime():1/0;if(q>this.config.refreshIntervalMs)this.updateCertificates();if(q>this.config.refreshIntervalMs*2)this.latestCaUpdate=void 0,this.latestIdentityUpdate=void 0;this.refreshTimer=setInterval(()=>this.updateCertificates(),this.config.re"
+      }
+    ]
+  },
+  "cedarpolicy": {
+    "c96": 0,
+    "c97": 1,
+    "hits97": [
+      {
+        "idx": 6392491,
+        "snip": "z.default});return _.childNodes.map(function(z){return jF1(z,K)}).join(\"\")}function hh4(q,K){if(K===void 0)K={};var _;if(K.language)_=Kh8.highlight(q,{language:K.language,ignoreIllegals:K.ignoreIllegals}).value;else _=Kh8.highlightAuto(q,K.languageSubset).value;return b$z(_,K.theme)}AP.highlight=hh4;function x$z(){return Kh8.listLanguages()}AP.listLanguages=x$z;function I$z(q){return!!Kh8.getLanguage(q)}AP.supportsLanguage=I$z;AP.default=hh4;h$z(wF1(),AP)});var u$z=(q)=>({name:\"Cedar\",aliases:[\"cedarpolicy\"],keywords:{keyword:\"permit forbid when unless if then else in has like is\",built_in:\"principal action resource context decimal ip contains containsAll containsAny\",literal:\"true false\"},contains:[q.QUOTE_STRING_MODE,q.C_NUMBER_MODE,q.C_LINE_COMMENT_MODE,{className:\"meta\",begin:/@\\w+/},{className:\"type\",begin:/\\b[A-Z]\\w*(::[A-Z]\\w*)*/}]}),Sh4;var Ch4=L(()=>{Sh4=u$z});var HF1={};f8(HF1,{registerExtraLanguages:()=>B$z});function B$z(q){for(let[K,_]of Object.entries(m$z))if(!q.getLanguage(K))q.reg"
+      }
+    ],
+    "hits96first": []
+  },
+  "skipIfRecent": {
+    "c96": 0,
+    "c97": 2,
+    "hits97": [
+      {
+        "idx": 9783500,
+        "snip": "tch(z){N(`Failed to refresh marketplace ${K}: ${m6(z)}`,{level:\"error\"})}}await xc(q)}function mc(q,K,_){let z=`${q}:${_?.disableCredentialHelper?1:0}`,Y=MQ8.get(z);if(Y){if(K)Y.listeners.push(K);return Y.promise}let A=K?[K]:[],$=lXY(q,(w)=>{for(let j of A)JR(j,w)},_).finally(()=>MQ8.delete(z));return MQ8.set(z,{promise:$,listeners:A}),$}async function lXY(q,K,_){let z=await p_(),Y=z[q];if(!Y)throw Error(`Marketplace '${q}' not found. Available marketplaces: ${Object.keys(z).join(\", \")}`);if(_?.skipIfRecent&&Y.lastUpdated){let A=Date.now()-new Date(Y.lastUpdated).getTime();if(A>=0&&A<30000){N(`Skipping refresh for marketplace '${q}' — refreshed ${Math.round(A/1000)}s ago`);return}}if(iZ.cache?.delete?.(q),Y.source.source===\"settings\"){N(`Skipping refresh for settings-sourced marketplace '${q}' — no upstream`);return}try{let{installLocation:A,source:O}=Y,$=OK8(A);if($)throw Error(`Marketplace '${q}' is seed-managed (${$}) and its content is controlled by the seed image. To update: ask your admin to"
+      },
+      {
+        "idx": 10702348,
+        "snip": "[],_=[];for(let[z]of q){let Y=await f_7(z,!1);if(Y.success)K.push(z);else _.push(`${z}: ${Y.message}`)}if(_.length>0)return{success:!1,message:`Disabled ${K.length} ${K7(K.length,\"plugin\")}, ${_.length} failed:\n${_.join(`\n`)}`};return{success:!0,message:`Disabled ${K.length} ${K7(K.length,\"plugin\")}`}}async function vb6(q,K){let{name:_,marketplace:z}=Z4(q),Y=z?`${_}@${z}`:q;if(z){let X=(await p_())[z]?.source;if(X&&(X.source===\"github\"||X.source===\"git\"||X.source===\"url\"))try{await mc(z,void 0,{skipIfRecent:!0})}catch(P){N(`Failed to refresh marketplace '${z}' before update; using cached data: ${m6(P)}`,{level:\"warn\"})}}let A=await rv(q);if(!A)return{success:!1,message:`Plugin \"${_}\" not found`,pluginId:Y,scope:K};let{entry:O,marketplaceInstallLocation:$}=A,j=xp().plugins[Y];if(!j||j.length===0)return{success:!1,message:`Plugin \"${_}\" is not installed`,pluginId:Y,scope:K};let H=mCK(K),J=j.find((M)=>M.scope===K&&M.projectPath===H);if(!J){let M=H?`${K} (${H})`:K;return{success:!1,message:`Plugin \"${"
+      }
+    ],
+    "hits96first": []
+  },
+  "TRACEPARENT": {
+    "c96": 0,
+    "c97": 1,
+    "hits97": [
+      {
+        "idx": 7049075,
+        "snip": "ir(X,{mode:448})}catch(m){N(`Failed to create ${X} directory: ${m}`)}}let V=$?await Nz4():void 0,k=Z?\"/bin/sh\":G,h=Z?[\"-c\",W]:J.getSpawnArgs(W),E=await J.getEnvironmentOverrides(q),R=!!j,x=Qh(\"local_bash\"),I=new j$(x,A??null,!R);await sGz(iE6(),{recursive:!0});let p;if(!R){let m=_68.O_NOFOLLOW??0;p=await tGz(I.path,process.platform===\"win32\"?\"w\":_68.O_WRONLY|_68.O_CREAT|_68.O_APPEND|m)}try{let m=vg4(),S=rGz(k,h,{env:{...yB(),SHELL:_===\"bash\"?G:void 0,GIT_EDITOR:\"true\",CLAUDECODE:\"1\",...E,...m&&{TRACEPARENT:m},...!1},cwd:f,stdio:wvz(R,p?.fd,V),detached:J.detached,windowsHide:!0}),g=xC8(S,K,H,I,w);if(p!==void 0)try{await p.close()}catch{}if(S.stdout&&j)S.stdout.on(\"data\",(U)=>{j(typeof U===\"string\"?U:U.toString())});let F=y1()===\"windows\"?gz6(D):D;return g.result.then(async(U)=>{if($)W7.cleanupAfterCommand();if(U&&!O&&!U.backgroundTaskId)try{let c=oGz(F,{encoding:\"utf8\"}).trim();if(y1()===\"windows\")c=gz6(c);if(c.normalize(\"NFC\")!==f){if(g$(c,f),!mS7())FE6(),hp4(f,c)}}catch{d(\"tengu_shell_set_cwd\",{"
+      }
+    ],
+    "hits96first": []
+  },
+  "traceparent": {
+    "c96": 2,
+    "c97": 3,
+    "hits97": [
+      {
+        "idx": 2570759,
+        "snip": "ect.keys(q))if(this.allowedHeaderNames.has(_.toLowerCase()))K[_]=q[_];else K[_]=VZ1;return K}sanitizeQuery(q){if(typeof q!==\"object\"||q===null)return q;let K={};for(let _ of Object.keys(q))if(this.allowedQueryParameters.has(_.toLowerCase()))K[_]=q[_];else K[_]=VZ1;return K}}var VZ1=\"REDACTED\",Um9,Qm9;var jc6=L(()=>{Um9=[\"x-ms-client-request-id\",\"x-ms-return-client-request-id\",\"x-ms-useragent\",\"x-ms-correlation-request-id\",\"x-ms-request-id\",\"client-request-id\",\"ms-cv\",\"return-client-request-id\",\"traceparent\",\"Access-Control-Allow-Credentials\",\"Access-Control-Allow-Headers\",\"Access-Control-Allow-Methods\",\"Access-Control-Allow-Origin\",\"Access-Control-Expose-Headers\",\"Access-Control-Max-Age\",\"Access-Control-Request-Headers\",\"Access-Control-Request-Method\",\"Origin\",\"Accept\",\"Accept-Encoding\",\"Cache-Control\",\"Connection\",\"Content-Length\",\"Content-Type\",\"Date\",\"ETag\",\"Expires\",\"If-Match\",\"If-Modified-Since\",\"If-None-Match\",\"If-Unmodified-Since\",\"Last-Modified\",\"Pragma\",\"Request-Id\",\"Retry-After\",\"Server"
+      },
+      {
+        "idx": 3603233,
+        "snip": ".size>niq)this._internalState=new Map(Array.from(this._internalState.entries()).reverse().slice(0,niq))}_keys(){return Array.from(this._internalState.keys()).reverse()}_clone(){let q=new nE1;return q._internalState=new Map(this._internalState),q}}oiq.TraceState=nE1});var Krq=B((eiq)=>{Object.defineProperty(eiq,\"__esModule\",{value:!0});eiq.W3CTraceContextPropagator=eiq.parseTraceParent=eiq.TRACE_STATE_HEADER=eiq.TRACE_PARENT_HEADER=void 0;var hG8=iK(),hJ_=Oi6(),RJ_=iE1();eiq.TRACE_PARENT_HEADER=\"traceparent\";eiq.TRACE_STATE_HEADER=\"tracestate\";var SJ_=\"00\",CJ_=\"(?!ff)[\\\\da-f]{2}\",bJ_=\"(?![0]{32})[\\\\da-f]{32}\",xJ_=\"(?![0]{16})[\\\\da-f]{16}\",IJ_=\"[\\\\da-f]{2}\",uJ_=new RegExp(`^\\\\s?(${CJ_})-(${bJ_})-(${xJ_})-(${IJ_})(-.*)?\\\\s?$`);function siq(q){let K=uJ_.exec(q);if(!K)return null;if(K[1]===\"00\"&&K[5])return null;return{traceId:K[2],spanId:K[3],traceFlags:parseInt(K[4],16)}}eiq.parseTraceParent=siq;class tiq{inject(q,K,_){let z=hG8.trace.getSpanContext(q);if(!z||(0,hJ_.isTracingSuppressed)(q)||!(0,hG8."
+      },
+      {
+        "idx": 7045388,
+        "snip": "return;let z={};for(let[Y,A]of Object.entries(K))if(typeof A===\"string\"){let{content:O,truncated:$}=Hd(A);if(z[Y]=O,$)z[`${Y}_truncated`]=!0,z[`${Y}_original_length`]=A.length}else z[Y]=A;_.span.addEvent(q,z)}function vg4(){if(!Jx())return;let q=gc1.getStore()?.span??RB.getStore()?.span??Jd.getStore()?.span;if(!q)return;let K=q.spanContext();if(!K.traceId||K.traceId===\"00000000000000000000000000000000\")return;let _=uA.trace.setSpan(uA.context.active(),q),z={};return uA.propagation.inject(_,z),z.traceparent}function Tg4(q,K,_,z){if(!aH())return uA.trace.getActiveSpan()||av().startSpan(\"dummy\");let Y=av(),A=RB.getStore()??SC8(),O=lE6(\"hook\",{hook_event:q,hook_name:K,num_hooks:_,hook_definitions:z}),$=A?uA.trace.setSpan(uA.context.active(),A.span):uA.context.active(),w=Y.startSpan(\"claude_code.hook\",{attributes:O},$),j=nJ(w),H={span:w,startTime:Date.now(),attributes:O};return IO.set(j,new WeakRef(H)),iJ.set(j,H),w}function Vg4(q,K){if(!aH())return;let _=nJ(q),z=IO.get(_)?.deref();if(!z)return;let A="
+      }
+    ],
+    "hits96first": [
+      {
+        "idx": 2569760,
+        "snip": "9;var fc6=L(()=>{Jp9=[\"x-ms-client-request-id\",\"x-ms-return-client-request-id\",\"x-ms-useragent\",\"x-ms-correlation-request-id\",\"x-ms-request-id\",\"client-request-id\",\"ms-cv\",\"return-client-request-id\",\"traceparent\",\"Access-Control-Allow-Credentials\",\"Access-Control-Allow-Headers\",\"Access-Control-Allow-Methods\",\"Access-Control-Allow-Origin\",\"Access-Control-Expose-Headers\",\"Access-Control-Max-Age\",\"Access-Contro"
+      }
+    ]
+  },
+  "reuse_outcome_branches": {
+    "c96": 1,
+    "c97": 3,
+    "hits97": [
+      {
+        "idx": 8957001,
+        "snip": "ailable for session creation\")),null;if(G){let S=v.environment_id===G;N(S?`Using configured default environment: ${G}`:`Configured default environment ${G} not found, using first available`)}let V=v.environment_id;N(`Selected environment: ${V} (${v.name}, ${v.kind})`);let k=`${g7().BASE_API_URL}/v1/sessions`,h={...aY(z),\"anthropic-beta\":\"ccr-byoc-2025-07-29\",\"x-organization-uuid\":Y},E={sources:A?[A]:[],...$&&{seed_bundle_file_id:$},outcomes:O?[O]:[],model:q.model??nK(),...q.reuseOutcomeBranch&&{reuse_outcome_branches:!0},...q.githubPr&&{github_pr:q.githubPr}},R=[];if(q.permissionMode)R.push({type:\"event\",data:{type:\"control_request\",request_id:`set-mode-${_MK()}`,request:{subtype:\"set_permission_mode\",mode:q.permissionMode,ultraplan:q.ultraplan}}});if(K)R.push({type:\"event\",data:{uuid:_MK(),session_id:\"\",type:\"user\",parent_tool_use_id:null,message:{role:\"user\",content:K}}});let x={title:q.ultraplan?`ultraplan: ${j}`:j,events:R,session_context:E,environment_id:V};N(`Creating session with payload: ${b6(x,null"
+      },
+      {
+        "idx": 10890183,
+        "snip": "tMainLoopModel:X}=await Promise.resolve().then(() => (mq(),ED8)),{getOriginalCwd:P}=await Promise.resolve().then(() => (v8(),DD6)),{default:D}=await Promise.resolve().then(() => (TK(),rW6)),W=$?.()??j()?.accessToken;if(!W)return N(\"[bridge] No access token for session creation\"),null;let f=await H();if(!f)return N(\"[bridge] No org UUID for session creation\"),null;let{sources:G,outcomes:Z}=await Cz7(z,Y),v={...K!==void 0&&{title:K},events:_,session_context:{sources:G,outcomes:Z,model:X(),cwd:P(),reuse_outcome_branches:!0},environment_id:q,source:\"remote-control\",...w&&{permission_mode:w}},V={...M(W),\"anthropic-beta\":\"ccr-byoc-2025-07-29\",\"x-organization-uuid\":f},k=`${O??J().BASE_API_URL}/v1/sessions`,h;try{h=await D.post(k,v,{headers:V,signal:A,validateStatus:(x)=>x<500})}catch(x){return N(`[bridge] Session creation request failed: ${m6(x)}`),null}if(!(h.status===200||h.status===201)){let x=zI(h.data);return N(`[bridge] Session creation failed with status ${h.status}${x?`: ${x}`:\"\"}`),null}let R=h.data;if(!R"
+      },
+      {
+        "idx": 11902276,
+        "snip": " Control locally to allow inbound control.\";var jw7=L(()=>{T8();GU8();K8();w06();y8();l8()});function FoK(q){return{Authorization:`Bearer ${q}`,\"Content-Type\":\"application/json\",\"anthropic-version\":lnY}}async function Hw7(q,K,_,z,Y,A,O,$){let w=`${q}/v1/code/sessions`,j={cwd:O??Z8(),...$&&{model:$}};if(A){let{buildGitSessionContext:M}=await Promise.resolve().then(() => zuK),{sources:X,outcomes:P}=await M(A.gitRepoUrl,A.branch,A.defaultBranch);if(X.length>0||P.length>0)j.sources=X,j.outcomes=P,j.reuse_outcome_branches=!0}let H;try{H=await w1.post(w,{title:_,bridge:{},...Y?.length&&{tags:Y},config:j},{headers:FoK(K),timeout:z,validateStatus:(M)=>M<500})}catch(M){return N(`[code-session] Session create request failed: ${m6(M)}`),null}if(H.status!==200&&H.status!==201){let M=zI(H.data);return N(`[code-session] Session create failed ${H.status}${M?`: ${M}`:\"\"}`),null}let J=H.data;if(!J||typeof J!==\"object\"||!(\"session\"in J)||!J.session||typeof J.session!==\"object\"||!(\"id\"in J.session)||typeof J.session.id!==\"str"
+      }
+    ],
+    "hits96first": [
+      {
+        "idx": 8500801,
+        "snip": "sessions`,E={...tY(z),\"anthropic-beta\":\"ccr-byoc-2025-07-29\",\"x-organization-uuid\":Y},y={sources:O?[O]:[],...$&&{seed_bundle_file_id:$},outcomes:A?[A]:[],model:q.model??eK(),...q.reuseOutcomeBranch&&{reuse_outcome_branches:!0},...q.githubPr&&{github_pr:q.githubPr}},S=[];if(q.permissionMode)S.push({type:\"event\",data:{type:\"control_request\",request_id:`set-mode-${lOK()}`,request:{subtype:\"set_permission_mode\",mode:q.perm"
+      }
+    ]
+  },
+  "tengu_pasted_image_resize_attempt": {
+    "c96": 1,
+    "c97": 1,
+    "hits97": [
+      {
+        "idx": 12321366,
+        "snip": "r(let U of q)if(U.type===\"image\"){let c=await o04(U);if(c.dimensions){let o=tN6(c.dimensions);if(o)Z.push(o)}g.push(c.block)}else g.push(U);v=g,p3(\"query_image_processing_end\");let F=g.at(-1);if(F?.type===\"text\")f=F.text,G=g.slice(0,-1);else G=g}if(f===null&&K!==\"prompt\")throw Error(`Mode: ${K} requires a string input.`);let V=Y?Object.values(Y).filter(tJ6):[],k=V.map((g)=>g.id),h=Y?await lI4(Y):new Map;p3(\"query_pasted_image_processing_start\");let E=await Promise.all(V.map(async(g)=>{return d(\"tengu_pasted_image_resize_attempt\",{original_size_bytes:g.content.length}),{resized:await Ry({data:g.content,mediaType:g.mediaType}),originalDimensions:g.dimensions,sourcePath:g.sourcePath??h.get(g.id)}})),R=[];for(let{resized:g,originalDimensions:F,sourcePath:U}of E){if(g.dimensions){let c=tN6(g.dimensions,U);if(c)Z.push(c)}else if(F&&!g.tokenCompressed){let c=tN6(F,U);if(c)Z.push(c)}else if(U)Z.push(`[Image source: ${U}]`);R.push(g.block)}p3(\"query_pasted_image_processing_end\");let x=M,I=z,p=f;if(X&&f!==null&&f.startsWith(\"/\""
+      }
+    ],
+    "hits96first": [
+      {
+        "idx": 12362483,
+        "snip": "ires a string input.`);let k=Y?Object.values(Y).filter(MM6):[],V=k.map((m)=>m.id),E=Y?await Qu4(Y):new Map;o3(\"query_pasted_image_processing_start\");let y=await Promise.all(k.map(async(m)=>{return d(\"tengu_pasted_image_resize_attempt\",{original_size_bytes:m.content.length}),{resized:await Cy({data:m.content,mediaType:m.mediaType}),originalDimensions:m.dimensions,sourcePath:m.sourcePath??E.get(m.id)}})),S=[];for(let{resized:m,orig"
+      }
+    ]
+  },
+  "tengu_pasted_image": {
+    "c96": 1,
+    "c97": 1,
+    "hits97": [
+      {
+        "idx": 12321366,
+        "snip": "r(let U of q)if(U.type===\"image\"){let c=await o04(U);if(c.dimensions){let o=tN6(c.dimensions);if(o)Z.push(o)}g.push(c.block)}else g.push(U);v=g,p3(\"query_image_processing_end\");let F=g.at(-1);if(F?.type===\"text\")f=F.text,G=g.slice(0,-1);else G=g}if(f===null&&K!==\"prompt\")throw Error(`Mode: ${K} requires a string input.`);let V=Y?Object.values(Y).filter(tJ6):[],k=V.map((g)=>g.id),h=Y?await lI4(Y):new Map;p3(\"query_pasted_image_processing_start\");let E=await Promise.all(V.map(async(g)=>{return d(\"tengu_pasted_image_resize_attempt\",{original_size_bytes:g.content.length}),{resized:await Ry({data:g.content,mediaType:g.mediaType}),originalDimensions:g.dimensions,sourcePath:g.sourcePath??h.get(g.id)}})),R=[];for(let{resized:g,originalDimensions:F,sourcePath:U}of E){if(g.dimensions){let c=tN6(g.dimensions,U);if(c)Z.push(c)}else if(F&&!g.tokenCompressed){let c=tN6(F,U);if(c)Z.push(c)}else if(U)Z.push(`[Image source: ${U}]`);R.push(g.block)}p3(\"query_pasted_image_processing_end\");let x=M,I=z,p=f;if(X&&f!==null&&f"
+      }
+    ],
+    "hits96first": [
+      {
+        "idx": 12362483,
+        "snip": "ires a string input.`);let k=Y?Object.values(Y).filter(MM6):[],V=k.map((m)=>m.id),E=Y?await Qu4(Y):new Map;o3(\"query_pasted_image_processing_start\");let y=await Promise.all(k.map(async(m)=>{return d(\"tengu_pasted_image_resize_attempt\",{original_size_bytes:m.content.length}),{resized:await Cy({data:m.content,mediaType:m.mediaType}),originalDimensions:m.dimensions,sourcePath:m.sourcePath??E.get(m.id)}})),S=[];for(let"
+      }
+    ]
+  },
+  "Managed Agents": {
+    "c96": 0,
+    "c97": 43,
+    "hits97": [
+      {
+        "idx": 12733298,
+        "snip": "quired Headers\n\n| Header              | Value              | Description                |\n| ------------------- | ------------------ | -------------------------- |\n| \\`Content-Type\\`      | \\`application/json\\` | Required                   |\n| \\`x-api-key\\`         | Your API key       | Authentication             |\n| \\`anthropic-version\\` | \\`2023-06-01\\`       | API version                |\n| \\`anthropic-beta\\`    | Beta feature IDs   | Required for beta features |\n`;var J35=()=>{};var P35=`# Managed Agents — cURL / Raw HTTP\n\nUse these examples when the user needs raw HTTP requests or is working without an SDK.\n\n## Setup\n\n\\`\\`\\`bash\nexport ANTHROPIC_API_KEY=\"your-api-key\"\n\n# Common headers\nHEADERS=(\n  -H \"Content-Type: application/json\"\n  -H \"x-api-key: $ANTHROPIC_API_KEY\"\n  -H \"anthropic-version: 2023-06-01\"\n  -H \"anthropic-beta: managed-agents-2026-04-01\"\n)\n\\`\\`\\`\n\n---\n\n## Create an Environment\n\n\\`\\`\\`bash\ncurl -X POST https://api.anthropic.com/v1/environments \\\\\n  \"\\${HEADERS[@]}\" \\\\\n  -d '{\n  "
+      },
+      {
+        "idx": 12825162,
+        "snip": "\n        }\n    },\n    tools=[{\n        \"name\": \"search_flights\",\n        \"description\": \"Search for available flights\",\n        \"strict\": True,\n        \"input_schema\": {\n            \"type\": \"object\",\n            \"properties\": {\n                \"destination\": {\"type\": \"string\"},\n                \"date\": {\"type\": \"string\", \"format\": \"date\"}\n            },\n            \"required\": [\"destination\", \"date\"],\n            \"additionalProperties\": False\n        }\n    }]\n)\n\\`\\`\\`\n`;var R35=()=>{};var b35=\"# Managed Agents — Python\\n\\n> **Bindings not shown here:** This README covers the most common managed-agents flows for Python. If you need a class, method, namespace, field, or behavior that isn't shown, WebFetch the Python SDK repo **or the relevant docs page** from `shared/live-sources.md` rather than guess. Do not extrapolate from cURL shapes or another language's SDK.\\n\\n> **Agents are persistent — create once, reference by ID.** Store the agent ID returned by `agents.create` and pass it to every subsequen"
+      },
+      {
+        "idx": 12843787,
+        "snip": " default to Python examples and note: \\\"Showing Python examples. Let me know if you need a different language.\\\"\\n\\n4. **If unsupported language detected** (Rust, Swift, C++, Elixir, etc.):\\n\\n   - Suggest cURL/raw HTTP examples from `curl/` and note that community SDKs may exist\\n   - Offer to show Python or TypeScript examples as reference implementations\\n\\n5. **If user needs cURL/raw HTTP examples**, read from `curl/`.\\n\\n### Language-Specific Feature Support\\n\\n| Language   | Tool Runner | Managed Agents | Notes                                 |\\n| ---------- | ----------- | -------------- | ------------------------------------- |\\n| Python     | Yes (beta)  | Yes (beta)     | Full support — `@beta_tool` decorator |\\n| TypeScript | Yes (beta)  | Yes (beta)     | Full support — `betaZodTool` + Zod    |\\n| Java       | Yes (beta)  | Yes (beta)     | Beta tool use with annotated classes  |\\n| Go         | Yes (beta)  | Yes (beta)     | `BetaToolRunner` in `toolrunner` pkg  |\\n| Ruby       | Yes (b"
+      },
+      {
+        "idx": 12844634,
+        "snip": " Yes (beta)     | Beta tool use with annotated classes  |\\n| Go         | Yes (beta)  | Yes (beta)     | `BetaToolRunner` in `toolrunner` pkg  |\\n| Ruby       | Yes (beta)  | Yes (beta)     | `BaseTool` + `tool_runner` in beta    |\\n| C#         | No          | No             | Official SDK                          |\\n| PHP        | Yes (beta)  | Yes (beta)     | `BetaRunnableTool` + `toolRunner()`   |\\n| cURL       | N/A         | Yes (beta)     | Raw HTTP, no SDK features             |\\n\\n> **Managed Agents code examples**: dedicated language-specific READMEs are provided for Python, TypeScript, Go, Ruby, PHP, Java, and cURL (`{lang}/managed-agents/README.md`, `curl/managed-agents.md`). Read your language's README plus the language-agnostic `shared/managed-agents-*.md` concept files. **Agents are persistent — create once, reference by ID.** Store the agent ID returned by `agents.create` and pass it to every subsequent `sessions.create`; do not call `agents.create` in the request path. The Anthropi"
+      }
+    ],
+    "hits96first": []
+  },
+  "managed-agents": {
+    "c96": 0,
+    "c97": 121,
+    "hits97": [
+      {
+        "idx": 12733643,
+        "snip": "`2023-06-01\\`       | API version                |\n| \\`anthropic-beta\\`    | Beta feature IDs   | Required for beta features |\n`;var J35=()=>{};var P35=`# Managed Agents — cURL / Raw HTTP\n\nUse these examples when the user needs raw HTTP requests or is working without an SDK.\n\n## Setup\n\n\\`\\`\\`bash\nexport ANTHROPIC_API_KEY=\"your-api-key\"\n\n# Common headers\nHEADERS=(\n  -H \"Content-Type: application/json\"\n  -H \"x-api-key: $ANTHROPIC_API_KEY\"\n  -H \"anthropic-version: 2023-06-01\"\n  -H \"anthropic-beta: managed-agents-2026-04-01\"\n)\n\\`\\`\\`\n\n---\n\n## Create an Environment\n\n\\`\\`\\`bash\ncurl -X POST https://api.anthropic.com/v1/environments \\\\\n  \"\\${HEADERS[@]}\" \\\\\n  -d '{\n    \"name\": \"my-dev-env\",\n    \"config\": {\n      \"type\": \"cloud\",\n      \"networking\": { \"type\": \"unrestricted\" }\n    }\n  }'\n\\`\\`\\`\n\n### With restricted networking\n\n\\`\\`\\`bash\ncurl -X POST https://api.anthropic.com/v1/environments \\\\\n  \"\\${HEADERS[@]}\" \\\\\n  -d '{\n    \"name\": \"restricted-env\",\n    \"config\": {\n      \"type\": \"cloud\",\n      \"networkin"
+      },
+      {
+        "idx": 12734379,
+        "snip": "  \"networking\": { \"type\": \"unrestricted\" }\n    }\n  }'\n\\`\\`\\`\n\n### With restricted networking\n\n\\`\\`\\`bash\ncurl -X POST https://api.anthropic.com/v1/environments \\\\\n  \"\\${HEADERS[@]}\" \\\\\n  -d '{\n    \"name\": \"restricted-env\",\n    \"config\": {\n      \"type\": \"cloud\",\n      \"networking\": {\n        \"type\": \"package_managers_and_custom\",\n        \"allowed_hosts\": [\"api.example.com\"]\n      }\n    }\n  }'\n\\`\\`\\`\n\n---\n\n## Create an Agent (required first step)\n\n> ⚠️ **There is no inline agent config.** Under \\`managed-agents-2026-04-01\\`, \\`model\\`/\\`system\\`/\\`tools\\` are top-level fields on \\`POST /v1/agents\\`, not on the session. Always create the agent first — the session only takes \\`\"agent\": {\"type\": \"agent\", \"id\": \"...\"}\\`.\n\n### Minimal\n\n\\`\\`\\`bash\n# 1. Create the agent\ncurl -X POST https://api.anthropic.com/v1/agents \\\\\n  \"\\${HEADERS[@]}\" \\\\\n  -d '{\n    \"name\": \"Coding Assistant\",\n    \"model\": \"{{OPUS_ID}}\",\n    \"tools\": [{ \"type\": \"agent_toolset_20260401\" }]\n  }'\n# → { \"id\": \"agent_abc123\", ... }\n\n# 2. Sta"
+      },
+      {
+        "idx": 12740118,
+        "snip": " \"url\", \"name\": \"my-tools\", \"url\": \"https://my-mcp-server.example.com/sse\" }\n    ],\n    \"tools\": [\n      { \"type\": \"agent_toolset_20260401\" },\n      { \"type\": \"mcp_toolset\", \"mcp_server_name\": \"my-tools\" }\n    ]\n  }'\n\n# 2. Session attaches vault containing credentials for that MCP server URL\ncurl -X POST https://api.anthropic.com/v1/sessions \\\\\n  \"\\${HEADERS[@]}\" \\\\\n  -d '{\n    \"agent\": \"agent_abc123\",\n    \"environment_id\": \"env_abc123\",\n    \"vault_ids\": [\"vlt_abc123\"]\n  }'\n\\`\\`\\`\n\nSee \\`shared/managed-agents-tools.md\\` §Vaults for creating vaults and adding credentials.\n\n---\n\n## Tool Configuration\n\n\\`\\`\\`bash\ncurl -X POST https://api.anthropic.com/v1/agents \\\\\n  \"\\${HEADERS[@]}\" \\\\\n  -d '{\n    \"name\": \"Restricted Agent\",\n    \"model\": \"{{OPUS_ID}}\",\n    \"tools\": [\n      {\n        \"type\": \"agent_toolset_20260401\",\n        \"default_config\": { \"enabled\": true },\n        \"configs\": [\n          { \"name\": \"bash\", \"enabled\": false }\n        ]\n      }\n    ]\n  }'\n\\`\\`\\`\n`;var X35=()=>{};var W35=`# Claude API"
+      },
+      {
+        "idx": 12825255,
+        "snip": "ch for available flights\",\n        \"strict\": True,\n        \"input_schema\": {\n            \"type\": \"object\",\n            \"properties\": {\n                \"destination\": {\"type\": \"string\"},\n                \"date\": {\"type\": \"string\", \"format\": \"date\"}\n            },\n            \"required\": [\"destination\", \"date\"],\n            \"additionalProperties\": False\n        }\n    }]\n)\n\\`\\`\\`\n`;var R35=()=>{};var b35=\"# Managed Agents — Python\\n\\n> **Bindings not shown here:** This README covers the most common managed-agents flows for Python. If you need a class, method, namespace, field, or behavior that isn't shown, WebFetch the Python SDK repo **or the relevant docs page** from `shared/live-sources.md` rather than guess. Do not extrapolate from cURL shapes or another language's SDK.\\n\\n> **Agents are persistent — create once, reference by ID.** Store the agent ID returned by `agents.create` and pass it to every subsequent `sessions.create`; do not call `agents.create` in the request path. The Anthropic CLI is on"
+      }
+    ],
+    "hits96first": []
+  },
+  "permit forbid": {
+    "c96": 0,
+    "c97": 1,
+    "hits97": [
+      {
+        "idx": 6392524,
+        "snip": "ap(function(z){return jF1(z,K)}).join(\"\")}function hh4(q,K){if(K===void 0)K={};var _;if(K.language)_=Kh8.highlight(q,{language:K.language,ignoreIllegals:K.ignoreIllegals}).value;else _=Kh8.highlightAuto(q,K.languageSubset).value;return b$z(_,K.theme)}AP.highlight=hh4;function x$z(){return Kh8.listLanguages()}AP.listLanguages=x$z;function I$z(q){return!!Kh8.getLanguage(q)}AP.supportsLanguage=I$z;AP.default=hh4;h$z(wF1(),AP)});var u$z=(q)=>({name:\"Cedar\",aliases:[\"cedarpolicy\"],keywords:{keyword:\"permit forbid when unless if then else in has like is\",built_in:\"principal action resource context decimal ip contains containsAll containsAny\",literal:\"true false\"},contains:[q.QUOTE_STRING_MODE,q.C_NUMBER_MODE,q.C_LINE_COMMENT_MODE,{className:\"meta\",begin:/@\\w+/},{className:\"type\",begin:/\\b[A-Z]\\w*(::[A-Z]\\w*)*/}]}),Sh4;var Ch4=L(()=>{Sh4=u$z});var HF1={};f8(HF1,{registerExtraLanguages:()=>B$z});function B$z(q){for(let[K,_]of Object.entries(m$z))if(!q.getLanguage(K))q.registerLanguage(K,_)}var m$z;var JF1="
+      }
+    ],
+    "hits96first": []
+  },
+  "containsAll": {
+    "c96": 0,
+    "c97": 1,
+    "hits97": [
+      {
+        "idx": 6392643,
+        "snip": "anguage:K.language,ignoreIllegals:K.ignoreIllegals}).value;else _=Kh8.highlightAuto(q,K.languageSubset).value;return b$z(_,K.theme)}AP.highlight=hh4;function x$z(){return Kh8.listLanguages()}AP.listLanguages=x$z;function I$z(q){return!!Kh8.getLanguage(q)}AP.supportsLanguage=I$z;AP.default=hh4;h$z(wF1(),AP)});var u$z=(q)=>({name:\"Cedar\",aliases:[\"cedarpolicy\"],keywords:{keyword:\"permit forbid when unless if then else in has like is\",built_in:\"principal action resource context decimal ip contains containsAll containsAny\",literal:\"true false\"},contains:[q.QUOTE_STRING_MODE,q.C_NUMBER_MODE,q.C_LINE_COMMENT_MODE,{className:\"meta\",begin:/@\\w+/},{className:\"type\",begin:/\\b[A-Z]\\w*(::[A-Z]\\w*)*/}]}),Sh4;var Ch4=L(()=>{Sh4=u$z});var HF1={};f8(HF1,{registerExtraLanguages:()=>B$z});function B$z(q){for(let[K,_]of Object.entries(m$z))if(!q.getLanguage(K))q.registerLanguage(K,_)}var m$z;var JF1=L(()=>{Ch4();m$z={cedar:Sh4}});import{extname as p$z}from\"path\";async function g$z(){try{let q=await Promise.resolve("
+      }
+    ],
+    "hits96first": []
+  },
+  " running": {
+    "c96": 138,
+    "c97": 151,
+    "hits97": [
+      {
+        "idx": 116360,
+        "snip": "if(typeof globalThis.process<\"u\")return globalThis.process.env?.[q]?.trim()??void 0;if(typeof globalThis.Deno<\"u\")return globalThis.Deno.env?.get?.(q)?.trim();return};class iz{constructor({baseURL:q=hm6(\"ANTHROPIC_BASE_URL\"),apiKey:K=hm6(\"ANTHROPIC_API_KEY\")??null,authToken:_=hm6(\"ANTHROPIC_AUTH_TOKEN\")??null,...z}={}){ze8.add(this),VY8.set(this,void 0);let Y={apiKey:K,authToken:_,...z,baseURL:q||\"https://api.anthropic.com\"};if(!Y.dangerouslyAllowBrowser&&NP7())throw new vq(`It looks like you're running in a browser-like environment.\n\nThis is disabled by default, as it risks exposing your secret API credentials to attackers.\nIf you understand the risks and have appropriate mitigations in place,\nyou can set the \\`dangerouslyAllowBrowser\\` option to \\`true\\`, e.g.,\n\nnew Anthropic({ apiKey, dangerouslyAllowBrowser: true });\n`);this.baseURL=Y.baseURL,this.timeout=Y.timeout??Ye8.DEFAULT_TIMEOUT,this.logger=Y.logger??console;let A=\"warn\";this.logLevel=A,this.logLevel=Dt8(Y.logLevel,\"ClientOptions.lo"
+      },
+      {
+        "idx": 215193,
+        "snip": "g:this.emit.bind(this,\"listening\"),error:this.emit.bind(this,\"error\"),upgrade:(z,Y,A)=>{this.handleUpgrade(z,Y,A,_)}})}if(q.perMessageDeflate===!0)q.perMessageDeflate={};if(q.clientTracking)this.clients=new Set,this._shouldEmitClose=!1;this.options=q,this._state=0}address(){if(this.options.noServer)throw Error('The server is operating in \"noServer\" mode');if(!this._server)return null;return this._server.address()}close(q){if(this._state===2){if(q)this.once(\"close\",()=>{q(Error(\"The server is not running\"))});process.nextTick(om6,this);return}if(q)this.once(\"close\",q);if(this._state===1)return;if(this._state=1,this.options.noServer||this.options.server){if(this._server)this._removeListeners(),this._removeListeners=this._server=null;if(this.clients)if(!this.clients.size)process.nextTick(om6,this);else this._shouldEmitClose=!0;else process.nextTick(om6,this)}else{let K=this._server;this._removeListeners(),this._removeListeners=this._server=null,K.close(()=>{om6(this)})}}shouldHandle(q){if(this.op"
+      },
+      {
+        "idx": 260677,
+        "snip": "ts and workflows (shortcuts and workflows are interchangeable). Returns shortcuts with their commands, descriptions, and whether they are workflows. Use shortcuts_execute to run a shortcut or workflow.\",inputSchema:{type:\"object\",properties:{tabId:{type:\"number\",description:\"Tab ID to list shortcuts from. Must be a tab in the current group. Use tabs_context_mcp first if you don't have a valid tab ID.\"}},required:[\"tabId\"]}},{name:\"shortcuts_execute\",description:\"Execute a shortcut or workflow by running it in a new sidepanel window using the current tab (shortcuts and workflows are interchangeable). Use shortcuts_list first to see available shortcuts. This starts the execution and returns immediately - it does not wait for completion.\",inputSchema:{type:\"object\",properties:{tabId:{type:\"number\",description:\"Tab ID to execute the shortcut on. Must be a tab in the current group. Use tabs_context_mcp first if you don't have a valid tab ID.\"},shortcutId:{type:\"string\",description:\"The ID of the sh"
+      },
+      {
+        "idx": 926425,
+        "snip": "escription:\"Timeout or timer\",standard:\"bsd\"},{name:\"SIGWINCH\",number:28,action:\"ignore\",description:\"Terminal window size changed\",standard:\"bsd\"},{name:\"SIGIO\",number:29,action:\"terminate\",description:\"I/O is available\",standard:\"other\"},{name:\"SIGPOLL\",number:29,action:\"terminate\",description:\"Watched event\",standard:\"other\"},{name:\"SIGINFO\",number:29,action:\"ignore\",description:\"Request for process information\",standard:\"other\"},{name:\"SIGPWR\",number:30,action:\"terminate\",description:\"Device running out of power\",standard:\"systemv\"},{name:\"SIGSYS\",number:31,action:\"core\",description:\"Invalid system call\",standard:\"other\"},{name:\"SIGUNUSED\",number:31,action:\"terminate\",description:\"Invalid system call\",standard:\"other\"}]});import{constants as OI5}from\"node:os\";var a31=()=>{let q=Yb7();return[...Ob7,...q].map($I5)},$I5=({name:q,number:K,description:_,action:z,forced:Y=!1,standard:A})=>{let{signals:{[q]:O}}=OI5,$=O!==void 0;return{name:q,number:$?O:K,description:_,supported:$,action:z,forced:"
+      }
+    ],
+    "hits96first": [
+      {
+        "idx": 115816,
+        "snip": "EN\")??null,...z}={}){de8.add(this),lY8.set(this,void 0);let Y={apiKey:K,authToken:_,...z,baseURL:q||\"https://api.anthropic.com\"};if(!Y.dangerouslyAllowBrowser&&zW7())throw new vq(`It looks like you're running in a browser-like environment.\n\nThis is disabled by default, as it risks exposing your secret API credentials to attackers.\nIf you understand the risks and have appropriate mitigations in place,\nyou "
+      }
+    ]
+  },
+  "scheduleUpdate": {
+    "c96": 0,
+    "c97": 0,
+    "hits97": [],
+    "hits96first": []
+  },
+  "。、？！": {
+    "c96": 0,
+    "c97": 10,
+    "hits97": [
+      {
+        "idx": 9732838,
+        "snip": "Y=z.length>0?i2([..._,...z],\"name\"):_,A=q.agentId??\"\",O=bK7.get(A);if(!O)O=new Set,bK7.set(A,O);if(_Q8){_Q8=!1;for(let J of Y)O.add(J.name);return[]}let $=Y.filter((J)=>!O.has(J.name));if($.length===0)return[];let w=O.size===0;for(let J of $)O.add(J.name);N(`Sending ${$.length} skills via attachment (${w?\"initial\":\"dynamic\"}, ${O.size} total sent)`);let j=TV(q.options.mainLoopModel,OW());return[{type:\"skill_listing\",content:om1($,j),skillCount:$.length,isInitial:w}]}function uMY(q){let K=/(^|[\\s。、？！])@\"([^\"]+)\"/g,_=/(^|[\\s。、？！])@([^\\s]+)\\b/g,z=[],Y=[],A;while((A=K.exec(q))!==null)if(A[2]&&!A[2].endsWith(\" (agent)\"))z.push(A[2]);return(q.match(_)||[]).forEach(($)=>{let w=$.slice($.indexOf(\"@\")+1);if(!w.startsWith('\"'))Y.push(w)}),O5([...z,...Y])}function mMY(q){let K=/(^|[\\s。、？！])@([^\\s]+:[^\\s]+)\\b/g,_=q.match(K)||[];return O5(_.map((z)=>z.slice(z.indexOf(\"@\")+1)))}function DVK(q){let K=[],_=/(^|[\\s。、？！])@\"([\\w:.@-]+) \\(agent\\)\"/g,z;while((z=_.exec(q))!==null)if(z[2])K.push(z[2]);let Y=/(^|"
+      },
+      {
+        "idx": 9732866,
+        "snip": "\"name\"):_,A=q.agentId??\"\",O=bK7.get(A);if(!O)O=new Set,bK7.set(A,O);if(_Q8){_Q8=!1;for(let J of Y)O.add(J.name);return[]}let $=Y.filter((J)=>!O.has(J.name));if($.length===0)return[];let w=O.size===0;for(let J of $)O.add(J.name);N(`Sending ${$.length} skills via attachment (${w?\"initial\":\"dynamic\"}, ${O.size} total sent)`);let j=TV(q.options.mainLoopModel,OW());return[{type:\"skill_listing\",content:om1($,j),skillCount:$.length,isInitial:w}]}function uMY(q){let K=/(^|[\\s。、？！])@\"([^\"]+)\"/g,_=/(^|[\\s。、？！])@([^\\s]+)\\b/g,z=[],Y=[],A;while((A=K.exec(q))!==null)if(A[2]&&!A[2].endsWith(\" (agent)\"))z.push(A[2]);return(q.match(_)||[]).forEach(($)=>{let w=$.slice($.indexOf(\"@\")+1);if(!w.startsWith('\"'))Y.push(w)}),O5([...z,...Y])}function mMY(q){let K=/(^|[\\s。、？！])@([^\\s]+:[^\\s]+)\\b/g,_=q.match(K)||[];return O5(_.map((z)=>z.slice(z.indexOf(\"@\")+1)))}function DVK(q){let K=[],_=/(^|[\\s。、？！])@\"([\\w:.@-]+) \\(agent\\)\"/g,z;while((z=_.exec(q))!==null)if(z[2])K.push(z[2]);let Y=/(^|[\\s。、？！])@(agent-[\\w:.@-]+)/"
+      },
+      {
+        "idx": 9733122,
+        "snip": "s via attachment (${w?\"initial\":\"dynamic\"}, ${O.size} total sent)`);let j=TV(q.options.mainLoopModel,OW());return[{type:\"skill_listing\",content:om1($,j),skillCount:$.length,isInitial:w}]}function uMY(q){let K=/(^|[\\s。、？！])@\"([^\"]+)\"/g,_=/(^|[\\s。、？！])@([^\\s]+)\\b/g,z=[],Y=[],A;while((A=K.exec(q))!==null)if(A[2]&&!A[2].endsWith(\" (agent)\"))z.push(A[2]);return(q.match(_)||[]).forEach(($)=>{let w=$.slice($.indexOf(\"@\")+1);if(!w.startsWith('\"'))Y.push(w)}),O5([...z,...Y])}function mMY(q){let K=/(^|[\\s。、？！])@([^\\s]+:[^\\s]+)\\b/g,_=q.match(K)||[];return O5(_.map((z)=>z.slice(z.indexOf(\"@\")+1)))}function DVK(q){let K=[],_=/(^|[\\s。、？！])@\"([\\w:.@-]+) \\(agent\\)\"/g,z;while((z=_.exec(q))!==null)if(z[2])K.push(z[2]);let Y=/(^|[\\s。、？！])@(agent-[\\w:.@-]+)/g,A=q.match(Y)||[];for(let O of A)K.push(O.slice(O.indexOf(\"@\")+1));return O5(K)}function BMY(q){let K=q.match(/^([^#]+)(?:#L(\\d+)(?:-(\\d+))?)?(?:#[^#]*)?$/);if(!K)return{filename:q};let[,_,z,Y]=K,A=z?parseInt(z,10):void 0,O=Y?parseInt(Y,10):A;return{filen"
+      },
+      {
+        "idx": 9733249,
+        "snip": "listing\",content:om1($,j),skillCount:$.length,isInitial:w}]}function uMY(q){let K=/(^|[\\s。、？！])@\"([^\"]+)\"/g,_=/(^|[\\s。、？！])@([^\\s]+)\\b/g,z=[],Y=[],A;while((A=K.exec(q))!==null)if(A[2]&&!A[2].endsWith(\" (agent)\"))z.push(A[2]);return(q.match(_)||[]).forEach(($)=>{let w=$.slice($.indexOf(\"@\")+1);if(!w.startsWith('\"'))Y.push(w)}),O5([...z,...Y])}function mMY(q){let K=/(^|[\\s。、？！])@([^\\s]+:[^\\s]+)\\b/g,_=q.match(K)||[];return O5(_.map((z)=>z.slice(z.indexOf(\"@\")+1)))}function DVK(q){let K=[],_=/(^|[\\s。、？！])@\"([\\w:.@-]+) \\(agent\\)\"/g,z;while((z=_.exec(q))!==null)if(z[2])K.push(z[2]);let Y=/(^|[\\s。、？！])@(agent-[\\w:.@-]+)/g,A=q.match(Y)||[];for(let O of A)K.push(O.slice(O.indexOf(\"@\")+1));return O5(K)}function BMY(q){let K=q.match(/^([^#]+)(?:#L(\\d+)(?:-(\\d+))?)?(?:#[^#]*)?$/);if(!K)return{filename:q};let[,_,z,Y]=K,A=z?parseInt(z,10):void 0,O=Y?parseInt(Y,10):A;return{filename:_??q,lineStart:A,lineEnd:O}}async function pMY(q){if(!q.options.tools.some((_)=>a_(_,Q7)))return[];let K=await xa.getNewDia"
+      }
+    ],
+    "hits96first": []
+  },
+  "[\\s。、？！]": {
+    "c96": 0,
+    "c97": 10,
+    "hits97": [
+      {
+        "idx": 9732835,
+        "snip": "s),Y=z.length>0?i2([..._,...z],\"name\"):_,A=q.agentId??\"\",O=bK7.get(A);if(!O)O=new Set,bK7.set(A,O);if(_Q8){_Q8=!1;for(let J of Y)O.add(J.name);return[]}let $=Y.filter((J)=>!O.has(J.name));if($.length===0)return[];let w=O.size===0;for(let J of $)O.add(J.name);N(`Sending ${$.length} skills via attachment (${w?\"initial\":\"dynamic\"}, ${O.size} total sent)`);let j=TV(q.options.mainLoopModel,OW());return[{type:\"skill_listing\",content:om1($,j),skillCount:$.length,isInitial:w}]}function uMY(q){let K=/(^|[\\s。、？！])@\"([^\"]+)\"/g,_=/(^|[\\s。、？！])@([^\\s]+)\\b/g,z=[],Y=[],A;while((A=K.exec(q))!==null)if(A[2]&&!A[2].endsWith(\" (agent)\"))z.push(A[2]);return(q.match(_)||[]).forEach(($)=>{let w=$.slice($.indexOf(\"@\")+1);if(!w.startsWith('\"'))Y.push(w)}),O5([...z,...Y])}function mMY(q){let K=/(^|[\\s。、？！])@([^\\s]+:[^\\s]+)\\b/g,_=q.match(K)||[];return O5(_.map((z)=>z.slice(z.indexOf(\"@\")+1)))}function DVK(q){let K=[],_=/(^|[\\s。、？！])@\"([\\w:.@-]+) \\(agent\\)\"/g,z;while((z=_.exec(q))!==null)if(z[2])K.push(z[2]);let Y=/(^|["
+      },
+      {
+        "idx": 9732863,
+        "snip": "z],\"name\"):_,A=q.agentId??\"\",O=bK7.get(A);if(!O)O=new Set,bK7.set(A,O);if(_Q8){_Q8=!1;for(let J of Y)O.add(J.name);return[]}let $=Y.filter((J)=>!O.has(J.name));if($.length===0)return[];let w=O.size===0;for(let J of $)O.add(J.name);N(`Sending ${$.length} skills via attachment (${w?\"initial\":\"dynamic\"}, ${O.size} total sent)`);let j=TV(q.options.mainLoopModel,OW());return[{type:\"skill_listing\",content:om1($,j),skillCount:$.length,isInitial:w}]}function uMY(q){let K=/(^|[\\s。、？！])@\"([^\"]+)\"/g,_=/(^|[\\s。、？！])@([^\\s]+)\\b/g,z=[],Y=[],A;while((A=K.exec(q))!==null)if(A[2]&&!A[2].endsWith(\" (agent)\"))z.push(A[2]);return(q.match(_)||[]).forEach(($)=>{let w=$.slice($.indexOf(\"@\")+1);if(!w.startsWith('\"'))Y.push(w)}),O5([...z,...Y])}function mMY(q){let K=/(^|[\\s。、？！])@([^\\s]+:[^\\s]+)\\b/g,_=q.match(K)||[];return O5(_.map((z)=>z.slice(z.indexOf(\"@\")+1)))}function DVK(q){let K=[],_=/(^|[\\s。、？！])@\"([\\w:.@-]+) \\(agent\\)\"/g,z;while((z=_.exec(q))!==null)if(z[2])K.push(z[2]);let Y=/(^|[\\s。、？！])@(agent-[\\w:.@-]+)/g"
+      },
+      {
+        "idx": 9733119,
+        "snip": "ills via attachment (${w?\"initial\":\"dynamic\"}, ${O.size} total sent)`);let j=TV(q.options.mainLoopModel,OW());return[{type:\"skill_listing\",content:om1($,j),skillCount:$.length,isInitial:w}]}function uMY(q){let K=/(^|[\\s。、？！])@\"([^\"]+)\"/g,_=/(^|[\\s。、？！])@([^\\s]+)\\b/g,z=[],Y=[],A;while((A=K.exec(q))!==null)if(A[2]&&!A[2].endsWith(\" (agent)\"))z.push(A[2]);return(q.match(_)||[]).forEach(($)=>{let w=$.slice($.indexOf(\"@\")+1);if(!w.startsWith('\"'))Y.push(w)}),O5([...z,...Y])}function mMY(q){let K=/(^|[\\s。、？！])@([^\\s]+:[^\\s]+)\\b/g,_=q.match(K)||[];return O5(_.map((z)=>z.slice(z.indexOf(\"@\")+1)))}function DVK(q){let K=[],_=/(^|[\\s。、？！])@\"([\\w:.@-]+) \\(agent\\)\"/g,z;while((z=_.exec(q))!==null)if(z[2])K.push(z[2]);let Y=/(^|[\\s。、？！])@(agent-[\\w:.@-]+)/g,A=q.match(Y)||[];for(let O of A)K.push(O.slice(O.indexOf(\"@\")+1));return O5(K)}function BMY(q){let K=q.match(/^([^#]+)(?:#L(\\d+)(?:-(\\d+))?)?(?:#[^#]*)?$/);if(!K)return{filename:q};let[,_,z,Y]=K,A=z?parseInt(z,10):void 0,O=Y?parseInt(Y,10):A;return{filena"
+      },
+      {
+        "idx": 9733246,
+        "snip": "ll_listing\",content:om1($,j),skillCount:$.length,isInitial:w}]}function uMY(q){let K=/(^|[\\s。、？！])@\"([^\"]+)\"/g,_=/(^|[\\s。、？！])@([^\\s]+)\\b/g,z=[],Y=[],A;while((A=K.exec(q))!==null)if(A[2]&&!A[2].endsWith(\" (agent)\"))z.push(A[2]);return(q.match(_)||[]).forEach(($)=>{let w=$.slice($.indexOf(\"@\")+1);if(!w.startsWith('\"'))Y.push(w)}),O5([...z,...Y])}function mMY(q){let K=/(^|[\\s。、？！])@([^\\s]+:[^\\s]+)\\b/g,_=q.match(K)||[];return O5(_.map((z)=>z.slice(z.indexOf(\"@\")+1)))}function DVK(q){let K=[],_=/(^|[\\s。、？！])@\"([\\w:.@-]+) \\(agent\\)\"/g,z;while((z=_.exec(q))!==null)if(z[2])K.push(z[2]);let Y=/(^|[\\s。、？！])@(agent-[\\w:.@-]+)/g,A=q.match(Y)||[];for(let O of A)K.push(O.slice(O.indexOf(\"@\")+1));return O5(K)}function BMY(q){let K=q.match(/^([^#]+)(?:#L(\\d+)(?:-(\\d+))?)?(?:#[^#]*)?$/);if(!K)return{filename:q};let[,_,z,Y]=K,A=z?parseInt(z,10):void 0,O=Y?parseInt(Y,10):A;return{filename:_??q,lineStart:A,lineEnd:O}}async function pMY(q){if(!q.options.tools.some((_)=>a_(_,Q7)))return[];let K=await xa.getNewDiag"
+      }
+    ],
+    "hits96first": []
+  },
+  "buildGitSessionContext": {
+    "c96": 0,
+    "c97": 2,
+    "hits97": [
+      {
+        "idx": 10888475,
+        "snip": ",schema:{type:\"object\",properties:{name:{type:\"string\"}},required:[\"name\"],additionalProperties:!1}},signal:K,options:{querySource:\"rename_generate_name\",agents:[],isNonInteractiveSession:!1,hasAppendSystemPrompt:!1,mcpTools:[]}}),Y=w9(z.message.content),A=y5(Y);if(A&&typeof A===\"object\"&&\"name\"in A&&typeof A.name===\"string\")return A.name;return null}catch(z){return N(`generateSessionName failed: ${m6(z)}`,{level:\"error\"}),null}}var Sz7=L(()=>{lj();K8();y8();N$();$7();Bb6()});var zuK={};f8(zuK,{buildGitSessionContext:()=>Cz7});async function Cz7(q,K,_){if(!q)return{sources:[],outcomes:[]};let{parseGitRemote:z,parseGitHubRepository:Y}=await Promise.resolve().then(() => (iT(),h28)),{getDefaultBranch:A}=await Promise.resolve().then(() => (lK(),m28)),O=(j,H,J,M)=>({sources:[{type:\"git_repository\",url:`https://${j}/${H}/${J}`,revision:M}],outcomes:[{type:\"git_repository\",git_info:{type:\"github\",repo:`${H}/${J}`,branches:M?[M]:[]}}]}),$=z(q);if($){let j=K||_||await A()||void 0;return O($.host,$.owner,$.name,j)}le"
+      },
+      {
+        "idx": 11902087,
+        "snip": "writeIdx=(this.writeIdx+1)%this.capacity}has(q){return this.set.has(q)}clear(){this.set.clear(),this.ring.fill(void 0),this.writeIdx=0}}var cnY=\"This session is outbound-only. Enable Remote Control locally to allow inbound control.\";var jw7=L(()=>{T8();GU8();K8();w06();y8();l8()});function FoK(q){return{Authorization:`Bearer ${q}`,\"Content-Type\":\"application/json\",\"anthropic-version\":lnY}}async function Hw7(q,K,_,z,Y,A,O,$){let w=`${q}/v1/code/sessions`,j={cwd:O??Z8(),...$&&{model:$}};if(A){let{buildGitSessionContext:M}=await Promise.resolve().then(() => zuK),{sources:X,outcomes:P}=await M(A.gitRepoUrl,A.branch,A.defaultBranch);if(X.length>0||P.length>0)j.sources=X,j.outcomes=P,j.reuse_outcome_branches=!0}let H;try{H=await w1.post(w,{title:_,bridge:{},...Y?.length&&{tags:Y},config:j},{headers:FoK(K),timeout:z,validateStatus:(M)=>M<500})}catch(M){return N(`[code-session] Session create request failed: ${m6(M)}`),null}if(H.status!==200&&H.status!==201){let M=zI(H.data);return N(`[code-session] Session create "
+      }
+    ],
+    "hits96first": []
+  },
+  "getGitWorktreeName": {
+    "c96": 0,
+    "c97": 1,
+    "hits97": [
+      {
+        "idx": 959798,
+        "snip": "n!1;let K=q.split(\".\").pop();if(!K)return!1;return/^[a-zA-Z]+$/.test(K)}var lz6;var iT=L(()=>{U7();K8();lK();lz6=new Map});var m28={};f8(m28,{stashToCleanState:()=>C91,preserveGitStateForIssue:()=>su5,normalizeGitRemoteUrl:()=>x28,isCurrentDirectoryBareGitRepo:()=>ag6,isAtGitRoot:()=>iu5,hasUnpushedCommits:()=>S91,gitExe:()=>L7,getWorktreeCount:()=>L06,getRepoRemoteHash:()=>I28,getRemoteUrl:()=>og,getIsHeadOnRemote:()=>Bx7,getIsGit:()=>LJ,getIsClean:()=>E06,getHead:()=>mx7,getGithubRepo:()=>w86,getGitWorktreeName:()=>h91,getGitState:()=>b91,getGitDir:()=>og6,getFileStatus:()=>u28,getDefaultBranch:()=>Df,getChangedFiles:()=>ru5,getBranch:()=>hJ,findRemoteBase:()=>px7,findGitRoot:()=>BY,findCanonicalGitRoot:()=>Nj,dirIsInGitRepo:()=>R91});import{createHash as Uu5}from\"crypto\";import{readFileSync as L91,realpathSync as Ex7,statSync as Lx7}from\"fs\";import{open as Qu5,readFile as du5,realpath as hx7,stat as cu5}from\"fs/promises\";import{basename as S28,dirname as b28,join as bS,resolve as C28,sep as Rx7}from\""
+      }
+    ],
+    "hits96first": []
+  },
+  "worktrees": {
+    "c96": 30,
+    "c97": 31,
+    "hits97": [
+      {
+        "idx": 956255,
+        "snip": "{return null}let _=await rg6(K);if(!_)return null;if(_.type===\"branch\")return A86(K,`refs/heads/${_.name}`);return _.sha}async function L28(q){let K=await dG(q);if(!K)return null;let _=await N28(K);if(_)return _;let z=await Xu(K);if(z&&z!==K)return N28(z);return null}async function Tx7(){let q=await dG();if(!q)return!1;let K=await Xu(q)??q;try{return await Xx7(SS(K,\"shallow\")),!0}catch{return!1}}async function Vx7(){try{let q=await dG();if(!q)return 0;let K=await Xu(q)??q;return(await Lu5(SS(K,\"worktrees\"))).length+1}catch{return 1}}var y06,Ru5=1000,y28;var nn=L(()=>{v8();o9();U7();lK();V91();y06=new Map;y28=new Dx7});import{execFileSync as Iu5}from\"child_process\";import{dirname as uu5,join as mu5,resolve as Bu5,sep as pu5}from\"path\";function k91(q){let K=process.cwd().toLowerCase();return q.filter((_)=>{let z=Bu5(_).toLowerCase();return uu5(z).toLowerCase()!==K&&!z.startsWith(K+pu5)})}function kx7(){let q=process.env.SYSTEMROOT||\"C:\\\\Windows\";return mu5(q,\"System32\",\"where.exe\")}async function"
+      },
+      {
+        "idx": 960492,
+        "snip": "findCanonicalGitRoot:()=>Nj,dirIsInGitRepo:()=>R91});import{createHash as Uu5}from\"crypto\";import{readFileSync as L91,realpathSync as Ex7,statSync as Lx7}from\"fs\";import{open as Qu5,readFile as du5,realpath as hx7,stat as cu5}from\"fs/promises\";import{basename as S28,dirname as b28,join as bS,resolve as C28,sep as Rx7}from\"path\";function lu5(){function q(K){let _=Sx7(K);return _===ux7?null:_}return q.cache=Sx7.cache,q}async function h91(q){let K=await dG(q);if(!K||S28(K)===\".git\"||S28(b28(K))!==\"worktrees\")return null;return S28(K)}function nu5(){function q(K){let _=BY(K);if(!_)return null;return Cx7(_)}return q.cache=Cx7.cache,q}function og6(q){return dG(q)}async function iu5(){let q=Z8(),K=BY(q);if(!K)return!1;try{let[_,z]=await Promise.all([hx7(q),hx7(K)]);return _===z}catch{return q===K}}function x28(q){let K=q.trim();if(!K)return null;let _=K.match(/^git@([^:]+):(.+?)(?:\\.git)?$/);if(_&&_[1]&&_[2])return`${_[1]}/${_[2]}`.toLowerCase();let z=K.match(/^(?:https?|ssh):\\/\\/(?:[^@]+@)?([^/]+)\\/("
+      },
+      {
+        "idx": 967801,
+        "snip": "y{let A=bS(z,\".git\");Y++;let O=Lx7(A);if(O.isDirectory()||O.isFile())return Y1(\"info\",\"find_git_root_completed\",{duration_ms:Date.now()-K,stat_count:Y,found:!0}),z.normalize(\"NFC\")}catch{}return Y1(\"info\",\"find_git_root_completed\",{duration_ms:Date.now()-K,stat_count:Y,found:!1}),ux7},(q)=>q,50),BY=lu5();Cx7=rP((q)=>{try{let K=L91(bS(q,\".git\"),\"utf-8\").trim();if(!K.startsWith(\"gitdir:\"))return q;let _=C28(q,K.slice(7).trim()),z=C28(_,L91(bS(_,\"commondir\"),\"utf-8\").trim());if(C28(b28(_))!==bS(z,\"worktrees\"))return q;if(Ex7(L91(bS(_,\"gitdir\"),\"utf-8\").trim())!==bS(Ex7(q),\".git\"))return q;if(S28(z)!==\".git\")return z.normalize(\"NFC\");return b28(z).normalize(\"NFC\")}catch{return q}},(q)=>q,50),Nj=nu5();L7=A1(()=>{return O86(\"git\")||\"git\"}),LJ=A1(async()=>{let q=Date.now();Y1(\"info\",\"is_git_check_started\");let K=BY(Z8())!==null;return Y1(\"info\",\"is_git_check_completed\",{duration_ms:Date.now()-q,is_git:K}),K})});import{appendFile as eu5,mkdir as qm5,readFile as Km5,writeFile as _m5}from\"fs/promises\";im"
+      },
+      {
+        "idx": 1049171,
+        "snip": "Servers:y.array(TB5()).optional().describe(\"Enterprise denylist of MCP servers that are explicitly blocked. If a server is on the denylist, it will be blocked across all scopes including enterprise. Denylist takes precedence over allowlist - if a server is on both lists, it is denied.\"),hooks:jN().optional().describe(\"Custom commands to run before/after tool executions\"),worktree:y.object({symlinkDirectories:y.array(y.string()).optional().describe('Directories to symlink from main repository to worktrees to avoid disk bloat. Must be explicitly configured - no directories are symlinked by default. Common examples: \"node_modules\", \".cache\", \".bin\"'),sparsePaths:y.array(y.string()).optional().describe(\"Directories to include when creating worktrees, via git sparse-checkout (cone mode). \"+\"Dramatically faster in large monorepos — only the listed paths are written to disk.\")}).optional().describe(\"Git worktree configuration for --worktree flag.\"),disableAllHooks:y.boolean().optional().describe(\"Disa"
+      }
+    ],
+    "hits96first": [
+      {
+        "idx": 953867,
+        "snip": " sT();if(!q)return!1;let K=await Tu(q)??q;try{return await cx7(FS(K,\"shallow\")),!0}catch{return!1}}async function ex7(){try{let q=await sT();if(!q)return 0;let K=await Tu(q)??q;return(await au5(FS(K,\"worktrees\"))).length+1}catch{return 1}}var Ff6,tu5=1000,r28;var Qn=L(()=>{T8();p9();Q7();tK();$_1();Ff6=new Map;r28=new nx7});import{execFileSync as zm5}from\"child_process\";import{dirname as Ym5,join as Om5,re"
+      }
+    ]
+  },
+  "em1": {
+    "c96": 5,
+    "c97": 4,
+    "hits97": [
+      {
+        "idx": 4951015,
+        "snip": "OCKING REQUIREMENT: invoke the relevant Skill tool BEFORE generating any other response about the task\n- NEVER mention a skill without actually calling this tool\n- Do not invoke a skill that is already running\n- Do not use this tool for built-in CLI commands (like /help, /clear, etc.)\n- If you see a <${mG}> tag in the current conversation turn, the skill has ALREADY been loaded - follow the instructions directly instead of calling this tool again\n`})});var DN6=5242880,Ny=3932160,TQ=2000,VQ=2000,em1=25000,WN6=20971520,lM4=100,nM4=3145728,qB1=104857600,ow6=20,OE8=10,iM4=100,rM4=600,oM4=20;function ir_(q){return Math.max(0,Math.floor((Date.now()-q)/86400000))}function KB1(q){let K=ir_(q);if(K<=1)return\"\";return`This memory is ${K} days old. `+\"Memories are point-in-time observations, not live state — \"+\"claims about code behavior or file:line citations may be outdated. Verify against current code before asserting as fact.\"}function aM4(q){let K=KB1(q);if(!K)return\"\";return`<system-reminder>$"
+      },
+      {
+        "idx": 5203267,
+        "snip": "essing failed. Please resize the image to reduce its pixel dimensions.`:`Unable to resize image (${u4(K)} raw, ${u4(w)} base64). The image exceeds the 5MB API limit and compression failed. Please resize the image manually or use a smaller image.`)}}async function Ry({data:q,mediaType:K}){let _=Buffer.isBuffer(q)?q:Buffer.from(q,\"base64\"),z=K?.includes(\"/\")?K.split(\"/\")[1]||\"png\":K||\"png\",Y=await eo(_,_.length,z),A=Y.buffer.toString(\"base64\"),O=`image/${Y.mediaType}`;if(Math.ceil(A.length*0.125)>em1)try{let $=await Lp1(_,em1,`image/${z}`);return{block:{type:\"image\",source:{type:\"base64\",media_type:$.mediaType,data:$.base64}},tokenCompressed:!0}}catch{}return{block:{type:\"image\",source:{type:\"base64\",media_type:O,data:A}},dimensions:Y.dimensions}}async function o04(q){if(q.source.type!==\"base64\")return{block:q};return Ry({data:q.source.data,mediaType:q.source.media_type})}async function a04(q,K=Ny,_){let z=_?.split(\"/\")[1]||\"jpeg\",Y=z===\"jpg\"?\"jpeg\":z;try{let A=await aN6(),O=await A(q).meta"
+      },
+      {
+        "idx": 5203293,
+        "snip": "ze the image to reduce its pixel dimensions.`:`Unable to resize image (${u4(K)} raw, ${u4(w)} base64). The image exceeds the 5MB API limit and compression failed. Please resize the image manually or use a smaller image.`)}}async function Ry({data:q,mediaType:K}){let _=Buffer.isBuffer(q)?q:Buffer.from(q,\"base64\"),z=K?.includes(\"/\")?K.split(\"/\")[1]||\"png\":K||\"png\",Y=await eo(_,_.length,z),A=Y.buffer.toString(\"base64\"),O=`image/${Y.mediaType}`;if(Math.ceil(A.length*0.125)>em1)try{let $=await Lp1(_,em1,`image/${z}`);return{block:{type:\"image\",source:{type:\"base64\",media_type:$.mediaType,data:$.base64}},tokenCompressed:!0}}catch{}return{block:{type:\"image\",source:{type:\"base64\",media_type:O,data:A}},dimensions:Y.dimensions}}async function o04(q){if(q.source.type!==\"base64\")return{block:q};return Ry({data:q.source.data,mediaType:q.source.media_type})}async function a04(q,K=Ny,_){let z=_?.split(\"/\")[1]||\"jpeg\",Y=z===\"jpg\"?\"jpeg\":z;try{let A=await aN6(),O=await A(q).metadata(),$=O.format||Y,w=q.l"
+      },
+      {
+        "idx": 6133711,
+        "snip": "pu_write cqo cwd cwde daa das dec div dmint emms enter equ f2xm1 fabs fadd faddp fbld fbstp fchs fclex fcmovb fcmovbe fcmove fcmovnb fcmovnbe fcmovne fcmovnu fcmovu fcom fcomi fcomip fcomp fcompp fcos fdecstp fdisi fdiv fdivp fdivr fdivrp femms feni ffree ffreep fiadd ficom ficomp fidiv fidivr fild fimul fincstp finit fist fistp fisttp fisub fisubr fld fld1 fldcw fldenv fldl2e fldl2t fldlg2 fldln2 fldpi fldz fmul fmulp fnclex fndisi fneni fninit fnop fnsave fnstcw fnstenv fnstsw fpatan fprem fprem1 fptan frndint frstor fsave fscale fsetpm fsin fsincos fsqrt fst fstcw fstenv fstp fstsw fsub fsubp fsubr fsubrp ftst fucom fucomi fucomip fucomp fucompp fxam fxch fxtract fyl2x fyl2xp1 hlt ibts icebp idiv imul in inc incbin insb insd insw int int01 int1 int03 int3 into invd invpcid invlpg invlpga iret iretd iretq iretw jcxz jecxz jrcxz jmp jmpe lahf lar lds lea leave les lfence lfs lgdt lgs lidt lldt lmsw loadall loadall286 lodsb lodsd lodsq lodsw loop loope loopne loopnz loopz lsl lss ltr mfen"
+      }
+    ],
+    "hits96first": [
+      {
+        "idx": 4828506,
+        "snip": "z.compact();return $},$.digest=function(){var w=Kj.util.createBuffer();w.putBytes(z.bytes());var j=$.fullMessageLength[$.fullMessageLength.length-1]+$.messageLengthSize,H=j&$.blockLength-1;w.putBytes(em1.substr(0,$.blockLength-H));var J,M,X=$.fullMessageLength[0]*8;for(var P=0;P<$.fullMessageLength.length-1;++P)J=$.fullMessageLength[P+1]*8,M=J/4294967296>>>0,X+=M,w.putInt32(X>>>0),X=J>>>0;w.putInt32("
+      }
+    ]
+  }
+}

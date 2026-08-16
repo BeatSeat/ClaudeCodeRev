@@ -1,0 +1,419 @@
+{
+  "rateLimit": {
+    "Retry-After": {
+      "c92": 9,
+      "c94": 9,
+      "delta": 0
+    },
+    "retry-after": {
+      "c92": 15,
+      "c94": 15,
+      "delta": 0
+    },
+    "retryAfterMs": {
+      "c92": 7,
+      "c94": 7,
+      "delta": 0
+    },
+    "maxRetryAfter": {
+      "c92": 0,
+      "c94": 0,
+      "delta": 0
+    },
+    "SHORT_RETRY": {
+      "c92": 0,
+      "c94": 0,
+      "delta": 0
+    },
+    "rate_limit_error": {
+      "c92": 1,
+      "c94": 1,
+      "delta": 0
+    },
+    "long Retry-After": {
+      "c92": 0,
+      "c94": 0,
+      "delta": 0
+    },
+    "silently waiting": {
+      "c92": 0,
+      "c94": 0,
+      "delta": 0
+    },
+    "surfaces immediately": {
+      "c92": 0,
+      "c94": 0,
+      "delta": 0
+    },
+    "too long to wait": {
+      "c92": 0,
+      "c94": 0,
+      "delta": 0
+    },
+    "retryAfterTooLong": {
+      "c92": 0,
+      "c94": 0,
+      "delta": 0
+    },
+    "MAX_RETRY_AFTER": {
+      "c92": 0,
+      "c94": 0,
+      "delta": 0
+    },
+    "maxRetryAfterMs": {
+      "c92": 0,
+      "c94": 0,
+      "delta": 0
+    },
+    "RETRY_AFTER_MAX": {
+      "c92": 0,
+      "c94": 0,
+      "delta": 0
+    },
+    "exceeds max": {
+      "c92": 18,
+      "c94": 18,
+      "delta": 0
+    },
+    "retry-after too": {
+      "c92": 0,
+      "c94": 0,
+      "delta": 0
+    },
+    "Retry after too": {
+      "c92": 0,
+      "c94": 0,
+      "delta": 0
+    }
+  },
+  "keychain": {
+    "unlock-keychain": {
+      "c92": 1,
+      "c94": 2,
+      "delta": 1
+    },
+    "Keychain is not writable": {
+      "c92": 0,
+      "c94": 1,
+      "delta": 1
+    },
+    "login.keychain": {
+      "c92": 0,
+      "c94": 1,
+      "delta": 1
+    },
+    "login.keychain-db": {
+      "c92": 0,
+      "c94": 1,
+      "delta": 1
+    },
+    "Not logged in": {
+      "c92": 3,
+      "c94": 3,
+      "delta": 0
+    },
+    "keychain is locked": {
+      "c92": 0,
+      "c94": 0,
+      "delta": 0
+    },
+    "keychain locked": {
+      "c92": 0,
+      "c94": 0,
+      "delta": 0
+    },
+    "password is out of sync": {
+      "c92": 0,
+      "c94": 0,
+      "delta": 0
+    },
+    "security unlock-keychain": {
+      "c92": 1,
+      "c94": 2,
+      "delta": 1
+    },
+    "show-keychain-info": {
+      "c92": 1,
+      "c94": 1,
+      "delta": 0
+    },
+    "Console login will fail": {
+      "c92": 0,
+      "c94": 1,
+      "delta": 1
+    },
+    "keychain-db": {
+      "c92": 0,
+      "c94": 1,
+      "delta": 1
+    },
+    "claude doctor": {
+      "c92": 2,
+      "c94": 3,
+      "delta": 1
+    },
+    "doctor diagnoses": {
+      "c92": 0,
+      "c94": 0,
+      "delta": 0
+    },
+    "KeychainAccess": {
+      "c92": 0,
+      "c94": 0,
+      "delta": 0
+    },
+    "errSecAuthFailed": {
+      "c92": 0,
+      "c94": 0,
+      "delta": 0
+    },
+    "errSecInteractionNotAllowed": {
+      "c92": 0,
+      "c94": 0,
+      "delta": 0
+    },
+    "User interaction is not allowed": {
+      "c92": 0,
+      "c94": 0,
+      "delta": 0
+    },
+    "A required privilege is not held": {
+      "c92": 0,
+      "c94": 0,
+      "delta": 0
+    }
+  },
+  "printSdk": {
+    "partial assistant": {
+      "c92": 0,
+      "c94": 0,
+      "delta": 0
+    },
+    "interrupted mid-stream": {
+      "c92": 0,
+      "c94": 0,
+      "delta": 0
+    },
+    "preserve the partial": {
+      "c92": 0,
+      "c94": 0,
+      "delta": 0
+    },
+    "partialMessage": {
+      "c92": 17,
+      "c94": 17,
+      "delta": 0
+    },
+    "includePartialMessages": {
+      "c92": 7,
+      "c94": 7,
+      "delta": 0
+    },
+    "print mode": {
+      "c92": 4,
+      "c94": 4,
+      "delta": 0
+    },
+    "SDK/print": {
+      "c92": 0,
+      "c94": 0,
+      "delta": 0
+    },
+    "conversation history when interrupted": {
+      "c92": 0,
+      "c94": 0,
+      "delta": 0
+    },
+    "partial response": {
+      "c92": 2,
+      "c94": 2,
+      "delta": 0
+    },
+    "interrupted mid": {
+      "c92": 0,
+      "c94": 0,
+      "delta": 0
+    },
+    "abortController": {
+      "c92": 234,
+      "c94": 240,
+      "delta": 6
+    },
+    "isAbortError": {
+      "c92": 0,
+      "c94": 0,
+      "delta": 0
+    }
+  },
+  "resumeWorktree": {
+    "isSameRepoWorktree": {
+      "c92": 5,
+      "c94": 4,
+      "delta": -1
+    },
+    "same-repo worktree": {
+      "c92": 0,
+      "c94": 0,
+      "delta": 0
+    },
+    "same repo worktree": {
+      "c92": 0,
+      "c94": 0,
+      "delta": 0
+    },
+    "other worktrees": {
+      "c92": 0,
+      "c94": 0,
+      "delta": 0
+    },
+    "To resume, run:": {
+      "c92": 2,
+      "c94": 2,
+      "delta": 0
+    },
+    "This conversation is from a different directory": {
+      "c92": 2,
+      "c94": 2,
+      "delta": 0
+    },
+    "checkCrossProjectResume": {
+      "c92": 0,
+      "c94": 0,
+      "delta": 0
+    },
+    "crossProjectResume": {
+      "c92": 0,
+      "c94": 0,
+      "delta": 0
+    },
+    "worktreePaths": {
+      "c92": 2,
+      "c94": 2,
+      "delta": 0
+    },
+    "please cd": {
+      "c92": 0,
+      "c94": 0,
+      "delta": 0
+    },
+    "cd \"": {
+      "c92": 1,
+      "c94": 1,
+      "delta": 0
+    }
+  },
+  "utf8": {
+    "U+FFFD": {
+      "c92": 0,
+      "c94": 0,
+      "delta": 0
+    },
+    "UNICODE_REPLACEMENT": {
+      "c92": 0,
+      "c94": 2,
+      "delta": 2
+    },
+    "replacement character": {
+      "c92": 0,
+      "c94": 1,
+      "delta": 1
+    },
+    "TextDecoder": {
+      "c92": 32,
+      "c94": 33,
+      "delta": 1
+    },
+    "fatal:false": {
+      "c92": 0,
+      "c94": 0,
+      "delta": 0
+    },
+    "fatal: false": {
+      "c92": 0,
+      "c94": 0,
+      "delta": 0
+    },
+    "{stream:!0}": {
+      "c92": 4,
+      "c94": 5,
+      "delta": 1
+    },
+    "{stream:true}": {
+      "c92": 0,
+      "c94": 0,
+      "delta": 0
+    },
+    "stream:!0": {
+      "c92": 13,
+      "c94": 14,
+      "delta": 1
+    },
+    "incomplete UTF": {
+      "c92": 0,
+      "c94": 0,
+      "delta": 0
+    },
+    "multibyte": {
+      "c92": 0,
+      "c94": 0,
+      "delta": 0
+    },
+    "UTF-8 sequence": {
+      "c92": 2,
+      "c94": 2,
+      "delta": 0
+    },
+    "decode(value,{stream": {
+      "c92": 0,
+      "c94": 0,
+      "delta": 0
+    },
+    "decode(_,{stream": {
+      "c92": 0,
+      "c94": 0,
+      "delta": 0
+    },
+    "new TextDecoder(": {
+      "c92": 15,
+      "c94": 16,
+      "delta": 1
+    }
+  },
+  "vscode": {
+    "cold-open": {
+      "c92": 0,
+      "c94": 0,
+      "delta": 0
+    },
+    "cold open": {
+      "c92": 0,
+      "c94": 0,
+      "delta": 0
+    },
+    "settings.json files fail": {
+      "c92": 0,
+      "c94": 0,
+      "delta": 0
+    },
+    "permission rules are not being applied": {
+      "c92": 0,
+      "c94": 0,
+      "delta": 0
+    },
+    "dropdown menus selecting": {
+      "c92": 0,
+      "c94": 0,
+      "delta": 0
+    },
+    "vscode.workspace": {
+      "c92": 0,
+      "c94": 0,
+      "delta": 0
+    },
+    "extension.ts": {
+      "c92": 0,
+      "c94": 0,
+      "delta": 0
+    }
+  }
+}

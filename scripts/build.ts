@@ -110,7 +110,7 @@ const FEATURE_FLAGS: Record<string, boolean> = {
   KAIROS_GITHUB_WEBHOOKS: isDev,
   KAIROS_PUSH_NOTIFICATION: isDev,
   LODESTONE: isDev,
-  MONITOR_TOOL: isDev,
+  MONITOR_TOOL: true,
   COORDINATOR_MODE: isDev,
   SSH_REMOTE: isDev,
   DIRECT_CONNECT: isDev,

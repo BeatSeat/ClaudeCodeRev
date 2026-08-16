@@ -1,0 +1,355 @@
+{
+  "userTypeNearResume92": [
+    {
+      "label": "isSameRepoWorktree",
+      "idx": 10924424,
+      "hasUserType": false,
+      "snip": "rm anywhere in any field\n- Are semantically related to the query (e.g., \"testing\" matches sessions about \"tests\", \"unit tests\", \"QA\", etc.)\n- Discuss topics that could be related to the query\n- Have transcripts that mention the concept even in passing\n\nWhen in doubt, INCLUDE the session. It's better to return too many results than too few. The user can easily scan through results, but missing relevant sessions is frustrating.\n\nReturn sessions ordered by relevance (most relevant first). If truly no sessions have ANY connection to the query, return an empty array - but this should be rare.\n\nRespond with ONLY the JSON object, no markdown formatting:\n{\"relevant_indices\": [2, 5, 0]}`;var Az7=L(()=>{_8();h8();Fq();qK();lQ();r8()});import{sep as jLY}from\"path\";function jc8(q,K,_){let z=A7();if(!K||!q.projectPath||q.projectPath===z)return{isCrossProject:!1};{let $=FA(q);return{isCrossProject:!0,isSameRepoWorktree:!1,command:`cd ${UK([q.projectPath])} && claude --resume ${$}`,projectPath:q.projectPath}}if(_.some(($)=>q.projectPath===$||q.projectPath.startsWith($+jLY)))return{isCrossProject:!0,isSameRepoWorktree:!0,projectPath:q.projectPath};let O=FA(q);return{isCrossProject:!0,isSameRepoWorktree:!1,command:`cd ${UK([q.projectPath])} && claude --resume ${O}`,projectPath:q.projectPath}}var $z7=L(()=>{T8();qK()});var QuK={};G8(QuK,{filterResumableSessions:()=>UuK,call:()=>JLY});function FuK(q){switch(q.resultType){case\"sessionNotFound\":return`Session ${O8.bold(q.arg)} was not found.`;case\"multipleMatches\":return`Found ${q.count} sessions matching ${O8.bold(q.arg)}. Please use /resume to pick a specific session.`}}function wz7(q){let K=K6(10),{message:_,args:z,onDone:Y}=q,O,A;if(K[0]!==Y)O=()=>{let H=setTimeout(Y,0);return()=>clearTimeout(H)},A=[Y],K[0]=Y,K[1]=O,K[2]=A;else O=K[1],A"
+    },
+    {
+      "label": "isSameRepoWorktree",
+      "idx": 10924625,
+      "hasUserType": false,
+      "snip": "anscripts that mention the concept even in passing\n\nWhen in doubt, INCLUDE the session. It's better to return too many results than too few. The user can easily scan through results, but missing relevant sessions is frustrating.\n\nReturn sessions ordered by relevance (most relevant first). If truly no sessions have ANY connection to the query, return an empty array - but this should be rare.\n\nRespond with ONLY the JSON object, no markdown formatting:\n{\"relevant_indices\": [2, 5, 0]}`;var Az7=L(()=>{_8();h8();Fq();qK();lQ();r8()});import{sep as jLY}from\"path\";function jc8(q,K,_){let z=A7();if(!K||!q.projectPath||q.projectPath===z)return{isCrossProject:!1};{let $=FA(q);return{isCrossProject:!0,isSameRepoWorktree:!1,command:`cd ${UK([q.projectPath])} && claude --resume ${$}`,projectPath:q.projectPath}}if(_.some(($)=>q.projectPath===$||q.projectPath.startsWith($+jLY)))return{isCrossProject:!0,isSameRepoWorktree:!0,projectPath:q.projectPath};let O=FA(q);return{isCrossProject:!0,isSameRepoWorktree:!1,command:`cd ${UK([q.projectPath])} && claude --resume ${O}`,projectPath:q.projectPath}}var $z7=L(()=>{T8();qK()});var QuK={};G8(QuK,{filterResumableSessions:()=>UuK,call:()=>JLY});function FuK(q){switch(q.resultType){case\"sessionNotFound\":return`Session ${O8.bold(q.arg)} was not found.`;case\"multipleMatches\":return`Found ${q.count} sessions matching ${O8.bold(q.arg)}. Please use /resume to pick a specific session.`}}function wz7(q){let K=K6(10),{message:_,args:z,onDone:Y}=q,O,A;if(K[0]!==Y)O=()=>{let H=setTimeout(Y,0);return()=>clearTimeout(H)},A=[Y],K[0]=Y,K[1]=O,K[2]=A;else O=K[1],A=K[2];i9.useEffect(O,A);let $;if(K[3]!==z)$=i9.createElement(T,{dimColor:!0},i6.pointer,\" /resume \",z),K[3]=z,K[4]=$;else $=K[4];let w;if(K[5]!==_)w=i9.createElement(Y1,null,i9.createElement(T,null,_))"
+    },
+    {
+      "label": "isSameRepoWorktree",
+      "idx": 10924711,
+      "hasUserType": false,
+      "snip": ". It's better to return too many results than too few. The user can easily scan through results, but missing relevant sessions is frustrating.\n\nReturn sessions ordered by relevance (most relevant first). If truly no sessions have ANY connection to the query, return an empty array - but this should be rare.\n\nRespond with ONLY the JSON object, no markdown formatting:\n{\"relevant_indices\": [2, 5, 0]}`;var Az7=L(()=>{_8();h8();Fq();qK();lQ();r8()});import{sep as jLY}from\"path\";function jc8(q,K,_){let z=A7();if(!K||!q.projectPath||q.projectPath===z)return{isCrossProject:!1};{let $=FA(q);return{isCrossProject:!0,isSameRepoWorktree:!1,command:`cd ${UK([q.projectPath])} && claude --resume ${$}`,projectPath:q.projectPath}}if(_.some(($)=>q.projectPath===$||q.projectPath.startsWith($+jLY)))return{isCrossProject:!0,isSameRepoWorktree:!0,projectPath:q.projectPath};let O=FA(q);return{isCrossProject:!0,isSameRepoWorktree:!1,command:`cd ${UK([q.projectPath])} && claude --resume ${O}`,projectPath:q.projectPath}}var $z7=L(()=>{T8();qK()});var QuK={};G8(QuK,{filterResumableSessions:()=>UuK,call:()=>JLY});function FuK(q){switch(q.resultType){case\"sessionNotFound\":return`Session ${O8.bold(q.arg)} was not found.`;case\"multipleMatches\":return`Found ${q.count} sessions matching ${O8.bold(q.arg)}. Please use /resume to pick a specific session.`}}function wz7(q){let K=K6(10),{message:_,args:z,onDone:Y}=q,O,A;if(K[0]!==Y)O=()=>{let H=setTimeout(Y,0);return()=>clearTimeout(H)},A=[Y],K[0]=Y,K[1]=O,K[2]=A;else O=K[1],A=K[2];i9.useEffect(O,A);let $;if(K[3]!==z)$=i9.createElement(T,{dimColor:!0},i6.pointer,\" /resume \",z),K[3]=z,K[4]=$;else $=K[4];let w;if(K[5]!==_)w=i9.createElement(Y1,null,i9.createElement(T,null,_)),K[5]=_,K[6]=w;else w=K[6];let j;if(K[7]!==$||K[8]!==w)j=i9.createElement(u,{flexDirec"
+    },
+    {
+      "label": "isSameRepoWorktree",
+      "idx": 10926349,
+      "hasUserType": false,
+      "snip": "[4];let w;if(K[5]!==_)w=i9.createElement(Y1,null,i9.createElement(T,null,_)),K[5]=_,K[6]=w;else w=K[6];let j;if(K[7]!==$||K[8]!==w)j=i9.createElement(u,{flexDirection:\"column\"},$,w),K[7]=$,K[8]=w,K[9]=j;else j=K[9];return j}function HLY({onDone:q,onResume:K}){let[_,z]=i9.useState([]),[Y,O]=i9.useState([]),[A,$]=i9.useState(!0),[w,j]=i9.useState(!1),[H,J]=i9.useState(!1),{rows:M}=o1(),X=vv(),P=i9.useCallback(async(G,Z)=>{$(!0);try{let v=G?await jz7():await Hc8(Z),k=UuK(v,V8());if(k.length===0){q(\"No conversations found to resume\");return}z(k)}catch(v){q(\"Failed to load conversations\")}finally{$(!1)}},[q]);i9.useEffect(()=>{async function G(){let Z=await Mt(A7());O(Z),P(!1,Z)}G()},[P]);let W=i9.useCallback(()=>{let G=!H;J(G),P(G,Y)},[H,P,Y]);async function D(G){let Z=fh(FA(G));if(!Z){q(\"Failed to resume conversation\");return}let v=mh(G)?await lp(G):G,k=jc8(v,H,Y);if(k.isCrossProject){if(k.isSameRepoWorktree){j(!0),K(Z,v,\"slash_command_picker\");return}let V=await dX(k.command);if(V)process.stdout.write(V);let y=[\"\",\"This conversation is from a different directory.\",\"\",\"To resume, run:\",`  ${k.command}`,\"\",\"(Command copied to clipboard)\",\"\"].join(`\n`);q(y,{display:\"user\"});return}j(!0),K(Z,v,\"slash_command_picker\")}function f(){q(\"Resume cancelled\",{display:\"system\"})}if(A)return i9.createElement(u,null,i9.createElement(CK,null),i9.createElement(T,null,\" Loading conversations…\"));if(w)return i9.createElement(u,null,i9.createElement(CK,null),i9.createElement(T,null,\" Resuming conversation…\"));return i9.createElement($c8,{logs:_,maxHeight:X?Math.floor(M/2):M-2,onCancel:f,onSelect:D,onLogsChanged:()=>P(H,Y),showAllProjects:H,onToggleAllProjects:W,onAgenticSearch:wc8})}function UuK(q,K){return q.filter((_)=>!_.isSidechain&&FA(_)!==K)}var i9,JLY=async(q,K,_)=>{let z=async(j,H,J)"
+    },
+    {
+      "label": "isSameRepoWorktree",
+      "idx": 12575926,
+      "hasUserType": false,
+      "snip": "prNumber===X6)}}return O6},[k,W]),o=ft();tY.default.useEffect(()=>{$58(K).then((O6)=>{U.current=O6,n.current=O6.logs.length,V(O6.logs),E(!1)}).catch((O6)=>{H6(O6),E(!1)})},[K]);let z6=tY.default.useCallback((O6)=>{let X6=U.current;if(!X6||X6.nextIndex>=X6.allStatLogs.length)return;EM6(X6.allStatLogs,X6.nextIndex,O6).then((P6)=>{if(X6.nextIndex=P6.nextIndex,P6.logs.length>0){let t=n.current;P6.logs.forEach((a,$6)=>{a.value=t+$6}),V((a)=>a.concat(P6.logs)),n.current+=P6.logs.length}else if(X6.nextIndex<X6.allStatLogs.length)z6(O6)})},[]),_6=tY.default.useCallback((O6)=>{E(!0),(O6?El8():$58(K)).then((P6)=>{U.current=P6,n.current=P6.logs.length,V(P6.logs)}).catch((P6)=>{H6(P6)}).finally(()=>{E(!1)})},[K]),l=tY.default.useCallback(()=>{let O6=!I;m(O6),_6(O6)},[I,_6]);function q6(){process.exit(1)}async function J6(O6){b(!0);let X6=performance.now(),P6=jc8(O6,I,K);if(P6.isCrossProject){if(!P6.isSameRepoWorktree){let t=await dX(P6.command);if(t)process.stdout.write(t);F(P6.command);return}}try{let t=await f56(O6,void 0);if(!t)throw Error(\"Failed to load conversation\");if(t.sessionId&&!X)rf(eX(t.sessionId),O6.fullPath?H8O(O6.fullPath):null),await v38(),await ux(),_B8(t.sessionId);else if(X&&t.contentReplacements?.length)await TJ6(t.contentReplacements);let{agentDefinition:a}=wX6(t.agentSetting,A,Z);v((i)=>({...i,agent:a?.agentType}));let $6=V38(t.agentName,t.agentColor);if($6)v((i)=>({...i,standaloneAgentContext:$6}));if(Ru(t.agentName),pc(X?{...t,worktreeSession:void 0}:t),!X){if(N38(t.worktreeSession),t.sessionId)mc()}d(\"tengu_session_resumed\",{entrypoint:\"picker\",success:!0,resume_duration_ms:Math.round(performance.now()-X6)}),V([]),S({messages:t.messages,fileHistorySnapshots:t.fileHistorySnapshots,contentReplacements:t.contentReplacements,agentName:t.agentName,agentColor:t."
+    },
+    {
+      "label": "different directory",
+      "idx": 10926506,
+      "hasUserType": false,
+      "snip": "Direction:\"column\"},$,w),K[7]=$,K[8]=w,K[9]=j;else j=K[9];return j}function HLY({onDone:q,onResume:K}){let[_,z]=i9.useState([]),[Y,O]=i9.useState([]),[A,$]=i9.useState(!0),[w,j]=i9.useState(!1),[H,J]=i9.useState(!1),{rows:M}=o1(),X=vv(),P=i9.useCallback(async(G,Z)=>{$(!0);try{let v=G?await jz7():await Hc8(Z),k=UuK(v,V8());if(k.length===0){q(\"No conversations found to resume\");return}z(k)}catch(v){q(\"Failed to load conversations\")}finally{$(!1)}},[q]);i9.useEffect(()=>{async function G(){let Z=await Mt(A7());O(Z),P(!1,Z)}G()},[P]);let W=i9.useCallback(()=>{let G=!H;J(G),P(G,Y)},[H,P,Y]);async function D(G){let Z=fh(FA(G));if(!Z){q(\"Failed to resume conversation\");return}let v=mh(G)?await lp(G):G,k=jc8(v,H,Y);if(k.isCrossProject){if(k.isSameRepoWorktree){j(!0),K(Z,v,\"slash_command_picker\");return}let V=await dX(k.command);if(V)process.stdout.write(V);let y=[\"\",\"This conversation is from a different directory.\",\"\",\"To resume, run:\",`  ${k.command}`,\"\",\"(Command copied to clipboard)\",\"\"].join(`\n`);q(y,{display:\"user\"});return}j(!0),K(Z,v,\"slash_command_picker\")}function f(){q(\"Resume cancelled\",{display:\"system\"})}if(A)return i9.createElement(u,null,i9.createElement(CK,null),i9.createElement(T,null,\" Loading conversations…\"));if(w)return i9.createElement(u,null,i9.createElement(CK,null),i9.createElement(T,null,\" Resuming conversation…\"));return i9.createElement($c8,{logs:_,maxHeight:X?Math.floor(M/2):M-2,onCancel:f,onSelect:D,onLogsChanged:()=>P(H,Y),showAllProjects:H,onToggleAllProjects:W,onAgenticSearch:wc8})}function UuK(q,K){return q.filter((_)=>!_.isSidechain&&FA(_)!==K)}var i9,JLY=async(q,K,_)=>{let z=async(j,H,J)=>{try{await K.resume?.(j,H,J),q(void 0,{display:\"skip\"})}catch(M){H6(M),q(`Failed to resume: ${M.message}`)}},Y=_?.trim();if(!Y)return i9.createElement(HLY,"
+    },
+    {
+      "label": "different directory",
+      "idx": 12578821,
+      "hasUserType": false,
+      "snip": "G,onCancel:q6,onSelect:J6,onLogsChanged:o?()=>_6(I):void 0,onLoadMore:z6,initialSearchQuery:J,showAllProjects:I,onToggleAllProjects:l,onAgenticSearch:wc8})}function X8O(){let q=K6(2),K;if(q[0]===Symbol.for(\"react.memo_cache_sentinel\"))K={context:\"Global\"},q[0]=K;else K=q[0];J1(\"app:interrupt\",P8O,K);let _;if(q[1]===Symbol.for(\"react.memo_cache_sentinel\"))_=tY.default.createElement(u,{flexDirection:\"column\"},tY.default.createElement(T,null,\"No conversations found to resume.\"),tY.default.createElement(T,{dimColor:!0},\"Press Ctrl+C to exit and start a new conversation.\")),q[1]=_;else _=q[1];return _}function P8O(){process.exit(1)}function W8O(q){let K=K6(8),{command:_}=q,z;if(K[0]===Symbol.for(\"react.memo_cache_sentinel\"))z=[],K[0]=z;else z=K[0];tY.default.useEffect(D8O,z);let Y;if(K[1]===Symbol.for(\"react.memo_cache_sentinel\"))Y=tY.default.createElement(T,null,\"This conversation is from a different directory.\"),K[1]=Y;else Y=K[1];let O;if(K[2]===Symbol.for(\"react.memo_cache_sentinel\"))O=tY.default.createElement(T,null,\"To resume, run:\"),K[2]=O;else O=K[2];let A;if(K[3]!==_)A=tY.default.createElement(u,{flexDirection:\"column\"},O,tY.default.createElement(T,null,\" \",_)),K[3]=_,K[4]=A;else A=K[4];let $;if(K[5]===Symbol.for(\"react.memo_cache_sentinel\"))$=tY.default.createElement(T,{dimColor:!0},\"(Command copied to clipboard)\"),K[5]=$;else $=K[5];let w;if(K[6]!==A)w=tY.default.createElement(u,{flexDirection:\"column\",gap:1},Y,A,$),K[6]=A,K[7]=w;else w=K[7];return w}function D8O(){let q=setTimeout(f8O,100);return()=>clearTimeout(q)}function f8O(){process.exit(0)}var tY;var JK5=L(()=>{o6();u4();T8();zz7();f2();Gx();GM();l6();F7();k8();E7();z0();Az7();T38();TZ();uh6();$z7();h8();K7();y38();qK();qj7();tY=Y6(f6(),1)});async function MK5(q,K){let{InvalidSettingsDialog:_}=await Promise"
+    },
+    {
+      "label": "To resume, run:",
+      "idx": 10926532,
+      "hasUserType": false,
+      "snip": "[7]=$,K[8]=w,K[9]=j;else j=K[9];return j}function HLY({onDone:q,onResume:K}){let[_,z]=i9.useState([]),[Y,O]=i9.useState([]),[A,$]=i9.useState(!0),[w,j]=i9.useState(!1),[H,J]=i9.useState(!1),{rows:M}=o1(),X=vv(),P=i9.useCallback(async(G,Z)=>{$(!0);try{let v=G?await jz7():await Hc8(Z),k=UuK(v,V8());if(k.length===0){q(\"No conversations found to resume\");return}z(k)}catch(v){q(\"Failed to load conversations\")}finally{$(!1)}},[q]);i9.useEffect(()=>{async function G(){let Z=await Mt(A7());O(Z),P(!1,Z)}G()},[P]);let W=i9.useCallback(()=>{let G=!H;J(G),P(G,Y)},[H,P,Y]);async function D(G){let Z=fh(FA(G));if(!Z){q(\"Failed to resume conversation\");return}let v=mh(G)?await lp(G):G,k=jc8(v,H,Y);if(k.isCrossProject){if(k.isSameRepoWorktree){j(!0),K(Z,v,\"slash_command_picker\");return}let V=await dX(k.command);if(V)process.stdout.write(V);let y=[\"\",\"This conversation is from a different directory.\",\"\",\"To resume, run:\",`  ${k.command}`,\"\",\"(Command copied to clipboard)\",\"\"].join(`\n`);q(y,{display:\"user\"});return}j(!0),K(Z,v,\"slash_command_picker\")}function f(){q(\"Resume cancelled\",{display:\"system\"})}if(A)return i9.createElement(u,null,i9.createElement(CK,null),i9.createElement(T,null,\" Loading conversations…\"));if(w)return i9.createElement(u,null,i9.createElement(CK,null),i9.createElement(T,null,\" Resuming conversation…\"));return i9.createElement($c8,{logs:_,maxHeight:X?Math.floor(M/2):M-2,onCancel:f,onSelect:D,onLogsChanged:()=>P(H,Y),showAllProjects:H,onToggleAllProjects:W,onAgenticSearch:wc8})}function UuK(q,K){return q.filter((_)=>!_.isSidechain&&FA(_)!==K)}var i9,JLY=async(q,K,_)=>{let z=async(j,H,J)=>{try{await K.resume?.(j,H,J),q(void 0,{display:\"skip\"})}catch(M){H6(M),q(`Failed to resume: ${M.message}`)}},Y=_?.trim();if(!Y)return i9.createElement(HLY,{key:Date.now(),onDone:q,o"
+    },
+    {
+      "label": "To resume, run:",
+      "idx": 12578954,
+      "hasUserType": false,
+      "snip": ",onAgenticSearch:wc8})}function X8O(){let q=K6(2),K;if(q[0]===Symbol.for(\"react.memo_cache_sentinel\"))K={context:\"Global\"},q[0]=K;else K=q[0];J1(\"app:interrupt\",P8O,K);let _;if(q[1]===Symbol.for(\"react.memo_cache_sentinel\"))_=tY.default.createElement(u,{flexDirection:\"column\"},tY.default.createElement(T,null,\"No conversations found to resume.\"),tY.default.createElement(T,{dimColor:!0},\"Press Ctrl+C to exit and start a new conversation.\")),q[1]=_;else _=q[1];return _}function P8O(){process.exit(1)}function W8O(q){let K=K6(8),{command:_}=q,z;if(K[0]===Symbol.for(\"react.memo_cache_sentinel\"))z=[],K[0]=z;else z=K[0];tY.default.useEffect(D8O,z);let Y;if(K[1]===Symbol.for(\"react.memo_cache_sentinel\"))Y=tY.default.createElement(T,null,\"This conversation is from a different directory.\"),K[1]=Y;else Y=K[1];let O;if(K[2]===Symbol.for(\"react.memo_cache_sentinel\"))O=tY.default.createElement(T,null,\"To resume, run:\"),K[2]=O;else O=K[2];let A;if(K[3]!==_)A=tY.default.createElement(u,{flexDirection:\"column\"},O,tY.default.createElement(T,null,\" \",_)),K[3]=_,K[4]=A;else A=K[4];let $;if(K[5]===Symbol.for(\"react.memo_cache_sentinel\"))$=tY.default.createElement(T,{dimColor:!0},\"(Command copied to clipboard)\"),K[5]=$;else $=K[5];let w;if(K[6]!==A)w=tY.default.createElement(u,{flexDirection:\"column\",gap:1},Y,A,$),K[6]=A,K[7]=w;else w=K[7];return w}function D8O(){let q=setTimeout(f8O,100);return()=>clearTimeout(q)}function f8O(){process.exit(0)}var tY;var JK5=L(()=>{o6();u4();T8();zz7();f2();Gx();GM();l6();F7();k8();E7();z0();Az7();T38();TZ();uh6();$z7();h8();K7();y38();qK();qj7();tY=Y6(f6(),1)});async function MK5(q,K){let{InvalidSettingsDialog:_}=await Promise.resolve().then(() => (AK5(),OK5));return fR(q,(z)=>vX6.default.createElement(_,{settingsErrors:K.settingsErrors,onContinue:z,onExit:"
+    }
+  ],
+  "userTypeNearResume94": [
+    {
+      "label": "isSameRepoWorktree",
+      "idx": 10984448,
+      "hasUserType": false,
+      "snip": "ed as .jsonl files under the projects directory. Each line is a JSON message; user and assistant messages contain a \"content\" field with the conversation text. The filename (without .jsonl) is the session ID.\n\nYou have Grep and Read tools. Use Grep with files_with_matches mode to scan transcript content efficiently before reading individual files.\n\nWhen you have identified the matching sessions, end with ONLY a JSON object on its own line:\n{\"session_ids\": [\"<uuid>\", ...]}\n\nReturn session IDs ordered by relevance (most relevant first). Return an empty array if nothing matches.`;var bY7=L(()=>{d56();d26();hB();J36();_8();xv();S8();K7();Uq();b_();Jj();qK();n8();xCY=[WV,$z]});import{sep as gCY}from\"path\";function Ll8(q,K,_){let z=A7();if(!K||!q.projectPath||q.projectPath===z)return{isCrossProject:!1};if(_.some(($)=>q.projectPath===$||q.projectPath.startsWith($+gCY)))return{isCrossProject:!0,isSameRepoWorktree:!0,projectPath:q.projectPath};let O=iO(q);return{isCrossProject:!0,isSameRepoWorktree:!1,command:`cd ${oK([q.projectPath])} && claude --resume ${O}`,projectPath:q.projectPath}}var xY7=L(()=>{T8();qK()});var DpK={};Z8(DpK,{filterResumableSessions:()=>WpK,call:()=>UCY});function PpK(q){switch(q.resultType){case\"sessionNotFound\":return`Session ${O8.bold(q.arg)} was not found.`;case\"multipleMatches\":return`Found ${q.count} sessions matching ${O8.bold(q.arg)}. Please use /resume to pick a specific session.`}}function IY7(q){let K=K6(10),{message:_,args:z,onDone:Y}=q,O,A;if(K[0]!==Y)O=()=>{let H=setTimeout(Y,0);return()=>clearTimeout(H)},A=[Y],K[0]=Y,K[1]=O,K[2]=A;else O=K[1],A=K[2];t9.useEffect(O,A);let $;if(K[3]!==z)$=t9.createElement(T,{dimColor:!0},r6.pointer,\" /resume \",z),K[3]=z,K[4]=$;else $=K[4];let w;if(K[5]!==_)w=t9.createElement(O1,null,t9.createElement(T,null,_))"
+    },
+    {
+      "label": "isSameRepoWorktree",
+      "idx": 10984534,
+      "hasUserType": false,
+      "snip": " assistant messages contain a \"content\" field with the conversation text. The filename (without .jsonl) is the session ID.\n\nYou have Grep and Read tools. Use Grep with files_with_matches mode to scan transcript content efficiently before reading individual files.\n\nWhen you have identified the matching sessions, end with ONLY a JSON object on its own line:\n{\"session_ids\": [\"<uuid>\", ...]}\n\nReturn session IDs ordered by relevance (most relevant first). Return an empty array if nothing matches.`;var bY7=L(()=>{d56();d26();hB();J36();_8();xv();S8();K7();Uq();b_();Jj();qK();n8();xCY=[WV,$z]});import{sep as gCY}from\"path\";function Ll8(q,K,_){let z=A7();if(!K||!q.projectPath||q.projectPath===z)return{isCrossProject:!1};if(_.some(($)=>q.projectPath===$||q.projectPath.startsWith($+gCY)))return{isCrossProject:!0,isSameRepoWorktree:!0,projectPath:q.projectPath};let O=iO(q);return{isCrossProject:!0,isSameRepoWorktree:!1,command:`cd ${oK([q.projectPath])} && claude --resume ${O}`,projectPath:q.projectPath}}var xY7=L(()=>{T8();qK()});var DpK={};Z8(DpK,{filterResumableSessions:()=>WpK,call:()=>UCY});function PpK(q){switch(q.resultType){case\"sessionNotFound\":return`Session ${O8.bold(q.arg)} was not found.`;case\"multipleMatches\":return`Found ${q.count} sessions matching ${O8.bold(q.arg)}. Please use /resume to pick a specific session.`}}function IY7(q){let K=K6(10),{message:_,args:z,onDone:Y}=q,O,A;if(K[0]!==Y)O=()=>{let H=setTimeout(Y,0);return()=>clearTimeout(H)},A=[Y],K[0]=Y,K[1]=O,K[2]=A;else O=K[1],A=K[2];t9.useEffect(O,A);let $;if(K[3]!==z)$=t9.createElement(T,{dimColor:!0},r6.pointer,\" /resume \",z),K[3]=z,K[4]=$;else $=K[4];let w;if(K[5]!==_)w=t9.createElement(O1,null,t9.createElement(T,null,_)),K[5]=_,K[6]=w;else w=K[6];let j;if(K[7]!==$||K[8]!==w)j=t9.createElement(u,{flexDirec"
+    },
+    {
+      "label": "isSameRepoWorktree",
+      "idx": 10986172,
+      "hasUserType": false,
+      "snip": "[4];let w;if(K[5]!==_)w=t9.createElement(O1,null,t9.createElement(T,null,_)),K[5]=_,K[6]=w;else w=K[6];let j;if(K[7]!==$||K[8]!==w)j=t9.createElement(u,{flexDirection:\"column\"},$,w),K[7]=$,K[8]=w,K[9]=j;else j=K[9];return j}function FCY({onDone:q,onResume:K}){let[_,z]=t9.useState([]),[Y,O]=t9.useState([]),[A,$]=t9.useState(!0),[w,j]=t9.useState(!1),[H,J]=t9.useState(!1),{rows:M}=s1(),X=dv(),P=t9.useCallback(async(G,Z)=>{$(!0);try{let v=G?await uY7():await hl8(Z),k=WpK(v,N8());if(k.length===0){q(\"No conversations found to resume\");return}z(k)}catch(v){q(\"Failed to load conversations\")}finally{$(!1)}},[q]);t9.useEffect(()=>{async function G(){let Z=await Ct(A7());O(Z),P(!1,Z)}G()},[P]);let W=t9.useCallback(()=>{let G=!H;J(G),P(G,Y)},[H,P,Y]);async function D(G){let Z=rh(iO(G));if(!Z){q(\"Failed to resume conversation\");return}let v=GB(G)?await hs(G):G,k=Ll8(v,H,Y);if(k.isCrossProject){if(k.isSameRepoWorktree){j(!0),K(Z,v,\"slash_command_picker\");return}let V=await KP(k.command);if(V)process.stdout.write(V);let E=[\"\",\"This conversation is from a different directory.\",\"\",\"To resume, run:\",`  ${k.command}`,\"\",\"(Command copied to clipboard)\",\"\"].join(`\n`);q(E,{display:\"user\"});return}j(!0),K(Z,v,\"slash_command_picker\")}function f(){q(\"Resume cancelled\",{display:\"system\"})}if(A)return t9.createElement(u,null,t9.createElement(xK,null),t9.createElement(T,null,\" Loading conversations…\"));if(w)return t9.createElement(u,null,t9.createElement(xK,null),t9.createElement(T,null,\" Resuming conversation…\"));return t9.createElement(yl8,{logs:_,maxHeight:X?Math.floor(M/2):M-2,onCancel:f,onSelect:D,onLogsChanged:()=>P(H,Y),showAllProjects:H,onToggleAllProjects:W,onAgenticSearch:El8})}function WpK(q,K){return q.filter((_)=>!_.isSidechain&&iO(_)!==K)}var t9,UCY=async(q,K,_)=>{let z=async(j,H,J)"
+    },
+    {
+      "label": "isSameRepoWorktree",
+      "idx": 12660463,
+      "hasUserType": false,
+      "snip": ".prNumber===M6)}}return A6},[k,W]),o=pt();_O.default.useEffect(()=>{y38(K).then((A6)=>{Q.current=A6,i.current=A6.logs.length,V(A6.logs),y(!1)}).catch((A6)=>{j6(A6),y(!1)})},[K]);let _6=_O.default.useCallback((A6)=>{let M6=Q.current;if(!M6||M6.nextIndex>=M6.allStatLogs.length)return;XX6(M6.allStatLogs,M6.nextIndex,A6).then((X6)=>{if(M6.nextIndex=X6.nextIndex,X6.logs.length>0){let s=i.current;X6.logs.forEach((t,w6)=>{t.value=s+w6}),V((t)=>t.concat(X6.logs)),i.current+=X6.logs.length}else if(M6.nextIndex<M6.allStatLogs.length)_6(A6)})},[]),z6=_O.default.useCallback((A6)=>{y(!0),(A6?nn8():y38(K)).then((X6)=>{Q.current=X6,i.current=X6.logs.length,V(X6.logs)}).catch((X6)=>{j6(X6)}).finally(()=>{y(!1)})},[K]),l=_O.default.useCallback(()=>{let A6=!I;B(A6),z6(A6)},[I,z6]);function e(){process.exit(1)}async function f6(A6){b(!0);let M6=performance.now(),X6=Ll8(A6,I,K);if(X6.isCrossProject){if(!X6.isSameRepoWorktree){let s=await KP(X6.command);if(s)process.stdout.write(s);F(X6.command);return}}try{let s=await a56(A6,void 0);if(!s)throw Error(\"Failed to load conversation\");if(s.sessionId&&!X)MZ(JP(s.sessionId),A6.fullPath?RKO(A6.fullPath):null),await Q98(),await PI(),hg8(s.sessionId);else if(X&&s.contentReplacements?.length)await AM6(s.contentReplacements);let{agentDefinition:t}=aX6(s.agentSetting,A,Z);v((c)=>({...c,agent:t?.agentType}));let w6=l98(s.agentName,s.agentColor);if(w6)v((c)=>({...c,standaloneAgentContext:w6}));if(_m(s.agentName),$l(X?{...s,worktreeSession:void 0}:s),!X){if(n98(s.worktreeSession),s.sessionId)Al()}d(\"tengu_session_resumed\",{entrypoint:\"picker\",success:!0,resume_duration_ms:Math.round(performance.now()-M6)}),V([]),R({messages:s.messages,fileHistorySnapshots:s.fileHistorySnapshots,contentReplacements:s.contentReplacements,agentName:s.agentName,agentColor:s."
+    },
+    {
+      "label": "different directory",
+      "idx": 10986329,
+      "hasUserType": false,
+      "snip": "Direction:\"column\"},$,w),K[7]=$,K[8]=w,K[9]=j;else j=K[9];return j}function FCY({onDone:q,onResume:K}){let[_,z]=t9.useState([]),[Y,O]=t9.useState([]),[A,$]=t9.useState(!0),[w,j]=t9.useState(!1),[H,J]=t9.useState(!1),{rows:M}=s1(),X=dv(),P=t9.useCallback(async(G,Z)=>{$(!0);try{let v=G?await uY7():await hl8(Z),k=WpK(v,N8());if(k.length===0){q(\"No conversations found to resume\");return}z(k)}catch(v){q(\"Failed to load conversations\")}finally{$(!1)}},[q]);t9.useEffect(()=>{async function G(){let Z=await Ct(A7());O(Z),P(!1,Z)}G()},[P]);let W=t9.useCallback(()=>{let G=!H;J(G),P(G,Y)},[H,P,Y]);async function D(G){let Z=rh(iO(G));if(!Z){q(\"Failed to resume conversation\");return}let v=GB(G)?await hs(G):G,k=Ll8(v,H,Y);if(k.isCrossProject){if(k.isSameRepoWorktree){j(!0),K(Z,v,\"slash_command_picker\");return}let V=await KP(k.command);if(V)process.stdout.write(V);let E=[\"\",\"This conversation is from a different directory.\",\"\",\"To resume, run:\",`  ${k.command}`,\"\",\"(Command copied to clipboard)\",\"\"].join(`\n`);q(E,{display:\"user\"});return}j(!0),K(Z,v,\"slash_command_picker\")}function f(){q(\"Resume cancelled\",{display:\"system\"})}if(A)return t9.createElement(u,null,t9.createElement(xK,null),t9.createElement(T,null,\" Loading conversations…\"));if(w)return t9.createElement(u,null,t9.createElement(xK,null),t9.createElement(T,null,\" Resuming conversation…\"));return t9.createElement(yl8,{logs:_,maxHeight:X?Math.floor(M/2):M-2,onCancel:f,onSelect:D,onLogsChanged:()=>P(H,Y),showAllProjects:H,onToggleAllProjects:W,onAgenticSearch:El8})}function WpK(q,K){return q.filter((_)=>!_.isSidechain&&iO(_)!==K)}var t9,UCY=async(q,K,_)=>{let z=async(j,H,J)=>{try{await K.resume?.(j,H,J),q(void 0,{display:\"skip\"})}catch(M){j6(M),q(`Failed to resume: ${M.message}`)}},Y=_?.trim();if(!Y)return t9.createElement(FCY,"
+    },
+    {
+      "label": "different directory",
+      "idx": 12663357,
+      "hasUserType": false,
+      "snip": ":G,onCancel:e,onSelect:f6,onLogsChanged:o?()=>z6(I):void 0,onLoadMore:_6,initialSearchQuery:J,showAllProjects:I,onToggleAllProjects:l,onAgenticSearch:El8})}function bKO(){let q=K6(2),K;if(q[0]===Symbol.for(\"react.memo_cache_sentinel\"))K={context:\"Global\"},q[0]=K;else K=q[0];P1(\"app:interrupt\",xKO,K);let _;if(q[1]===Symbol.for(\"react.memo_cache_sentinel\"))_=_O.default.createElement(u,{flexDirection:\"column\"},_O.default.createElement(T,null,\"No conversations found to resume.\"),_O.default.createElement(T,{dimColor:!0},\"Press Ctrl+C to exit and start a new conversation.\")),q[1]=_;else _=q[1];return _}function xKO(){process.exit(1)}function IKO(q){let K=K6(8),{command:_}=q,z;if(K[0]===Symbol.for(\"react.memo_cache_sentinel\"))z=[],K[0]=z;else z=K[0];_O.default.useEffect(uKO,z);let Y;if(K[1]===Symbol.for(\"react.memo_cache_sentinel\"))Y=_O.default.createElement(T,null,\"This conversation is from a different directory.\"),K[1]=Y;else Y=K[1];let O;if(K[2]===Symbol.for(\"react.memo_cache_sentinel\"))O=_O.default.createElement(T,null,\"To resume, run:\"),K[2]=O;else O=K[2];let A;if(K[3]!==_)A=_O.default.createElement(u,{flexDirection:\"column\"},O,_O.default.createElement(T,null,\" \",_)),K[3]=_,K[4]=A;else A=K[4];let $;if(K[5]===Symbol.for(\"react.memo_cache_sentinel\"))$=_O.default.createElement(T,{dimColor:!0},\"(Command copied to clipboard)\"),K[5]=$;else $=K[5];let w;if(K[6]!==A)w=_O.default.createElement(u,{flexDirection:\"column\",gap:1},Y,A,$),K[6]=A,K[7]=w;else w=K[7];return w}function uKO(){let q=setTimeout(mKO,100);return()=>clearTimeout(q)}function mKO(){process.exit(0)}var _O;var t55=L(()=>{o6();B4();T8();CY7();L2();sx();CM();c6();g7();k8();V7();V0();bY7();d98();dD();bR6();xY7();S8();K7();i98();qK();RH7();_O=Y6(Z6(),1)});async function e55(q,K){let{InvalidSettingsDialog:_}=await Promise"
+    },
+    {
+      "label": "To resume, run:",
+      "idx": 10986355,
+      "hasUserType": false,
+      "snip": "[7]=$,K[8]=w,K[9]=j;else j=K[9];return j}function FCY({onDone:q,onResume:K}){let[_,z]=t9.useState([]),[Y,O]=t9.useState([]),[A,$]=t9.useState(!0),[w,j]=t9.useState(!1),[H,J]=t9.useState(!1),{rows:M}=s1(),X=dv(),P=t9.useCallback(async(G,Z)=>{$(!0);try{let v=G?await uY7():await hl8(Z),k=WpK(v,N8());if(k.length===0){q(\"No conversations found to resume\");return}z(k)}catch(v){q(\"Failed to load conversations\")}finally{$(!1)}},[q]);t9.useEffect(()=>{async function G(){let Z=await Ct(A7());O(Z),P(!1,Z)}G()},[P]);let W=t9.useCallback(()=>{let G=!H;J(G),P(G,Y)},[H,P,Y]);async function D(G){let Z=rh(iO(G));if(!Z){q(\"Failed to resume conversation\");return}let v=GB(G)?await hs(G):G,k=Ll8(v,H,Y);if(k.isCrossProject){if(k.isSameRepoWorktree){j(!0),K(Z,v,\"slash_command_picker\");return}let V=await KP(k.command);if(V)process.stdout.write(V);let E=[\"\",\"This conversation is from a different directory.\",\"\",\"To resume, run:\",`  ${k.command}`,\"\",\"(Command copied to clipboard)\",\"\"].join(`\n`);q(E,{display:\"user\"});return}j(!0),K(Z,v,\"slash_command_picker\")}function f(){q(\"Resume cancelled\",{display:\"system\"})}if(A)return t9.createElement(u,null,t9.createElement(xK,null),t9.createElement(T,null,\" Loading conversations…\"));if(w)return t9.createElement(u,null,t9.createElement(xK,null),t9.createElement(T,null,\" Resuming conversation…\"));return t9.createElement(yl8,{logs:_,maxHeight:X?Math.floor(M/2):M-2,onCancel:f,onSelect:D,onLogsChanged:()=>P(H,Y),showAllProjects:H,onToggleAllProjects:W,onAgenticSearch:El8})}function WpK(q,K){return q.filter((_)=>!_.isSidechain&&iO(_)!==K)}var t9,UCY=async(q,K,_)=>{let z=async(j,H,J)=>{try{await K.resume?.(j,H,J),q(void 0,{display:\"skip\"})}catch(M){j6(M),q(`Failed to resume: ${M.message}`)}},Y=_?.trim();if(!Y)return t9.createElement(FCY,{key:Date.now(),onDone:q,o"
+    },
+    {
+      "label": "To resume, run:",
+      "idx": 12663490,
+      "hasUserType": false,
+      "snip": ",onAgenticSearch:El8})}function bKO(){let q=K6(2),K;if(q[0]===Symbol.for(\"react.memo_cache_sentinel\"))K={context:\"Global\"},q[0]=K;else K=q[0];P1(\"app:interrupt\",xKO,K);let _;if(q[1]===Symbol.for(\"react.memo_cache_sentinel\"))_=_O.default.createElement(u,{flexDirection:\"column\"},_O.default.createElement(T,null,\"No conversations found to resume.\"),_O.default.createElement(T,{dimColor:!0},\"Press Ctrl+C to exit and start a new conversation.\")),q[1]=_;else _=q[1];return _}function xKO(){process.exit(1)}function IKO(q){let K=K6(8),{command:_}=q,z;if(K[0]===Symbol.for(\"react.memo_cache_sentinel\"))z=[],K[0]=z;else z=K[0];_O.default.useEffect(uKO,z);let Y;if(K[1]===Symbol.for(\"react.memo_cache_sentinel\"))Y=_O.default.createElement(T,null,\"This conversation is from a different directory.\"),K[1]=Y;else Y=K[1];let O;if(K[2]===Symbol.for(\"react.memo_cache_sentinel\"))O=_O.default.createElement(T,null,\"To resume, run:\"),K[2]=O;else O=K[2];let A;if(K[3]!==_)A=_O.default.createElement(u,{flexDirection:\"column\"},O,_O.default.createElement(T,null,\" \",_)),K[3]=_,K[4]=A;else A=K[4];let $;if(K[5]===Symbol.for(\"react.memo_cache_sentinel\"))$=_O.default.createElement(T,{dimColor:!0},\"(Command copied to clipboard)\"),K[5]=$;else $=K[5];let w;if(K[6]!==A)w=_O.default.createElement(u,{flexDirection:\"column\",gap:1},Y,A,$),K[6]=A,K[7]=w;else w=K[7];return w}function uKO(){let q=setTimeout(mKO,100);return()=>clearTimeout(q)}function mKO(){process.exit(0)}var _O;var t55=L(()=>{o6();B4();T8();CY7();L2();sx();CM();c6();g7();k8();V7();V0();bY7();d98();dD();bR6();xY7();S8();K7();i98();qK();RH7();_O=Y6(Z6(),1)});async function e55(q,K){let{InvalidSettingsDialog:_}=await Promise.resolve().then(() => (i55(),n55));return uV(q,(z)=>wP6.default.createElement(_,{settingsErrors:K.settingsErrors,onContinue:z,onExit:"
+    }
+  ],
+  "doctor94": {
+    "idx": 7886414,
+    "snip": " Environment Variables → Edit User PATH → New → Add the path above. Then restart your terminal.\"})}else{let M=$h6(),P=M56()[M],W=P?P.replace($H6(),\"~\"):\"your shell config file\";K.push({issue:\"Native installation exists but ~/.local/bin is not in your PATH\",fix:`Run: echo 'export PATH=\"$HOME/.local/bin:$PATH\"' >> ${W} then open a new terminal or run: source ${W}`})}}if(!p6(process.env.DISABLE_INSTALLATION_CHECKS)){if(q===\"npm-local\"&&_.installMethod!==\"local\")K.push({issue:`Running from local installation but config install method is '${_.installMethod}'`,fix:\"Consider using native installation: claude install\"});if(q===\"native\"&&_.installMethod!==\"native\")K.push({issue:`Running native installation but config install method is '${_.installMethod}'`,fix:\"Run claude install to update configuration\"})}if(q===\"npm-global\"&&await YH6())K.push({issue:\"Local installation exists but not being used\",fix:\"Consider using native installation: claude install\"});let z=await Xa1(),Y=await qqK();if(q===\"npm-local\"){if(!await g$(\"claude\")&&!Y)if(z)K.push({issue:\"Local installation not accessible\",fix:`Alias exists but points to invalid target: ${z}. Update alias: alias claude=\"~/.claude/local/claude\"`});else K.push({issue:\"Local installation not accessible\",fix:'Create alias: alias claude=\"~/.claude/local/claude\"'})}return K}async function JUz(){if(process.platform!==\"darwin\")return null;let q=\"Claude Code-doctor-probe\",K=ou(),_=Buffer.from(\"probe\",\"utf-8\").toString(\"hex\"),z=`add-generic-password -U -a \"${K}\" -s \"${q}\" -X \"${_}\"\n`,Y=await oT(\"security\",[\"-i\"],{input:z,reject:!1,timeout:5000});if(Y.exitCode===0)return oT(\"security\",[\"delete-generic-password\",\"-a\",K,\"-s\",q],{reject:!1,timeout:5000}),null;let O=(Y.stderr||Y.stdout||\"\").trim().replace(/\\s*\\n\\s*/g,\"; \");return{issue:`macOS Keychain is not writable${O?` (${O})`:\"\"}. Console login will fail to save your API key.`,fix:\"Run: security unlock-keychain ~/Library/Keychains/login.keychain-db — if that doesn't fix it, your login keychain password may be out of sync with your account password: open Keychain Access, select the 'login' keychain, then Edit → Change Password for Keychain 'login'.\"}}function MUz(){if(N1()!==\"linux\")return[];let q=[],K=Z7.getLinuxGlobPatternWarnings();if(K.length>0){let _=K.slice(0,3).join(\", \"),z=K.length-3,Y=z>0?`${_} (${z} more)`:_;q.push({issue:\"Glob patterns in sandbox permission rules are not fully supported on Linux\",fix:`Found ${K.length} pattern(s): ${Y}. On Linux, glob patterns in Edit/Read rules will be ignored.`})}return q}async function wH6({probeKeychain:q=!1}={}){let K=await zs(),_={ISSUES_EXPLAINER:\"report the issue at https://github.com/anthropics/claude-code/issues\",PACKAGE_URL:\"@anthropic-ai/claude-code\",README_URL:\"https://code.claude.com/docs/en/overview\",VERSION:\"2.1.94\",FEEDBACK_CHANNEL:\"ht"
+  },
+  "doctor92": null,
+  "td92": [
+    {
+      "idx": 819347,
+      "snip": "new TextDecoder().decode(A)}catch(z){throw Error(\"Failed to decrypt\")}}function RB6(q){if(typeof q===\"string\")return q;return JSON.stringify(q)}function _L(q){if(typeof q===\"number\")q=q+\"\";if(!q||typeof q!==\"string\")q=\"0\";let K=q.replace(/(^v|\\+.*$)/g,\"\").split(/[-.]/);if(K.lengt"
+    },
+    {
+      "idx": 935127,
+      "snip": "new TextDecoder}),Pw8=(q,{textDecoder:K})=>K.decode(q,{stream:!0}),Nx5=(q,{contents:K})=>K+q,yx5=(q,K)=>q.slice(0,K),Ex5=({textDecoder:q})=>{let K=q.decode();return K===\"\"?void 0:K},Lx5;var uC7=L(()=>{tB6();Lx5={init:Vx5,convertChunk:{string:k31,buffer:Pw8,arrayBuffer:Pw8,dataVie"
+    },
+    {
+      "idx": 1291296,
+      "snip": "new TextDecoder;function cg5(q){if(q.length===0)return\"\";if(q[0]===239&&q[1]===187&&q[2]===191)q=q.subarray(3);return dg5.decode(q)}class Gp7{get baseUrl(){return Ap7()}get origin(){return this.baseUrl?.origin}policyContainer=Mp7()}class vp7{settingsObject=new Gp7}var lg5=new vp7"
+    },
+    {
+      "idx": 1300082,
+      "snip": "new TextDecoder().decode(_).replace(/%0A/ig,`\n`).replace(/%0D/ig,\"\\r\").replace(/%22/g,'\"'),_}function mf6(q,K,_){let z=_.position;while(z<K.length&&q(K[z]))++z;return K.subarray(_.position,_.position=z)}function V_1(q,K,_,z){let Y=0,O=q.length-1;if(K)while(Y<q.length&&z(q[Y]))Y++"
+    },
+    {
+      "idx": 1449476,
+      "snip": "new TextDecoder(K).decode(O)}function Mi5(q){let[K,_,z]=q;if(K===239&&_===187&&z===191)return\"UTF-8\";else if(K===254&&_===255)return\"UTF-16BE\";else if(K===255&&_===254)return\"UTF-16LE\";return null}function UQ7(q){let K=q.reduce((z,Y)=>{return z+Y.byteLength},0),_=0;return q.reduc"
+    },
+    {
+      "idx": 1476655,
+      "snip": "new TextDecoder(\"utf-8\",{fatal:!0}):void 0,Ed7=yd7?vd7.decode.bind(vd7):function(q){if(Yr5(q))return q.toString(\"utf-8\");throw TypeError(\"Invalid utf-8 received.\")};Ld7.exports={isConnecting:Ar5,isEstablished:$r5,isClosing:wr5,isClosed:jr5,fireEvent:YY1,isValidSubprotocol:Mr5,isV"
+    },
+    {
+      "idx": 1582077,
+      "snip": "new TextDecoder(Y).decode(O);else throw Error(\"TextDecoder is not available, please make sure polyfill is provided.\")},transformToWebStream:()=>{if(K)throw Error(Ri7);if(K=!0,Si7(q))return z(q);else if((0,hi7.isReadableStream)(q))return q;else throw Error(`Cannot transform payloa"
+    },
+    {
+      "idx": 1583188,
+      "snip": "new TextDecoder(z).decode(Y)},transformToWebStream:()=>{if(K)throw Error(Ii7);if(q.readableFlowing!==null)throw Error(\"The stream has been consumed by other callbacks.\");if(typeof JO1.Readable.toWeb!==\"function\")throw Error(\"Readable.toWeb() is not supported. Please ensure a poly"
+    },
+    {
+      "idx": 1713853,
+      "snip": "new TextDecoder:null,jz=0;function zA3(q){m$=q,an=new DataView(m$.buffer,m$.byteOffset,m$.byteLength)}function sn(q,K){if(q>=K)throw Error(\"unexpected end of (decode) payload.\");let _=(m$[q]&224)>>5,z=m$[q]&31;switch(_){case cH8:case lH8:case Gs7:let Y,O;if(z<24)Y=z,O=1;else swit"
+    },
+    {
+      "idx": 2438141,
+      "snip": "new TextDecoder(\"utf-8\").decode(q)}CMq.toUtf8=Wh9});var Af1=B((mMq)=>{Object.defineProperty(mMq,\"__esModule\",{value:!0});mMq.toUtf8=mMq.fromUtf8=void 0;var IMq=SMq(),uMq=xMq(),fh9=(q)=>typeof TextEncoder===\"function\"?(0,uMq.fromUtf8)(q):(0,IMq.fromUtf8)(q);mMq.fromUtf8=fh9;var Zh"
+    },
+    {
+      "idx": 2551805,
+      "snip": "new TextDecoder(\"utf-8\").decode(q),WZq=(q)=>new TextEncoder().encode(q),wm9=()=>{let q=new DZq.EventStreamMarshaller({utf8Encoder:WZ1,utf8Decoder:WZq});return{base64Decoder:hW8.fromBase64,base64Encoder:hW8.toBase64,utf8Decoder:WZq,utf8Encoder:WZ1,eventStreamMarshaller:q,streamCol"
+    },
+    {
+      "idx": 3212973,
+      "snip": "new TextDecoder(\"utf-8\",{ignoreBOM:!0});function Va9(q){return Ta9.encode(q)}function Na9(q){return ka9.decode(q)}ihq.exports={utf8Encode:Va9,utf8DecodeWithoutBOM:Na9}});var XZ8=B((jTA,qRq)=>{var{isASCIIHex:rhq}=vk1(),{utf8Encode:ohq}=MZ8();function XY(q){return q.codePointAt(0)}"
+    },
+    {
+      "idx": 3341188,
+      "snip": "new TextDecoder().decode(K)}encodeBase64StringUtf8(q){let K=new TextEncoder().encode(q);return wv6.fromByteArray(K)}async sha256DigestHex(q){let K=new TextEncoder().encode(q),_=await window.crypto.subtle.digest(\"SHA-256\",K);return(0,j8_.fromArrayBufferToHex)(_)}async signWithHmac"
+    },
+    {
+      "idx": 4518049,
+      "snip": "new TextDecoder;try{sx1.decode(Pq6,{stream:!0}),$A4=1}catch(q){}wg_=function(){function q(K){if(this.ondata=K,$A4)this.t=new TextDecoder;else this.p=Pq6}return q.prototype.push=function(K,_){if(!this.ondata)iK(5);if(_=!!_,this.t){if(this.ondata(this.t.decode(K,{stream:!0}),_),_){"
+    },
+    {
+      "idx": 4518170,
+      "snip": "new TextDecoder;else this.p=Pq6}return q.prototype.push=function(K,_){if(!this.ondata)iK(5);if(_=!!_,this.t){if(this.ondata(this.t.decode(K,{stream:!0}),_),_){if(this.t.decode().length)iK(8);this.t=null}return}if(!this.p)iK(4);var z=new O_(this.p.length+K.length);z.set(this.p),z."
+    },
+    {
+      "idx": 4891692,
+      "snip": "new TextDecoder().decode(q);return jr_(K)}var HM4=L(()=>{E8();r8()});import{isAbsolute as Hr_,normalize as Jr_}from\"path\";function Mr_(q){if(Eg(q))return!1;let K=Jr_(q);if(Hr_(K))return!1;return!0}function Xr_(q,K){K.fileCount++;let _;if(K.fileCount>Uq6.MAX_FILE_COUNT)_=`Archive "
+    },
+    {
+      "idx": 4899646,
+      "snip": "new TextDecoder().decode(w);await Ay8(j,X,\"utf-8\")}else await Ay8(j,Buffer.from(w));let M=_[$];if(M&&M&73)await Wr_(j,M&511).catch(()=>{});if(Y++,z&&Y%10===0)z(`Extracted ${Y}/${A} files`)}if(N(`Extracted ${Y} files to ${K}`),z)z(`Extraction complete (${Y} files)`)}async function"
+    },
+    {
+      "idx": 6590827,
+      "snip": "new TextDecoder,M=A.getReader(),X=!0;do{let{done:P,value:W}=await M.read();W&&Rz(this,wy6).feed(J.decode(W,{stream:!P})),P&&(X=!1,Rz(this,wy6).reset(),ao(this,nm,QF1).call(this))}while(X)}),jW(this,gF1,(Y)=>{dj(this,h46,void 0),!(Y.name===\"AbortError\"||Y.type===\"aborted\")&&ao(thi"
+    },
+    {
+      "idx": 6621415,
+      "snip": "new TextDecoderStream).pipeThrough(new YU1({onRetry:(M)=>{this._serverRetryMs=M}})).getReader();while(!0){let{value:M,done:X}=await j.read();if(X)break;if(M.id)O=M.id,A=!0,z?.(M.id);if(!M.data)continue;if(!M.event||M.event===\"message\")try{let P=II.parse(JSON.parse(M.data));if(g_6"
+    },
+    {
+      "idx": 7414798,
+      "snip": "new TextDecoder().decode(q))}}});var zn4=B((Zl1)=>{Object.defineProperty(Zl1,\"__esModule\",{value:!0});Zl1.JsonLogsSerializer=void 0;var MNz=_n4();Object.defineProperty(Zl1,\"JsonLogsSerializer\",{enumerable:!0,get:function(){return MNz.JsonLogsSerializer}})});var An4=B((Yn4)=>{Obje"
+    },
+    {
+      "idx": 7415413,
+      "snip": "new TextDecoder().decode(q))}}});var $n4=B((Gl1)=>{Object.defineProperty(Gl1,\"__esModule\",{value:!0});Gl1.JsonMetricsSerializer=void 0;var WNz=An4();Object.defineProperty(Gl1,\"JsonMetricsSerializer\",{enumerable:!0,get:function(){return WNz.JsonMetricsSerializer}})});var Hn4=B((wn"
+    },
+    {
+      "idx": 7416039,
+      "snip": "new TextDecoder().decode(q))}}});var Jn4=B((vl1)=>{Object.defineProperty(vl1,\"__esModule\",{value:!0});vl1.JsonTraceSerializer=void 0;var ZNz=Hn4();Object.defineProperty(vl1,\"JsonTraceSerializer\",{enumerable:!0,get:function(){return ZNz.JsonTraceSerializer}})});var Od=B((fK6)=>{Ob"
+    },
+    {
+      "idx": 11816166,
+      "snip": "new TextDecoder,z=[],Y=!1;try{while(!0){let{done:O,value:A}=await K.read();if(O)break;let $=_.decode(A,iUY);if(!$)continue;let w=Y&&$[0]===`\n`||$.includes(`\n\n`);if(z.push($),!w){Y=$.endsWith(`\n`);continue}let{frames:j,remaining:H}=oUY(z.join(\"\"));z=H?[H]:[],Y=H.endsWith(`\n`);for("
+    }
+  ],
+  "td94": [
+    {
+      "idx": 819556,
+      "snip": "new TextDecoder().decode(A)}catch(z){throw Error(\"Failed to decrypt\")}}function Eg6(q){if(typeof q===\"string\")return q;return JSON.stringify(q)}function SL(q){if(typeof q===\"number\")q=q+\"\";if(!q||typeof q!==\"string\")q=\"0\";let K=q.replace(/(^v|\\+.*$)/g,\"\").split(/[-.]/);if(K.lengt"
+    },
+    {
+      "idx": 935377,
+      "snip": "new TextDecoder}),g28=(q,{textDecoder:K})=>K.decode(q,{stream:!0}),Ju5=(q,{contents:K})=>K+q,Mu5=(q,K)=>q.slice(0,K),Xu5=({textDecoder:q})=>{let K=q.decode();return K===\"\"?void 0:K},Pu5;var Px7=L(()=>{og6();Pu5={init:Hu5,convertChunk:{string:d91,buffer:g28,arrayBuffer:g28,dataVie"
+    },
+    {
+      "idx": 1292761,
+      "snip": "new TextDecoder;function SU5(q){if(q.length===0)return\"\";if(q[0]===239&&q[1]===187&&q[2]===191)q=q.subarray(3);return RU5.decode(q)}class lB7{get baseUrl(){return bB7()}get origin(){return this.baseUrl?.origin}policyContainer=BB7()}class nB7{settingsObject=new lB7}var CU5=new nB7"
+    },
+    {
+      "idx": 1301547,
+      "snip": "new TextDecoder().decode(_).replace(/%0A/ig,`\n`).replace(/%0D/ig,\"\\r\").replace(/%22/g,'\"'),_}function NZ6(q,K,_){let z=_.position;while(z<K.length&&q(K[z]))++z;return K.subarray(_.position,_.position=z)}function sz1(q,K,_,z){let Y=0,O=q.length-1;if(K)while(Y<q.length&&z(q[Y]))Y++"
+    },
+    {
+      "idx": 1450941,
+      "snip": "new TextDecoder(K).decode(O)}function tr5(q){let[K,_,z]=q;if(K===239&&_===187&&z===191)return\"UTF-8\";else if(K===254&&_===255)return\"UTF-16BE\";else if(K===255&&_===254)return\"UTF-16LE\";return null}function Xc7(q){let K=q.reduce((z,Y)=>{return z+Y.byteLength},0),_=0;return q.reduc"
+    },
+    {
+      "idx": 1478183,
+      "snip": "new TextDecoder(\"utf-8\",{fatal:!0}):void 0,tc7=sc7?nc7.decode.bind(nc7):function(q){if(co5(q))return q.toString(\"utf-8\");throw TypeError(\"Invalid utf-8 received.\")};ec7.exports={isConnecting:no5,isEstablished:io5,isClosing:ro5,isClosed:oo5,fireEvent:bO1,isValidSubprotocol:to5,isV"
+    },
+    {
+      "idx": 1584308,
+      "snip": "new TextDecoder(Y).decode(O);else throw Error(\"TextDecoder is not available, please make sure polyfill is provided.\")},transformToWebStream:()=>{if(K)throw Error(Ko7);if(K=!0,_o7(q))return z(q);else if((0,qo7.isReadableStream)(q))return q;else throw Error(`Cannot transform payloa"
+    },
+    {
+      "idx": 1585419,
+      "snip": "new TextDecoder(z).decode(Y)},transformToWebStream:()=>{if(K)throw Error(Ao7);if(q.readableFlowing!==null)throw Error(\"The stream has been consumed by other callbacks.\");if(typeof gA1.Readable.toWeb!==\"function\")throw Error(\"Readable.toWeb() is not supported. Please ensure a poly"
+    },
+    {
+      "idx": 1716084,
+      "snip": "new TextDecoder:null,Pz=0;function c$3(q){c$=q,vi=new DataView(c$.buffer,c$.byteOffset,c$.byteLength)}function Ti(q,K){if(q>=K)throw Error(\"unexpected end of (decode) payload.\");let _=(c$[q]&224)>>5,z=c$[q]&31;switch(_){case fM8:case ZM8:case lt7:let Y,O;if(z<24)Y=z,O=1;else swit"
+    },
+    {
+      "idx": 2441446,
+      "snip": "new TextDecoder(\"utf-8\").decode(q)}KPq.toUtf8=zS9});var mZ1=p((APq)=>{Object.defineProperty(APq,\"__esModule\",{value:!0});APq.toUtf8=APq.fromUtf8=void 0;var YPq=qPq(),OPq=zPq(),OS9=(q)=>typeof TextEncoder===\"function\"?(0,OPq.fromUtf8)(q):(0,YPq.fromUtf8)(q);APq.fromUtf8=OS9;var AS"
+    },
+    {
+      "idx": 2542300,
+      "snip": "new TextDecoder(\"utf-8\").decode(q),aZq=(q)=>new TextEncoder().encode(q),pm9=()=>{let q=new sZq.EventStreamMarshaller({utf8Encoder:u01,utf8Decoder:aZq});return{base64Decoder:rD8.fromBase64,base64Encoder:rD8.toBase64,utf8Decoder:aZq,utf8Encoder:u01,eventStreamMarshaller:q,streamCol"
+    },
+    {
+      "idx": 3207225,
+      "snip": "new TextDecoder(\"utf-8\",{ignoreBOM:!0});function _s9(q){return qs9.encode(q)}function zs9(q){return Ks9.decode(q)}IRq.exports={utf8Encode:_s9,utf8DecodeWithoutBOM:zs9}});var x08=p((yEA,URq)=>{var{isASCIIHex:uRq}=BV1(),{utf8Encode:mRq}=b08();function fY(q){return q.codePointAt(0)}"
+    },
+    {
+      "idx": 3335452,
+      "snip": "new TextDecoder().decode(K)}encodeBase64StringUtf8(q){let K=new TextEncoder().encode(q);return ev6.fromByteArray(K)}async sha256DigestHex(q){let K=new TextEncoder().encode(q),_=await window.crypto.subtle.digest(\"SHA-256\",K);return(0,Q8_.fromArrayBufferToHex)(_)}async signWithHmac"
+    },
+    {
+      "idx": 4514157,
+      "snip": "new TextDecoder;try{Pu1.decode(Qq6,{stream:!0}),oA4=1}catch(q){}lg_=function(){function q(K){if(this.ondata=K,oA4)this.t=new TextDecoder;else this.p=Qq6}return q.prototype.push=function(K,_){if(!this.ondata)nK(5);if(_=!!_,this.t){if(this.ondata(this.t.decode(K,{stream:!0}),_),_){"
+    },
+    {
+      "idx": 4514278,
+      "snip": "new TextDecoder;else this.p=Qq6}return q.prototype.push=function(K,_){if(!this.ondata)nK(5);if(_=!!_,this.t){if(this.ondata(this.t.decode(K,{stream:!0}),_),_){if(this.t.decode().length)nK(8);this.t=null}return}if(!this.p)nK(4);var z=new H_(this.p.length+K.length);z.set(this.p),z."
+    },
+    {
+      "idx": 4887783,
+      "snip": "new TextDecoder().decode(q);return nr_(K)}var tM4=L(()=>{L8();n8()});import{isAbsolute as ir_,normalize as rr_}from\"path\";function or_(q){if(ig(q))return!1;let K=rr_(q);if(ir_(K))return!1;return!0}function ar_(q,K){K.fileCount++;let _;if(K.fileCount>W46.MAX_FILE_COUNT)_=`Archive "
+    },
+    {
+      "idx": 4895737,
+      "snip": "new TextDecoder().decode(w);await hE8(j,X,\"utf-8\")}else await hE8(j,Buffer.from(w));let M=_[$];if(M&&M&73)await tr_(j,M&511).catch(()=>{});if(Y++,z&&Y%10===0)z(`Extracted ${Y}/${A} files`)}if(N(`Extracted ${Y} files to ${K}`),z)z(`Extraction complete (${Y} files)`)}async function"
+    },
+    {
+      "idx": 6590836,
+      "snip": "new TextDecoder,M=A.getReader(),X=!0;do{let{done:P,value:W}=await M.read();W&&Iz(this,ey6).feed(J.decode(W,{stream:!P})),P&&(X=!1,Iz(this,ey6).reset(),Wa(this,vp,XQ1).call(this))}while(X)}),RW(this,HQ1,(Y)=>{_H(this,zK6,void 0),!(Y.name===\"AbortError\"||Y.type===\"aborted\")&&Wa(thi"
+    },
+    {
+      "idx": 6621424,
+      "snip": "new TextDecoderStream).pipeThrough(new SQ1({onRetry:(M)=>{this._serverRetryMs=M}})).getReader();while(!0){let{value:M,done:X}=await j.read();if(X)break;if(M.id)O=M.id,A=!0,z?.(M.id);if(!M.data)continue;if(!M.event||M.event===\"message\")try{let P=$u.parse(JSON.parse(M.data));if(Gz6"
+    },
+    {
+      "idx": 7415842,
+      "snip": "new TextDecoder().decode(q))}}});var _i4=p((nn1)=>{Object.defineProperty(nn1,\"__esModule\",{value:!0});nn1.JsonLogsSerializer=void 0;var $yz=Ki4();Object.defineProperty(nn1,\"JsonLogsSerializer\",{enumerable:!0,get:function(){return $yz.JsonLogsSerializer}})});var Oi4=p((zi4)=>{Obje"
+    },
+    {
+      "idx": 7416457,
+      "snip": "new TextDecoder().decode(q))}}});var Ai4=p((in1)=>{Object.defineProperty(in1,\"__esModule\",{value:!0});in1.JsonMetricsSerializer=void 0;var Hyz=Oi4();Object.defineProperty(in1,\"JsonMetricsSerializer\",{enumerable:!0,get:function(){return Hyz.JsonMetricsSerializer}})});var ji4=p(($i"
+    },
+    {
+      "idx": 7417083,
+      "snip": "new TextDecoder().decode(q))}}});var Hi4=p((rn1)=>{Object.defineProperty(rn1,\"__esModule\",{value:!0});rn1.JsonTraceSerializer=void 0;var Xyz=ji4();Object.defineProperty(rn1,\"JsonTraceSerializer\",{enumerable:!0,get:function(){return Xyz.JsonTraceSerializer}})});var hd=p((lK6)=>{Ob"
+    },
+    {
+      "idx": 11891858,
+      "snip": "new TextDecoder,z=[],Y=!1;try{while(!0){let{done:O,value:A}=await K.read();if(O)break;let $=_.decode(A,KiY);if(!$)continue;let w=Y&&$[0]===`\n`||$.includes(`\n\n`);if(z.push($),!w){Y=$.endsWith(`\n`);continue}let{frames:j,remaining:H}=ziY(z.join(\"\"));z=H?[H]:[],Y=H.endsWith(`\n`);for("
+    },
+    {
+      "idx": 13052651,
+      "snip": "new TextDecoder(\"utf-8\");jP6=process.stdout.write.bind(process.stdout),process.stdout.write=function(K,_,z){let Y=typeof K===\"string\"?K:q.decode(K,{stream:!0});Og+=Y;let O,A=!0;while((O=Og.indexOf(`\n`))!==-1){let w=Og.slice(0,O);if(Og=Og.slice(O+1),Xz5(w))A=jP6(w+`\n`);else proces"
+    }
+  ],
+  "streamTrue92": [
+    {
+      "idx": 935181,
+      "snip": "}}var xC7=(q)=>globalThis.Buffer.from(q);var IC7=L(()=>{E31()});async function L31(q,K){return sB6(q,Lx5,K)}var Vx5=()=>({contents:\"\",textDecoder:new TextDecoder}),Pw8=(q,{textDecoder:K})=>K.decode(q,{stream:!0}),Nx5=(q,{contents:K})=>K+q,yx5=(q,K)=>q.slice(0,K),Ex5=({textDecoder:q})=>{let K=q.decode();return K===\"\"?void 0:K},Lx5;var uC7=L(()=>{tB6();Lx5={init:Vx5,convertChunk:{string:k31,buffer:P"
+    },
+    {
+      "idx": 4518084,
+      "snip": "ototype.push=function(K,_){this.queuedSize+=K.length,ax1.prototype.push.call(this,K,_)},q}();mO4=typeof TextEncoder<\"u\"&&new TextEncoder,sx1=typeof TextDecoder<\"u\"&&new TextDecoder;try{sx1.decode(Pq6,{stream:!0}),$A4=1}catch(q){}wg_=function(){function q(K){if(this.ondata=K,$A4)this.t=new TextDecoder;else this.p=Pq6}return q.prototype.push=function(K,_){if(!this.ondata)iK(5);if(_=!!_,this.t){if(th"
+    },
+    {
+      "idx": 4518310,
+      "snip": "){}wg_=function(){function q(K){if(this.ondata=K,$A4)this.t=new TextDecoder;else this.p=Pq6}return q.prototype.push=function(K,_){if(!this.ondata)iK(5);if(_=!!_,this.t){if(this.ondata(this.t.decode(K,{stream:!0}),_),_){if(this.t.decode().length)iK(8);this.t=null}return}if(!this.p)iK(4);var z=new O_(this.p.length+K.length);z.set(this.p),z.set(K,this.p.length);var Y=wA4(z),O=Y.s,A=Y.r;if(_){if(A.len"
+    },
+    {
+      "idx": 11821660,
+      "snip": "lice(0,-7);return`${q.protocol}//${q.host}${K}`}var FUY=1000,UUY=30000,QUY=600000,dUY=45000,cUY,I58=10,lUY=500,nUY=8000,iUY;var Vn8=L(()=>{EK();_8();YO();E8();Wh();r8();cUY=new Set([401,403,404]),iUY={stream:!0}});function vrK(q){return{write:(K)=>q.write(K),writeBatch:(K)=>q.writeBatch(K),close:()=>q.close(),isConnectedStatus:()=>q.isConnectedStatus(),getStateLabel:()=>q.getStateLabel(),setOnData"
+    }
+  ],
+  "streamTrue94": [
+    {
+      "idx": 935431,
+      "snip": "}}var Mx7=(q)=>globalThis.Buffer.from(q);var Xx7=L(()=>{i91()});async function r91(q,K){return rg6(q,Pu5,K)}var Hu5=()=>({contents:\"\",textDecoder:new TextDecoder}),g28=(q,{textDecoder:K})=>K.decode(q,{stream:!0}),Ju5=(q,{contents:K})=>K+q,Mu5=(q,K)=>q.slice(0,K),Xu5=({textDecoder:q})=>{let K=q.decode();return K===\"\"?void 0:K},Pu5;var Px7=L(()=>{og6();Pu5={init:Hu5,convertChunk:{string:d91,buffer:g"
+    },
+    {
+      "idx": 4514192,
+      "snip": "ototype.push=function(K,_){this.queuedSize+=K.length,Xu1.prototype.push.call(this,K,_)},q}();NA4=typeof TextEncoder<\"u\"&&new TextEncoder,Pu1=typeof TextDecoder<\"u\"&&new TextDecoder;try{Pu1.decode(Qq6,{stream:!0}),oA4=1}catch(q){}lg_=function(){function q(K){if(this.ondata=K,oA4)this.t=new TextDecoder;else this.p=Qq6}return q.prototype.push=function(K,_){if(!this.ondata)nK(5);if(_=!!_,this.t){if(th"
+    },
+    {
+      "idx": 4514418,
+      "snip": "){}lg_=function(){function q(K){if(this.ondata=K,oA4)this.t=new TextDecoder;else this.p=Qq6}return q.prototype.push=function(K,_){if(!this.ondata)nK(5);if(_=!!_,this.t){if(this.ondata(this.t.decode(K,{stream:!0}),_),_){if(this.t.decode().length)nK(8);this.t=null}return}if(!this.p)nK(4);var z=new H_(this.p.length+K.length);z.set(this.p),z.set(K,this.p.length);var Y=aA4(z),O=Y.s,A=Y.r;if(_){if(A.len"
+    },
+    {
+      "idx": 11897352,
+      "snip": "lice(0,-7);return`${q.protocol}//${q.host}${K}`}var rnY=1000,onY=30000,anY=600000,snY=45000,tnY,_98=10,enY=500,qiY=8000,KiY;var Qi8=L(()=>{TK();_8();$O();L8();ry();n8();tnY=new Set([401,403,404]),KiY={stream:!0}});function eoK(q){return{write:(K)=>q.write(K),writeBatch:(K)=>q.writeBatch(K),close:()=>q.close(),isConnectedStatus:()=>q.isConnectedStatus(),getStateLabel:()=>q.getStateLabel(),setOnData"
+    },
+    {
+      "idx": 13052798,
+      "snip": "{return!1}}function Pz5(){if(qJ7)return;qJ7=!0;let q=new TextDecoder(\"utf-8\");jP6=process.stdout.write.bind(process.stdout),process.stdout.write=function(K,_,z){let Y=typeof K===\"string\"?K:q.decode(K,{stream:!0});Og+=Y;let O,A=!0;while((O=Og.indexOf(`\n`))!==-1){let w=Og.slice(0,O);if(Og=Og.slice(O+1),Xz5(w))A=jP6(w+`\n`);else process.stderr.write(`${Mz5} ${w}\n`),N(`streamJsonStdoutGuard diverted no"
+    }
+  ],
+  "n429_92_status===429": 11,
+  "n429_94_status===429": 12,
+  "n429_92_error.status===429": 0,
+  "n429_94_error.status===429": 0,
+  "n429_92_q.status===429": 8,
+  "n429_94_q.status===429": 8,
+  "n429_92_K.status===429": 0,
+  "n429_94_K.status===429": 0,
+  "n429_92_.status===429": 11,
+  "n429_94_.status===429": 12
+}

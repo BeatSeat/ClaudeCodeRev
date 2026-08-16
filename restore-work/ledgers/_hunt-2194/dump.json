@@ -1,0 +1,428 @@
+{
+  "td94new": [
+    {
+      "idx": 1478183,
+      "snip": "q,10);return K>=8&&K<=15}var sc7=typeof process.versions.icu===\"string\",nc7=sc7?new TextDecoder(\"utf-8\",{fatal:!0}):void 0,tc7=sc7?nc7.decode.bind(nc7):function(q){if(co5(q))return q.toString(\"utf-8\");throw TypeError(\"Invalid utf-8 received.\")};ec7.exports={isConnecting:no5,isEstablished:io5,isClosing:ro5,isClosed"
+    },
+    {
+      "idx": 1585419,
+      "snip": "q3.fromArrayBuffer)(Y.buffer,Y.byteOffset,Y.byteLength).toString(z);else return new TextDecoder(z).decode(Y)},transformToWebStream:()=>{if(K)throw Error(Ao7);if(q.readableFlowing!==null)throw Error(\"The stream has been consumed by other callbacks.\");if(typeof gA1.Readable.toWeb!==\"function\")throw Error(\"Readable.t"
+    },
+    {
+      "idx": 13052651,
+      "snip": "turn JSON.parse(q),!0}catch{return!1}}function Pz5(){if(qJ7)return;qJ7=!0;let q=new TextDecoder(\"utf-8\");jP6=process.stdout.write.bind(process.stdout),process.stdout.write=function(K,_,z){let Y=typeof K===\"string\"?K:q.decode(K,{stream:!0});Og+=Y;let O,A=!0;while((O=Og.indexOf(`\n`))!==-1){let w=Og.slice(0,O);if(Og="
+    }
+  ],
+  "st94new": [
+    {
+      "idx": 13052798,
+      "snip": "gth===0)return!0;try{return JSON.parse(q),!0}catch{return!1}}function Pz5(){if(qJ7)return;qJ7=!0;let q=new TextDecoder(\"utf-8\");jP6=process.stdout.write.bind(process.stdout),process.stdout.write=function(K,_,z){let Y=typeof K===\"string\"?K:q.decode(K,{stream:!0});Og+=Y;let O,A=!0;while((O=Og.indexOf(`\n`))!==-1){let w=Og.slice(0,O);if(Og=Og.slice(O+1),Xz5(w))A=jP6(w+`\n`);else process.stderr.write(`${Mz5} ${w}\n`),N(`streamJsonStdoutGuard diverted non-JSON stdo"
+    }
+  ],
+  "s429_94new": [
+    {
+      "idx": 12645527,
+      "snip": "ER_TOKEN_BEDROCK}`}});else{let $=p6(process.env.CLAUDE_CODE_SKIP_BEDROCK_AUTH),w=$?null:await kC();A=w?new _({...O,awsAccessKey:w.accessKeyId,awsSecretKey:w.secretAccessKey,awsSessionToken:w.sessionToken}):new _({...O,...$&&{skipAuth:!0}})}return await A.messages.create({model:q,max_tokens:1,messages:[{role:\"user\",content:\".\"}]}),!0}catch(_){if(_?.status===429)return!0;return!1}}var M_8,ao8;var BH7=L(()=>{k8();W7();p8();G16();MG6();Uq();$_();M_8=Object.keys(kM),ao8={sonnet:{envVarPriority:[\"ANTHROPIC_DEFAULT_SONNET_MODEL\"],defaultKey:IG6},opus:{envVarPriority:[\"ANTHROPIC_DEFAULT_OPUS_MODEL\"],defaultKey:xG6},haiku:{envVarPriority:[\"ANTHROPIC_SMALL_FAST_MODEL\",\"ANTHROPIC_DEFAULT_HAIKU_MODEL\"],defaultKey:u"
+    }
+  ],
+  "wt94new": [
+    {
+      "idx": 10984448,
+      "snip": "sion ID.\n\nYou have Grep and Read tools. Use Grep with files_with_matches mode to scan transcript content efficiently before reading individual files.\n\nWhen you have identified the matching sessions, end with ONLY a JSON object on its own line:\n{\"session_ids\": [\"<uuid>\", ...]}\n\nReturn session IDs ordered by relevance (most relevant first). Return an empty array if nothing matches.`;var bY7=L(()=>{d56();d26();hB();J36();_8();xv();S8();K7();Uq();b_();Jj();qK();n8();xCY=[WV,$z]});import{sep as gCY}from\"path\";function Ll8(q,K,_){let z=A7();if(!K||!q.projectPath||q.projectPath===z)return{isCrossProject:!1};if(_.some(($)=>q.projectPath===$||q.projectPath.startsWith($+gCY)))return{isCrossProject:!0,isSameRepoWorktree:!0,projectPath:q.projectPath};let O=iO(q);return{isCrossProject:!0,isSameRepoWorktree:!1,command:`cd ${oK([q.projectPath])} && claude --resume ${O}`,projectPath:q.projectPath}}var xY7=L(()=>{T8();qK()});var DpK={};Z8(DpK,{filterResumableSessions:()=>WpK,call:()=>UCY});function PpK(q){switch(q.resultType){case\"sessionNotFound\":return`Session ${O8.bold(q.arg)} was not found.`;case\"multipleMatches\":"
+    },
+    {
+      "idx": 10984534,
+      "snip": "transcript content efficiently before reading individual files.\n\nWhen you have identified the matching sessions, end with ONLY a JSON object on its own line:\n{\"session_ids\": [\"<uuid>\", ...]}\n\nReturn session IDs ordered by relevance (most relevant first). Return an empty array if nothing matches.`;var bY7=L(()=>{d56();d26();hB();J36();_8();xv();S8();K7();Uq();b_();Jj();qK();n8();xCY=[WV,$z]});import{sep as gCY}from\"path\";function Ll8(q,K,_){let z=A7();if(!K||!q.projectPath||q.projectPath===z)return{isCrossProject:!1};if(_.some(($)=>q.projectPath===$||q.projectPath.startsWith($+gCY)))return{isCrossProject:!0,isSameRepoWorktree:!0,projectPath:q.projectPath};let O=iO(q);return{isCrossProject:!0,isSameRepoWorktree:!1,command:`cd ${oK([q.projectPath])} && claude --resume ${O}`,projectPath:q.projectPath}}var xY7=L(()=>{T8();qK()});var DpK={};Z8(DpK,{filterResumableSessions:()=>WpK,call:()=>UCY});function PpK(q){switch(q.resultType){case\"sessionNotFound\":return`Session ${O8.bold(q.arg)} was not found.`;case\"multipleMatches\":return`Found ${q.count} sessions matching ${O8.bold(q.arg)}. Please use /resume to pic"
+    }
+  ],
+  "wt92gone": [
+    {
+      "idx": 10924424,
+      "snip": "ranscripts that mention the concept even in passing\n\nWhen in doubt, INCLUDE the session. It's better to return too many results than too few. The user can easily scan through results, but missing relevant sessions is frustrating.\n\nReturn sessions ordered by relevance (most relevant first). If truly no sessions have ANY connection to the query, return an empty array - but this should be rare.\n\nRespond with ONLY the JSON object, no markdown formatting:\n{\"relevant_indices\": [2, 5, 0]}`;var Az7=L(()=>{_8();h8();Fq();qK();lQ();r8()});import{sep as jLY}from\"path\";function jc8(q,K,_){let z=A7();if(!K||!q.projectPath||q.projectPath===z)return{isCrossProject:!1};{let $=FA(q);return{isCrossProject:!0,isSameRepoWorktree:!1,command:`cd ${UK([q.projectPath])} && claude --resume ${$}`,projectPath:q.projectPath}}if(_.some(($)=>q.projectPath===$||q.projectPath.startsWith($+jLY)))return{isCrossProject:!0,isSameRepoWorktree:!0,projectPath:q.projectPath};let O=FA(q);return{isCrossProject:!0,isSameRepoWorktree:!1,command:`cd ${UK([q.projectPath])} && claude --resume ${O}`,projectPath:q.projectPath}}var $z7=L(()=>{T8();qK"
+    },
+    {
+      "idx": 10924625,
+      "snip": "ant sessions is frustrating.\n\nReturn sessions ordered by relevance (most relevant first). If truly no sessions have ANY connection to the query, return an empty array - but this should be rare.\n\nRespond with ONLY the JSON object, no markdown formatting:\n{\"relevant_indices\": [2, 5, 0]}`;var Az7=L(()=>{_8();h8();Fq();qK();lQ();r8()});import{sep as jLY}from\"path\";function jc8(q,K,_){let z=A7();if(!K||!q.projectPath||q.projectPath===z)return{isCrossProject:!1};{let $=FA(q);return{isCrossProject:!0,isSameRepoWorktree:!1,command:`cd ${UK([q.projectPath])} && claude --resume ${$}`,projectPath:q.projectPath}}if(_.some(($)=>q.projectPath===$||q.projectPath.startsWith($+jLY)))return{isCrossProject:!0,isSameRepoWorktree:!0,projectPath:q.projectPath};let O=FA(q);return{isCrossProject:!0,isSameRepoWorktree:!1,command:`cd ${UK([q.projectPath])} && claude --resume ${O}`,projectPath:q.projectPath}}var $z7=L(()=>{T8();qK()});var QuK={};G8(QuK,{filterResumableSessions:()=>UuK,call:()=>JLY});function FuK(q){switch(q.resultType){case\"sessionNotFound\":return`Session ${O8.bold(q.arg)} was not found.`;case\"multipleMatches\":"
+    },
+    {
+      "idx": 10924711,
+      "snip": "t). If truly no sessions have ANY connection to the query, return an empty array - but this should be rare.\n\nRespond with ONLY the JSON object, no markdown formatting:\n{\"relevant_indices\": [2, 5, 0]}`;var Az7=L(()=>{_8();h8();Fq();qK();lQ();r8()});import{sep as jLY}from\"path\";function jc8(q,K,_){let z=A7();if(!K||!q.projectPath||q.projectPath===z)return{isCrossProject:!1};{let $=FA(q);return{isCrossProject:!0,isSameRepoWorktree:!1,command:`cd ${UK([q.projectPath])} && claude --resume ${$}`,projectPath:q.projectPath}}if(_.some(($)=>q.projectPath===$||q.projectPath.startsWith($+jLY)))return{isCrossProject:!0,isSameRepoWorktree:!0,projectPath:q.projectPath};let O=FA(q);return{isCrossProject:!0,isSameRepoWorktree:!1,command:`cd ${UK([q.projectPath])} && claude --resume ${O}`,projectPath:q.projectPath}}var $z7=L(()=>{T8();qK()});var QuK={};G8(QuK,{filterResumableSessions:()=>UuK,call:()=>JLY});function FuK(q){switch(q.resultType){case\"sessionNotFound\":return`Session ${O8.bold(q.arg)} was not found.`;case\"multipleMatches\":return`Found ${q.count} sessions matching ${O8.bold(q.arg)}. Please use /resume to pic"
+    }
+  ],
+  "wt92": [
+    {
+      "idx": 10924424,
+      "snip": "ranscripts that mention the concept even in passing\n\nWhen in doubt, INCLUDE the session. It's better to return too many results than too few. The user can easily scan through results, but missing relevant sessions is frustrating.\n\nReturn sessions ordered by relevance (most relevant first). If truly no sessions have ANY connection to the query, return an empty array - but this should be rare.\n\nRespond with ONLY the JSON object, no markdown formatting:\n{\"relevant_indices\": [2, 5, 0]}`;var Az7=L(()=>{_8();h8();Fq();qK();lQ();r8()});import{sep as jLY}from\"path\";function jc8(q,K,_){let z=A7();if(!K||!q.projectPath||q.projectPath===z)return{isCrossProject:!1};{let $=FA(q);return{isCrossProject:!0,isSameRepoWorktree:!1,command:`cd ${UK([q.projectPath])} && claude --resume ${$}`,projectPath:q.projectPath}}if(_.some(($)=>q.projectPath===$||q.projectPath.startsWith($+jLY)))return{isCrossProject:!0,isSameRepoWorktree:!0,projectPath:q.projectPath};let O=FA(q);return{isCrossProject:!0,isSameRepoWorktree:!1,command:`cd ${UK([q.projectPath])} && claude --resume ${O}`,projectPath:q.projectPath}}var $z7=L(()=>{T8();qK"
+    },
+    {
+      "idx": 10924625,
+      "snip": "ant sessions is frustrating.\n\nReturn sessions ordered by relevance (most relevant first). If truly no sessions have ANY connection to the query, return an empty array - but this should be rare.\n\nRespond with ONLY the JSON object, no markdown formatting:\n{\"relevant_indices\": [2, 5, 0]}`;var Az7=L(()=>{_8();h8();Fq();qK();lQ();r8()});import{sep as jLY}from\"path\";function jc8(q,K,_){let z=A7();if(!K||!q.projectPath||q.projectPath===z)return{isCrossProject:!1};{let $=FA(q);return{isCrossProject:!0,isSameRepoWorktree:!1,command:`cd ${UK([q.projectPath])} && claude --resume ${$}`,projectPath:q.projectPath}}if(_.some(($)=>q.projectPath===$||q.projectPath.startsWith($+jLY)))return{isCrossProject:!0,isSameRepoWorktree:!0,projectPath:q.projectPath};let O=FA(q);return{isCrossProject:!0,isSameRepoWorktree:!1,command:`cd ${UK([q.projectPath])} && claude --resume ${O}`,projectPath:q.projectPath}}var $z7=L(()=>{T8();qK()});var QuK={};G8(QuK,{filterResumableSessions:()=>UuK,call:()=>JLY});function FuK(q){switch(q.resultType){case\"sessionNotFound\":return`Session ${O8.bold(q.arg)} was not found.`;case\"multipleMatches\":"
+    },
+    {
+      "idx": 10924711,
+      "snip": "t). If truly no sessions have ANY connection to the query, return an empty array - but this should be rare.\n\nRespond with ONLY the JSON object, no markdown formatting:\n{\"relevant_indices\": [2, 5, 0]}`;var Az7=L(()=>{_8();h8();Fq();qK();lQ();r8()});import{sep as jLY}from\"path\";function jc8(q,K,_){let z=A7();if(!K||!q.projectPath||q.projectPath===z)return{isCrossProject:!1};{let $=FA(q);return{isCrossProject:!0,isSameRepoWorktree:!1,command:`cd ${UK([q.projectPath])} && claude --resume ${$}`,projectPath:q.projectPath}}if(_.some(($)=>q.projectPath===$||q.projectPath.startsWith($+jLY)))return{isCrossProject:!0,isSameRepoWorktree:!0,projectPath:q.projectPath};let O=FA(q);return{isCrossProject:!0,isSameRepoWorktree:!1,command:`cd ${UK([q.projectPath])} && claude --resume ${O}`,projectPath:q.projectPath}}var $z7=L(()=>{T8();qK()});var QuK={};G8(QuK,{filterResumableSessions:()=>UuK,call:()=>JLY});function FuK(q){switch(q.resultType){case\"sessionNotFound\":return`Session ${O8.bold(q.arg)} was not found.`;case\"multipleMatches\":return`Found ${q.count} sessions matching ${O8.bold(q.arg)}. Please use /resume to pic"
+    },
+    {
+      "idx": 10926349,
+      "snip": "=j;else j=K[9];return j}function HLY({onDone:q,onResume:K}){let[_,z]=i9.useState([]),[Y,O]=i9.useState([]),[A,$]=i9.useState(!0),[w,j]=i9.useState(!1),[H,J]=i9.useState(!1),{rows:M}=o1(),X=vv(),P=i9.useCallback(async(G,Z)=>{$(!0);try{let v=G?await jz7():await Hc8(Z),k=UuK(v,V8());if(k.length===0){q(\"No conversations found to resume\");return}z(k)}catch(v){q(\"Failed to load conversations\")}finally{$(!1)}},[q]);i9.useEffect(()=>{async function G(){let Z=await Mt(A7());O(Z),P(!1,Z)}G()},[P]);let W=i9.useCallback(()=>{let G=!H;J(G),P(G,Y)},[H,P,Y]);async function D(G){let Z=fh(FA(G));if(!Z){q(\"Failed to resume conversation\");return}let v=mh(G)?await lp(G):G,k=jc8(v,H,Y);if(k.isCrossProject){if(k.isSameRepoWorktree){j(!0),K(Z,v,\"slash_command_picker\");return}let V=await dX(k.command);if(V)process.stdout.write(V);let y=[\"\",\"This conversation is from a different directory.\",\"\",\"To resume, run:\",`  ${k.command}`,\"\",\"(Command copied to clipboard)\",\"\"].join(`\n`);q(y,{display:\"user\"});return}j(!0),K(Z,v,\"slash_command_picker\")}function f(){q(\"Resume cancelled\",{display:\"system\"})}if(A)return i9.createElement(u,nu"
+    },
+    {
+      "idx": 12575926,
+      "snip": "llback((O6)=>{let X6=U.current;if(!X6||X6.nextIndex>=X6.allStatLogs.length)return;EM6(X6.allStatLogs,X6.nextIndex,O6).then((P6)=>{if(X6.nextIndex=P6.nextIndex,P6.logs.length>0){let t=n.current;P6.logs.forEach((a,$6)=>{a.value=t+$6}),V((a)=>a.concat(P6.logs)),n.current+=P6.logs.length}else if(X6.nextIndex<X6.allStatLogs.length)z6(O6)})},[]),_6=tY.default.useCallback((O6)=>{E(!0),(O6?El8():$58(K)).then((P6)=>{U.current=P6,n.current=P6.logs.length,V(P6.logs)}).catch((P6)=>{H6(P6)}).finally(()=>{E(!1)})},[K]),l=tY.default.useCallback(()=>{let O6=!I;m(O6),_6(O6)},[I,_6]);function q6(){process.exit(1)}async function J6(O6){b(!0);let X6=performance.now(),P6=jc8(O6,I,K);if(P6.isCrossProject){if(!P6.isSameRepoWorktree){let t=await dX(P6.command);if(t)process.stdout.write(t);F(P6.command);return}}try{let t=await f56(O6,void 0);if(!t)throw Error(\"Failed to load conversation\");if(t.sessionId&&!X)rf(eX(t.sessionId),O6.fullPath?H8O(O6.fullPath):null),await v38(),await ux(),_B8(t.sessionId);else if(X&&t.contentReplacements?.length)await TJ6(t.contentReplacements);let{agentDefinition:a}=wX6(t.agentSetting,A,Z);v((i)="
+    }
+  ],
+  "wt94": [
+    {
+      "idx": 10984448,
+      "snip": "sion ID.\n\nYou have Grep and Read tools. Use Grep with files_with_matches mode to scan transcript content efficiently before reading individual files.\n\nWhen you have identified the matching sessions, end with ONLY a JSON object on its own line:\n{\"session_ids\": [\"<uuid>\", ...]}\n\nReturn session IDs ordered by relevance (most relevant first). Return an empty array if nothing matches.`;var bY7=L(()=>{d56();d26();hB();J36();_8();xv();S8();K7();Uq();b_();Jj();qK();n8();xCY=[WV,$z]});import{sep as gCY}from\"path\";function Ll8(q,K,_){let z=A7();if(!K||!q.projectPath||q.projectPath===z)return{isCrossProject:!1};if(_.some(($)=>q.projectPath===$||q.projectPath.startsWith($+gCY)))return{isCrossProject:!0,isSameRepoWorktree:!0,projectPath:q.projectPath};let O=iO(q);return{isCrossProject:!0,isSameRepoWorktree:!1,command:`cd ${oK([q.projectPath])} && claude --resume ${O}`,projectPath:q.projectPath}}var xY7=L(()=>{T8();qK()});var DpK={};Z8(DpK,{filterResumableSessions:()=>WpK,call:()=>UCY});function PpK(q){switch(q.resultType){case\"sessionNotFound\":return`Session ${O8.bold(q.arg)} was not found.`;case\"multipleMatches\":"
+    },
+    {
+      "idx": 10984534,
+      "snip": "transcript content efficiently before reading individual files.\n\nWhen you have identified the matching sessions, end with ONLY a JSON object on its own line:\n{\"session_ids\": [\"<uuid>\", ...]}\n\nReturn session IDs ordered by relevance (most relevant first). Return an empty array if nothing matches.`;var bY7=L(()=>{d56();d26();hB();J36();_8();xv();S8();K7();Uq();b_();Jj();qK();n8();xCY=[WV,$z]});import{sep as gCY}from\"path\";function Ll8(q,K,_){let z=A7();if(!K||!q.projectPath||q.projectPath===z)return{isCrossProject:!1};if(_.some(($)=>q.projectPath===$||q.projectPath.startsWith($+gCY)))return{isCrossProject:!0,isSameRepoWorktree:!0,projectPath:q.projectPath};let O=iO(q);return{isCrossProject:!0,isSameRepoWorktree:!1,command:`cd ${oK([q.projectPath])} && claude --resume ${O}`,projectPath:q.projectPath}}var xY7=L(()=>{T8();qK()});var DpK={};Z8(DpK,{filterResumableSessions:()=>WpK,call:()=>UCY});function PpK(q){switch(q.resultType){case\"sessionNotFound\":return`Session ${O8.bold(q.arg)} was not found.`;case\"multipleMatches\":return`Found ${q.count} sessions matching ${O8.bold(q.arg)}. Please use /resume to pic"
+    },
+    {
+      "idx": 10986172,
+      "snip": "=j;else j=K[9];return j}function FCY({onDone:q,onResume:K}){let[_,z]=t9.useState([]),[Y,O]=t9.useState([]),[A,$]=t9.useState(!0),[w,j]=t9.useState(!1),[H,J]=t9.useState(!1),{rows:M}=s1(),X=dv(),P=t9.useCallback(async(G,Z)=>{$(!0);try{let v=G?await uY7():await hl8(Z),k=WpK(v,N8());if(k.length===0){q(\"No conversations found to resume\");return}z(k)}catch(v){q(\"Failed to load conversations\")}finally{$(!1)}},[q]);t9.useEffect(()=>{async function G(){let Z=await Ct(A7());O(Z),P(!1,Z)}G()},[P]);let W=t9.useCallback(()=>{let G=!H;J(G),P(G,Y)},[H,P,Y]);async function D(G){let Z=rh(iO(G));if(!Z){q(\"Failed to resume conversation\");return}let v=GB(G)?await hs(G):G,k=Ll8(v,H,Y);if(k.isCrossProject){if(k.isSameRepoWorktree){j(!0),K(Z,v,\"slash_command_picker\");return}let V=await KP(k.command);if(V)process.stdout.write(V);let E=[\"\",\"This conversation is from a different directory.\",\"\",\"To resume, run:\",`  ${k.command}`,\"\",\"(Command copied to clipboard)\",\"\"].join(`\n`);q(E,{display:\"user\"});return}j(!0),K(Z,v,\"slash_command_picker\")}function f(){q(\"Resume cancelled\",{display:\"system\"})}if(A)return t9.createElement(u,nu"
+    },
+    {
+      "idx": 12660463,
+      "snip": "allback((A6)=>{let M6=Q.current;if(!M6||M6.nextIndex>=M6.allStatLogs.length)return;XX6(M6.allStatLogs,M6.nextIndex,A6).then((X6)=>{if(M6.nextIndex=X6.nextIndex,X6.logs.length>0){let s=i.current;X6.logs.forEach((t,w6)=>{t.value=s+w6}),V((t)=>t.concat(X6.logs)),i.current+=X6.logs.length}else if(M6.nextIndex<M6.allStatLogs.length)_6(A6)})},[]),z6=_O.default.useCallback((A6)=>{y(!0),(A6?nn8():y38(K)).then((X6)=>{Q.current=X6,i.current=X6.logs.length,V(X6.logs)}).catch((X6)=>{j6(X6)}).finally(()=>{y(!1)})},[K]),l=_O.default.useCallback(()=>{let A6=!I;B(A6),z6(A6)},[I,z6]);function e(){process.exit(1)}async function f6(A6){b(!0);let M6=performance.now(),X6=Ll8(A6,I,K);if(X6.isCrossProject){if(!X6.isSameRepoWorktree){let s=await KP(X6.command);if(s)process.stdout.write(s);F(X6.command);return}}try{let s=await a56(A6,void 0);if(!s)throw Error(\"Failed to load conversation\");if(s.sessionId&&!X)MZ(JP(s.sessionId),A6.fullPath?RKO(A6.fullPath):null),await Q98(),await PI(),hg8(s.sessionId);else if(X&&s.contentReplacements?.length)await AM6(s.contentReplacements);let{agentDefinition:t}=aX6(s.agentSetting,A,Z);v((c)="
+    }
+  ],
+  "doctor94": [
+    {
+      "idx": 7886414,
+      "snip": "\"`});else K.push({issue:\"Local installation not accessible\",fix:'Create alias: alias claude=\"~/.claude/local/claude\"'})}return K}async function JUz(){if(process.platform!==\"darwin\")return null;let q=\"Claude Code-doctor-probe\",K=ou(),_=Buffer.from(\"probe\",\"utf-8\").toString(\"hex\"),z=`add-generic-password -U -a \"${K}\" -s \"${q}\" -X \"${_}\"\n`,Y=await oT(\"security\",[\"-i\"],{input:z,reject:!1,timeout:5000});if(Y.exitCode===0)return oT(\"security\",[\"delete-generic-password\",\"-a\",K,\"-s\",q],{reject:!1,timeout:5000}),null;let O=(Y.stderr||Y.stdout||\"\").trim().replace(/\\s*\\n\\s*/g,\"; \");return{issue:`macOS Keychain is not writable${O?` (${O})`:\"\"}. Console login will fail to save your API key.`,fix:\"Run: security unlock-keychain ~/Library/Keychains/login.keychain-db — if that doesn't fix it, your login keychain password may be out of sync with your account password: open Keychain Access, select the 'login' keychain, then Edit → Change Password for Keychain 'login'.\"}}function MUz(){if(N1()!==\"linux\")return[];let q=[],K=Z7.getLinuxGlobPatternWarnings();if(K.length>0){let _=K.slice(0,3).join(\", \"),z=K.length-3,Y=z>0?`${_} (${z} more)`:_;q.push({issue:\"Glob patterns in sandbox permission rules are not fully supported on Linux\",fix:`Found ${K.length} pattern(s): ${Y}. On Linux, glob patterns in Edit/Read rules will be ignored.`})}return q}async function wH6({probeKeychain:q=!1}={}){let K=await zs(),_={ISSUES_EXPLAINER:\"report the issue at https://github.com/anthropics/claude-code/issues\",PACKAGE_URL:\"@anthropic-ai/claude-code\",README_URL:\"https://code.claude.com/docs/en/overview\",VERSION:\"2.1.94\",FEEDBACK_CHANNEL:\"https://github.com/anthropics/claude-code/issues\",BUILD_TIME:\"2026-04-07T20:19:20Z\"}.VERSION?{ISSUES_EXPLAINER:\"report the issue at https://github.com/anthropics/claude-code/issues\",PACKAGE_URL:\"@anthro"
+    }
+  ],
+  "td92n": 23,
+  "td94n": 24,
+  "td92": [
+    {
+      "idx": 819347,
+      "snip": "Y,O]=q.split(\".\"),A=await _.decrypt({name:\"AES-CBC\",iv:H51(Y)},z,H51(O));return new TextDecoder().decode(A)}catch(z){throw Error(\"Failed to decrypt\")}}function RB6(q){if(typeof q===\"string\")return q;return JSON.stringify(q)}function _L(q){if(typeof q===\"number\")q=q+\"\";if(!q||typeof q!==\"string\")q=\"0\";let K=q.repla"
+    },
+    {
+      "idx": 935127,
+      "snip": "ync function L31(q,K){return sB6(q,Lx5,K)}var Vx5=()=>({contents:\"\",textDecoder:new TextDecoder}),Pw8=(q,{textDecoder:K})=>K.decode(q,{stream:!0}),Nx5=(q,{contents:K})=>K+q,yx5=(q,K)=>q.slice(0,K),Ex5=({textDecoder:q})=>{let K=q.decode();return K===\"\"?void 0:K},Lx5;var uC7=L(()=>{tB6();Lx5={init:Vx5,convertChunk:{"
+    },
+    {
+      "idx": 1291296,
+      "snip": "nction Zp7(q,K){let _=K.get(q,!0);if(_===null)return null;return Qg5(_)}var dg5=new TextDecoder;function cg5(q){if(q.length===0)return\"\";if(q[0]===239&&q[1]===187&&q[2]===191)q=q.subarray(3);return dg5.decode(q)}class Gp7{get baseUrl(){return Ap7()}get origin(){return this.baseUrl?.origin}policyContainer=Mp7()}cla"
+    },
+    {
+      "idx": 1300082,
+      "snip": "!==13&&z!==34,q,K);if(q[K.position]!==34)return null;else K.position++;return _=new TextDecoder().decode(_).replace(/%0A/ig,`\n`).replace(/%0D/ig,\"\\r\").replace(/%22/g,'\"'),_}function mf6(q,K,_){let z=_.position;while(z<K.length&&q(K[z]))++z;return K.subarray(_.position,_.position=z)}function V_1(q,K,_,z){let Y=0,O="
+    },
+    {
+      "idx": 1449476,
+      "snip": "_=UQ7(q),z=Mi5(_),Y=0;if(z!==null)K=z,Y=z===\"UTF-8\"?3:2;let O=_.slice(Y);return new TextDecoder(K).decode(O)}function Mi5(q){let[K,_,z]=q;if(K===239&&_===187&&z===191)return\"UTF-8\";else if(K===254&&_===255)return\"UTF-16BE\";else if(K===255&&_===254)return\"UTF-16LE\";return null}function UQ7(q){let K=q.reduce((z,Y)=>"
+    },
+    {
+      "idx": 1476655,
+      "snip": "||_>57)return!1}return!0}var yd7=typeof process.versions.icu===\"string\",vd7=yd7?new TextDecoder(\"utf-8\",{fatal:!0}):void 0,Ed7=yd7?vd7.decode.bind(vd7):function(q){if(Yr5(q))return q.toString(\"utf-8\");throw TypeError(\"Invalid utf-8 received.\")};Ld7.exports={isConnecting:Ar5,isEstablished:$r5,isClosing:wr5,isClosed"
+    },
+    {
+      "idx": 1582077,
+      "snip": "=\"utf-8\")return(0,t13.toUtf8)(O);else if(typeof TextDecoder===\"function\")return new TextDecoder(Y).decode(O);else throw Error(\"TextDecoder is not available, please make sure polyfill is provided.\")},transformToWebStream:()=>{if(K)throw Error(Ri7);if(K=!0,Si7(q))return z(q);else if((0,hi7.isReadableStream)(q))retur"
+    },
+    {
+      "idx": 1583188,
+      "snip": "73.fromArrayBuffer)(Y.buffer,Y.byteOffset,Y.byteLength).toString(z);else return new TextDecoder(z).decode(Y)},transformToWebStream:()=>{if(K)throw Error(Ii7);if(q.readableFlowing!==null)throw Error(\"The stream has been consumed by other callbacks.\");if(typeof JO1.Readable.toWeb!==\"function\")throw Error(\"Readable.t"
+    },
+    {
+      "idx": 1713853,
+      "snip": "er<\"u\",m$=xZ6(0),an=new DataView(m$.buffer,m$.byteOffset,m$.byteLength),Ps7=KA3?new TextDecoder:null,jz=0;function zA3(q){m$=q,an=new DataView(m$.buffer,m$.byteOffset,m$.byteLength)}function sn(q,K){if(q>=K)throw Error(\"unexpected end of (decode) payload.\");let _=(m$[q]&224)>>5,z=m$[q]&31;switch(_){case cH8:case l"
+    },
+    {
+      "idx": 2438141,
+      "snip": "9(q){return new TextEncoder().encode(q)}CMq.fromUtf8=Ph9;function Wh9(q){return new TextDecoder(\"utf-8\").decode(q)}CMq.toUtf8=Wh9});var Af1=B((mMq)=>{Object.defineProperty(mMq,\"__esModule\",{value:!0});mMq.toUtf8=mMq.fromUtf8=void 0;var IMq=SMq(),uMq=xMq(),fh9=(q)=>typeof TextEncoder===\"function\"?(0,uMq.fromUtf8)(q"
+    },
+    {
+      "idx": 2551805,
+      "snip": "(q.message).includes(\"FetchRequestCanceledException\"))}var DZq,hW8,fZq,WZ1=(q)=>new TextDecoder(\"utf-8\").decode(q),WZq=(q)=>new TextEncoder().encode(q),wm9=()=>{let q=new DZq.EventStreamMarshaller({utf8Encoder:WZ1,utf8Decoder:WZq});return{base64Decoder:hW8.fromBase64,base64Encoder:hW8.toBase64,utf8Decoder:WZq,utf8"
+    },
+    {
+      "idx": 3212973,
+      "snip": "numeric:Ga9,isASCIIHex:va9}});var MZ8=B((wTA,ihq)=>{var Ta9=new TextEncoder,ka9=new TextDecoder(\"utf-8\",{ignoreBOM:!0});function Va9(q){return Ta9.encode(q)}function Na9(q){return ka9.decode(q)}ihq.exports={utf8Encode:Va9,utf8DecodeWithoutBOM:Na9}});var XZ8=B((jTA,qRq)=>{var{isASCIIHex:rhq}=vk1(),{utf8Encode:ohq}="
+    },
+    {
+      "idx": 3341188,
+      "snip": "ay(O))}decodeBase64StringUtf8(q){let K=wv6.toByteArray(xZ8.padBase64(q));return new TextDecoder().decode(K)}encodeBase64StringUtf8(q){let K=new TextEncoder().encode(q);return wv6.fromByteArray(K)}async sha256DigestHex(q){let K=new TextEncoder().encode(q),_=await window.crypto.subtle.digest(\"SHA-256\",K);return(0,j8"
+    },
+    {
+      "idx": 4518049,
+      "snip": ")},q}();mO4=typeof TextEncoder<\"u\"&&new TextEncoder,sx1=typeof TextDecoder<\"u\"&&new TextDecoder;try{sx1.decode(Pq6,{stream:!0}),$A4=1}catch(q){}wg_=function(){function q(K){if(this.ondata=K,$A4)this.t=new TextDecoder;else this.p=Pq6}return q.prototype.push=function(K,_){if(!this.ondata)iK(5);if(_=!!_,this.t){if(th"
+    },
+    {
+      "idx": 4518170,
+      "snip": "m:!0}),$A4=1}catch(q){}wg_=function(){function q(K){if(this.ondata=K,$A4)this.t=new TextDecoder;else this.p=Pq6}return q.prototype.push=function(K,_){if(!this.ondata)iK(5);if(_=!!_,this.t){if(this.ondata(this.t.decode(K,{stream:!0}),_),_){if(this.t.decode().length)iK(8);this.t=null}return}if(!this.p)iK(4);var z=ne"
+    },
+    {
+      "idx": 4891692,
+      "snip": "lid JSON in manifest.json: ${g6(_)}`)}return wr_(K)}async function Mm1(q){let K=new TextDecoder().decode(q);return jr_(K)}var HM4=L(()=>{E8();r8()});import{isAbsolute as Hr_,normalize as Jr_}from\"path\";function Mr_(q){if(Eg(q))return!1;let K=Jr_(q);if(Hr_(K))return!1;return!0}function Xr_(q,K){K.fileCount++;let _;"
+    },
+    {
+      "idx": 4899646,
+      "snip": "With(\".txt\")||$.endsWith(\".md\")||$.endsWith(\".yml\")||$.endsWith(\".yaml\")){let X=new TextDecoder().decode(w);await Ay8(j,X,\"utf-8\")}else await Ay8(j,Buffer.from(w));let M=_[$];if(M&&M&73)await Wr_(j,M&511).catch(()=>{});if(Y++,z&&Y%10===0)z(`Extracted ${Y}/${A} files`)}if(N(`Extracted ${Y} files to ${K}`),z)z(`Extr"
+    },
+    {
+      "idx": 6590827,
+      "snip": "alid response body, expected a web ReadableStream\",w),this.close();return}let J=new TextDecoder,M=A.getReader(),X=!0;do{let{done:P,value:W}=await M.read();W&&Rz(this,wy6).feed(J.decode(W,{stream:!P})),P&&(X=!1,Rz(this,wy6).reset(),ao(this,nm,QF1).call(this))}while(X)}),jW(this,gF1,(Y)=>{dj(this,h46,void 0),!(Y.nam"
+    },
+    {
+      "idx": 6621415,
+      "snip": "tiontoken:z,replayMessageId:Y}=K,O,A=!1,$=!1;(async()=>{try{let j=q.pipeThrough(new TextDecoderStream).pipeThrough(new YU1({onRetry:(M)=>{this._serverRetryMs=M}})).getReader();while(!0){let{value:M,done:X}=await j.read();if(X)break;if(M.id)O=M.id,A=!0,z?.(M.id);if(!M.data)continue;if(!M.event||M.event===\"message\")"
+    },
+    {
+      "idx": 7414798,
+      "snip": "ngify(K))},deserializeResponse:(q)=>{if(q.length===0)return{};return JSON.parse(new TextDecoder().decode(q))}}});var zn4=B((Zl1)=>{Object.defineProperty(Zl1,\"__esModule\",{value:!0});Zl1.JsonLogsSerializer=void 0;var MNz=_n4();Object.defineProperty(Zl1,\"JsonLogsSerializer\",{enumerable:!0,get:function(){return MNz.J"
+    },
+    {
+      "idx": 7415413,
+      "snip": "ngify(K))},deserializeResponse:(q)=>{if(q.length===0)return{};return JSON.parse(new TextDecoder().decode(q))}}});var $n4=B((Gl1)=>{Object.defineProperty(Gl1,\"__esModule\",{value:!0});Gl1.JsonMetricsSerializer=void 0;var WNz=An4();Object.defineProperty(Gl1,\"JsonMetricsSerializer\",{enumerable:!0,get:function(){return"
+    },
+    {
+      "idx": 7416039,
+      "snip": "ngify(K))},deserializeResponse:(q)=>{if(q.length===0)return{};return JSON.parse(new TextDecoder().decode(q))}}});var Jn4=B((vl1)=>{Object.defineProperty(vl1,\"__esModule\",{value:!0});vl1.JsonTraceSerializer=void 0;var ZNz=Hn4();Object.defineProperty(vl1,\"JsonTraceSerializer\",{enumerable:!0,get:function(){return ZNz"
+    },
+    {
+      "idx": 11816166,
+      "snip": "error\"),this.handleConnectionError()}}async readStream(q){let K=q.getReader(),_=new TextDecoder,z=[],Y=!1;try{while(!0){let{done:O,value:A}=await K.read();if(O)break;let $=_.decode(A,iUY);if(!$)continue;let w=Y&&$[0]===`\n`||$.includes(`\n\n`);if(z.push($),!w){Y=$.endsWith(`\n`);continue}let{frames:j,remaining:H}=oUY("
+    }
+  ],
+  "td94": [
+    {
+      "idx": 819556,
+      "snip": "Y,O]=q.split(\".\"),A=await _.decrypt({name:\"AES-CBC\",iv:C31(Y)},z,C31(O));return new TextDecoder().decode(A)}catch(z){throw Error(\"Failed to decrypt\")}}function Eg6(q){if(typeof q===\"string\")return q;return JSON.stringify(q)}function SL(q){if(typeof q===\"number\")q=q+\"\";if(!q||typeof q!==\"string\")q=\"0\";let K=q.repla"
+    },
+    {
+      "idx": 935377,
+      "snip": "ync function r91(q,K){return rg6(q,Pu5,K)}var Hu5=()=>({contents:\"\",textDecoder:new TextDecoder}),g28=(q,{textDecoder:K})=>K.decode(q,{stream:!0}),Ju5=(q,{contents:K})=>K+q,Mu5=(q,K)=>q.slice(0,K),Xu5=({textDecoder:q})=>{let K=q.decode();return K===\"\"?void 0:K},Pu5;var Px7=L(()=>{og6();Pu5={init:Hu5,convertChunk:{"
+    },
+    {
+      "idx": 1292761,
+      "snip": "nction cB7(q,K){let _=K.get(q,!0);if(_===null)return null;return hU5(_)}var RU5=new TextDecoder;function SU5(q){if(q.length===0)return\"\";if(q[0]===239&&q[1]===187&&q[2]===191)q=q.subarray(3);return RU5.decode(q)}class lB7{get baseUrl(){return bB7()}get origin(){return this.baseUrl?.origin}policyContainer=BB7()}cla"
+    },
+    {
+      "idx": 1301547,
+      "snip": "!==13&&z!==34,q,K);if(q[K.position]!==34)return null;else K.position++;return _=new TextDecoder().decode(_).replace(/%0A/ig,`\n`).replace(/%0D/ig,\"\\r\").replace(/%22/g,'\"'),_}function NZ6(q,K,_){let z=_.position;while(z<K.length&&q(K[z]))++z;return K.subarray(_.position,_.position=z)}function sz1(q,K,_,z){let Y=0,O="
+    },
+    {
+      "idx": 1450941,
+      "snip": "_=Xc7(q),z=tr5(_),Y=0;if(z!==null)K=z,Y=z===\"UTF-8\"?3:2;let O=_.slice(Y);return new TextDecoder(K).decode(O)}function tr5(q){let[K,_,z]=q;if(K===239&&_===187&&z===191)return\"UTF-8\";else if(K===254&&_===255)return\"UTF-16BE\";else if(K===255&&_===254)return\"UTF-16LE\";return null}function Xc7(q){let K=q.reduce((z,Y)=>"
+    },
+    {
+      "idx": 1478183,
+      "snip": "q,10);return K>=8&&K<=15}var sc7=typeof process.versions.icu===\"string\",nc7=sc7?new TextDecoder(\"utf-8\",{fatal:!0}):void 0,tc7=sc7?nc7.decode.bind(nc7):function(q){if(co5(q))return q.toString(\"utf-8\");throw TypeError(\"Invalid utf-8 received.\")};ec7.exports={isConnecting:no5,isEstablished:io5,isClosing:ro5,isClosed"
+    },
+    {
+      "idx": 1584308,
+      "snip": "=\"utf-8\")return(0,gq3.toUtf8)(O);else if(typeof TextDecoder===\"function\")return new TextDecoder(Y).decode(O);else throw Error(\"TextDecoder is not available, please make sure polyfill is provided.\")},transformToWebStream:()=>{if(K)throw Error(Ko7);if(K=!0,_o7(q))return z(q);else if((0,qo7.isReadableStream)(q))retur"
+    },
+    {
+      "idx": 1585419,
+      "snip": "q3.fromArrayBuffer)(Y.buffer,Y.byteOffset,Y.byteLength).toString(z);else return new TextDecoder(z).decode(Y)},transformToWebStream:()=>{if(K)throw Error(Ao7);if(q.readableFlowing!==null)throw Error(\"The stream has been consumed by other callbacks.\");if(typeof gA1.Readable.toWeb!==\"function\")throw Error(\"Readable.t"
+    },
+    {
+      "idx": 1716084,
+      "snip": "er<\"u\",c$=T06(0),vi=new DataView(c$.buffer,c$.byteOffset,c$.byteLength),Ft7=Q$3?new TextDecoder:null,Pz=0;function c$3(q){c$=q,vi=new DataView(c$.buffer,c$.byteOffset,c$.byteLength)}function Ti(q,K){if(q>=K)throw Error(\"unexpected end of (decode) payload.\");let _=(c$[q]&224)>>5,z=c$[q]&31;switch(_){case fM8:case Z"
+    },
+    {
+      "idx": 2441446,
+      "snip": "9(q){return new TextEncoder().encode(q)}KPq.fromUtf8=_S9;function zS9(q){return new TextDecoder(\"utf-8\").decode(q)}KPq.toUtf8=zS9});var mZ1=p((APq)=>{Object.defineProperty(APq,\"__esModule\",{value:!0});APq.toUtf8=APq.fromUtf8=void 0;var YPq=qPq(),OPq=zPq(),OS9=(q)=>typeof TextEncoder===\"function\"?(0,OPq.fromUtf8)(q"
+    },
+    {
+      "idx": 2542300,
+      "snip": "(q.message).includes(\"FetchRequestCanceledException\"))}var sZq,rD8,tZq,u01=(q)=>new TextDecoder(\"utf-8\").decode(q),aZq=(q)=>new TextEncoder().encode(q),pm9=()=>{let q=new sZq.EventStreamMarshaller({utf8Encoder:u01,utf8Decoder:aZq});return{base64Decoder:rD8.fromBase64,base64Encoder:rD8.toBase64,utf8Decoder:aZq,utf8"
+    },
+    {
+      "idx": 3207225,
+      "snip": "numeric:ta9,isASCIIHex:ea9}});var b08=p((NEA,IRq)=>{var qs9=new TextEncoder,Ks9=new TextDecoder(\"utf-8\",{ignoreBOM:!0});function _s9(q){return qs9.encode(q)}function zs9(q){return Ks9.decode(q)}IRq.exports={utf8Encode:_s9,utf8DecodeWithoutBOM:zs9}});var x08=p((yEA,URq)=>{var{isASCIIHex:uRq}=BV1(),{utf8Encode:mRq}="
+    },
+    {
+      "idx": 3335452,
+      "snip": "ay(O))}decodeBase64StringUtf8(q){let K=ev6.toByteArray(e08.padBase64(q));return new TextDecoder().decode(K)}encodeBase64StringUtf8(q){let K=new TextEncoder().encode(q);return ev6.fromByteArray(K)}async sha256DigestHex(q){let K=new TextEncoder().encode(q),_=await window.crypto.subtle.digest(\"SHA-256\",K);return(0,Q8"
+    },
+    {
+      "idx": 4514157,
+      "snip": ")},q}();NA4=typeof TextEncoder<\"u\"&&new TextEncoder,Pu1=typeof TextDecoder<\"u\"&&new TextDecoder;try{Pu1.decode(Qq6,{stream:!0}),oA4=1}catch(q){}lg_=function(){function q(K){if(this.ondata=K,oA4)this.t=new TextDecoder;else this.p=Qq6}return q.prototype.push=function(K,_){if(!this.ondata)nK(5);if(_=!!_,this.t){if(th"
+    },
+    {
+      "idx": 4514278,
+      "snip": "m:!0}),oA4=1}catch(q){}lg_=function(){function q(K){if(this.ondata=K,oA4)this.t=new TextDecoder;else this.p=Qq6}return q.prototype.push=function(K,_){if(!this.ondata)nK(5);if(_=!!_,this.t){if(this.ondata(this.t.decode(K,{stream:!0}),_),_){if(this.t.decode().length)nK(8);this.t=null}return}if(!this.p)nK(4);var z=ne"
+    },
+    {
+      "idx": 4887783,
+      "snip": "lid JSON in manifest.json: ${m6(_)}`)}return lr_(K)}async function Rp1(q){let K=new TextDecoder().decode(q);return nr_(K)}var tM4=L(()=>{L8();n8()});import{isAbsolute as ir_,normalize as rr_}from\"path\";function or_(q){if(ig(q))return!1;let K=rr_(q);if(ir_(K))return!1;return!0}function ar_(q,K){K.fileCount++;let _;"
+    },
+    {
+      "idx": 4895737,
+      "snip": "With(\".txt\")||$.endsWith(\".md\")||$.endsWith(\".yml\")||$.endsWith(\".yaml\")){let X=new TextDecoder().decode(w);await hE8(j,X,\"utf-8\")}else await hE8(j,Buffer.from(w));let M=_[$];if(M&&M&73)await tr_(j,M&511).catch(()=>{});if(Y++,z&&Y%10===0)z(`Extracted ${Y}/${A} files`)}if(N(`Extracted ${Y} files to ${K}`),z)z(`Extr"
+    },
+    {
+      "idx": 6590836,
+      "snip": "alid response body, expected a web ReadableStream\",w),this.close();return}let J=new TextDecoder,M=A.getReader(),X=!0;do{let{done:P,value:W}=await M.read();W&&Iz(this,ey6).feed(J.decode(W,{stream:!P})),P&&(X=!1,Iz(this,ey6).reset(),Wa(this,vp,XQ1).call(this))}while(X)}),RW(this,HQ1,(Y)=>{_H(this,zK6,void 0),!(Y.nam"
+    },
+    {
+      "idx": 6621424,
+      "snip": "tiontoken:z,replayMessageId:Y}=K,O,A=!1,$=!1;(async()=>{try{let j=q.pipeThrough(new TextDecoderStream).pipeThrough(new SQ1({onRetry:(M)=>{this._serverRetryMs=M}})).getReader();while(!0){let{value:M,done:X}=await j.read();if(X)break;if(M.id)O=M.id,A=!0,z?.(M.id);if(!M.data)continue;if(!M.event||M.event===\"message\")"
+    },
+    {
+      "idx": 7415842,
+      "snip": "ngify(K))},deserializeResponse:(q)=>{if(q.length===0)return{};return JSON.parse(new TextDecoder().decode(q))}}});var _i4=p((nn1)=>{Object.defineProperty(nn1,\"__esModule\",{value:!0});nn1.JsonLogsSerializer=void 0;var $yz=Ki4();Object.defineProperty(nn1,\"JsonLogsSerializer\",{enumerable:!0,get:function(){return $yz.J"
+    },
+    {
+      "idx": 7416457,
+      "snip": "ngify(K))},deserializeResponse:(q)=>{if(q.length===0)return{};return JSON.parse(new TextDecoder().decode(q))}}});var Ai4=p((in1)=>{Object.defineProperty(in1,\"__esModule\",{value:!0});in1.JsonMetricsSerializer=void 0;var Hyz=Oi4();Object.defineProperty(in1,\"JsonMetricsSerializer\",{enumerable:!0,get:function(){return"
+    },
+    {
+      "idx": 7417083,
+      "snip": "ngify(K))},deserializeResponse:(q)=>{if(q.length===0)return{};return JSON.parse(new TextDecoder().decode(q))}}});var Hi4=p((rn1)=>{Object.defineProperty(rn1,\"__esModule\",{value:!0});rn1.JsonTraceSerializer=void 0;var Xyz=ji4();Object.defineProperty(rn1,\"JsonTraceSerializer\",{enumerable:!0,get:function(){return Xyz"
+    },
+    {
+      "idx": 11891858,
+      "snip": "error\"),this.handleConnectionError()}}async readStream(q){let K=q.getReader(),_=new TextDecoder,z=[],Y=!1;try{while(!0){let{done:O,value:A}=await K.read();if(O)break;let $=_.decode(A,KiY);if(!$)continue;let w=Y&&$[0]===`\n`||$.includes(`\n\n`);if(z.push($),!w){Y=$.endsWith(`\n`);continue}let{frames:j,remaining:H}=ziY("
+    },
+    {
+      "idx": 13052651,
+      "snip": "turn JSON.parse(q),!0}catch{return!1}}function Pz5(){if(qJ7)return;qJ7=!0;let q=new TextDecoder(\"utf-8\");jP6=process.stdout.write.bind(process.stdout),process.stdout.write=function(K,_,z){let Y=typeof K===\"string\"?K:q.decode(K,{stream:!0});Og+=Y;let O,A=!0;while((O=Og.indexOf(`\n`))!==-1){let w=Og.slice(0,O);if(Og="
+    }
+  ],
+  "st92": [
+    {
+      "idx": 935181,
+      "snip": "=void 0)_.bufferedData=xC7(_.bufferedData);throw _}}var xC7=(q)=>globalThis.Buffer.from(q);var IC7=L(()=>{E31()});async function L31(q,K){return sB6(q,Lx5,K)}var Vx5=()=>({contents:\"\",textDecoder:new TextDecoder}),Pw8=(q,{textDecoder:K})=>K.decode(q,{stream:!0}),Nx5=(q,{contents:K})=>K+q,yx5=(q,K)=>q.slice(0,K),Ex5=({textDecoder:q})=>{let K=q.decode();return K===\"\"?void 0:K},Lx5;var uC7=L(()=>{tB6();Lx5={init:Vx5,convertChunk:{string:k31,buffer:Pw8,arrayBuf"
+    },
+    {
+      "idx": 4518084,
+      "snip": "){if(K.queuedSize-=_,K.ondrain)K.ondrain(_)}},q.prototype.push=function(K,_){this.queuedSize+=K.length,ax1.prototype.push.call(this,K,_)},q}();mO4=typeof TextEncoder<\"u\"&&new TextEncoder,sx1=typeof TextDecoder<\"u\"&&new TextDecoder;try{sx1.decode(Pq6,{stream:!0}),$A4=1}catch(q){}wg_=function(){function q(K){if(this.ondata=K,$A4)this.t=new TextDecoder;else this.p=Pq6}return q.prototype.push=function(K,_){if(!this.ondata)iK(5);if(_=!!_,this.t){if(this.ondata(t"
+    },
+    {
+      "idx": 4518310,
+      "snip": "oder;try{sx1.decode(Pq6,{stream:!0}),$A4=1}catch(q){}wg_=function(){function q(K){if(this.ondata=K,$A4)this.t=new TextDecoder;else this.p=Pq6}return q.prototype.push=function(K,_){if(!this.ondata)iK(5);if(_=!!_,this.t){if(this.ondata(this.t.decode(K,{stream:!0}),_),_){if(this.t.decode().length)iK(8);this.t=null}return}if(!this.p)iK(4);var z=new O_(this.p.length+K.length);z.set(this.p),z.set(K,this.p.length);var Y=wA4(z),O=Y.s,A=Y.r;if(_){if(A.length)iK(8);t"
+    },
+    {
+      "idx": 11821660,
+      "snip": "q){let K=q.pathname;if(K.endsWith(\"/stream\"))K=K.slice(0,-7);return`${q.protocol}//${q.host}${K}`}var FUY=1000,UUY=30000,QUY=600000,dUY=45000,cUY,I58=10,lUY=500,nUY=8000,iUY;var Vn8=L(()=>{EK();_8();YO();E8();Wh();r8();cUY=new Set([401,403,404]),iUY={stream:!0}});function vrK(q){return{write:(K)=>q.write(K),writeBatch:(K)=>q.writeBatch(K),close:()=>q.close(),isConnectedStatus:()=>q.isConnectedStatus(),getStateLabel:()=>q.getStateLabel(),setOnData:(K)=>q.set"
+    }
+  ],
+  "st94": [
+    {
+      "idx": 935431,
+      "snip": "=void 0)_.bufferedData=Mx7(_.bufferedData);throw _}}var Mx7=(q)=>globalThis.Buffer.from(q);var Xx7=L(()=>{i91()});async function r91(q,K){return rg6(q,Pu5,K)}var Hu5=()=>({contents:\"\",textDecoder:new TextDecoder}),g28=(q,{textDecoder:K})=>K.decode(q,{stream:!0}),Ju5=(q,{contents:K})=>K+q,Mu5=(q,K)=>q.slice(0,K),Xu5=({textDecoder:q})=>{let K=q.decode();return K===\"\"?void 0:K},Pu5;var Px7=L(()=>{og6();Pu5={init:Hu5,convertChunk:{string:d91,buffer:g28,arrayBuf"
+    },
+    {
+      "idx": 4514192,
+      "snip": "){if(K.queuedSize-=_,K.ondrain)K.ondrain(_)}},q.prototype.push=function(K,_){this.queuedSize+=K.length,Xu1.prototype.push.call(this,K,_)},q}();NA4=typeof TextEncoder<\"u\"&&new TextEncoder,Pu1=typeof TextDecoder<\"u\"&&new TextDecoder;try{Pu1.decode(Qq6,{stream:!0}),oA4=1}catch(q){}lg_=function(){function q(K){if(this.ondata=K,oA4)this.t=new TextDecoder;else this.p=Qq6}return q.prototype.push=function(K,_){if(!this.ondata)nK(5);if(_=!!_,this.t){if(this.ondata(t"
+    },
+    {
+      "idx": 4514418,
+      "snip": "oder;try{Pu1.decode(Qq6,{stream:!0}),oA4=1}catch(q){}lg_=function(){function q(K){if(this.ondata=K,oA4)this.t=new TextDecoder;else this.p=Qq6}return q.prototype.push=function(K,_){if(!this.ondata)nK(5);if(_=!!_,this.t){if(this.ondata(this.t.decode(K,{stream:!0}),_),_){if(this.t.decode().length)nK(8);this.t=null}return}if(!this.p)nK(4);var z=new H_(this.p.length+K.length);z.set(this.p),z.set(K,this.p.length);var Y=aA4(z),O=Y.s,A=Y.r;if(_){if(A.length)nK(8);t"
+    },
+    {
+      "idx": 11897352,
+      "snip": "q){let K=q.pathname;if(K.endsWith(\"/stream\"))K=K.slice(0,-7);return`${q.protocol}//${q.host}${K}`}var rnY=1000,onY=30000,anY=600000,snY=45000,tnY,_98=10,enY=500,qiY=8000,KiY;var Qi8=L(()=>{TK();_8();$O();L8();ry();n8();tnY=new Set([401,403,404]),KiY={stream:!0}});function eoK(q){return{write:(K)=>q.write(K),writeBatch:(K)=>q.writeBatch(K),close:()=>q.close(),isConnectedStatus:()=>q.isConnectedStatus(),getStateLabel:()=>q.getStateLabel(),setOnData:(K)=>q.set"
+    },
+    {
+      "idx": 13052798,
+      "snip": "gth===0)return!0;try{return JSON.parse(q),!0}catch{return!1}}function Pz5(){if(qJ7)return;qJ7=!0;let q=new TextDecoder(\"utf-8\");jP6=process.stdout.write.bind(process.stdout),process.stdout.write=function(K,_,z){let Y=typeof K===\"string\"?K:q.decode(K,{stream:!0});Og+=Y;let O,A=!0;while((O=Og.indexOf(`\n`))!==-1){let w=Og.slice(0,O);if(Og=Og.slice(O+1),Xz5(w))A=jP6(w+`\n`);else process.stderr.write(`${Mz5} ${w}\n`),N(`streamJsonStdoutGuard diverted non-JSON stdo"
+    }
+  ],
+  "s429_92": [
+    {
+      "idx": 122011,
+      "snip": "syncIterator in A.body,H={signal:z.signal,...j?{duplex:\"half\"}:{},method:\"GET\",...A};if(O)H.method=O.toUpperCase();try{return await this.fetch.call(void 0,q,H)}finally{clearTimeout(w)}}async shouldRetry(q){let K=q.headers.get(\"x-should-retry\");if(K===\"true\")return!0;if(K===\"false\")return!1;if(q.status===408)return!0;if(q.status===409)return!0;if(q.status===429)return!0;if(q.status>=500)return!0;return!1}async retryRequest(q,K,_,z){let Y,O=z?.get(\"retry-after-ms\");if(O){let $=parseFloat(O);if(!Number.isNaN($))Y=$}let A=z?.get(\"retry-after\");if(A&&!Y){let $=parseFloat(A);if(!Number.isNaN($))Y=$*1000;else Y=Date.parse(A)-Date.now()}if(Y===void 0){let $=q.maxRetries??this.maxRetries;Y=this.calculateDefaultR"
+    },
+    {
+      "idx": 2735835,
+      "snip": "kResponseStatus(_)||ci.checkResponseForRetryAfter(_)){let Y={throttleTime:ci.calculateThrottleTime(parseInt(_.headers[z2.RETRY_AFTER])),error:_.body.error,errorCodes:_.body.error_codes,errorMessage:_.body.error_description,subError:_.body.suberror};q.setThrottlingCache(ci.generateThrottlingStorageKey(K),Y,z)}}static checkResponseStatus(q){return q.status===429||q.status>=500&&q.status<600}static checkResponseForRetryAfter(q){if(q.headers)return q.headers.hasOwnProperty(z2.RETRY_AFTER)&&(q.status<200||q.status>=300);return!1}static calculateThrottleTime(q){let K=q<=0?0:q,_=Date.now()/1000;return Math.floor(Math.min(_+(K||QF.DEFAULT_THROTTLE_TIME_SECONDS),_+QF.DEFAULT_MAX_THROTTLE_TIME_SECONDS)*1000)}stat"
+    },
+    {
+      "idx": 5061943,
+      "snip": "und(Y/q.total*100),q.toolRequests.forEach((O,A)=>{K[`tool_request_${A}_percent`]=Math.round(O/q.total*100)}),q.toolResults.forEach((O,A)=>{K[`tool_result_${A}_percent`]=Math.round(O/q.total*100)})}return K}var $W4=L(()=>{qy();K7();r8()});function Jp1(q){if(E06())return y$q(q);return q}function $N6(q){return q||E06()}function wW4(q){return E06()&&q.status===429}var ba6=L(()=>{yV();CP1()});function tq6(q){if(!q||typeof q!==\"object\")return null;let K=q,_=5,z=0;while(K&&z<_){if(K instanceof Error&&\"code\"in K&&typeof K.code===\"string\"){let Y=K.code,O=As_.has(Y);return{code:Y,message:K.message,isSSLError:O}}if(K instanceof Error&&\"cause\"in K&&K.cause!==K)K=K.cause,z++;else break}return null}function eq6(q){le"
+    },
+    {
+      "idx": 5065092,
+      "snip": "LF_SIGNED_CERT_IN_CHAIN\",\"CERT_CHAIN_TOO_LONG\",\"PATH_LENGTH_EXCEEDED\",\"ERR_TLS_CERT_ALTNAME_INVALID\",\"HOSTNAME_MISMATCH\",\"ERR_TLS_HANDSHAKE_TIMEOUT\",\"ERR_SSL_WRONG_VERSION_NUMBER\",\"ERR_SSL_DECRYPTION_FAILED_OR_BAD_RECORD_MAC\"])});function Ws_(q){return q===void 0||Ps_.has(q)}function ly8(){return!1}function HW4(q){return pw6(q)||q instanceof nq&&q.status===429}function fs_(q){if(!(q instanceof of))return!1;let K=tq6(q);return K?.code===\"ECONNRESET\"||K?.code===\"EPIPE\"}async function*ny8(q,K,_){let z=Vs_(_),Y={model:_.model,thinkingConfig:_.thinkingConfig,...lK()&&{fastMode:_.fastMode}},O=null,A=_.initialConsecutive529Errors??0,$,w=0,j=!1;for(let H=1;H<=z+1;H++){if(_.signal?.aborted)throw new Gz;let J=lK("
+    },
+    {
+      "idx": 5066023,
+      "snip": "Dp1($)||XW4($)||PW4($)||M){if($ instanceof nq&&$.status===401||Dp1($)){let X=s7()?.accessToken;if(X)await tS(X)}O=await q()}return await K(O,H,Y)}catch(M){if($=M,N(`API error (attempt ${H}/${z+1}): ${M instanceof nq?`${M.status} ${M.message}`:g6(M)}`,{level:\"error\"}),!j&&_.onError?.(M)===\"retry\"){j=!0,H--;continue}if(J&&!ly8()&&M instanceof nq&&(M.status===429||pw6(M))){let G=M.headers?.get(\"anthropic-ratelimit-unified-overage-disabled-reason\");if(G!==null&&G!==void 0){QJq(G),Y.fastMode=!1;continue}let Z=Ls_(M);if(Z!==null&&Z<ys_){await C7(Z,_.signal,{abortError:Xp1});continue}let v=Math.max(Z??Ns_,Es_),k=pw6(M)?\"overloaded\":\"rate_limit\";if(BJq(Date.now()+v,k),lK())Y.fastMode=!1;continue}if(J&&Zs_(M)){g"
+    },
+    {
+      "idx": 5067495,
+      "snip": "or(`availableContext ${V} is less than FLOOR_OUTPUT_TOKENS ${Pp1}`)),M;let y=(Y.thinkingConfig.type===\"enabled\"?Y.thinkingConfig.budgetTokens:0)+1,E=Math.max(Pp1,V,y);Y.maxTokensOverride=E,d(\"tengu_max_tokens_context_overflow_adjustment\",{inputTokens:Z,contextLimit:v,adjustedMaxTokens:E,attempt:H});continue}}let W=JW4(M),D;if(X&&M instanceof nq&&M.status===429)w++,D=hs_(M)??Math.min(wQ(w,W,jW4),Wp1);else if(X)w++,D=Math.min(wQ(w,W,jW4),Wp1);else D=wQ(H,W);let f=X?w:H;if(d(\"tengu_api_retry\",{attempt:f,delayMs:D,error:M.message,status:M.status,provider:r86()}),X){if(D>60000)d(\"tengu_api_persistent_retry_wait\",{status:M.status,delayMs:D,attempt:f,provider:r86()});let G=D;while(G>0){if(_.signal?.aborted)thr"
+    },
+    {
+      "idx": 5070257,
+      "snip": "us===403))return!0;if(q.message?.includes('\"type\":\"overloaded_error\"'))return!0;if(MW4(q))return!0;let K=q.headers?.get(\"x-should-retry\");if(K===\"true\"&&(!g7()||uv6()))return!0;if(K===\"false\"){let _=q.status!==void 0&&q.status>=500;return!1}if(q instanceof of)return!0;if(!q.status)return!1;if(q.status===408)return!0;if(q.status===409)return!0;if(q.status===429)return!g7()||uv6();if(q.status===401)return Kn6(),!0;if(Dp1(q))return!0;if(q.status&&q.status>=500)return!0;return!1}function xa6(){if(process.env.CLAUDE_CODE_MAX_RETRIES){let q=parseInt(process.env.CLAUDE_CODE_MAX_RETRIES,10);if(Number.isFinite(q)&&q>=0)return q}return Js_}function Vs_(q){return q.maxRetries??xa6()}function Ls_(q){let K=JW4(q);if"
+    },
+    {
+      "idx": 9840215,
+      "snip": "nalToolUseIndex:Y})}catch(z){}}function IU8(q,K,_){if(q instanceof Yg||q instanceof of&&q.message.toLowerCase().includes(\"timeout\"))return d9({content:Lu8,error:\"unknown\"});if(q instanceof jN6||q instanceof DQ)return d9({content:xU8()});if(q instanceof Error&&q.message.includes(jH6))return d9({content:jH6,error:\"rate_limit\"});if(q instanceof nq&&q.status===429&&$N6(g7())){let z=q.headers?.get?.(\"anthropic-ratelimit-unified-representative-claim\"),Y=q.headers?.get?.(\"anthropic-ratelimit-unified-overage-status\");if(z||Y){let w={status:\"rejected\",unifiedRateLimitFallbackAvailable:!1,isUsingOverage:!1},j=q.headers?.get?.(\"anthropic-ratelimit-unified-reset\");if(j)w.resetsAt=Number(j);if(z)w.rateLimitType=z;if"
+    },
+    {
+      "idx": 9846969,
+      "snip": "on RGK(q){if(q instanceof Error&&q.message===\"Request was aborted.\")return\"aborted\";if(q instanceof Yg||q instanceof of&&q.message.toLowerCase().includes(\"timeout\"))return\"api_timeout\";if(q instanceof Error&&q.message.includes(Zp1))return\"repeated_529\";if(q instanceof Error&&q.message.includes(jH6))return\"capacity_off_switch\";if(q instanceof nq&&q.status===429)return\"rate_limit\";if(q instanceof nq&&(q.status===529||q.message?.includes('\"type\":\"overloaded_error\"')))return\"server_overload\";if(q instanceof Error&&q.message.toLowerCase().includes(mp.toLowerCase()))return\"prompt_too_long\";if(q instanceof Error&&/maximum of \\d+ PDF pages/.test(q.message))return\"pdf_too_large\";if(q instanceof Error&&q.message."
+    },
+    {
+      "idx": 9849205,
+      "snip": "odel id\"))return\"bedrock_model_access\";if(q instanceof nq){let K=q.status;if(K>=500)return\"server_error\";if(K>=400)return\"client_error\"}if(q instanceof of){if(tq6(q)?.isSSLError)return\"ssl_cert_error\";return\"connection_error\"}return\"unknown\"}function OVK(q){if(q.status===529||q.message?.includes('\"type\":\"overloaded_error\"'))return\"rate_limit\";if(q.status===429)return\"rate_limit\";if(q.status===401||q.status===403)return\"authentication_failed\";if(q.status!==void 0&&q.status>=408)return\"server_error\";return\"unknown\"}function AVK(q,K){if(q!==\"refusal\")return;d(\"tengu_refusal_api_response\",{});let _=U7()?`${vW}: Claude Code is unable to respond to this request, which appears to violate our Usage Policy (http"
+    },
+    {
+      "idx": 11808676,
+      "snip": "this.consecutiveAuthFailures} consecutive auth failures with a valid-looking token — server-side auth unrecoverable, exiting`,{level:\"error\"}),s8(\"error\",\"cli_worker_auth_failures_exhausted\"),this.onEpochMismatch()}if(N(`CCRClient: ${z} returned ${A.status}`,{level:\"warn\"}),s8(\"warn\",\"cli_worker_request_failed\",{method:q,path:K,status:A.status}),A.status===429){let $=A.headers?.[\"retry-after\"],w=typeof $===\"string\"?parseInt($,10):NaN;if(!isNaN(w)&&w>=0)return{ok:!1,retryAfterMs:w*1000}}return{ok:!1}}catch(A){return N(`CCRClient: ${z} failed: ${g6(A)}`,{level:\"warn\"}),s8(\"warn\",\"cli_worker_request_error\",{method:q,path:K,error_code:n1(A)}),{ok:!1}}}reportState(q,K){if(q===this.currentState&&!K)return;thi"
+    }
+  ],
+  "s429_94": [
+    {
+      "idx": 122193,
+      "snip": "syncIterator in A.body,H={signal:z.signal,...j?{duplex:\"half\"}:{},method:\"GET\",...A};if(O)H.method=O.toUpperCase();try{return await this.fetch.call(void 0,q,H)}finally{clearTimeout(w)}}async shouldRetry(q){let K=q.headers.get(\"x-should-retry\");if(K===\"true\")return!0;if(K===\"false\")return!1;if(q.status===408)return!0;if(q.status===409)return!0;if(q.status===429)return!0;if(q.status>=500)return!0;return!1}async retryRequest(q,K,_,z){let Y,O=z?.get(\"retry-after-ms\");if(O){let $=parseFloat(O);if(!Number.isNaN($))Y=$}let A=z?.get(\"retry-after\");if(A&&!Y){let $=parseFloat(A);if(!Number.isNaN($))Y=$*1000;else Y=Date.parse(A)-Date.now()}if(Y===void 0){let $=q.maxRetries??this.maxRetries;Y=this.calculateDefaultR"
+    },
+    {
+      "idx": 2730087,
+      "snip": "kResponseStatus(_)||Jr.checkResponseForRetryAfter(_)){let Y={throttleTime:Jr.calculateThrottleTime(parseInt(_.headers[P2.RETRY_AFTER])),error:_.body.error,errorCodes:_.body.error_codes,errorMessage:_.body.error_description,subError:_.body.suberror};q.setThrottlingCache(Jr.generateThrottlingStorageKey(K),Y,z)}}static checkResponseStatus(q){return q.status===429||q.status>=500&&q.status<600}static checkResponseForRetryAfter(q){if(q.headers)return q.headers.hasOwnProperty(P2.RETRY_AFTER)&&(q.status<200||q.status>=300);return!1}static calculateThrottleTime(q){let K=q<=0?0:q,_=Date.now()/1000;return Math.floor(Math.min(_+(K||MU.DEFAULT_THROTTLE_TIME_SECONDS),_+MU.DEFAULT_MAX_THROTTLE_TIME_SECONDS)*1000)}stat"
+    },
+    {
+      "idx": 5061699,
+      "snip": "und(Y/q.total*100),q.toolRequests.forEach((O,A)=>{K[`tool_request_${A}_percent`]=Math.round(O/q.total*100)}),q.toolResults.forEach((O,A)=>{K[`tool_result_${A}_percent`]=Math.round(O/q.total*100)})}return K}var KD4=L(()=>{Ey();K7();n8()});function mB1(q){if(XG6())return owq(q);return q}function eN6(q){return q||XG6()}function _D4(q){return XG6()&&q.status===429}var xs6=L(()=>{BT();$D1()});function L46(q){if(!q||typeof q!==\"object\")return null;let K=q,_=5,z=0;while(K&&z<_){if(K instanceof Error&&\"code\"in K&&typeof K.code===\"string\"){let Y=K.code,O=ss_.has(Y);return{code:Y,message:K.message,isSSLError:O}}if(K instanceof Error&&\"cause\"in K&&K.cause!==K)K=K.cause,z++;else break}return null}function h46(q){le"
+    },
+    {
+      "idx": 5064848,
+      "snip": "LF_SIGNED_CERT_IN_CHAIN\",\"CERT_CHAIN_TOO_LONG\",\"PATH_LENGTH_EXCEEDED\",\"ERR_TLS_CERT_ALTNAME_INVALID\",\"HOSTNAME_MISMATCH\",\"ERR_TLS_HANDSHAKE_TIMEOUT\",\"ERR_SSL_WRONG_VERSION_NUMBER\",\"ERR_SSL_DECRYPTION_FAILED_OR_BAD_RECORD_MAC\"])});function $t_(q){return q===void 0||At_.has(q)}function Is6(){return!1}function YD4(q){return W26(q)||q instanceof rq&&q.status===429}function jt_(q){if(!(q instanceof XZ))return!1;let K=L46(q);return K?.code===\"ECONNRESET\"||K?.code===\"EPIPE\"}async function*DL8(q,K,_){let z=Wt_(_),Y={model:_.model,thinkingConfig:_.thinkingConfig,...cK()&&{fastMode:_.fastMode}},O=null,A=_.initialConsecutive529Errors??0,$,w=0,j=!1;for(let H=1;H<=z+1;H++){if(_.signal?.aborted)throw new r_;let J=cK("
+    },
+    {
+      "idx": 5065779,
+      "snip": "UB1($)||$D4($)||wD4($)||M){if($ instanceof rq&&$.status===401||UB1($)){let X=s7()?.accessToken;if(X)await SC(X)}O=await q()}return await K(O,H,Y)}catch(M){if($=M,N(`API error (attempt ${H}/${z+1}): ${M instanceof rq?`${M.status} ${M.message}`:m6(M)}`,{level:\"error\"}),!j&&_.onError?.(M)===\"retry\"){j=!0,H--;continue}if(J&&!Is6()&&M instanceof rq&&(M.status===429||W26(M))){let G=M.headers?.get(\"anthropic-ratelimit-unified-overage-disabled-reason\");if(G!==null&&G!==void 0){MXq(G),Y.fastMode=!1;continue}let Z=Gt_(M);if(Z!==null&&Z<ft_){await C7(Z,_.signal,{abortError:BB1});continue}let v=Math.max(Z??Dt_,Zt_),k=W26(M)?\"overloaded\":\"rate_limit\";if(wXq(Date.now()+v,k),cK())Y.fastMode=!1;continue}if(J&&Ht_(M)){j"
+    },
+    {
+      "idx": 5067250,
+      "snip": "or(`availableContext ${V} is less than FLOOR_OUTPUT_TOKENS ${gB1}`)),M;let E=(Y.thinkingConfig.type===\"enabled\"?Y.thinkingConfig.budgetTokens:0)+1,y=Math.max(gB1,V,E);Y.maxTokensOverride=y,d(\"tengu_max_tokens_context_overflow_adjustment\",{inputTokens:Z,contextLimit:v,adjustedMaxTokens:y,attempt:H});continue}}let W=OD4(M),D;if(X&&M instanceof rq&&M.status===429)w++,D=vt_(M)??Math.min(CQ(w,W,zD4),FB1);else if(X)w++,D=Math.min(CQ(w,W,zD4),FB1);else if(D=CQ(H,W),!Is6()&&D>Ot_)throw d(\"tengu_api_retry_after_too_long\",{delayMs:D,status:M.status,provider:gi()}),new qx(M,Y);let f=X?w:H;if(d(\"tengu_api_retry\",{attempt:f,delayMs:D,error:M.message,status:M.status,provider:gi()}),X){if(D>60000)d(\"tengu_api_persiste"
+    },
+    {
+      "idx": 5070123,
+      "snip": "us===403))return!0;if(q.message?.includes('\"type\":\"overloaded_error\"'))return!0;if(AD4(q))return!0;let K=q.headers?.get(\"x-should-retry\");if(K===\"true\"&&(!p7()||LT6()))return!0;if(K===\"false\"){let _=q.status!==void 0&&q.status>=500;return!1}if(q instanceof XZ)return!0;if(!q.status)return!1;if(q.status===408)return!0;if(q.status===409)return!0;if(q.status===429)return!p7()||LT6();if(q.status===401)return _i6(),!0;if(UB1(q))return!0;if(q.status&&q.status>=500)return!0;return!1}function us6(){if(process.env.CLAUDE_CODE_MAX_RETRIES){let q=parseInt(process.env.CLAUDE_CODE_MAX_RETRIES,10);if(Number.isFinite(q)&&q>=0)return q}return _t_}function Wt_(q){return q.maxRetries??us6()}function Gt_(q){let K=OD4(q);if"
+    },
+    {
+      "idx": 9894093,
+      "snip": "nalToolUseIndex:Y})}catch(z){}}function _d8(q,K,_){if(q instanceof Eg||q instanceof XZ&&q.message.toLowerCase().includes(\"timeout\"))return r9({content:Yp8,error:\"unknown\"});if(q instanceof Ky6||q instanceof gQ)return r9({content:Kd8()});if(q instanceof Error&&q.message.includes(rH6))return r9({content:rH6,error:\"rate_limit\"});if(q instanceof rq&&q.status===429&&eN6(p7())){let z=q.headers?.get?.(\"anthropic-ratelimit-unified-representative-claim\"),Y=q.headers?.get?.(\"anthropic-ratelimit-unified-overage-status\");if(z||Y){let w={status:\"rejected\",unifiedRateLimitFallbackAvailable:!1,isUsingOverage:!1},j=q.headers?.get?.(\"anthropic-ratelimit-unified-reset\");if(j)w.resetsAt=Number(j);if(z)w.rateLimitType=z;if"
+    },
+    {
+      "idx": 9900847,
+      "snip": "on svK(q){if(q instanceof Error&&q.message===\"Request was aborted.\")return\"aborted\";if(q instanceof Eg||q instanceof XZ&&q.message.toLowerCase().includes(\"timeout\"))return\"api_timeout\";if(q instanceof Error&&q.message.includes(dB1))return\"repeated_529\";if(q instanceof Error&&q.message.includes(rH6))return\"capacity_off_switch\";if(q instanceof rq&&q.status===429)return\"rate_limit\";if(q instanceof rq&&(q.status===529||q.message?.includes('\"type\":\"overloaded_error\"')))return\"server_overload\";if(q instanceof Error&&q.message.toLowerCase().includes(HB.toLowerCase()))return\"prompt_too_long\";if(q instanceof Error&&/maximum of \\d+ PDF pages/.test(q.message))return\"pdf_too_large\";if(q instanceof Error&&q.message."
+    },
+    {
+      "idx": 9903083,
+      "snip": "odel id\"))return\"bedrock_model_access\";if(q instanceof rq){let K=q.status;if(K>=500)return\"server_error\";if(K>=400)return\"client_error\"}if(q instanceof XZ){if(L46(q)?.isSSLError)return\"ssl_cert_error\";return\"connection_error\"}return\"unknown\"}function LNK(q){if(q.status===529||q.message?.includes('\"type\":\"overloaded_error\"'))return\"rate_limit\";if(q.status===429)return\"rate_limit\";if(q.status===401||q.status===403)return\"authentication_failed\";if(q.status!==void 0&&q.status>=408)return\"server_error\";return\"unknown\"}function hNK(q,K){if(q!==\"refusal\")return;d(\"tengu_refusal_api_response\",{});let _=U7()?`${UW}: Claude Code is unable to respond to this request, which appears to violate our Usage Policy (http"
+    },
+    {
+      "idx": 11884368,
+      "snip": "this.consecutiveAuthFailures} consecutive auth failures with a valid-looking token — server-side auth unrecoverable, exiting`,{level:\"error\"}),s8(\"error\",\"cli_worker_auth_failures_exhausted\"),this.onEpochMismatch()}if(N(`CCRClient: ${z} returned ${A.status}`,{level:\"warn\"}),s8(\"warn\",\"cli_worker_request_failed\",{method:q,path:K,status:A.status}),A.status===429){let $=A.headers?.[\"retry-after\"],w=typeof $===\"string\"?parseInt($,10):NaN;if(!isNaN(w)&&w>=0)return{ok:!1,retryAfterMs:w*1000}}return{ok:!1}}catch(A){return N(`CCRClient: ${z} failed: ${m6(A)}`,{level:\"warn\"}),s8(\"warn\",\"cli_worker_request_error\",{method:q,path:K,error_code:n1(A)}),{ok:!1}}}reportState(q,K){if(q===this.currentState&&!K)return;thi"
+    },
+    {
+      "idx": 12645527,
+      "snip": "ER_TOKEN_BEDROCK}`}});else{let $=p6(process.env.CLAUDE_CODE_SKIP_BEDROCK_AUTH),w=$?null:await kC();A=w?new _({...O,awsAccessKey:w.accessKeyId,awsSecretKey:w.secretAccessKey,awsSessionToken:w.sessionToken}):new _({...O,...$&&{skipAuth:!0}})}return await A.messages.create({model:q,max_tokens:1,messages:[{role:\"user\",content:\".\"}]}),!0}catch(_){if(_?.status===429)return!0;return!1}}var M_8,ao8;var BH7=L(()=>{k8();W7();p8();G16();MG6();Uq();$_();M_8=Object.keys(kM),ao8={sonnet:{envVarPriority:[\"ANTHROPIC_DEFAULT_SONNET_MODEL\"],defaultKey:IG6},opus:{envVarPriority:[\"ANTHROPIC_DEFAULT_OPUS_MODEL\"],defaultKey:xG6},haiku:{envVarPriority:[\"ANTHROPIC_SMALL_FAST_MODEL\",\"ANTHROPIC_DEFAULT_HAIKU_MODEL\"],defaultKey:u"
+    }
+  ]
+}

@@ -35,6 +35,10 @@ import { lazySchema } from '../../utils/lazySchema.js'
 import { logError } from '../../utils/log.js'
 import { expandPath } from '../../utils/path.js'
 import {
+  isPerforceReadOnly,
+  PERFORCE_READONLY_MESSAGE,
+} from '../../utils/perforce.js'
+import {
   checkWritePermissionForTool,
   matchingRuleForInput,
 } from '../../utils/permissions/filesystem.js'
@@ -205,6 +209,13 @@ export const FileWriteTool = buildTool({
     let fileMtimeMs: number
     try {
       const fileStat = await fs.stat(fullFilePath)
+      if (isPerforceReadOnly(fileStat.mode)) {
+        return {
+          result: false,
+          message: PERFORCE_READONLY_MESSAGE,
+          errorCode: 6,
+        }
+      }
       fileMtimeMs = fileStat.mtimeMs
     } catch (e) {
       if (isENOENT(e)) {

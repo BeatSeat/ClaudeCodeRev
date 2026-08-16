@@ -1,0 +1,162 @@
+{
+  "function FHK": [
+    8772464
+  ],
+  "function z_Y": [
+    8773915
+  ],
+  "function UHK": [
+    8774571
+  ],
+  "function Y_Y": [
+    8776787
+  ],
+  "function dHK": [
+    8777264
+  ],
+  "function cHK": [
+    8777393
+  ],
+  "function aS6": [
+    8778840
+  ],
+  "function $_Y": [
+    8779598
+  ],
+  "function nHK": [
+    8781038
+  ],
+  "function H_Y": [
+    8784290
+  ],
+  "function J_Y": [
+    8785491
+  ],
+  "function oHK": [
+    8787399
+  ],
+  "function P_Y": [
+    8787854
+  ],
+  "function tHK": [
+    8788020
+  ],
+  "function D_Y": [
+    8788898
+  ],
+  "function qJK": [
+    8792278
+  ],
+  "function _JK": [
+    8794128
+  ],
+  "function YJK": [
+    8795978
+  ],
+  "function Qp8": [
+    8797628
+  ],
+  "function xuY": [
+    11080279
+  ],
+  "function QHK": [
+    8777119
+  ],
+  "function R17": [
+    8777036
+  ],
+  "function A_Y": [
+    8776921
+  ],
+  "function w_Y": [
+    8779285
+  ],
+  "Set up Google Vertex AI": [
+    8797922
+  ],
+  "How do you authenticate to Google Cloud": [
+    8773585
+  ],
+  "tengu_vertex_setup": [
+    8775013,
+    11080305,
+    11080874
+  ],
+  "tengu_oauth_vertex": [
+    8807414
+  ],
+  "CLAUDE_CODE_USE_VERTEX": [
+    873611,
+    2287555,
+    3481163,
+    3495599,
+    3496861,
+    3653359,
+    5079607,
+    7569039,
+    7572135,
+    8603814,
+    8703874,
+    8773938,
+    9723653,
+    9723761,
+    10113175,
+    11081190,
+    11912311,
+    13338883
+  ],
+  "ANTHROPIC_VERTEX_PROJECT_ID": [
+    3436587,
+    3437951,
+    3438583,
+    3443108,
+    7569344,
+    8442312,
+    8774064,
+    12700153
+  ],
+  "CLOUD_ML_REGION": [
+    49145,
+    3436546,
+    3436740,
+    7569403,
+    8774104
+  ],
+  "GOOGLE_APPLICATION_CREDENTIALS": [
+    3419683,
+    3419944,
+    3425496,
+    3442923,
+    4189589,
+    8774129,
+    8774350,
+    8779983,
+    8780545,
+    12700052
+  ],
+  "application_default_credentials": [
+    3420219,
+    8787731
+  ],
+  "gcloud auth application-default": [
+    1046026,
+    8775300,
+    8780021,
+    8780483,
+    8780965
+  ],
+  "interactive setup": [
+    8806528,
+    8806969
+  ],
+  "vertex_wizard": [
+    8807426,
+    8807464,
+    8808697
+  ],
+  "vertex_done": [
+    8800551,
+    8808218,
+    8808790
+  ]
+}

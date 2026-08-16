@@ -43,6 +43,10 @@ import {
 import { logError } from '../../utils/log.js'
 import { expandPath } from '../../utils/path.js'
 import {
+  isPerforceReadOnly,
+  PERFORCE_READONLY_MESSAGE,
+} from '../../utils/perforce.js'
+import {
   checkWritePermissionForTool,
   matchingRuleForInput,
 } from '../../utils/permissions/filesystem.js'
@@ -184,13 +188,21 @@ export const FileEditTool = buildTool({
 
     // Prevent OOM on multi-GB files.
     try {
-      const { size } = await fs.stat(fullFilePath)
+      const { size, mode } = await fs.stat(fullFilePath)
       if (size > MAX_EDIT_FILE_SIZE) {
         return {
           result: false,
           behavior: 'ask',
           message: `File is too large to edit (${formatFileSize(size)}). Maximum editable file size is ${formatFileSize(MAX_EDIT_FILE_SIZE)}.`,
           errorCode: 10,
+        }
+      }
+      if (isPerforceReadOnly(mode)) {
+        return {
+          result: false,
+          behavior: 'ask',
+          message: PERFORCE_READONLY_MESSAGE,
+          errorCode: 11,
         }
       }
     } catch (e) {

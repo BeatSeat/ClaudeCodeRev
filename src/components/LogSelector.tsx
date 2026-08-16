@@ -1,6 +1,7 @@
 import chalk from 'chalk'
 import figures from 'figures'
 import Fuse from 'fuse.js'
+import { basename } from 'path'
 import React from 'react'
 import { getOriginalCwd, getSessionId } from '../bootstrap/state.js'
 import { useExitOnCtrlCDWithKeybindings } from '../hooks/useExitOnCtrlCDWithKeybindings.js'
@@ -1000,11 +1001,17 @@ export function LogSelector({
   )
 
   const filterIndicators = []
+  if (!showAllProjects) {
+    filterIndicators.push(basename(currentCwd))
+  }
   if (branchFilterEnabled && currentBranch) {
     filterIndicators.push(currentBranch)
   }
   if (hasMultipleWorktrees && !showAllWorktrees) {
-    filterIndicators.push('current worktree')
+    const worktreeName = basename(currentCwd)
+    if (!filterIndicators.includes(worktreeName)) {
+      filterIndicators.push(`worktree ${worktreeName}`)
+    }
   }
 
   const showAdditionalFilterLine =
@@ -1312,19 +1319,31 @@ export function LogSelector({
               {onToggleAllProjects && (
                 <KeyboardShortcutHint
                   shortcut="Ctrl+A"
-                  action={`show ${showAllProjects ? 'current dir' : 'all projects'}`}
+                  action={
+                    showAllProjects
+                      ? 'only show current directory'
+                      : 'show all directories'
+                  }
                 />
               )}
               {currentBranch && (
                 <KeyboardShortcutHint
                   shortcut="Ctrl+B"
-                  action="toggle branch"
+                  action={
+                    branchFilterEnabled
+                      ? 'show all branches'
+                      : 'only show current branch'
+                  }
                 />
               )}
               {hasMultipleWorktrees && (
                 <KeyboardShortcutHint
                   shortcut="Ctrl+W"
-                  action={`show ${showAllWorktrees ? 'current worktree' : 'all worktrees'}`}
+                  action={
+                    showAllWorktrees
+                      ? 'only show current worktree'
+                      : 'show all worktrees'
+                  }
                 />
               )}
               <KeyboardShortcutHint shortcut="Ctrl+V" action="preview" />

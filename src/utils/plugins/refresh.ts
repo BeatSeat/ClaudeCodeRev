@@ -32,6 +32,7 @@ import { getPluginCommands } from './loadPluginCommands.js'
 import { loadPluginHooks } from './loadPluginHooks.js'
 import { loadPluginLspServers } from './lspPluginIntegration.js'
 import { loadPluginMcpServers } from './mcpPluginIntegration.js'
+import { notifySkillsChanged } from '../skills/skillChangeDetector.js'
 import { clearPluginCacheExclusions } from './orphanedPluginFilter.js'
 import { loadAllPlugins } from './pluginLoader.js'
 
@@ -175,6 +176,8 @@ export async function refreshActivePlugins(
   logForDebugging(
     `refreshActivePlugins: ${enabled.length} enabled, ${pluginCommands.length} commands, ${agentDefinitions.allAgents.length} agents, ${hook_count} hooks, ${mcp_count} MCP, ${lsp_count} LSP`,
   )
+
+  notifySkillsChanged()
 
   return {
     enabled_count: enabled.length,

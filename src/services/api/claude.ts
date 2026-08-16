@@ -2472,7 +2472,7 @@ async function* queryModel(
             })
           }
           throw streamingError
-        } else {
+        } else if (!streamIdleAborted) {
           // The SDK threw APIUserAbortError but our signal wasn't aborted
           // This means it's a timeout from the SDK's internal timeout
           logForDebugging(

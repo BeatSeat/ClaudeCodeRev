@@ -242,6 +242,31 @@ export function useVimInput(props: UseVimInputProps): VimInputState {
       return
     }
 
+    // Official 2.1.98: idle j/k try visual then logical motion, then history.
+    if (
+      state.command.type === 'idle' &&
+      (input === 'j' || input === 'k') &&
+      !key.upArrow &&
+      !key.downArrow
+    ) {
+      const visual = input === 'k' ? cursor.up() : cursor.down()
+      if (!visual.equals(cursor)) {
+        textInput.setOffset(visual.offset)
+        return
+      }
+      if (props.multiline) {
+        const logical =
+          input === 'k' ? cursor.upLogicalLine() : cursor.downLogicalLine()
+        if (!logical.equals(cursor)) {
+          textInput.setOffset(logical.offset)
+          return
+        }
+      }
+      if (input === 'k') props.onHistoryUp?.()
+      else props.onHistoryDown?.()
+      return
+    }
+
     const ctx: TransitionContext = {
       ...createOperatorContext(cursor, false),
       onUndo: props.onUndo,

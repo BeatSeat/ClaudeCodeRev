@@ -1379,6 +1379,7 @@ export const AgentTool = buildTool({
                         error: errMsg,
                         setAppState: rootSetAppState,
                         toolUseId: toolUseContext.toolUseId,
+                        finalMessage: extractPartialResult(agentMessages),
                         ...worktreeResult,
                       })
                     } finally {

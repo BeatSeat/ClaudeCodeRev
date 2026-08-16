@@ -1492,6 +1492,12 @@ async function run(): Promise<CommanderCommand> {
     )
     .addOption(
       new Option(
+        '--exclude-dynamic-system-prompt-sections',
+        'Move per-machine sections (cwd, env info, memory paths, git status) from the system prompt into the first user message. Improves cross-user prompt-cache reuse. Only applies with the default system prompt (ignored with --system-prompt).',
+      ).default(false),
+    )
+    .addOption(
+      new Option(
         '--enable-auth-status',
         'Enable auth status messages in SDK mode',
       )
@@ -4002,6 +4008,8 @@ async function run(): Promise<CommanderCommand> {
             sdkUrl,
             replayUserMessages: effectiveReplayUserMessages,
             includePartialMessages: effectiveIncludePartialMessages,
+            excludeDynamicSections:
+              options.excludeDynamicSystemPromptSections || false,
             forkSession: options.forkSession || false,
             resumeSessionAt: options.resumeSessionAt || undefined,
             rewindFiles: options.rewindFiles,

@@ -8,6 +8,7 @@ import { useMergedTools } from '../../hooks/useMergedTools.js'
 import { Box, Text } from '../../ink.js'
 import { useAppState, useSetAppState } from '../../state/AppState.js'
 import type { Tools } from '../../Tool.js'
+import { isLocalAgentTask } from '../../tasks/LocalAgentTask/LocalAgentTask.js'
 import {
   type ResolvedAgent,
   resolveAgentOverrides,
@@ -22,8 +23,10 @@ import { Select } from '../CustomSelect/select.js'
 import { Dialog } from '../design-system/Dialog.js'
 import { AgentDetail } from './AgentDetail.js'
 import { AgentEditor } from './AgentEditor.js'
+import { enterTeammateView } from '../../state/teammateViewHelpers.js'
 import { AgentNavigationFooter } from './AgentNavigationFooter.js'
 import { AgentsList } from './AgentsList.js'
+import TextInput from '../TextInput.js'
 import { deleteAgentFromFile } from './agentFileUtils.js'
 import { CreateAgentWizard } from './new-agent-creation/CreateAgentWizard.js'
 import type { ModeState } from './types.js'
@@ -49,7 +52,7 @@ export function AgentsMenu({ tools, onExit }: Props): React.ReactNode {
     const counts = new Map<string, number>()
     for (const task of Object.values(tasks)) {
       if (
-        task.type === 'local_agent' &&
+        isLocalAgentTask(task) &&
         task.agentType !== 'main-session' &&
         task.status !== 'completed' &&
         task.status !== 'failed' &&
@@ -196,7 +199,12 @@ export function AgentsMenu({ tools, onExit }: Props): React.ReactNode {
         agentToUse.source !== 'built-in' &&
         agentToUse.source !== 'plugin' &&
         agentToUse.source !== 'flagSettings'
+      const runningCount = runningCounts.get(agentToUse.agentType) ?? 0
       const menuItems = [
+        { label: 'Run agent', value: 'run' },
+        ...(runningCount > 0
+          ? [{ label: 'View running instance', value: 'view-running' }]
+          : []),
         { label: 'View agent', value: 'view' },
         ...(isEditable
           ? [
@@ -209,6 +217,28 @@ export function AgentsMenu({ tools, onExit }: Props): React.ReactNode {
 
       const handleMenuSelect = (value: string): void => {
         switch (value) {
+          case 'run':
+            setModeState({
+              mode: 'run-agent',
+              agent: agentToUse,
+              previousMode: modeState,
+            })
+            break
+          case 'view-running': {
+            const running = Object.values(tasks).find(
+              task =>
+                isLocalAgentTask(task) &&
+                task.agentType === agentToUse.agentType &&
+                task.status !== 'completed' &&
+                task.status !== 'failed' &&
+                task.status !== 'killed',
+            )
+            if (running) {
+              enterTeammateView(running.id, setAppState)
+              onExit(undefined, { display: 'skip' })
+            }
+            break
+          }
           case 'view':
             setModeState({
               mode: 'view-agent',
@@ -380,7 +410,58 @@ export function AgentsMenu({ tools, onExit }: Props): React.ReactNode {
       )
     }
 
+    case 'run-agent': {
+      return (
+        <RunAgentPrompt
+          agentType={modeState.agent.agentType}
+          onExit={onExit}
+          onCancel={() => setModeState(modeState.previousMode)}
+        />
+      )
+    }
+
     default:
       return null
   }
+}
+
+function RunAgentPrompt({
+  agentType,
+  onExit,
+  onCancel,
+}: {
+  agentType: string
+  onExit: Props['onExit']
+  onCancel: () => void
+}): React.ReactNode {
+  const [task, setTask] = useState('')
+  const [cursorOffset, setCursorOffset] = useState(0)
+
+  return (
+    <Dialog
+      title={`Run ${agentType}`}
+      subtitle="Enter a prompt for this subagent"
+      onCancel={onCancel}
+    >
+      <TextInput
+        value={task}
+        onChange={setTask}
+        onSubmit={value => {
+          const trimmed = value.trim()
+          if (!trimmed) return
+          onExit(undefined, {
+            display: 'skip',
+            nextInput: `@agent-${agentType} ${trimmed}`,
+            submitNextInput: true,
+          })
+        }}
+        placeholder="Describe the task…"
+        columns={80}
+        cursorOffset={cursorOffset}
+        onChangeCursorOffset={setCursorOffset}
+        focus
+        showCursor
+      />
+    </Dialog>
+  )
 }

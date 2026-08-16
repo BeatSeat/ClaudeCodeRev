@@ -78,9 +78,16 @@ export function AutoUpdater({
     }
 
     const currentVersion = MACRO.VERSION
+    const isDisabled = isAutoUpdaterDisabled()
+    if (isDisabled) {
+      logForDebugging(
+        'AutoUpdater: Skipping version check because auto-updates are disabled',
+      )
+      setVersions({ global: currentVersion, latest: undefined })
+      return
+    }
     const channel = getInitialSettings()?.autoUpdatesChannel ?? 'latest'
     let latestVersion = await getLatestVersion(channel)
-    const isDisabled = isAutoUpdaterDisabled()
 
     // Check if max version is set (server-side kill switch for auto-updates)
     const maxVersion = await getMaxVersion()

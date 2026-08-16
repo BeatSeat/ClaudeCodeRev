@@ -138,6 +138,84 @@ function filterOutFlags(args: string[]): string[] {
   return result
 }
 
+/** Skip delimiter/format flag values so `cut -d /` is not treated as a path. */
+function filterOutFlagsAndValueArgs(
+  args: string[],
+  flagsWithArgs: string[],
+): string[] {
+  const result: string[] = []
+  const flagSet = new Set(flagsWithArgs)
+  let afterDoubleDash = false
+  for (let i = 0; i < args.length; i++) {
+    const arg = args[i]
+    if (arg === undefined) continue
+    if (afterDoubleDash) {
+      result.push(arg)
+      continue
+    }
+    if (arg === '--') {
+      afterDoubleDash = true
+      continue
+    }
+    if (arg.startsWith('-')) {
+      const flag = arg.split('=')[0]
+      if (flag && flagSet.has(flag) && !arg.includes('=')) {
+        i++
+      }
+      continue
+    }
+    result.push(arg)
+  }
+  return result
+}
+
+/** Official 2.1.98 awk extractor: skip value flags; -f/-E script files are paths. */
+function parseAwkCommand(args: string[]): string[] {
+  const paths: string[] = []
+  const skipValue = new Set([
+    '-F',
+    '--field-separator',
+    '-v',
+    '--assign',
+    '-e',
+    '--source',
+  ])
+  const fileFlags = new Set(['-f', '--file', '-E', '--exec'])
+  let afterDoubleDash = false
+
+  for (let i = 0; i < args.length; i++) {
+    const arg = args[i]
+    if (arg === undefined || arg === null) continue
+
+    if (!afterDoubleDash && arg === '--') {
+      afterDoubleDash = true
+      continue
+    }
+
+    if (!afterDoubleDash && arg.startsWith('-')) {
+      const flag = arg.split('=')[0]
+      if (flag && fileFlags.has(flag)) {
+        if (arg.includes('=')) {
+          const file = arg.slice(arg.indexOf('=') + 1)
+          if (file) paths.push(file)
+        } else {
+          const file = args[i + 1]
+          if (file) paths.push(file)
+          i++
+        }
+        continue
+      }
+      if (flag && skipValue.has(flag) && !arg.includes('=')) {
+        i++
+      }
+      continue
+    }
+
+    paths.push(arg)
+  }
+  return paths
+}
+
 // Helper: Parse grep/rg style commands (pattern then paths)
 function parsePatternCommand(
   args: string[],
@@ -164,6 +242,16 @@ function parsePatternCommand(
       // Pattern flags mark that we've found the pattern
       if (flag && ['-e', '--regexp', '-f', '--file'].includes(flag)) {
         patternFound = true
+      }
+      // grep -f / rg -f: the pattern file is a path that must be validated
+      if (flag && ['-f', '--file'].includes(flag)) {
+        if (arg.includes('=')) {
+          const file = arg.slice(arg.indexOf('=') + 1)
+          if (file) paths.push(file)
+        } else {
+          const file = args[i + 1]
+          if (file) paths.push(file)
+        }
       }
       // Skip next arg if flag needs it
       if (flag && flagsWithArgs.has(flag) && !arg.includes('=')) {
@@ -281,13 +369,33 @@ export const PATH_EXTRACTORS: Record<
   sort: filterOutFlags,
   uniq: filterOutFlags,
   wc: filterOutFlags,
-  cut: filterOutFlags,
-  paste: filterOutFlags,
-  column: filterOutFlags,
+  cut: args =>
+    filterOutFlagsAndValueArgs(args, [
+      '-d',
+      '--delimiter',
+      '-c',
+      '--characters',
+      '-f',
+      '--fields',
+      '-b',
+      '--bytes',
+      '--output-delimiter',
+    ]),
+  paste: args =>
+    filterOutFlagsAndValueArgs(args, ['-d', '--delimiters']),
+  column: args =>
+    filterOutFlagsAndValueArgs(args, [
+      '-s',
+      '--separator',
+      '-c',
+      '--output-width',
+      '-o',
+      '--output-separator',
+    ]),
   file: filterOutFlags,
   stat: filterOutFlags,
   diff: filterOutFlags,
-  awk: filterOutFlags,
+  awk: parseAwkCommand,
   strings: filterOutFlags,
   hexdump: filterOutFlags,
   od: filterOutFlags,

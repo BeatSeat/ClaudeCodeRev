@@ -1,0 +1,210 @@
+{
+  "fhz": {
+    "idx": 7425767,
+    "snip": "function fhz(q,K){if(K)return K.envVars.some((A)=>!Ly6(A.name));let _=/^([A-Za-z_][A-Za-z0-9_]*)\\+?=/,z=/^[A-Za-z_][A-Za-z0-9_]*\\+?=(?:\"[^\"$`\\\\]*\"|'[^']*'|[A-Za-z0-9_./:+-]*)[ \\t]+/,Y=q.command;for(;;){let A=Y.match(_);if(!A)return!1;if(!Ly6(A[1]))return!0;let O=Y.match(z);if(!O)return!0;Y=Y.slice(O[0].length)}}function Hi1(q,K){let _=/^([A-Za-z_][A-Za-z0-9_]*(?:\\[[^\\]]*\\])?)\\+?=(?:'[^'\\n\\r]*'|\"(?:\\\\.|[^\"$`\\\\\\n\\r])*\"|\\\\.|[^ \\t\\n\\r$`;|&()<>\\\\\\\\'\"])*[ \\t]+/,z=q,Y=\"\";while(z!==Y){Y=z,z=Oi1(z);let A=z.match(_);if(!A)continue;if(K?.test(A[1]))break;z=z.slice(A[0].length)}return z.trim()}function Ai1(q,K,_,{stripAllEnvVars:z=!1,skipCompoundCheck:Y=!1}={}){let A=q.command.trim(),O=oQ(A).commandWithoutRedirections,w=(_===\"exact\"?[A,O]:[O]).flatMap((H)=>{let J=XB(H);return J!==H?[H,J]:[H]});if(z){l"
+  },
+  "fhzUses": [
+    {
+      "idx": 7425776,
+      "snip": "?/,/^nice(?:[ \\t]+-n[ \\t]+-?\\d+|[ \\t]+-\\d+)?[ \\t]+(?:--[ \\t]+)?/,/^stdbuf(?:[ \\t]+-[ioe][LN0-9]+)+[ \\t]+(?:--[ \\t]+)?/,/^nohup[ \\t]+(?:--[ \\t]+)?/],_=/^([A-Za-z_][A-Za-z0-9_]*)=([A-Za-z0-9_./:-]+)[ \\t]+/,z=q,Y=\"\";while(z!==Y){Y=z,z=Oi1(z);let A=z.match(_);if(A){let O=A[1],$=!1;if(s68.has(O))z=z.replace(_,\"\")}}Y=\"\";while(z!==Y){Y=z,z=Oi1(z);for(let A of K)z=z.replace(A,\"\")}return z.trim()}function fhz(q,K){if(K)return K.envVars.some((A)=>!Ly6(A.name));let _=/^([A-Za-z_][A-Za-z0-9_]*)\\+?=/,z=/^[A-Za-z_][A-Za-z0-9_]*\\+?=(?:\"[^\"$`\\\\]*\"|'[^']*'|[A-Za-z0-9_./:+-]*)[ \\t]+/,Y=q.command;for(;;){let A=Y.match(_);if(!A)return!1;if(!Ly6(A[1]))return!0;let O=Y.match(z);if(!O)return!0;Y=Y.slice(O[0].length)}}function Hi1(q,K){let _=/^([A-Za-z_][A-Za-z0-9_]*(?:\\[[^\\]]*\\])?)\\+?=(?:'[^'\\n\\r]*'|\"(?:\\\\.|[^\"$`\\\\\\n\\r])*\"|\\\\.|[^ \\t\\n\\r$`;|&()<>\\\\\\\\'\"])*[ \\t]+/,z=q,Y=\"\";while(z!==Y){Y=z,z=Oi1(z);let A=z.match(_);if(!A)continue;if(K?.test(A[1]))break;z=z.slice(A[0].length)}return z.trim()}function Ai1(q,K,_,{"
+    },
+    {
+      "idx": 7436665,
+      "snip": "e:bz(t4.name),decisionReason:{type:\"rule\",rule:$[0]}};let j=Rh8(q,Z8(),K,_,z?.redirects,z?[z]:void 0);if(j.behavior!==\"passthrough\")return j;if(A.behavior===\"allow\")return A;if(w[0]!==void 0)return{behavior:\"allow\",updatedInput:q,decisionReason:{type:\"rule\",rule:w[0]}};let H=iR4(q,K);if(H.behavior!==\"passthrough\")return H;let J=ic4(q,K);if(J.behavior!==\"passthrough\")return J;if(t4.isReadOnly(q)&&!fhz(q,z))return{behavior:\"allow\",updatedInput:q,decisionReason:{type:\"other\",reason:\"Read-only command is allowed\"}};let M={type:\"other\",reason:\"This command requires approval\"};return{behavior:\"passthrough\",message:bz(t4.name,M),decisionReason:M,suggestions:rL6(Y)}},Kl4;var sV=L(()=>{IT();T8();Dt6();w0();k26();U7();y8();rj();ff();qj();Ma();VK();jA();l8();Mu();LZ();nc4();rc4();nF1();hh8();wL6();wi1=/^[A-Za-z_]\\w*=/;Dhz=new Set([\"sh\",\"bash\",\"zsh\",\"fish\",\"csh\",\"tcsh\",\"ksh\",\"dash\",\"cmd\",\"powershell\",\"pwsh\",\"env\",\"xargs\",\"nice\",\"stdbuf\",\"nohup\",\"timeout\",\"time\",\"sudo\",\"doas\",\"pkexec\"]);gc4=Zt6;ji1"
+    }
+  ],
+  "Ly6": {
+    "idx": 7424898,
+    "snip": "function Ly6(q){return s68.has(q)||!1}function Oi1(q){let _=q.split(`\n`).filter((z)=>{let Y=z.trim();return Y!==\"\"&&!Y.startsWith(\"#\")});if(_.length===0)return q;return _.join(`\n`)}function XB(q){let K=[/^timeout[ \\t]+(?:(?:--(?:foreground|preserve-status|verbose)|--(?:kill-after|signal)=[A-Za-z0-9_.+-]+|--(?:kill-after|signal)[ \\t]+[A-Za-z0-9_.+-]+|-v|-[ks][ \\t]+[A-Za-z0-9_.+-]+|-[ks][A-Za-z0-9_."
+  },
+  "Ly6Uses": [
+    {
+      "idx": 7424898,
+      "snip": "t4.name,q)}function o68(q,K){return oV(q,K,!1,!0)}function Ly6(q){return s68.has(q)||!1}function Oi1(q){let _=q.split(`\n`).filter((z)=>{let Y=z.trim();return Y!==\"\"&&!Y.startsWith(\"#\")});if(_.length===0)return q;return _.join(`\n`)}function XB(q){let K=[/^timeout[ \\t]+(?:(?:--(?:foreground|preserve-status|verbose)|--(?:kill-after|signal)=[A-Za-z0-9_.+-]+|--(?:kill-after|signal)[ \\t]+[A-Za-z0-9_.+-]+|-v|-[ks][ \\t]+[A-Za-z0-9_.+-]+|-[ks][A-Za-z0-9_."
+    }
+  ],
+  "o28": {
+    "idx": 1001420,
+    "snip": "function o28(q,K){if(q===\"auto\"||q===\"bypassPermissions\"||q===\"plan\"&&K)return!0;if(q===\"dontAsk\")return!1;return null}function wF6(q){return r28(q).symbol}function aT(q){return r28(q).color}var TI7,VI7,vI7;var bX=L(()=>{B7();S_();$F6();TI7=x6(()=>zK.enum(nG)),VI7=x6(()=>zK.enum(i28)),vI7={default:{title:\"Default\",shortTitle:\"Default\",symbol:\"\",color:\"text\",external:\"default\"},plan:{title:\"Plan Mode\",shortTitle:\"Plan\",symbol:AF6,color:\"planMode\",external:\"plan\"},acceptEdits:{title:\"Accept edits\",shortTitle:\"Accept\",symbol:\"⏵⏵\",color:\"autoAccept\",external:\"acceptEdits\"},bypassPermissions:{title:\"Bypass Permissions\",shortTitle:\"Bypass\",symbol:\"⏵⏵\",color:\"error\",external:\"bypassPermissions\"},dontAsk:{title:\"Don't Ask\",shortTitle:\"DontAsk\",symbol:\"⏵⏵\",color:\"error\",external:\"dontAsk\"},auto:{ti"
+  },
+  "o28Uses": [
+    {
+      "idx": 1001420,
+      "snip": "}function NI7(q){return q===\"default\"||q===void 0}function o28(q,K){if(q===\"auto\"||q===\"bypassPermissions\"||q===\"plan\"&&K)return!0;if(q===\"dontAsk\")return!1;return null}function wF6(q){return r28(q).symbol}function aT(q){return r28(q).color}var TI7,VI7,vI7;var bX=L(()=>{B7();S_();$F6();TI7=x6(()=>zK.enum(nG)),VI7=x6(()=>zK.enum(i28)),vI7={default:{title:\"Default\",shortTitle:\"Default\",symbol:\"\",color:\"text\",external:\"default\"},plan:{title:\"Plan Mode\",shortTitle:\"Plan\",symbol:AF6,color:\"planMode\",external:\"plan\"},acceptEdits:{title:\"Accept edits\",shortTitle:\"Accept\",symbol:\"⏵⏵\",color:\"autoAccept\",external:\"acceptEdits\"},bypassPermissions:{title"
+    }
+  ],
+  "acceptEditsFs": [],
+  "mkdirTouch": [
+    {
+      "idx": 7423601,
+      "snip": "n{behavior:\"passthrough\",message:\"Bypass mode is handled in main permission flow\"};if(K.mode===\"dontAsk\")return{behavior:\"passthrough\",message:\"DontAsk mode is handled in main permission flow\"};let _=CO(q.command);for(let z of _){let Y=Xhz(z,K);if(Y.behavior!==\"passthrough\")return Y}return{behavior:\"passthrough\",message:\"No mode-specific validation required\"}}var Jhz;var rc4=L(()=>{w0();sV();Jhz=[\"mkdir\",\"touch\",\"rm\",\"rmdir\",\"mv\",\"cp\",\"sed\"]});function oc4(q,K,_,z){return}function Ix8(q){let K=q.trim().split(/\\s+/).filter(Boolean);if(K.length===0)return null;let _=0;while(_<K.length&&wi1.test(K[_])){let A=oz(K[_],\"=\"),O=!1;if(!s68.has(A))return null;_++}let z=K.slice(_);if(z.length<2)return null;let Y=z[1];if(!/^[a-z][a-z0-9]*(-[a-z0-9]+)*$/.test(Y))return null;return z.slice(0,2).join(\" \")}function sc4(q){let K=q.trim().split(/\\s+/).filter(Boolean),_=0;while(_<K.length&&wi1.test(K[_])){let Y=oz(K[_],\"=\"),A=!1;if(!s68.has(Y))return null;_++}let z=K[_];if(!z)return null;if(!/^[a-z][a-z0-9]*(-[a-z0-9]+)*$/.test(z))return null;if(Dhz.has(z))return null;return z}function rL6(q){let K=Whz(q);if(K)return Gt6(t4.name,K);if(q.includes(`\n`)){let z=_w(q).trim();if(z)return Gt6(t4.name,z)}let"
+    }
+  ],
+  "checkPermissionMode": [
+    {
+      "idx": 1001080,
+      "snip": "=\"darwin\"?\"⏺\":\"●\",OF6=[\"·|·\",\"·/·\",\"·—·\",\"·\\\\·\"]});var i91={};f8(i91,{PERMISSION_MODES:()=>nG,INTERNAL_PERMISSION_MODES:()=>GI7,EXTERNAL_PERMISSION_MODES:()=>i28});var i28,GI7,nG;var $F6=L(()=>{i28=[\"acceptEdits\",\"auto\",\"bypassPermissions\",\"default\",\"dontAsk\",\"plan\"],GI7=[...i28],nG=GI7});function kI7(q){return q!==\"bubble\"}function r28(q){return vI7[q]??vI7.default}function Wu(q){return r28(q).ex"
+    },
+    {
+      "idx": 1001887,
+      "snip": "(()=>zK.enum(i28)),vI7={default:{title:\"Default\",shortTitle:\"Default\",symbol:\"\",color:\"text\",external:\"default\"},plan:{title:\"Plan Mode\",shortTitle:\"Plan\",symbol:AF6,color:\"planMode\",external:\"plan\"},acceptEdits:{title:\"Accept edits\",shortTitle:\"Accept\",symbol:\"⏵⏵\",color:\"autoAccept\",external:\"acceptEdits\"},bypassPermissions:{title:\"Bypass Permissions\",shortTitle:\"Bypass\",symbol:\"⏵⏵\",color:\"error\""
+    },
+    {
+      "idx": 1001982,
+      "snip": "ternal:\"default\"},plan:{title:\"Plan Mode\",shortTitle:\"Plan\",symbol:AF6,color:\"planMode\",external:\"plan\"},acceptEdits:{title:\"Accept edits\",shortTitle:\"Accept\",symbol:\"⏵⏵\",color:\"autoAccept\",external:\"acceptEdits\"},bypassPermissions:{title:\"Bypass Permissions\",shortTitle:\"Bypass\",symbol:\"⏵⏵\",color:\"error\",external:\"bypassPermissions\"},dontAsk:{title:\"Don't Ask\",shortTitle:\"DontAsk\",symbol:\"⏵⏵\",colo"
+    }
+  ],
+  "modeVal": [
+    {
+      "idx": 7109953,
+      "snip": "tains expression source (${$.elementType}) that cannot be statically validated`};if($.nameType===\"application\")return{behavior:\"passthrough\",message:`Command '${$.name}' resolved from a path-like name and requires approval`};if($.elementTypes)for(let w=1;w<$.elementTypes.length;w++){let j=$.elementTypes[w];if(j!==\"StringConstant\"&&j!==\"Parameter\")return{behavior:\"passthrough\",message:`Command argument has unvalidatable type (${j}) — variable paths cannot be statically resolved`};if(j===\"Parameter\"){let H=$.args[w-1]??\"\",J=H.indexOf(\":\");if(J>0&&/[$(@{[]/.test(H.slice(J+1)))return{behavior:\"passthrough\",message:\"Colon-bound parameter contains an expression that cannot be statically validated\"}}}if(Wj6($.name)||Ol1($,q.command))continue;if(!wl1($.name))return{behavior:\"passthrough\",message:`No mode-specific handling for '${$.name}' in acceptEdits mode`};if(XP($.name,$))return{behavior:\"passthrough\",message:`Arguments in '${$.name}' cannot be statically validated in acceptEdits mode`}}if(O.nestedCommands)for(let $ of O.nestedCommands){if($.elementType!==\"CommandAst\")return{behavior:\"passthrough\",message:`Nested expression element (${$.elementType}) cannot be statically validated`};if("
+    },
+    {
+      "idx": 7110598,
+      "snip": "ains an expression that cannot be statically validated\"}}}if(Wj6($.name)||Ol1($,q.command))continue;if(!wl1($.name))return{behavior:\"passthrough\",message:`No mode-specific handling for '${$.name}' in acceptEdits mode`};if(XP($.name,$))return{behavior:\"passthrough\",message:`Arguments in '${$.name}' cannot be statically validated in acceptEdits mode`}}if(O.nestedCommands)for(let $ of O.nestedCommands){if($.elementType!==\"CommandAst\")return{behavior:\"passthrough\",message:`Nested expression element (${$.elementType}) cannot be statically validated`};if($.nameType===\"application\")return{behavior:\"passthrough\",message:`Nested command '${$.name}' resolved from a path-like name and requires approval`};if(Wj6($.name)||Ol1($,q.command))continue;if(!wl1($.name))return{behavior:\"passthrough\",message:`No mode-specific handling for '${$.name}' in acceptEdits mode`};if(XP($.name,$))return{behavior:\"passthrough\",message:`Arguments in nested '${$.name}' cannot be statically validated in acceptEdits mode`}}}return{behavior:\"allow\",updatedInput:q,decisionReason:{type:\"mode\",mode:\"acceptEdits\"}}}var kTz,NTz;var VF4=L(()=>{Fa();KL6();kTz=new Set([\"set-content\",\"add-content\",\"remove-item\",\"clear-content"
+    }
+  ],
+  "FilesystemCommand": [],
+  "syncDirs": [
+    {
+      "idx": 3720386,
+      "snip": "filter((K)=>K.data?.type!==\"hook_progress\")}function a_(q,K){return q.name===K||(q.aliases?.includes(K)??!1)}function pK(q,K){return q.find((_)=>a_(_,K))}function sq(q){return Object.defineProperties({...dW_,userFacingName:()=>q.name},Object.getOwnPropertyDescriptors(q))}var rf=()=>({mode:\"default\",additionalWorkingDirectories:new Map,alwaysAllowRules:{},alwaysDenyRules:{},alwaysAskRules:{},isBypassPermissionsModeAvailable:!1}),dW_;var tq=L(()=>{dW_={isEnabled:()=>!0,isConcurrencySafe:(q)=>!1,isReadOnly:(q)=>!1,isDestructive:(q)=>!1,checkPermissions:(q,K)=>Promise.resolve({behavior:\"allow\",updatedInput:q}),toAutoClassifierInput:(q)=>\"\",userFacingName:(q)=>\"\"}});var v$6=B((ypO,kv8)=>{function Utq(q){return Array.isArray(q)?q:[q]}var cW_=void 0,zh1=\"\",gtq=\" \",_h1=\"\\\\\",lW_=/^\\s+$/,nW_=/(?:[^\\"
+    },
+    {
+      "idx": 5056377,
+      "snip": "ts to return (default: 5)\")})),HD4=x6(()=>y.object({matches:y.array(y.string()),query:y.string(),total_deferred_tools:y.number(),pending_mcp_servers:y.array(y.string()).optional()}));CE8=A1(async(q,K)=>{let _=pK(K,q);if(!_)return\"\";return _.prompt({getToolPermissionContext:async()=>({mode:\"default\",additionalWorkingDirectories:new Map,alwaysAllowRules:{},alwaysDenyRules:{},alwaysAskRules:{},isBypassPermissionsModeAvailable:!1}),tools:K,agents:[]})},(q)=>q);Gs6=sq({isEnabled(){return Ch()},isConcurrencySafe(){return!0},isReadOnly(){return!0},name:QH,maxResultSizeChars:1e5,async description(){return JE8()},async prompt(){return JE8()},get inputSchema(){return jD4()},get outputSchema(){return HD4()},async call(q,{options:{tools:K},getAppState:_}){let{query:z,max_results:Y=5}=q,A=K.filter(mb);"
+    },
+    {
+      "idx": 6477042,
+      "snip": "vior===\"deny\"?\"alwaysDenyRules\":\"alwaysAskRules\";return{...q,[z]:{...q[z],[K.destination]:_}}}case\"addDirectories\":{N(`Applying permission update: Adding ${K.directories.length} director${K.directories.length===1?\"y\":\"ies\"} with destination '${K.destination}': ${b6(K.directories)}`);let _=new Map(q.additionalWorkingDirectories);for(let z of K.directories)_.set(z,{path:z,source:K.destination});return{...q,additionalWorkingDirectories:_}}case\"removeRules\":{let _=K.rules.map(($)=>f9($));N(`Applying permission update: Removing ${K.rules.length} ${K.behavior} rule(s) from source '${K.destination}': ${b6(_)}`);let z=K.behavior===\"allow\"?\"alwaysAllowRules\":K.behavior===\"deny\"?\"alwaysDenyRules\":\"alwaysAskRules\",Y=q[z][K.destination]||[],A=new Set(_),O=Y.filter(($)=>!A.has($));return{...q,[z]:{...q"
+    },
+    {
+      "idx": 6477150,
+      "snip": "ories\":{N(`Applying permission update: Adding ${K.directories.length} director${K.directories.length===1?\"y\":\"ies\"} with destination '${K.destination}': ${b6(K.directories)}`);let _=new Map(q.additionalWorkingDirectories);for(let z of K.directories)_.set(z,{path:z,source:K.destination});return{...q,additionalWorkingDirectories:_}}case\"removeRules\":{let _=K.rules.map(($)=>f9($));N(`Applying permission update: Removing ${K.rules.length} ${K.behavior} rule(s) from source '${K.destination}': ${b6(_)}`);let z=K.behavior===\"allow\"?\"alwaysAllowRules\":K.behavior===\"deny\"?\"alwaysDenyRules\":\"alwaysAskRules\",Y=q[z][K.destination]||[],A=new Set(_),O=Y.filter(($)=>!A.has($));return{...q,[z]:{...q[z],[K.destination]:O}}}case\"removeDirectories\":{N(`Applying permission update: Removing ${K.directories.len"
+    },
+    {
+      "idx": 6477741,
+      "snip": "waysAskRules\",Y=q[z][K.destination]||[],A=new Set(_),O=Y.filter(($)=>!A.has($));return{...q,[z]:{...q[z],[K.destination]:O}}}case\"removeDirectories\":{N(`Applying permission update: Removing ${K.directories.length} director${K.directories.length===1?\"y\":\"ies\"}: ${b6(K.directories)}`);let _=new Map(q.additionalWorkingDirectories);for(let z of K.directories)_.delete(z);return{...q,additionalWorkingDirectories:_}}default:return q}}function xy(q,K){let _=q;for(let z of K)_=VY(_,z);return _}function bF1(q){return q===\"localSettings\"||q===\"userSettings\"||q===\"projectSettings\"}function iQ(q){if(!bF1(q.destination))return;switch(N(`Persisting permission update: ${q.type} to source '${q.destination}'`),q.type){case\"addRules\":{N(`Persisting ${q.rules.length} ${q.behavior} rule(s) to ${q.destination}`"
+    },
+    {
+      "idx": 6477822,
+      "snip": "eturn{...q,[z]:{...q[z],[K.destination]:O}}}case\"removeDirectories\":{N(`Applying permission update: Removing ${K.directories.length} director${K.directories.length===1?\"y\":\"ies\"}: ${b6(K.directories)}`);let _=new Map(q.additionalWorkingDirectories);for(let z of K.directories)_.delete(z);return{...q,additionalWorkingDirectories:_}}default:return q}}function xy(q,K){let _=q;for(let z of K)_=VY(_,z);return _}function bF1(q){return q===\"localSettings\"||q===\"userSettings\"||q===\"projectSettings\"}function iQ(q){if(!bF1(q.destination))return;switch(N(`Persisting permission update: ${q.type} to source '${q.destination}'`),q.type){case\"addRules\":{N(`Persisting ${q.rules.length} ${q.behavior} rule(s) to ${q.destination}`),fR4({ruleValues:q.rules,ruleBehavior:q.behavior},q.destination);break}case\"addD"
+    },
+    {
+      "idx": 8904099,
+      "snip": "id 0?q.effort:W?D6.effortValue:Uz4(D6.effortValue,\"medium\");if(Z6===D6.toolPermissionContext&&F6===D6.effortValue)return D6;return{...D6,toolPermissionContext:Z6,effortValue:F6}},J6=W?M:ea(q,M,Y).resolvedTools,H6=!W&&Wn4(V)?J6.filter((D6)=>!Dn4.has(D6.name)):J6,W6=Array.from(k.toolPermissionContext.additionalWorkingDirectories.keys()),v6=w?.systemPrompt?w.systemPrompt:eK(await O9Y(q,_,R,W6,H6)),q6=!W&&R8(\"tengu_flint_heron\",!1)?eK([...v6,A9Y]):v6,r=w?.abortController?w.abortController:Y?new AbortController:_.abortController,z6=[];for await(let D6 of e87(x,q.agentType,r.signal))if(D6.additionalContexts&&D6.additionalContexts.length>0)z6.push(...D6.additionalContexts);if(z6.length>0){let D6=O4({type:\"hook_additional_context\",content:z6,hookName:\"SubagentStart\",toolUseID:_9Y(),hookEvent:\"Suba"
+    },
+    {
+      "idx": 9007470,
+      "snip": "_in_agent:l2(k),is_resume:!1,is_async:(Y===!0||k.background===!0)&&!CS6,is_fork:V});let R=w??k.isolation,x,I,p;if(V){if(H.renderedSystemPrompt)I=H.renderedSystemPrompt;else{let J6=W.agent?W.agentDefinitions.activeAgents.find((v6)=>v6.agentType===W.agent):void 0,H6=Array.from(W.toolPermissionContext.additionalWorkingDirectories.keys()),W6=await uD(H.options.tools,H.options.mainLoopModel,H6);I=cx({mainThreadAgentDefinition:J6,toolUseContext:H,customSystemPrompt:H.options.customSystemPrompt,defaultSystemPrompt:W6,appendSystemPrompt:H.options.appendSystemPrompt})}p=TMK(q,M)}else{try{let J6=Array.from(W.toolPermissionContext.additionalWorkingDirectories.keys()),H6=k.getSystemPrompt({toolUseContext:H});if(k.memory)d(\"tengu_agent_memory_loaded\",{...!1,scope:k.memory,source:\"subagent\"});x=await Vq"
+    }
+  ],
+  "applySettings": [
+    {
+      "idx": 9961870,
+      "snip": "bX();qj();JB();c1();vV8();T8();_A();L0();qq();cf();K8();uO();mq();Dl1();rj();ff();XT=fq(ts);yNK=Symbol(\"no-cached-auto-mode-config\")});import{resolve as uDY}from\"path\";function CQ8(q,K){let _=P7();N(`Settings changed from ${q}, updating app state`);let z=Zh8();QE6(),K((Y)=>{let A=kNK(Y.toolPermissionContext,z);if(A=mDY(A,Y.settings.permissions?.additionalDirectories,_.permissions?.additionalDirectories),A.isBypassPermissionsModeAvailable&&Zt())A=OJ6(A);if(A.strippedDangerousRules!==void 0){let j=new Set(lG),H={};for(let[J,M]of Object.entries(A.strippedDangerousRules))if(M&&!j.has(J))H[J]=[...M];A={...A,strippedDangerousRules:H}}A=dC6(A);let O=Y.settings.effortLevel,$=_.effortLevel;return{...Y,settings:_,toolPermissionContext:A,...O!==$&&$!==void 0&&{effortValue:$}}})}function mDY(q,K,_){let z=new Set((K??[]).map(xNK)),Y=new Set((_??[]).map(xNK)),A=q.additionalWorkingDirectories,O=[...z].filter((j)=>!Y.has(j)&&!bNK(A.get(j)?.source)),$=[...Y].filter((j)=>!z.has(j)&&!bNK(A.get(j)?.source));if(O.length===0&&$.length===0)return q;let w=q;if(O.length>0)w=VY(w,{type:\"removeDirectories\",directories:O,destination:\"localSettings\"});if($.length>0)w=VY(w,{type:\"addDirectories\",directories:$,destination:\"localSettings\"});return w}function bNK(q){return q===\"cliArg\"||q===\"command\"||q===\"session\"}function xNK(q){return uDY(Xq(q))}var l57=L(()=>{K8();B8();jj6();j_();rj();bM();qj();JB();EA();e1()});function sJ(q){let K=_6(13),{children:_,initialState:z,onChangeAppState:Y}=q;if(yP.useContext(INK))throw Error(\"AppStateProvider can not be nested within another AppStateProvider\");let O;if(K[0]!==z||K[1]!==Y)O=()=>Jq6(z??Pa(),Y),K[0]=z,K[1]=Y,K[2]=O;else O=K[2];let[$]=yP.useState(O),w;if(K[3]"
+    }
+  ],
+  "addDirsInit": [],
+  "destSplit": [
+    {
+      "idx": 6480847,
+      "snip": "lace(D2z,\"\\\\\\\\\"),M=($.match(/\\*/g)||[]).length;if(J.endsWith(\" .*\")&&M===1)J=J.slice(0,-3)+\"( .*)?\";let X=\"s\"+(_?\"i\":\"\");return new RegExp(`^${J}$`,X).test(O)}function Gh8(q){let K=Zt6(q);if(K!==null)return{type:\"prefix\",prefix:K};if(W2z(q))return{type:\"wildcard\",pattern:q};return{type:\"exact\",command:q}}function vh8(q,K){return[{type:\"addRules\",rules:[{toolName:q,ruleContent:K}],behavior:\"allow\",destination:\"localSettings\"}]}function Gt6(q,K){return[{type:\"addRules\",rules:[{toolName:q,ruleContent:`${K}:*`}],behavior:\"allow\",destination:\"localSettings\"}]}var P2z,D2z;var Ma=L(()=>{P2z=new RegExp(\"\\x00ESCAPED_STAR\\x00\",\"g\"),D2z=new RegExp(\"\\x00ESCAPED_BACKSLASH\\x00\",\"g\")});var Th8=50000,xF1=500000,vt6=4,GR4=400000,vR4=200000,Iy=50,TR4=1e4;function f2z(){let q=R8(\"tengu_auto_mode_config\",{})?"
+    },
+    {
+      "idx": 6480978,
+      "snip": " RegExp(`^${J}$`,X).test(O)}function Gh8(q){let K=Zt6(q);if(K!==null)return{type:\"prefix\",prefix:K};if(W2z(q))return{type:\"wildcard\",pattern:q};return{type:\"exact\",command:q}}function vh8(q,K){return[{type:\"addRules\",rules:[{toolName:q,ruleContent:K}],behavior:\"allow\",destination:\"localSettings\"}]}function Gt6(q,K){return[{type:\"addRules\",rules:[{toolName:q,ruleContent:`${K}:*`}],behavior:\"allow\",destination:\"localSettings\"}]}var P2z,D2z;var Ma=L(()=>{P2z=new RegExp(\"\\x00ESCAPED_STAR\\x00\",\"g\"),D2z=new RegExp(\"\\x00ESCAPED_BACKSLASH\\x00\",\"g\")});var Th8=50000,xF1=500000,vt6=4,GR4=400000,vR4=200000,Iy=50,TR4=1e4;function f2z(){let q=R8(\"tengu_auto_mode_config\",{})?.enabled;return q===\"enabled\"||q===\"disabled\"||q===\"opt-in\"?q:\"opt-in\"}function Q46(q,K,_){return}function kR4(q){let K=q.find((_)="
+    },
+    {
+      "idx": 6911456,
+      "snip": "rn Y.annotations?.openWorldHint??!1},maxResultSizeChars:$?Math.min(O,xF1):zQ1.maxResultSizeChars,persistenceThresholdCeiling:$?xF1:void 0,isSearchOrReadCommand(){return hI4(q.name,Y.name)},inputJSONSchema:Y.inputSchema,async checkPermissions(){return{behavior:\"passthrough\",message:\"MCPTool requires permission.\",suggestions:[{type:\"addRules\",rules:[{toolName:A,ruleContent:void 0}],behavior:\"allow\",destination:\"localSettings\"}]}},async call(w,j,H,J,M){let X=Q0z(J),P=X?{\"claudecode/toolUseId\":X}:{};if(M&&X)M({toolUseID:X,data:{type:\"mcp_progress\",status:\"started\",serverName:q.name,toolName:Y.name}});let D=Date.now(),W=1;for(let f=0;;f++)try{let G=await oy6(q),Z=await U0z({client:G,clientConnection:q,tool:Y.name,args:w,meta:P,signal:j.abortController.signal,setAppState:j.setAppState,onProgress"
+    },
+    {
+      "idx": 7434772,
+      "snip": "E)if(S.behavior===\"ask\"||S.behavior===\"passthrough\"){let g=\"suggestions\"in S?S.suggestions:void 0,F=nQ(g);for(let U of F){let c=f9(U);R.set(c,U)}if(S.behavior===\"ask\"&&F.length===0&&S.decisionReason?.type!==\"rule\")for(let U of nQ(rL6(m))){let c=f9(U);R.set(c,U)}}let x={type:\"subcommandResults\",reasons:E},I=Array.from(R.values()).slice(0,Phz),p=I.length>0?[{type:\"addRules\",rules:I,behavior:\"allow\",destination:\"localSettings\"}]:void 0;return{behavior:V!==void 0?\"ask\":\"passthrough\",message:bz(t4.name,x),decisionReason:x,suggestions:p,...{}}}function Ch8(q){if(q.startsWith(\"git \")||q===\"git\")return!0;let K=XB(q),_=pM(K);if(_[0]===\"git\")return!0;if(_[0]===\"xargs\"&&_.includes(\"git\"))return!0;return!1}function $i1(q){let K=pM(XB(q))[0];return K===\"cd\"||K===\"pushd\"||K===\"popd\"}function St6(q){retu"
+    },
+    {
+      "idx": 9025425,
+      "snip": "blocked by permission rules\",decisionReason:{type:\"rule\",rule:P}};let J=pB(O,w36,\"allow\");for(let[X,P]of J.entries())if(j(X))return{behavior:\"allow\",updatedInput:{skill:q,args:K},decisionReason:{type:\"rule\",rule:P}};if(w?.type===\"prompt\"&&L_Y(w))return{behavior:\"allow\",updatedInput:{skill:q,args:K},decisionReason:void 0};let M=[{type:\"addRules\",rules:[{toolName:nM,ruleContent:Y}],behavior:\"allow\",destination:\"localSettings\"},{type:\"addRules\",rules:[{toolName:nM,ruleContent:`${Y}:*`}],behavior:\"allow\",destination:\"localSettings\"}];return{behavior:\"ask\",message:`Execute skill: ${Y}`,decisionReason:void 0,suggestions:M,updatedInput:{skill:q,args:K},metadata:w?{command:w}:void 0}},async call({skill:q,args:K},_,z,Y,A){let O=q.trim(),$=O.startsWith(\"/\")?O.substring(1):O,w=await x17(_),j=fc($,w);"
+    },
+    {
+      "idx": 9025531,
+      "snip": ".entries())if(j(X))return{behavior:\"allow\",updatedInput:{skill:q,args:K},decisionReason:{type:\"rule\",rule:P}};if(w?.type===\"prompt\"&&L_Y(w))return{behavior:\"allow\",updatedInput:{skill:q,args:K},decisionReason:void 0};let M=[{type:\"addRules\",rules:[{toolName:nM,ruleContent:Y}],behavior:\"allow\",destination:\"localSettings\"},{type:\"addRules\",rules:[{toolName:nM,ruleContent:`${Y}:*`}],behavior:\"allow\",destination:\"localSettings\"}];return{behavior:\"ask\",message:`Execute skill: ${Y}`,decisionReason:void 0,suggestions:M,updatedInput:{skill:q,args:K},metadata:w?{command:w}:void 0}},async call({skill:q,args:K},_,z,Y,A){let O=q.trim(),$=O.startsWith(\"/\")?O.substring(1):O,w=await x17(_),j=fc($,w);if(Vg8($),j?.type===\"prompt\"&&j.context===\"fork\")return k_Y(j,$,K,_,z,Y,A);let{processPromptSlashCommand:H"
+    },
+    {
+      "idx": 9287930,
+      "snip": " to ${q} is blocked by the network egress proxy.`}));this.domain=q;this.name=\"EgressBlockedError\"}};Aq7=new $N({maxSize:xOY,ttl:bOY}),Oq7=new $N({max:128,ttl:300000})});function cOY(q){try{let K=C0.inputSchema.safeParse(q);if(!K.success)return`input:${q.toString()}`;let{url:_}=K.data;return`domain:${new URL(_).hostname}`}catch{return`input:${q.toString()}`}}function HWK(q){return[{type:\"addRules\",destination:\"localSettings\",rules:[{toolName:Qj,ruleContent:q}],behavior:\"allow\"}]}var QOY,dOY,C0;var iS6=L(()=>{B7();tq();m7();qj();I17();BMK();Jq7();QOY=x6(()=>y.strictObject({url:y.string().url().describe(\"The URL to fetch content from\"),prompt:y.string().describe(\"The prompt to run on the fetched content\")})),dOY=x6(()=>y.object({bytes:y.number().describe(\"Size of the fetched content in bytes\""
+    },
+    {
+      "idx": 9318828,
+      "snip": "-4\")||K.includes(\"claude-haiku-4\");if(q===\"foundry\")return!0;return!1},get inputSchema(){return y$Y()},get outputSchema(){return L$Y()},isConcurrencySafe(){return!0},isReadOnly(){return!0},toAutoClassifierInput(q){return q.query},async checkPermissions(q){return{behavior:\"passthrough\",message:\"WebSearchTool requires permission.\",suggestions:[{type:\"addRules\",rules:[{toolName:Lh}],behavior:\"allow\",destination:\"localSettings\"}]}},async prompt(){return hM4()},renderToolUseMessage:nWK,renderToolUseProgressMessage:iWK,renderToolResultMessage:rWK,extractSearchText(){return\"\"},async validateInput(q){let{query:K,allowed_domains:_,blocked_domains:z}=q;if(!K.length)return{result:!1,message:\"Error: Missing query\",errorCode:1};if(_?.length&&z?.length)return{result:!1,message:\"Error: Cannot specify bot"
+    },
+    {
+      "idx": 9956956,
+      "snip": ",P=(z===\"bypassPermissions\"||Y)&&!J&&!X,D=Zh8(),W=[],f=[];if(z===\"auto\")f=B57(D,O);let G=VNK({mode:z,additionalWorkingDirectories:j,alwaysAllowRules:{cliArg:O},alwaysDenyRules:{cliArg:$},alwaysAskRules:{},isBypassPermissionsModeAvailable:P,...{isAutoModeAvailable:kE()},...{},isRemoteMode:B6(process.env.CLAUDE_CODE_REMOTE)||cK()},D),Z=[...(M.permissions?.additionalDirectories||[]).map((V)=>({dir:V,destination:\"localSettings\"})),...A.map((V)=>({dir:V,destination:\"cliArg\"}))],v=await Promise.all(Z.map(async({dir:V,destination:k})=>({destination:k,result:await uV6(V,G)})));for(let{result:V,destination:k}of v)if(V.resultType===\"success\")G=VY(G,{type:\"addDirectories\",directories:[V.absolutePath],destination:k});else if(V.resultType!==\"alreadyInWorkingDirectory\"&&V.resultType!==\"pathNotFound\")w.p"
+    },
+    {
+      "idx": 9962781,
+      "snip": "_,toolPermissionContext:A,...O!==$&&$!==void 0&&{effortValue:$}}})}function mDY(q,K,_){let z=new Set((K??[]).map(xNK)),Y=new Set((_??[]).map(xNK)),A=q.additionalWorkingDirectories,O=[...z].filter((j)=>!Y.has(j)&&!bNK(A.get(j)?.source)),$=[...Y].filter((j)=>!z.has(j)&&!bNK(A.get(j)?.source));if(O.length===0&&$.length===0)return q;let w=q;if(O.length>0)w=VY(w,{type:\"removeDirectories\",directories:O,destination:\"localSettings\"});if($.length>0)w=VY(w,{type:\"addDirectories\",directories:$,destination:\"localSettings\"});return w}function bNK(q){return q===\"cliArg\"||q===\"command\"||q===\"session\"}function xNK(q){return uDY(Xq(q))}var l57=L(()=>{K8();B8();jj6();j_();rj();bM();qj();JB();EA();e1()});function sJ(q){let K=_6(13),{children:_,initialState:z,onChangeAppState:Y}=q;if(yP.useContext(INK))throw "
+    },
+    {
+      "idx": 9962869,
+      "snip": "et z=new Set((K??[]).map(xNK)),Y=new Set((_??[]).map(xNK)),A=q.additionalWorkingDirectories,O=[...z].filter((j)=>!Y.has(j)&&!bNK(A.get(j)?.source)),$=[...Y].filter((j)=>!z.has(j)&&!bNK(A.get(j)?.source));if(O.length===0&&$.length===0)return q;let w=q;if(O.length>0)w=VY(w,{type:\"removeDirectories\",directories:O,destination:\"localSettings\"});if($.length>0)w=VY(w,{type:\"addDirectories\",directories:$,destination:\"localSettings\"});return w}function bNK(q){return q===\"cliArg\"||q===\"command\"||q===\"session\"}function xNK(q){return uDY(Xq(q))}var l57=L(()=>{K8();B8();jj6();j_();rj();bM();qj();JB();EA();e1()});function sJ(q){let K=_6(13),{children:_,initialState:z,onChangeAppState:Y}=q;if(yP.useContext(INK))throw Error(\"AppStateProvider can not be nested within another AppStateProvider\");let O;if(K[0"
+    },
+    {
+      "idx": 12029009,
+      "snip": "ive:!1});function W6(q6){d(\"tengu_permission_request_option_selected\",{option_index:{yes:1,\"yes-apply-suggestions\":2,\"yes-prefix-edited\":2,no:3}[q6],explainer_visible:H.visible});let z6=_K(q.tool.name);if(q6===\"yes-prefix-edited\"){let l=(S??\"\").trim();if(uE(\"tool_use_single\",q,\"accept\"),!l)q.onAllow(q.input,[]);else{let n=[{type:\"addRules\",rules:[{toolName:t4.name,ruleContent:l}],behavior:\"allow\",destination:\"localSettings\"}];q.onAllow(q.input,n)}_();return}switch(q6){case\"yes\":{let l=D.trim();uE(\"tool_use_single\",q,\"accept\"),d(\"tengu_accept_submitted\",{toolName:z6,isMcp:q.tool.isMcp??!1,has_instructions:!!l,instructions_length:l.length,entered_feedback_mode:X}),q.onAllow(q.input,[],l||void 0),_();break}case\"yes-apply-suggestions\":{uE(\"tool_use_single\",q,\"accept\");let l=\"suggestions\"in q.p"
+    }
+  ],
+  "replSandbox": [],
+  "replAuto": [
+    {
+      "idx": 1001429,
+      "snip": "ODES:()=>i28});var i28,GI7,nG;var $F6=L(()=>{i28=[\"acceptEdits\",\"auto\",\"bypassPermissions\",\"default\",\"dontAsk\",\"plan\"],GI7=[...i28],nG=GI7});function kI7(q){return q!==\"bubble\"}function r28(q){return vI7[q]??vI7.default}function Wu(q){return r28(q).external}function oT(q){return nG.includes(q)?q:\"default\"}function an(q){return r28(q).title}function NI7(q){return q===\"default\"||q===void 0}function o28(q,K){if(q===\"auto\"||q===\"bypassPermissions\"||q===\"plan\"&&K)return!0;if(q===\"dontAsk\")return!1;return null}function wF6(q){return r28(q).symbol}function aT(q){return r28(q).color}var TI7,VI7,vI7;var bX=L(()=>{B7();S_();$F6();TI7=x6(()=>zK.enum(nG)),VI7=x6(()=>zK.enum(i28)),vI7={default:{title:\"Default\",shortTitle:\"Default\",symbol:\"\",color:\"text\",external:\"default\"},plan:{title:\"Plan Mode\",shortTitle:\"Plan\",symbol:AF6,color:\"planMode\",external:\"plan\"},acceptEdits:{title:\"Accept edits\",shortTitle:\"Accept\",symbol:\"⏵⏵\",color:\"autoAccept\",external:\"acceptEdits\"},bypassPermissions:{title:\"Bypass "
+    },
+    {
+      "idx": 12347535,
+      "snip": "pe===\"success\")rR6({requestId:m.request_id,decision:\"approved\",updatedInput:m.response?.updated_input,permissionUpdates:m.response?.permission_updates});else rR6({requestId:m.request_id,decision:\"rejected\",feedback:m.error})}}if(G.length>0&&Pv(M.teamContext)){N(`[InboxPoller] Found ${G.length} sandbox permission request(s)`);let{mode:p,isBypassPermissionsModeAvailable:m}=M.toolPermissionContext,S=o28(p,m),g=M.teamContext?.teamName,F=[];for(let U of G){let c=Op8(U.text);if(!c)continue;if(!c.hostPattern?.host){N(\"[InboxPoller] Invalid sandbox permission request: missing hostPattern.host\");continue}if(S!==null){N(`[InboxPoller] Auto-resolving sandbox request ${c.requestId} (mode=${p}, allow=${S})`),vp8(c.workerName,c.requestId,c.hostPattern.host,S,g);continue}F.push({requestId:c.requestId,workerId:c.workerId,workerName:c.workerName,workerColor:c.workerColor,host:c.hostPattern.host,createdAt:c.createdAt})}if(F.length>0){O((c)=>({...c,workerSandboxPermissions:{...c.workerSandboxPermissions,"
+    },
+    {
+      "idx": 12514750,
+      "snip": "nal,popCommandFromQueue:kI6,vimMode:BP,isLocalJSXCommand:v4?.isLocalJSXCommand,isSearchingHistory:cR,isHelpOpen:lR,inputMode:PH,inputValue:S3,streamMode:Iq};z1.useEffect(()=>{if(XM()>=5&&!Q96&&!Y_8){if(d(\"tengu_cost_threshold_reached\",{}),n96(!0),QP8())rX6(!0)}},[C7,Q96,Y_8]);let w_8=z1.useCallback(async($8)=>{let{mode:S8,isBypassPermissionsModeAvailable:t8}=R6.getState().toolPermissionContext,G7=o28(S8,t8);if(G7!==null)return G7;if(nq()&&l78()){let x7=xwK(),Gq=await IwK($8.host,x7);return new Promise((N7)=>{if(!Gq){L_((r7)=>[...r7,{hostPattern:$8,resolvePromise:N7}]);return}pwK({requestId:x7,host:$8.host,resolve:N7}),P6((r7)=>({...r7,pendingSandboxRequest:{requestId:x7,host:$8.host}}))})}return new Promise((x7)=>{let Gq=!1;function N7(r7){if(Gq)return;Gq=!0,x7(r7)}L_((r7)=>[...r7,{hostPattern:$8,resolvePromise:N7}]);{let r7=R6.getState().replBridgePermissionCallbacks;if(r7){let I4=FX6();r7.sendRequest(I4,xr8,{host:$8.host},FX6(),`Allow network connection to ${$8.host}?`);let e3=r7.onR"
+    }
+  ],
+  "Q78": [
+    {
+      "idx": 12347768,
+      "snip": "`);for(let p of f){let m=oH6(p.text);if(!m)continue;if(mwK(m.request_id))if(N(`[InboxPoller] Processing permission response for ${m.request_id}: ${m.subtype}`),m.subtype===\"success\")rR6({requestId:m.request_id,decision:\"approved\",updatedInput:m.response?.updated_input,permissionUpdates:m.response?.permission_updates});else rR6({requestId:m.request_id,decision:\"rejected\",feedback:m.error})}}if(G.length>0&&Pv(M.teamContext)){N(`[InboxPoller] Found ${G.length} sandbox permission request(s)`);let{mode:p,isBypassPermissionsModeAvailable:m}=M.toolPermissionContext,S=o28(p,m),g=M.teamContext?.teamName,F=[];for(let U of G){let c=Op8(U.text);if(!c)continue;if(!c.hostPattern?.host){N(\"[InboxPoller] Invalid sandbox permission request: missing hostPattern.host\");continue}if(S!==null){N(`[InboxPoller] Auto-resolving sandbox request ${c.requestId} (mode=${p}, allow=${S})`),vp8(c.workerName,c.requestId,c.hostPattern.host,S,g);continue}F.push({requestId:c.requestId,workerId:c.workerId,workerName:c.wor"
+    }
+  ],
+  "percentPathVal": [
+    {
+      "idx": 4420416,
+      "snip": "Path:Y,decisionReason:{type:\"other\",reason:\"UNC network paths require manual approval\"}};if(Y.startsWith(\"~\"))return{allowed:!1,resolvedPath:Y,decisionReason:{type:\"other\",reason:\"Tilde expansion variants (~user, ~+, ~-) in paths require manual approval\"}};if(Y.includes(\"$\")||y1()===\"windows\"&&Y.includes(\"%\")||Y.startsWith(\"=\"))return{allowed:!1,resolvedPath:Y,decisionReason:{type:\"other\",reason:\"Shell expansion syntax in paths requires manual approval\"}};if(xz4.test(Y)){if(z===\"write\"||z===\"create\")return{allowed:!1,resolvedPath:Y,decisionReason:{type:\"other\",reason:\"Glob patterns are not all"
+    },
+    {
+      "idx": 6513199,
+      "snip": "k\",message:\"Process substitution (>(...) or <(...)) can execute arbitrary commands and requires manual approval\",decisionReason:{type:\"other\",reason:\"Process substitution requires manual approval\"}};let{redirections:O,hasDangerousRedirection:$,dangerousRedirectionReason:w}=Y?Ojz(Y):oQ(q.command);if($){let H=w===\"network_device\"?\"Redirect involving /dev/tcp or /dev/udp opens a network connection\":\"Shell expansion syntax in paths requires manual approval\";return{behavior:\"ask\",message:H,decisionReason:{type:\"other\",reason:H}}}let j=Ajz(O,K,_,z);if(j.behavior!==\"passthrough\")return j;if(A)for(let"
+    }
+  ],
+  "astPercent": [
+    {
+      "idx": 4420293,
+      "snip": "approval\"}};if(Y.startsWith(\"~\"))return{allowed:!1,resolvedPath:Y,decisionReason:{type:\"other\",reason:\"Tilde expansion variants (~user, ~+, ~-) in paths require manual approval\"}};if(Y.includes(\"$\")||y1()===\"windows\"&&Y.includes(\"%\")||Y.startsWith(\"=\"))return{allowed:!1,resolvedPath:Y,decisionReason:{type:\"other\",reason:\"Shell expansion syntax in paths requires manual approval\"}};if(xz4.test(Y)){i"
+    }
+  ],
+  "astPercent2": [
+    {
+      "idx": 4323301,
+      "snip": "q.href;let K=new ob1(q.href);return K.username=\"***\",K.password=\"***\",K.href}function Km_(q){return q.replace(/\\/\\/[^@/]*@/,\"//***:***@\")}function Go6(q){if(!q||q.length>255)return!1;let K=Qm(q);if(K.includes(\"%\"))return!1;if(ww6(K))return!0;return/^[A-Za-z0-9._-]+$/.test(K)}function O_4(q){try{let K=Qm(q),_=ww6(K)===6?`[${K}]`:K,z=new ob1(`http://"
+    },
+    {
+      "idx": 4420313,
+      "snip": "rtsWith(\"~\"))return{allowed:!1,resolvedPath:Y,decisionReason:{type:\"other\",reason:\"Tilde expansion variants (~user, ~+, ~-) in paths require manual approval\"}};if(Y.includes(\"$\")||y1()===\"windows\"&&Y.includes(\"%\")||Y.startsWith(\"=\"))return{allowed:!1,resolvedPath:Y,decisionReason:{type:\"other\",reason:\"Shell expansion syntax in paths requires manual"
+    },
+    {
+      "idx": 7113954,
+      "snip": "|/@SSL@/i.test(A))return{allowed:!1,resolvedPath:A,decisionReason:{type:\"other\",reason:\"UNC paths are blocked because they can trigger network requests and credential leakage\"}};if(A.includes(\"$\")||A.includes(\"%\"))return{allowed:!1,resolvedPath:A,decisionReason:{type:\"other\",reason:\"Variable expansion syntax in paths requires manual approval\"}};if("
+    }
+  ]
+}

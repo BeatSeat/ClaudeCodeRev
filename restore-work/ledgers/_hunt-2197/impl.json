@@ -1,0 +1,429 @@
+{
+  "10000": {
+    "c96": 6,
+    "c97": 6,
+    "s97": [
+      {
+        "idx": 50966,
+        "snip": "(typeof K===\"function\"?q!==K||!z:!K.has(q))throw TypeError(\"Cannot read private member from an object whose class did not declare it\");return _===\"m\"?z:_===\"a\"?z.call(q):z?z.value:K.get(q)}var An=()=>{};var $t8=function(){let{crypto:q}=globalThis;if(q?.randomUUID)return $t8=q.randomUUID.bind(q),q.randomUUID();let K=new Uint8Array(1),_=q?()=>q.getRandomValues(K)[0]:()=>Math.random()*255&255;return\"10000000-1000-4000-8000-100000000000\".replace(/[018]/g,(z)=>(+z^_()&15>>+z/4).toString(16))};function On(q){return typeof q===\"object\"&&q!==null&&((\"name\"in q)&&q.name===\"AbortError\"||(\"message\"in q)&&String(q.message).includes(\"FetchRequestCanceledException\"))}var Qu6=(q)=>{if(q instanceof Error)return q;if(typeof q===\"object\"&&q!==null){try{if(Object.prototype.toString.call(q)===\"[object Error]\"){let K=Error(q.message,q.cause?{cause:q.cause}:{});if(q.stack)K.stack=q.stack;if(q.cause&&!K.cause)K.cause=q.cause;if(q.name)K.name=q.name;return K}}catch{}try{return Error(JSON.stringify(q))}catch{}}return Error(q)};var vq,dq,c_,Of,yg,du6,R_6,cu6,S_6,lu6,nu6,iu6,ru6;var $W=L(()=>{vq=class vq extends Error{};dq=class dq extends vq{constructor(q,K,_,z,Y){super(`${dq.makeMessage(q,K,_)}`);this.stat"
+      },
+      {
+        "idx": 50990,
+        "snip": "!==K||!z:!K.has(q))throw TypeError(\"Cannot read private member from an object whose class did not declare it\");return _===\"m\"?z:_===\"a\"?z.call(q):z?z.value:K.get(q)}var An=()=>{};var $t8=function(){let{crypto:q}=globalThis;if(q?.randomUUID)return $t8=q.randomUUID.bind(q),q.randomUUID();let K=new Uint8Array(1),_=q?()=>q.getRandomValues(K)[0]:()=>Math.random()*255&255;return\"10000000-1000-4000-8000-100000000000\".replace(/[018]/g,(z)=>(+z^_()&15>>+z/4).toString(16))};function On(q){return typeof q===\"object\"&&q!==null&&((\"name\"in q)&&q.name===\"AbortError\"||(\"message\"in q)&&String(q.message).includes(\"FetchRequestCanceledException\"))}var Qu6=(q)=>{if(q instanceof Error)return q;if(typeof q===\"object\"&&q!==null){try{if(Object.prototype.toString.call(q)===\"[object Error]\"){let K=Error(q.message,q.cause?{cause:q.cause}:{});if(q.stack)K.stack=q.stack;if(q.cause&&!K.cause)K.cause=q.cause;if(q.name)K.name=q.name;return K}}catch{}try{return Error(JSON.stringify(q))}catch{}}return Error(q)};var vq,dq,c_,Of,yg,du6,R_6,cu6,S_6,lu6,nu6,iu6,ru6;var $W=L(()=>{vq=class vq extends Error{};dq=class dq extends vq{constructor(q,K,_,z,Y){super(`${dq.makeMessage(q,K,_)}`);this.status=q,this.headers=z,this"
+      },
+      {
+        "idx": 1305496,
+        "snip": "null,Y=null,A=null,O=null;if(typeof q===\"string\")Y=q,O=\"text/plain;charset=UTF-8\";else if(q instanceof URLSearchParams)Y=q.toString(),O=\"application/x-www-form-urlencoded;charset=UTF-8\";else if(mU5(q))Y=new Uint8Array(q.slice());else if(ArrayBuffer.isView(q))Y=new Uint8Array(q.buffer.slice(q.byteOffset,q.byteOffset+q.byteLength));else if(hF6.isFormDataLike(q)){let w=`----formdata-undici-0${`${Dz1(100000000000)}`.padStart(11,\"0\")}`,j=`--${w}\\r\nContent-Disposition: form-data`;/*! formdata-polyfill. MIT License. Jimmy Wärting <https://jimmy.warting.se/opensource> */let H=(W)=>W.replace(/\\n/g,\"%0A\").replace(/\\r/g,\"%0D\").replace(/\"/g,\"%22\"),J=(W)=>W.replace(/\\r?\\n|\\r/g,`\\r\n`),M=[],X=new Uint8Array([13,10]);A=0;let P=!1;for(let[W,f]of q)if(typeof f===\"string\"){let G=pj8.encode(j+`; name=\"${H(J(W))}\"\\r\n\\r\n${J(f)}\\r\n`);M.push(G),A+=G.byteLength}else{let G=pj8.encode(`${j}; name=\"${H(J(W))}\"`+(f.name?`; filename=\"${H(f.name)}\"`:\"\")+`\\r\nContent-Type: ${f.type||\"application/octet-stream\"}\\r\n\\r\n`);if(M.push(G,f,X),typeof f.size===\"number\")A+=G.byteLength+f.size+X.byteLength;else P=!0}let D=pj8.encode(`--${w}--\\r\n`);if(M.push(D),A+=D.byteLength,P)A=null;Y=q,z=async function*(){for(let W of M)if"
+      }
+    ],
+    "s96": [
+      {
+        "idx": 50422,
+        "snip": "(typeof K===\"function\"?q!==K||!z:!K.has(q))throw TypeError(\"Cannot read private member from an object whose class did not declare it\");return _===\"m\"?z:_===\"a\"?z.call(q):z?z.value:K.get(q)}var _n=()=>{};var it8=function(){let{crypto:q}=globalThis;if(q?.randomUUID)return it8=q.randomUUID.bind(q),q.randomUUID();let K=new Uint8Array(1),_=q?()=>q.getRandomValues(K)[0]:()=>Math.random()*255&255;return\"10000000-1000-4000-8000-100000000000\".replace(/[018]/g,(z)=>(+z^_()&15>>+z/4).toString(16))};function zn(q){return typeof q===\"object\"&&q!==null&&((\"name\"in q)&&q.name===\"AbortError\"||(\"message\"in q)&&String(q.message).includes(\"FetchRequestCanceledException\"))}var au6=(q)=>{if(q instanceof Error)return q;if(typeof q===\"object\"&&q!==null){try{if(Object.prototype.toString.call(q)===\"[object Error]\"){let K=Error(q.message,q.cause?{cause:q.cause}:{});if(q.stack)K.stack=q.stack;if(q.cause&&!K.cause)K.cause=q.cause;if(q.name)K.name=q.name;return K}}catch{}try{return Error(JSON.stringify(q))}catch{}}return Error(q)};var vq,rq,r_,XZ,Eg,su6,Q_6,tu6,d_6,eu6,qm6,Km6,_m6;var WD=L(()=>{vq=class vq extends Error{};rq=class rq extends vq{constructor(q,K,_,z,Y){super(`${rq.makeMessage(q,K,_)}`);this.stat"
+      }
+    ]
+  },
+  "tengu_hook_prompt_transcript_truncated": {
+    "c96": 0,
+    "c97": 1,
+    "s97": [
+      {
+        "idx": 11602630,
+        "snip": ".content):b6(_).length/4;return Math.ceil(K)}function zQY(q,K){let _=Cf(K)?1e6:eN1,z=Math.floor(_*qQY);if(KQY(q)<=z)return q;let Y=NU8(q),A=0,O=Y.length;for(let j=Y.length-1;j>=0;j--){let H=_QY(Y[j]);if(O<Y.length&&A+H>z)break;A+=H,O=j}let $=Y.slice(O).flat(),w=q.length-$.length;if(w<=0)return q;return N(`Hooks: truncated Stop transcript ${q.length}→${$.length} msgs (budget ${z}, model ${K})`),d(\"tengu_hook_prompt_transcript_truncated\",{droppedMessages:w,keptMessages:$.length,budget:z,evaluatorModel:K}),[i8({content:`[Earlier conversation truncated to fit the hook evaluator's context window — ${w} earlier messages omitted. Evaluate the condition against the recent transcript below; if the required evidence may be in the omitted prefix, return {\"ok\": false, \"reason\": \"insufficient evidence in transcript\"}.]`}),...$]}var qQY=0.7;var MnK=L(()=>{T8();lj();gV();TP();Wx6();uW();K8();y8();N$();$7();mq();l8();kn8()});import{randomUUID as XnK}from\"crypto\";async function PnK(q,K,_,z,Y,A,O,$,w){let j=O||`hook-${XnK()}`,H=A.agentId?SD(A.agentId):lY(),J=KA(X8(),H).resolvedPath,M=Date.now();try{let X=Tn8(q.prompt,z);N(`Hooks: Processing agent hook with prompt: ${X}`);let D=[i8({content:X})];N(`H"
+      }
+    ],
+    "s96": []
+  },
+  "Hook evaluator API error": {
+    "c96": 0,
+    "c97": 1,
+    "s97": [
+      {
+        "idx": 11600408,
+        "snip": "_schema\",schema:{type:\"object\",properties:{ok:{type:\"boolean\"},reason:{type:\"string\"}},required:[\"ok\",\"reason\"],additionalProperties:!1}}}});if(f(),v.isApiErrorMessage){let R=w9(v.message.content).trim();return N(`Hooks: prompt-hook evaluator API error: ${R}`,{level:\"error\"}),{hook:q,outcome:\"non_blocking_error\",message:O4({type:\"hook_non_blocking_error\",hookName:K,toolUseID:w,hookEvent:_,stderr:`Hook evaluator API error: ${R}`,stdout:\"\",exitCode:1})}}let V=w9(v.message.content);A.setResponseLength((R)=>R+V.length);let k=V.trim();N(`Hooks: Model response: ${k}`);let h=y5(k);if(!h)return N(`Hooks: error parsing response as JSON: ${k}`),{hook:q,outcome:\"non_blocking_error\",message:O4({type:\"hook_non_blocking_error\",hookName:K,toolUseID:w,hookEvent:_,stderr:\"JSON validation failed\",stdout:k,exitCode:1})};let E=G38().safeParse(h);if(!E.success)return N(`Hooks: model response does not conform to expected schema: ${E.error.message}`),{hook:q,outcome:\"non_blocking_error\",message:O4({type:\"hook_non_blocking_error\",hookName:K,toolUseID:w,hookEvent:_,stderr:`Schema validation failed: ${E.error.message}`,stdout:k,exitCode:1})};if(!E.data.ok)return N(`Hooks: Prompt hook condition was not met: "
+      }
+    ],
+    "s96": []
+  },
+  "JSON validation failed": {
+    "c96": 5,
+    "c97": 5,
+    "s97": [
+      {
+        "idx": 11600774,
+        "snip": "K,toolUseID:w,hookEvent:_,stderr:`Hook evaluator API error: ${R}`,stdout:\"\",exitCode:1})}}let V=w9(v.message.content);A.setResponseLength((R)=>R+V.length);let k=V.trim();N(`Hooks: Model response: ${k}`);let h=y5(k);if(!h)return N(`Hooks: error parsing response as JSON: ${k}`),{hook:q,outcome:\"non_blocking_error\",message:O4({type:\"hook_non_blocking_error\",hookName:K,toolUseID:w,hookEvent:_,stderr:\"JSON validation failed\",stdout:k,exitCode:1})};let E=G38().safeParse(h);if(!E.success)return N(`Hooks: model response does not conform to expected schema: ${E.error.message}`),{hook:q,outcome:\"non_blocking_error\",message:O4({type:\"hook_non_blocking_error\",hookName:K,toolUseID:w,hookEvent:_,stderr:`Schema validation failed: ${E.error.message}`,stdout:k,exitCode:1})};if(!E.data.ok)return N(`Hooks: Prompt hook condition was not met: ${E.data.reason}`),{hook:q,outcome:\"blocking\",blockingError:{blockingError:`[${q.prompt}]: ${E.data.reason}`,command:q.prompt},preventContinuation:!j,stopReason:E.data.reason};return N(`Hooks: Prompt hook condition was met: ${E.data.reason}`),{hook:q,outcome:\"success\",message:O4({type:\"hook_success\",hookName:K,toolUseID:w,hookEvent:_,content:\"\"})}}catch(G){if(f(),"
+      },
+      {
+        "idx": 11634922,
+        "snip": "ookId:O6,hookName:M,hookEvent:J,output:P6,stdout:\"\",stderr:P6,exitCode:l.statusCode,outcome:\"error\"}),yield{message:O4({type:\"hook_non_blocking_error\",hookName:M,toolUseID:_,hookEvent:J,stderr:P6,stdout:\"\",exitCode:l.statusCode??0}),outcome:\"non_blocking_error\",hook:S};return}let{json:n,validationError:j6}=RnK(l.body);if(j6){nZ({hookId:O6,hookName:M,hookEvent:J,output:l.body,stdout:l.body,stderr:`JSON validation failed: ${j6}`,exitCode:l.statusCode,outcome:\"error\"}),yield{message:O4({type:\"hook_non_blocking_error\",hookName:M,toolUseID:_,hookEvent:J,stderr:`JSON validation failed: ${j6}`,stdout:l.body,exitCode:l.statusCode??0}),outcome:\"non_blocking_error\",hook:S};return}if(n&&ZI(n)){nZ({hookId:O6,hookName:M,hookEvent:J,output:l.body,stdout:l.body,stderr:\"\",exitCode:l.statusCode,outcome:\"success\"}),yield{outcome:\"success\",hook:S};return}if(n){let P6=BO7({json:n,command:S.url,hookName:M,toolUseID:_,hookEvent:J,expectedHookEvent:J,stdout:l.body,stderr:\"\",exitCode:l.statusCode});nZ({hookId:O6,hookName:M,hookEvent:J,output:l.body,stdout:l.body,stderr:\"\",exitCode:l.statusCode,outcome:\"success\"}),yield{...P6,outcome:\"success\",hook:S};return}return}EK7(O6,M,J);let W6=await yn8(S,J,M,H6,a,O"
+      },
+      {
+        "idx": 11635085,
+        "snip": "oolUseID:_,hookEvent:J,stderr:P6,stdout:\"\",exitCode:l.statusCode??0}),outcome:\"non_blocking_error\",hook:S};return}let{json:n,validationError:j6}=RnK(l.body);if(j6){nZ({hookId:O6,hookName:M,hookEvent:J,output:l.body,stdout:l.body,stderr:`JSON validation failed: ${j6}`,exitCode:l.statusCode,outcome:\"error\"}),yield{message:O4({type:\"hook_non_blocking_error\",hookName:M,toolUseID:_,hookEvent:J,stderr:`JSON validation failed: ${j6}`,stdout:l.body,exitCode:l.statusCode??0}),outcome:\"non_blocking_error\",hook:S};return}if(n&&ZI(n)){nZ({hookId:O6,hookName:M,hookEvent:J,output:l.body,stdout:l.body,stderr:\"\",exitCode:l.statusCode,outcome:\"success\"}),yield{outcome:\"success\",hook:S};return}if(n){let P6=BO7({json:n,command:S.url,hookName:M,toolUseID:_,hookEvent:J,expectedHookEvent:J,stdout:l.body,stderr:\"\",exitCode:l.statusCode});nZ({hookId:O6,hookName:M,hookEvent:J,output:l.body,stdout:l.body,stderr:\"\",exitCode:l.statusCode,outcome:\"success\"}),yield{...P6,outcome:\"success\",hook:S};return}return}EK7(O6,M,J);let W6=await yn8(S,J,M,H6,a,O6,c,g,F,U,w,X);A6?.();let v6=Date.now()-i;if(W6.backgrounded){yield{outcome:\"success\",hook:S};return}if(W6.aborted){nZ({hookId:O6,hookName:M,hookEvent:J,output:W6."
+      }
+    ],
+    "s96": [
+      {
+        "idx": 11587594,
+        "snip": "olean\"},reason:{type:\"string\"}},required:[\"ok\",\"reason\"],additionalProperties:!1}}}});D();let v=z9(Z.message.content);O.setResponseLength((y)=>y+v.length);let k=v.trim();N(`Hooks: Model response: ${k}`);let V=I5(k);if(!V)return N(`Hooks: error parsing response as JSON: ${k}`),{hook:q,outcome:\"non_blocking_error\",message:D4({type:\"hook_non_blocking_error\",hookName:K,toolUseID:w,hookEvent:_,stderr:\"JSON validation failed\",stdout:k,exitCode:1})};let E=S38().safeParse(V);if(!E.success)return N(`Hooks: model response does not conform to expected schema: ${E.error.message}`),{hook:q,outcome:\"non_blocking_error\",message:D4({type:\"hook_non_blocking_error\",hookName:K,toolUseID:w,hookEvent:_,stderr:`Schema validation failed: ${E.error.message}`,stdout:k,exitCode:1})};if(!E.data.ok)return N(`Hooks: Prompt hook condition was not met: ${E.data.reason}`),{hook:q,outcome:\"blocking\",blockingError:{blockingError:`[${q.prompt}]: ${E.data.reason}`,command:q.prompt},preventContinuation:!j,stopReason:E.data.reason};return N(`Hooks: Prompt hook condition was met: ${E.data.reason}`),{hook:q,outcome:\"success\",message:D4({type:\"hook_success\",hookName:K,toolUseID:w,hookEvent:_,content:\"\"})}}catch(f){if(D(),"
+      }
+    ]
+  },
+  "originalFile": {
+    "c96": 6,
+    "c97": 6,
+    "s97": [
+      {
+        "idx": 7218466,
+        "snip": ",\"added\"]),additions:y.number(),deletions:y.number(),changes:y.number(),patch:y.string(),repository:y.string().nullable().optional().describe(\"GitHub owner/repo when available\")})),mU4=x6(()=>y.object({filePath:y.string().describe(\"The file path that was edited\"),oldString:y.string().describe(\"The original string that was replaced\"),newString:y.string().describe(\"The new string that replaced it\"),originalFile:y.string().nullable().describe(\"The original file contents before editing\"),structuredPatch:y.array(gl1()).describe(\"Diff patch showing the changes\"),userModified:y.boolean().describe(\"Whether the user modified the proposed changes\"),replaceAll:y.boolean().describe(\"Whether all occurrences were replaced\"),gitDiff:Fl1().optional()}))});function F$(){return H8((q)=>q.settings)}var ch=L(()=>{k7()});import{extname as Qkz}from\"path\";function BU4(q,K,_){let z=tR7(_,K),Y=kj6.get(z);if(Y!==void 0)return kj6.delete(z),kj6.set(z,Y),Y;let A=q.highlight(K,{language:_});if(kj6.size>=dkz){let O=kj6.keys().next().value;if(O!==void 0)kj6.delete(O)}return kj6.set(z,A),A}function pU4(q){let K=_6(20),{code:_,filePath:z,dim:Y,skipColoring:A}=q,O=Y===void 0?!1:Y,$=A===void 0?!1:A,w;if(K[0]!==_)w=i"
+      },
+      {
+        "idx": 7262310,
+        "snip": "urn\"Update\";if(q.file_path?.startsWith(mA()))return\"Updated plan\";if(q.edits!=null)return\"Update\";if(q.old_string===\"\")return\"Create\";return\"Update\"}function An1(q){if(!q?.file_path)return null;return C5(q.file_path)}function SQ4({file_path:q},{verbose:K}){if(!q)return null;if(q.startsWith(mA()))return\"\";return MA.createElement(RZ,{filePath:q},K?q:C5(q))}function CQ4({filePath:q,structuredPatch:K,originalFile:_},z,{style:Y,verbose:A}){let O=q.startsWith(mA());return MA.createElement(db8,{filePath:q,structuredPatch:K,firstLine:_?_w(_):null,fileContent:_||void 0,style:Y,verbose:A,previewHint:O?\"/plan to preview\":void 0})}function bQ4(q,K){let{style:_,verbose:z}=K,Y=q.file_path,A=q.old_string??\"\",O=q.new_string??\"\",$=q.replace_all??!1;if(\"edits\"in q&&q.edits!=null)return MA.createElement(hK6,{file_path:Y,operation:\"update\",firstLine:null,verbose:z});if(A===\"\")return MA.createElement(hK6,{file_path:Y,operation:\"write\",content:O,firstLine:_w(O),verbose:z});return MA.createElement(rNz,{filePath:Y,oldString:A,newString:O,replaceAll:$,style:_,verbose:z})}function xQ4(q,K){let{verbose:_}=K;if(!_&&typeof q===\"string\"&&YK(q,\"tool_use_error\")){let z=YK(q,\"tool_use_error\");if(z?.includes(\"File "
+      },
+      {
+        "idx": 7266040,
+        "snip": "\"modify file contents in place\",maxResultSizeChars:1e5,strict:!0,async description(){return\"A tool for editing files\"},async prompt(){return IU4()},userFacingName:eb8,getToolUseSummary:An1,getActivityDescription(q){let K=An1(q);return K?`Editing ${K}`:\"Editing file\"},get inputSchema(){return Bb8()},get outputSchema(){return mU4()},stripForStorage(q){if(typeof q!==\"object\"||q===null)return q;if((q.originalFile??\"\")===\"\")return q;return{...q,originalFile:\"\"}},toAutoClassifierInput(q){return`${q.file_path}: ${q.new_string}`},getPath(q){return q.file_path},backfillObservableInput(q){if(typeof q.file_path===\"string\")q.file_path=Xq(q.file_path)},async preparePermissionMatcher({file_path:q}){return(K)=>oV(K,q)},async checkPermissions(q,K){let _=K.getAppState();return Lj6(cM,q,_.toolPermissionContext)},renderToolUseMessage:SQ4,renderToolResultMessage:CQ4,renderToolUseRejectedMessage:bQ4,renderToolUseErrorMessage:xQ4,async validateInput(q,K){let{file_path:_,old_string:z,new_string:Y,replace_all:A=!1}=q,O=Xq(_),$=JC8(O,Y);if($)return{result:!1,message:$,errorCode:0};if(z===Y)return{result:!1,behavior:\"ask\",message:\"No changes to make: old_string and new_string are exactly the same.\",errorCod"
+      }
+    ],
+    "s96": [
+      {
+        "idx": 8780553,
+        "snip": ",\"added\"]),additions:h.number(),deletions:h.number(),changes:h.number(),patch:h.string(),repository:h.string().nullable().optional().describe(\"GitHub owner/repo when available\")})),rjK=x6(()=>h.object({filePath:h.string().describe(\"The file path that was edited\"),oldString:h.string().describe(\"The original string that was replaced\"),newString:h.string().describe(\"The new string that replaced it\"),originalFile:h.string().describe(\"The original file contents before editing\"),structuredPatch:h.array(d87()).describe(\"Diff patch showing the changes\"),userModified:h.boolean().describe(\"Whether the user modified the proposed changes\"),replaceAll:h.boolean().describe(\"Whether all occurrences were replaced\"),gitDiff:c87().optional()}))});import{extname as ZKY}from\"path\";function ojK(q,K,_){let z=CS7(_,K),Y=yJ6.get(z);if(Y!==void 0)return yJ6.delete(z),yJ6.set(z,Y),Y;let O=q.highlight(K,{language:_});if(yJ6.size>=GKY){let A=yJ6.keys().next().value;if(A!==void 0)yJ6.delete(A)}return yJ6.set(z,O),O}function ajK(q){let K=K6(20),{code:_,filePath:z,dim:Y,skipColoring:O}=q,A=Y===void 0?!1:Y,$=O===void 0?!1:O,w;if(K[0]!==_)w=rg(_),K[0]=_,K[1]=w;else w=K[1];let j=w;if($){let D;if(K[2]!==j)D=ex.defau"
+      }
+    ]
+  },
+  "stop_reason": {
+    "c96": 6,
+    "c97": 6,
+    "s97": [
+      {
+        "idx": 86778,
+        "snip": "(this,VD6,\"f\"),{logger:u1(this,Jm6,\"f\")})},iP7=function(K){let _=u1(this,H66,\"f\");if(K.type===\"message_start\"){if(_)throw new vq(`Unexpected event order, got ${K.type} before receiving \"message_stop\"`);return K.message}if(!_)throw new vq(`Unexpected event order, got ${K.type} before \"message_start\"`);switch(K.type){case\"message_stop\":return _;case\"message_delta\":if(_.container=K.delta.container,_.stop_reason=K.delta.stop_reason,_.stop_sequence=K.delta.stop_sequence,_.usage.output_tokens=K.usage.output_tokens,_.context_management=K.context_management,K.usage.input_tokens!=null)_.usage.input_tokens=K.usage.input_tokens;if(K.usage.cache_creation_input_tokens!=null)_.usage.cache_creation_input_tokens=K.usage.cache_creation_input_tokens;if(K.usage.cache_read_input_tokens!=null)_.usage.cache_read_input_tokens=K.usage.cache_read_input_tokens;if(K.usage.server_tool_use!=null)_.usage.server_tool_use=K.usage.server_tool_use;if(K.usage.iterations!=null)_.usage.iterations=K.usage.iterations;return _;case\"content_block_start\":return _.content.push(K.content_block),_;case\"content_block_delta\":{let z=_.content.at(K.index);switch(K.delta.type){case\"text_delta\":{if(z?.type===\"text\")_.content[K.inde"
+      },
+      {
+        "idx": 86798,
+        "snip": "er:u1(this,Jm6,\"f\")})},iP7=function(K){let _=u1(this,H66,\"f\");if(K.type===\"message_start\"){if(_)throw new vq(`Unexpected event order, got ${K.type} before receiving \"message_stop\"`);return K.message}if(!_)throw new vq(`Unexpected event order, got ${K.type} before \"message_start\"`);switch(K.type){case\"message_stop\":return _;case\"message_delta\":if(_.container=K.delta.container,_.stop_reason=K.delta.stop_reason,_.stop_sequence=K.delta.stop_sequence,_.usage.output_tokens=K.usage.output_tokens,_.context_management=K.context_management,K.usage.input_tokens!=null)_.usage.input_tokens=K.usage.input_tokens;if(K.usage.cache_creation_input_tokens!=null)_.usage.cache_creation_input_tokens=K.usage.cache_creation_input_tokens;if(K.usage.cache_read_input_tokens!=null)_.usage.cache_read_input_tokens=K.usage.cache_read_input_tokens;if(K.usage.server_tool_use!=null)_.usage.server_tool_use=K.usage.server_tool_use;if(K.usage.iterations!=null)_.usage.iterations=K.usage.iterations;return _;case\"content_block_start\":return _.content.push(K.content_block),_;case\"content_block_delta\":{let z=_.content.at(K.index);switch(K.delta.type){case\"text_delta\":{if(z?.type===\"text\")_.content[K.index]={...z,text:(z.tex"
+      },
+      {
+        "idx": 110572,
+        "snip": "(this,P66,void 0,\"f\"),nt8(K,u1(this,LD6,\"f\"),{logger:u1(this,Nm6,\"f\")})},OD7=function(K){let _=u1(this,P66,\"f\");if(K.type===\"message_start\"){if(_)throw new vq(`Unexpected event order, got ${K.type} before receiving \"message_stop\"`);return K.message}if(!_)throw new vq(`Unexpected event order, got ${K.type} before \"message_start\"`);switch(K.type){case\"message_stop\":return _;case\"message_delta\":if(_.stop_reason=K.delta.stop_reason,_.stop_sequence=K.delta.stop_sequence,_.usage.output_tokens=K.usage.output_tokens,K.usage.input_tokens!=null)_.usage.input_tokens=K.usage.input_tokens;if(K.usage.cache_creation_input_tokens!=null)_.usage.cache_creation_input_tokens=K.usage.cache_creation_input_tokens;if(K.usage.cache_read_input_tokens!=null)_.usage.cache_read_input_tokens=K.usage.cache_read_input_tokens;if(K.usage.server_tool_use!=null)_.usage.server_tool_use=K.usage.server_tool_use;return _;case\"content_block_start\":return _.content.push({...K.content_block}),_;case\"content_block_delta\":{let z=_.content.at(K.index);switch(K.delta.type){case\"text_delta\":{if(z?.type===\"text\")_.content[K.index]={...z,text:(z.text||\"\")+K.delta.text};break}case\"citations_delta\":{if(z?.type===\"text\")_.content[K.i"
+      }
+    ],
+    "s96": [
+      {
+        "idx": 86234,
+        "snip": "(this,gW6,\"f\"),{logger:u1(this,Gm6,\"f\")})},EW7=function(K){let _=u1(this,P66,\"f\");if(K.type===\"message_start\"){if(_)throw new vq(`Unexpected event order, got ${K.type} before receiving \"message_stop\"`);return K.message}if(!_)throw new vq(`Unexpected event order, got ${K.type} before \"message_start\"`);switch(K.type){case\"message_stop\":return _;case\"message_delta\":if(_.container=K.delta.container,_.stop_reason=K.delta.stop_reason,_.stop_sequence=K.delta.stop_sequence,_.usage.output_tokens=K.usage.output_tokens,_.context_management=K.context_management,K.usage.input_tokens!=null)_.usage.input_tokens=K.usage.input_tokens;if(K.usage.cache_creation_input_tokens!=null)_.usage.cache_creation_input_tokens=K.usage.cache_creation_input_tokens;if(K.usage.cache_read_input_tokens!=null)_.usage.cache_read_input_tokens=K.usage.cache_read_input_tokens;if(K.usage.server_tool_use!=null)_.usage.server_tool_use=K.usage.server_tool_use;if(K.usage.iterations!=null)_.usage.iterations=K.usage.iterations;return _;case\"content_block_start\":return _.content.push(K.content_block),_;case\"content_block_delta\":{let z=_.content.at(K.index);switch(K.delta.type){case\"text_delta\":{if(z?.type===\"text\")_.content[K.inde"
+      }
+    ]
+  },
+  "reloadGeneration": {
+    "c96": 0,
+    "c97": 2,
+    "s97": [
+      {
+        "idx": 10997724,
+        "snip": "1?\"session\":\"sessions\"})`:\"\",w=q.isSidechain?\" (sidechain)\":\"\",j=K-O-w.length-$.length;return`${HBK(uz6(q),j)}${w}${$}`}function wY7(q,K){let{isChild:_=!1,showProjectPath:z=!1}=K||{},Y=_?\"    \":\"\",A=Fm6(q),O=z&&q.projectPath?` · ${q.projectPath}`:\"\";return Y+A+O}function tc8({logs:q,maxHeight:K=1/0,forceWidth:_,onCancel:z,onSelect:Y,onLogsChanged:A,onLoadMore:O,initialSearchQuery:$,isLoading:w=!1,reloadGeneration:j=0,showAllProjects:H=!1,onToggleAllProjects:J,onAgenticSearch:M}){let X=jK6(_7()),P=_===void 0?X.columns:_,D=l5(z),W=I$(),f=pt(),G=!1,[Z]=Oq(),v=nW(Z),V=b7.default.useMemo(()=>($1)=>$o($1,v.warning),[v.warning]),k=!1,[h,E]=b7.default.useState(null),[R,x]=b7.default.useState(!1),[I,p]=b7.default.useState(!1),[m,S]=b7.default.useState(!1),g=b7.default.useMemo(()=>A7(),[]),[F,U]=b7.default.useState(\"\"),[c,o]=b7.default.useState(0),[a,A6]=b7.default.useState(new Set),[O6,i]=b7.default.useState(null),[K6,J6]=b7.default.useState(1),[H6,W6]=b7.default.useState($?\"search\":\"list\"),[v6,q6]=b7.default.useState(null),r=b7.default.useRef(null),[z6,l]=b7.default.useState({status:\"idle\"}),[n,j6]=b7.default.useState(!1),P6=b7.default.useRef(null),{query:X6,setQuery:y6,cursorOffset:R6}=GR"
+      },
+      {
+        "idx": 12624128,
+        "snip": "nt(T,null,\" Loading conversations…\"));if(R)return JY.default.createElement(u,null,JY.default.createElement(EK,null),JY.default.createElement(T,null,\" Resuming conversation…\"));if(O6.length===0&&!h)return JY.default.createElement(T4A,null);return JY.default.createElement(tc8,{logs:O6,maxHeight:G,onCancel:W6,onSelect:v6,onLogsChanged:i?()=>J6(I):void 0,onLoadMore:K6,initialSearchQuery:J,isLoading:h,reloadGeneration:c,showAllProjects:I,onToggleAllProjects:H6,onAgenticSearch:ec8})}function T4A(){let q=_6(2),K;if(q[0]===Symbol.for(\"react.memo_cache_sentinel\"))K={context:\"Global\"},q[0]=K;else K=q[0];D1(\"app:interrupt\",V4A,K);let _;if(q[1]===Symbol.for(\"react.memo_cache_sentinel\"))_=JY.default.createElement(u,{flexDirection:\"column\"},JY.default.createElement(T,null,\"No conversations found to resume.\"),JY.default.createElement(T,{dimColor:!0},\"Press Ctrl+C to exit and start a new conversation.\")),q[1]=_;else _=q[1];return _}function V4A(){process.exit(1)}function k4A(q){let K=_6(8),{command:_}=q,z;if(K[0]===Symbol.for(\"react.memo_cache_sentinel\"))z=[],K[0]=z;else z=K[0];JY.default.useEffect(N4A,z);let Y;if(K[1]===Symbol.for(\"react.memo_cache_sentinel\"))Y=JY.default.createElement(T,null,\"Th"
+      }
+    ],
+    "s96": []
+  },
+  "isLoading": {
+    "c96": 6,
+    "c97": 6,
+    "s97": [
+      {
+        "idx": 10401014,
+        "snip": "t A6;if(K[23]!==x)A6=j7.default.createElement(u,{marginTop:1,tabIndex:0,autoFocus:!0,onKeyDown:x},o,a),K[23]=x,K[24]=A6;else A6=K[24];return A6}let I;if(K[25]===Symbol.for(\"react.memo_cache_sentinel\"))I=(o)=>X(o),K[25]=I;else I=K[25];let p;if(K[26]!==Z||K[27]!==A||K[28]!==G||K[29]!==H)p=j7.default.createElement(W$,{title:\"Overview\"},j7.default.createElement(JGY,{stats:G,allTimeStats:Z,dateRange:A,isLoading:H})),K[26]=Z,K[27]=A,K[28]=G,K[29]=H,K[30]=p;else p=K[30];let m;if(K[31]!==A||K[32]!==G||K[33]!==H)m=j7.default.createElement(W$,{title:\"Models\"},j7.default.createElement(PGY,{stats:G,dateRange:A,isLoading:H})),K[31]=A,K[32]=G,K[33]=H,K[34]=m;else m=K[34];let S;if(K[35]!==M||K[36]!==h||K[37]!==p||K[38]!==m)S=j7.default.createElement(u,{flexDirection:\"row\",gap:1,marginBottom:1},j7.default.createElement(AI,{title:\"\",color:\"claude\",selectedTab:M,onTabChange:I,disableNavigation:h},p,m)),K[35]=M,K[36]=h,K[37]=p,K[38]=m,K[39]=S;else S=K[39];let g=h?\"↓ stats\":\"↑ tabs\",F=P?` · ${P}`:\"\",U;if(K[40]!==g||K[41]!==F)U=j7.default.createElement(u,{paddingLeft:2},j7.default.createElement(T,{dimColor:!0},g,\" · r to cycle dates · ctrl+s to copy\",F)),K[40]=g,K[41]=F,K[42]=U;else U=K[42];let c;if(K["
+      },
+      {
+        "idx": 10401220,
+        "snip": "=>X(o),K[25]=I;else I=K[25];let p;if(K[26]!==Z||K[27]!==A||K[28]!==G||K[29]!==H)p=j7.default.createElement(W$,{title:\"Overview\"},j7.default.createElement(JGY,{stats:G,allTimeStats:Z,dateRange:A,isLoading:H})),K[26]=Z,K[27]=A,K[28]=G,K[29]=H,K[30]=p;else p=K[30];let m;if(K[31]!==A||K[32]!==G||K[33]!==H)m=j7.default.createElement(W$,{title:\"Models\"},j7.default.createElement(PGY,{stats:G,dateRange:A,isLoading:H})),K[31]=A,K[32]=G,K[33]=H,K[34]=m;else m=K[34];let S;if(K[35]!==M||K[36]!==h||K[37]!==p||K[38]!==m)S=j7.default.createElement(u,{flexDirection:\"row\",gap:1,marginBottom:1},j7.default.createElement(AI,{title:\"\",color:\"claude\",selectedTab:M,onTabChange:I,disableNavigation:h},p,m)),K[35]=M,K[36]=h,K[37]=p,K[38]=m,K[39]=S;else S=K[39];let g=h?\"↓ stats\":\"↑ tabs\",F=P?` · ${P}`:\"\",U;if(K[40]!==g||K[41]!==F)U=j7.default.createElement(u,{paddingLeft:2},j7.default.createElement(T,{dimColor:!0},g,\" · r to cycle dates · ctrl+s to copy\",F)),K[40]=g,K[41]=F,K[42]=U;else U=K[42];let c;if(K[43]!==x||K[44]!==S||K[45]!==U)c=j7.default.createElement(u,{flexDirection:\"column\",tabIndex:0,autoFocus:!0,onKeyDown:x},S,U),K[43]=x,K[44]=S,K[45]=U,K[46]=c;else c=K[46];return c}function HhK(q){let K=_6(9)"
+      },
+      {
+        "idx": 10402034,
+        "snip": ")U=j7.default.createElement(u,{paddingLeft:2},j7.default.createElement(T,{dimColor:!0},g,\" · r to cycle dates · ctrl+s to copy\",F)),K[40]=g,K[41]=F,K[42]=U;else U=K[42];let c;if(K[43]!==x||K[44]!==S||K[45]!==U)c=j7.default.createElement(u,{flexDirection:\"column\",tabIndex:0,autoFocus:!0,onKeyDown:x},S,U),K[43]=x,K[44]=S,K[45]=U,K[46]=c;else c=K[46];return c}function HhK(q){let K=_6(9),{dateRange:_,isLoading:z}=q,Y;if(K[0]!==_)Y=md8.map((w,j)=>j7.default.createElement(T,{key:w},j>0&&j7.default.createElement(T,{dimColor:!0},\" · \"),w===_?j7.default.createElement(T,{bold:!0,color:\"claude\"},OhK[w]):j7.default.createElement(T,{dimColor:!0},OhK[w]))),K[0]=_,K[1]=Y;else Y=K[1];let A;if(K[2]!==Y)A=j7.default.createElement(u,null,Y),K[2]=Y,K[3]=A;else A=K[3];let O;if(K[4]!==z)O=z&&j7.default.createElement(EK,null),K[4]=z,K[5]=O;else O=K[5];let $;if(K[6]!==A||K[7]!==O)$=j7.default.createElement(u,{marginBottom:1,gap:1},A,O),K[6]=A,K[7]=O,K[8]=$;else $=K[8];return $}function JGY({stats:q,allTimeStats:K,dateRange:_,isLoading:z}){let{columns:Y}=_7(),A=Object.entries(q.modelUsage).sort(([,J],[,M])=>M.inputTokens+M.outputTokens-(J.inputTokens+J.outputTokens)),O=A[0],$=A.reduce((J,[,M])=>J+M.inputTo"
+      }
+    ],
+    "s96": [
+      {
+        "idx": 10379011,
+        "snip": "t _6;if(K[23]!==b)_6=j7.default.createElement(u,{marginTop:1,tabIndex:0,autoFocus:!0,onKeyDown:b},r,o),K[23]=b,K[24]=_6;else _6=K[24];return _6}let I;if(K[25]===Symbol.for(\"react.memo_cache_sentinel\"))I=(r)=>X(r),K[25]=I;else I=K[25];let B;if(K[26]!==Z||K[27]!==O||K[28]!==G||K[29]!==H)B=j7.default.createElement(R$,{title:\"Overview\"},j7.default.createElement(vGY,{stats:G,allTimeStats:Z,dateRange:O,isLoading:H})),K[26]=Z,K[27]=O,K[28]=G,K[29]=H,K[30]=B;else B=K[30];let m;if(K[31]!==O||K[32]!==G||K[33]!==H)m=j7.default.createElement(R$,{title:\"Models\"},j7.default.createElement(VGY,{stats:G,dateRange:O,isLoading:H})),K[31]=O,K[32]=G,K[33]=H,K[34]=m;else m=K[34];let R;if(K[35]!==M||K[36]!==E||K[37]!==B||K[38]!==m)R=j7.default.createElement(u,{flexDirection:\"row\",gap:1,marginBottom:1},j7.default.createElement(WI,{title:\"\",color:\"claude\",selectedTab:M,onTabChange:I,disableNavigation:E},B,m)),K[35]=M,K[36]=E,K[37]=B,K[38]=m,K[39]=R;else R=K[39];let g=E?\"↓ stats\":\"↑ tabs\",F=P?` · ${P}`:\"\",Q;if(K[40]!==g||K[41]!==F)Q=j7.default.createElement(u,{paddingLeft:2},j7.default.createElement(T,{dimColor:!0},g,\" · r to cycle dates · ctrl+s to copy\",F)),K[40]=g,K[41]=F,K[42]=Q;else Q=K[42];let i;if(K["
+      }
+    ]
+  },
+  "MUY": {
+    "c96": 2,
+    "c97": 3,
+    "s97": [
+      {
+        "idx": 11549297,
+        "snip": "eTypes:!0})}catch{return{}}let _=K.filter((z)=>z.isFile()&&z.name.startsWith(\"agent-\")&&z.name.endsWith(\".jsonl\")).map((z)=>z.name.slice(6,-6));return Jn8(_)}function oM6(q){if(q.type===\"progress\")return!1;if(q.type===\"attachment\"&&q.attachment.type===\"hook_success\"&&!q.attachment.content&&!q.attachment.stdout?.trim()&&!q.attachment.stderr?.trim())return!1;if(q.type===\"attachment\"&&An8()!==\"ant\"&&MUY.has(q.attachment.type))return!1;return!0}function Mn8(q,K=new Set){for(let _ of q)if(_.type===\"assistant\"&&Array.isArray(_.message.content)){for(let z of _.message.content)if(z.type===\"tool_use\"&&z.name===hM)K.add(z.id)}return K}function XUY(q,K){return q.flatMap((_)=>{if(_.type===\"assistant\"&&Array.isArray(_.message.content)){let z=_.message.content,A=z.some((O)=>O.type===\"tool_use\"&&O.name===hM)?z.filter((O)=>!(O.type===\"tool_use\"&&O.name===hM)):z;if(A.length===0)return[];if(_.isVirtual){let{isVirtual:O,...$}=_;return[{...$,message:{..._.message,content:A}}]}if(A!==z)return[{..._,message:{..._.message,content:A}}];return[_]}if(_.type===\"user\"&&Array.isArray(_.message.content)){let z=_.message.content,A=z.some((O)=>O.type===\"tool_result\"&&K.has(O.tool_use_id))?z.filter((O)=>!(O.type=="
+      },
+      {
+        "idx": 11558034,
+        "snip": "ction aM6(q,K,_){let z=[],Y=Buffer.alloc(K86),A=K;while(A<q.length&&z.length<_){let w=q[A];A++;let j=await GUY(w,Y);if(j)z.push(j)}let O=A-K,$=O-z.length;if($>0)N(`/resume: enriched ${O} sessions, ${$} filtered out, ${z.length} visible (${q.length-A} remaining on disk)`);return{logs:z,nextIndex:A}}var pFY,gFY=52428800,LlK,UFY,o58=52428800,$O7,M2,rM6=null,klK=!1,NlK=10,sFY=5000,xlK,vO7,TO7,VO7,Jx6,MUY,Xn8=50;var g4=L(()=>{h4();T8();v8();hO();NA();c1();Rg8();FW();ZZ();o9();xf();U7();K8();yA();B8();y8();m7();qq();E58();lK();uO();N$();h8();$7();j_();lg();l8();cB();pFY={ISSUES_EXPLAINER:\"report the issue at https://github.com/anthropics/claude-code/issues\",PACKAGE_URL:\"@anthropic-ai/claude-code\",README_URL:\"https://code.claude.com/docs/en/overview\",VERSION:\"2.1.97\",FEEDBACK_CHANNEL:\"https://github.com/anthropics/claude-code/issues\",BUILD_TIME:\"2026-04-08T20:46:46Z\"}.VERSION,LlK=/^(?:\\s*<[a-z][\\w-]*[\\s>]|\\[Request interrupted by user[^\\]]*\\])/;UFY=new Set([\"bash_progress\",\"powershell_progress\",\"mcp_progress\",...[]]);$O7=new Map;M2=A1((q)=>{return HG(Qp(),SX(q))});xlK=E9(),vO7=xlK.subscribe;TO7=E9(),VO7=TO7.subscribe;Jx6=A1(async(q)=>{let{messages:K}=await IlK(q);return new Set(K.keys())}"
+      },
+      {
+        "idx": 11558843,
+        "snip": "nthropics/claude-code/issues\",BUILD_TIME:\"2026-04-08T20:46:46Z\"}.VERSION,LlK=/^(?:\\s*<[a-z][\\w-]*[\\s>]|\\[Request interrupted by user[^\\]]*\\])/;UFY=new Set([\"bash_progress\",\"powershell_progress\",\"mcp_progress\",...[]]);$O7=new Map;M2=A1((q)=>{return HG(Qp(),SX(q))});xlK=E9(),vO7=xlK.subscribe;TO7=E9(),VO7=TO7.subscribe;Jx6=A1(async(q)=>{let{messages:K}=await IlK(q);return new Set(K.keys())},(q)=>q);MUY=new Set([])});var BlK={};f8(BlK,{buildCombinedMemoryPrompt:()=>vUY});function vUY(q,K=!1){let _=jw(),z=KB(),Y=K?[\"## How to save memories\",\"\",\"Write each memory to its own file in the chosen directory (private or team, per the type's scope guidance) using this frontmatter format:\",\"\",...DC6,\"\",\"- Keep the name, description, and type fields in memory files up-to-date with the content\",\"- Organize memory semantically by topic, not chronologically\",\"- Update or remove memories that turn out to be wrong or outdated\",\"- Do not write duplicate memories. First check if there is an existing memory you can update before writing a new one.\"]:[\"## How to save memories\",\"\",\"Saving a memory is a two-step process:\",\"\",\"**Step 1** — write the memory to its own file in the chosen directory (private or"
+      }
+    ],
+    "s96": [
+      {
+        "idx": 11516449,
+        "snip": " Qn8(q,K){let _,z=-1/0;for(let Y of q){if(!K(Y))continue;let O=Date.parse(Y.timestamp);if(O>z)z=O,_=Y}return _}function s56(q,K){let _=[],z=new Set,Y=K;while(Y){if(z.has(Y.uuid)){j6(Error(`Cycle detected in parentUuid chain at message ${Y.uuid}. Returning partial transcript.`)),d(\"tengu_chain_parent_cycle\",{});break}z.add(Y.uuid),_.push(Y);let O=Y.parentUuid;if(!O)break;let A=q.get(O);if(!A){if(A=MUY(q,Y,z),A)d(\"tengu_chain_timestamp_fallback\",{})}Y=A}return _.reverse(),XUY(q,_,z)}function MUY(q,K,_){let z=new Date(K.timestamp).getTime();if(Number.isNaN(z))return;let Y,O=1/0;for(let A of q.values()){if(_.has(A.uuid))continue;let $=new Date(A.timestamp).getTime();if(Number.isNaN($))continue;let w=z-$;if(w>=0&&w<=JUY&&w<O)O=w,Y=A}return Y}function XUY(q,K,_){let z=K.filter((J)=>J.type===\"assistant\");if(z.length===0)return K;let Y=new Map;for(let J of z)if(J.message.id)Y.set(J.message.id,J);let O=new Map,A=new Map;for(let J of q.values())if(J.type===\"assistant\"&&J.message.id){let M=O.get(J.message.id);if(M)M.push(J);else O.set(J.message.id,[J])}else if(J.type===\"user\"&&J.parentUuid&&Array.isArray(J.message.content)&&J.message.content.some((M)=>M.type===\"tool_result\")){let M=A.get(J.pa"
+      }
+    ]
+  },
+  "zQY": {
+    "c96": 2,
+    "c97": 2,
+    "s97": [
+      {
+        "idx": 11598527,
+        "snip": "ync function JnK(q,K,_,z,Y,A,O,$){let w=$||`hook-${eUY()}`,j=_===\"Stop\"||_===\"SubagentStop\";try{let H=j?`Based on the conversation transcript above, has the following stopping condition been satisfied? Answer based on transcript evidence only.\n\nCondition: ${q.prompt}`:q.prompt,J=Tn8(H,z);N(`Hooks: Processing prompt hook with prompt: ${J}`);let M=i8({content:J}),X=q.model??IW(),P=O&&O.length>0?[...zQY(O,X),M]:[M];N(`Hooks: Querying model with ${P.length} messages`);let D=q.timeout?q.timeout*1000:30000,{signal:W,cleanup:f}=CE(Y,{timeoutMs:D});try{let v=await zx6({messages:P,systemPrompt:eK([j?`You are evaluating a stop-condition hook in Claude Code. Read the conversation transcript carefully, then judge whether the user-provided condition is satisfied.\n\nYour response must be a JSON object with one of these shapes:\n- {\"ok\": true, \"reason\": \"<quote evidence from the transcript that satisfies the condition>\"}\n- {\"ok\": false, \"reason\": \"<quote what is missing or what blocks the condition>\"}\n\nAlways include a \"reason\" field, quoting specific text from the transcript whenever possible. If the transcript does not contain clear evidence that the condition is satisfied, return {\"ok\": false, \""
+      },
+      {
+        "idx": 11602284,
+        "snip": "KQY(q){for(let K=q.length-1;K>=0;K--){let _=q[K];if(_.type===\"assistant\"&&\"usage\"in _.message&&_.message.model!==io){let z=_.message.usage;return z.input_tokens+(z.cache_creation_input_tokens??0)+(z.cache_read_input_tokens??0)+z.output_tokens}}return 0}function _QY(q){let K=0;for(let _ of q)K+=_.type===\"assistant\"||_.type===\"user\"?ZN6(_.message.content):b6(_).length/4;return Math.ceil(K)}function zQY(q,K){let _=Cf(K)?1e6:eN1,z=Math.floor(_*qQY);if(KQY(q)<=z)return q;let Y=NU8(q),A=0,O=Y.length;for(let j=Y.length-1;j>=0;j--){let H=_QY(Y[j]);if(O<Y.length&&A+H>z)break;A+=H,O=j}let $=Y.slice(O).flat(),w=q.length-$.length;if(w<=0)return q;return N(`Hooks: truncated Stop transcript ${q.length}→${$.length} msgs (budget ${z}, model ${K})`),d(\"tengu_hook_prompt_transcript_truncated\",{droppedMessages:w,keptMessages:$.length,budget:z,evaluatorModel:K}),[i8({content:`[Earlier conversation truncated to fit the hook evaluator's context window — ${w} earlier messages omitted. Evaluate the condition against the recent transcript below; if the required evidence may be in the omitted prefix, return {\"ok\": false, \"reason\": \"insufficient evidence in transcript\"}.]`}),...$]}var qQY=0.7;var MnK=L(()=>{"
+      }
+    ],
+    "s96": [
+      {
+        "idx": 11576541,
+        "snip": "n zi8((async()=>{try{await Y$7();let _=rY(q);try{await fnK(K,_)}catch{await eUY(_),await fnK(K,_)}return _}catch(_){return j6(_),XB8(q)}})())}var TnK,knK=8388608,_i8=5368709120,z$7=\"5GB\",_$7,ZnK,Ki8;var KH=L(()=>{T8();L8();qq();S8();hz();TnK=WX6.O_NOFOLLOW??0;ZnK=new Set;Ki8=new Map});import{randomBytes as KQY}from\"crypto\";function Ma(q){return q===\"completed\"||q===\"failed\"||q===\"killed\"}function zQY(q){return _QY[q]??\"x\"}function jR(q){let K=zQY(q),_=KQY(8),z=K;for(let Y=0;Y<8;Y++)z+=VnK[_[Y]%VnK.length];return z}function B0(q,K,_,z){return{id:q,type:K,status:\"pending\",description:_,toolUseId:z,startTime:Date.now(),outputFile:rY(q),outputOffset:0,notified:!1}}var _QY,VnK=\"0123456789abcdefghijklmnopqrstuvwxyz\";var KV=L(()=>{KH();_QY={local_bash:\"b\",local_agent:\"a\",remote_agent:\"r\",in_process_teammate:\"t\",local_workflow:\"w\",monitor_mcp:\"m\",dream:\"d\"}});import{stat as YQY}from\"fs/promises\";function ynK(q,K){return K?`${q} ${K}`:q}class A$7{#q;#K=!1;#_;#Y;#z=this.#$.bind(this);constructor(q,K,_){this.#q=q,this.#_=K,this.#Y=_,q.setEncoding(\"utf-8\"),q.on(\"data\",this.#z)}#$(q){let K=typeof q===\"string\"?q:q.toString();if(this.#Y)this.#_.writeStderr(K);else this.#_.writeStdout(K)}cleanup()"
+      }
+    ]
+  },
+  "runWithCwd": {
+    "c96": 0,
+    "c97": 0,
+    "s97": [],
+    "s96": []
+  },
+  "AsyncLocalStorage": {
+    "c96": 6,
+    "c97": 6,
+    "s97": [
+      {
+        "idx": 880016,
+        "snip": ")}catch{try{A.mkdirSync(bb5(z)),A.appendFileSync(z,O)}catch{}}}function xb5(){return process.env.CLAUDE_CODE_DIAGNOSTICS_FILE}async function X06(q,K,_){let z=Date.now();Y1(\"info\",`${q}_started`);try{let Y=await K(),A=_?_(Y):{};return Y1(\"info\",`${q}_completed`,{duration_ms:Date.now()-z,...A}),Y}catch(Y){throw Y1(\"error\",`${q}_failed`,{duration_ms:Date.now()-z}),Y}}var yA=L(()=>{qq();l8()});import{AsyncLocalStorage as Ib5}from\"async_hooks\";function ub5(q,K){return cw8.run({cwd:q.normalize(\"NFC\")},K)}function Ig6(q,K){return ub5(q??Z8(),K)}function mS7(){return cw8.getStore()!==void 0}function E31(q){let K=cw8.getStore();if(K)K.cwd=q.normalize(\"NFC\");else Ia8(q)}function lw8(){return cw8.getStore()?.cwd??BI()}function Z8(){try{return lw8()}catch{return A7()}}var cw8;var U7=L(()=>{v8();cw8=new Ib5});import{readdir as mb5,readFile as Bb5}from\"fs/promises\";import{release as pb5}from\"os\";async function pS7(q){let K=new Set;if(process.env.P4PORT)K.add(\"perforce\");try{let _=q??X8().cwd(),z=new Set(await mb5(_));for(let[Y,A]of gb5)if(z.has(Y))K.add(A)}catch{}return[...K]}var L31,y1,Bz6,BS7,gb5;var VK=L(()=>{h4();qq();h8();L31=[\"macos\",\"wsl\"],y1=A1(()=>{try{if(process.platform===\"darwin\")ret"
+      },
+      {
+        "idx": 1691352,
+        "snip": "is.currentContext?.[q]}set(q,K){if(this.isProtectedKey(q))throw Error(`Cannot modify protected Lambda context field: ${String(q)}`);this.currentContext=this.currentContext||{},this.currentContext[q]=K}run(q,K){this.currentContext=q;try{return K()}finally{this.currentContext=void 0}}}class x$1 extends dJ8{als;static async create(){let q=new x$1,K=await import(\"node:async_hooks\");return q.als=new K.AsyncLocalStorage,q}getContext(){return this.als.getStore()}hasContext(){return this.als.getStore()!==void 0}get(q){return this.als.getStore()?.[q]}set(q,K){if(this.isProtectedKey(q))throw Error(`Cannot modify protected Lambda context field: ${String(q)}`);let _=this.als.getStore();if(!_)throw Error(\"No context available\");_[q]=K}run(q,K){return this.als.run(q,K)}}DA3.InvokeStore=void 0;(function(q){let K=null;async function _(){if(!K)K=(async()=>{let Y=\"AWS_LAMBDA_MAX_CONCURRENCY\"in process.env?await x$1.create():new Vs7;if(!C$1&&globalThis.awslambda?.InvokeStore)return globalThis.awslambda.InvokeStore;else if(!C$1&&globalThis.awslambda)return globalThis.awslambda.InvokeStore=Y,Y;else return Y})();return K}q.getInstanceAsync=_,q._testing=process.env.AWS_LAMBDA_BENCHMARK_MODE===\"1\"?{reset:"
+      },
+      {
+        "idx": 2426960,
+        "snip": "= -p $currentpid 2>/dev/null); if [ -n \"$cmd\" ]; then printf '%s\\\\0' \"$cmd\"; fi; ppid=$(ps -o ppid= -p $currentpid 2>/dev/null | tr -d ' '); if [ -z \"$ppid\" ] || [ \"$ppid\" = \"0\" ] || [ \"$ppid\" = \"1\" ]; then break; fi; currentpid=$ppid; done`,z=await y7(\"sh\",[\"-c\",_],{timeout:3000});if(z.code!==0||!z.stdout?.trim())return[];return z.stdout.split(\"\\x00\").filter(Boolean)}var PA6=L(()=>{KK()});import{AsyncLocalStorage as fR9}from\"async_hooks\";function KD(){return Q01.getStore()}function LD8(q,K){return Q01.run(q,K)}function mW(){return Q01.getStore()!==void 0}function hD8(q){return{...q,isInProcess:!0}}var Q01;var Xv=L(()=>{Q01=new fR9});var l01={};f8(l01,{waitForTeammatesToBecomeIdle:()=>c01,setDynamicTeamContext:()=>ZR9,runWithTeammateContext:()=>LD8,isTeammate:()=>kz,isTeamLead:()=>Pv,isPlanModeRequired:()=>Fd6,isInProcessTeammate:()=>mW,hasWorkingInProcessTeammates:()=>d01,hasActiveInProcessTeammates:()=>RD8,getTeammateContext:()=>KD,getTeammateColor:()=>Cj,getTeamName:()=>_9,getParentSessionId:()=>eF,getDynamicTeamContext:()=>gd6,getAgentName:()=>P_,getAgentId:()=>_D,createTeammateContext:()=>hD8,clearDynamicTeamContext:()=>GR9});function eF(){let q=KD();if(q)return q.parentSessio"
+      }
+    ],
+    "s96": [
+      {
+        "idx": 877851,
+        "snip": ")}catch{try{O.mkdirSync(_x5(z)),O.appendFileSync(z,A)}catch{}}}function zx5(){return process.env.CLAUDE_CODE_DIAGNOSTICS_FILE}async function Rf6(q,K,_){let z=Date.now();s8(\"info\",`${q}_started`);try{let Y=await K(),O=_?_(Y):{};return s8(\"info\",`${q}_completed`,{duration_ms:Date.now()-z,...O}),Y}catch(Y){throw s8(\"error\",`${q}_failed`,{duration_ms:Date.now()-z}),Y}}var $O=L(()=>{qq();n8()});import{AsyncLocalStorage as Yx5}from\"async_hooks\";function M28(q,K){return XC7.run(q,K)}function X28(){return XC7.getStore()??nI()}function G8(){try{return X28()}catch{return A7()}}var XC7;var Q7=L(()=>{T8();XC7=new Yx5});import{readdir as Ox5,readFile as Ax5}from\"fs/promises\";import{release as $x5}from\"os\";async function WC7(q){let K=new Set;if(process.env.P4PORT)K.add(\"perforce\");try{let _=q??P8().cwd(),z=new Set(await Ox5(_));for(let[Y,O]of wx5)if(z.has(Y))K.add(O)}catch{}return[...K]}var M91,N1,az6,PC7,wx5;var RK=L(()=>{I4();qq();S8();M91=[\"macos\",\"wsl\"],N1=Y1(()=>{try{if(process.platform===\"darwin\")return\"macos\";if(process.platform===\"win32\")return\"windows\";if(process.platform===\"linux\"){try{let q=P8().readFileSync(\"/proc/version\",{encoding:\"utf8\"});if(q.toLowerCase().includes(\"microsoft\")||"
+      }
+    ]
+  },
+  "store.cwd": {
+    "c96": 0,
+    "c97": 0,
+    "s97": [],
+    "s96": []
+  },
+  "{cwd:": {
+    "c96": 6,
+    "c97": 6,
+    "s97": [
+      {
+        "idx": 880092,
+        "snip": "){return process.env.CLAUDE_CODE_DIAGNOSTICS_FILE}async function X06(q,K,_){let z=Date.now();Y1(\"info\",`${q}_started`);try{let Y=await K(),A=_?_(Y):{};return Y1(\"info\",`${q}_completed`,{duration_ms:Date.now()-z,...A}),Y}catch(Y){throw Y1(\"error\",`${q}_failed`,{duration_ms:Date.now()-z}),Y}}var yA=L(()=>{qq();l8()});import{AsyncLocalStorage as Ib5}from\"async_hooks\";function ub5(q,K){return cw8.run({cwd:q.normalize(\"NFC\")},K)}function Ig6(q,K){return ub5(q??Z8(),K)}function mS7(){return cw8.getStore()!==void 0}function E31(q){let K=cw8.getStore();if(K)K.cwd=q.normalize(\"NFC\");else Ia8(q)}function lw8(){return cw8.getStore()?.cwd??BI()}function Z8(){try{return lw8()}catch{return A7()}}var cw8;var U7=L(()=>{v8();cw8=new Ib5});import{readdir as mb5,readFile as Bb5}from\"fs/promises\";import{release as pb5}from\"os\";async function pS7(q){let K=new Set;if(process.env.P4PORT)K.add(\"perforce\");try{let _=q??X8().cwd(),z=new Set(await mb5(_));for(let[Y,A]of gb5)if(z.has(Y))K.add(A)}catch{}return[...K]}var L31,y1,Bz6,BS7,gb5;var VK=L(()=>{h4();qq();h8();L31=[\"macos\",\"wsl\"],y1=A1(()=>{try{if(process.platform===\"darwin\")return\"macos\";if(process.platform===\"win32\")return\"windows\";if(process.platform"
+      },
+      {
+        "idx": 902380,
+        "snip": "e/\"+K[1]).length);return z+\":\"+(Y||\"\\\\\").replaceAll(\"/\",\"\\\\\")}let _=q.match(/^\\/([A-Za-z])(\\/|$)/);if(_){let z=_[1].toUpperCase(),Y=q.slice(2);return z+\":\"+(Y||\"\\\\\").replaceAll(\"/\",\"\\\\\")}return q.replaceAll(\"/\",\"\\\\\")},(q)=>q,500)});import{execFile as rb5}from\"child_process\";import{promisify as ob5}from\"util\";async function aw8(q){try{let{stdout:K}=await ab5(\"git\",[\"worktree\",\"list\",\"--porcelain\"],{cwd:q,timeout:5000});if(!K)return[];return K.split(`\n`).filter((_)=>_.startsWith(\"worktree \")).map((_)=>_.slice(9).normalize(\"NFC\"))}catch{return[]}}var ab5;var sw8=L(()=>{ab5=ob5(rb5)});import{open as cS7,readdir as kdA,realpath as NdA,stat as ydA}from\"fs/promises\";import{join as lS7}from\"path\";function nS7(q){if(typeof q!==\"string\")return null;return sb5.test(q)?q:null}function iS7(q){if(!q.includes(\"\\\\\"))return q;try{return JSON.parse(`\"${q}\"`)}catch{return q}}function ln(q,K){let _=[`\"${K}\":\"`,`\"${K}\": \"`];for(let z of _){let Y=q.indexOf(z);if(Y<0)continue;let A=Y+z.length,O=A;while(O<q.length){if(q[O]===\"\\\\\"){O+=2;continue}if(q[O]==='\"')return iS7(q.slice(A,O));O++}}return}function cT(q,K){let _=[`\"${K}\":\"`,`\"${K}\": \"`],z,Y=-1;for(let A of _){let O=0;while(!0){let $=q.indexOf(A,O);if"
+      },
+      {
+        "idx": 920539,
+        "snip": "\"string\"?\"\\r\":\"\\r\".charCodeAt();if(q[q.length-1]===K)q=q.slice(0,-1);if(q[q.length-1]===_)q=q.slice(0,-1);return q}function $28(q={}){let{env:K=process.env,platform:_=process.platform}=q;if(_!==\"win32\")return\"PATH\";return Object.keys(K).reverse().find((z)=>z.toUpperCase()===\"PATH\")||\"Path\"}import w28 from\"node:process\";import gg6 from\"node:path\";import{fileURLToPath as sC7}from\"node:url\";var ox5=({cwd:q=w28.cwd(),path:K=w28.env[$28()],preferLocal:_=!0,execPath:z=w28.execPath,addExecPath:Y=!0}={})=>{let A=q instanceof URL?sC7(q):q,O=gg6.resolve(A),$=[];if(_)ax5($,O);if(Y)sx5($,z,O);return[...$,K].join(gg6.delimiter)},ax5=(q,K)=>{let _;while(_!==K)q.push(gg6.join(K,\"node_modules/.bin\")),_=K,K=gg6.resolve(K,\"..\")},sx5=(q,K,_)=>{let z=K instanceof URL?sC7(K):K;q.push(gg6.resolve(_,z,\"..\"))},tC7=({env:q=w28.env,...K}={})=>{q={...q};let _=$28({env:q});return K.path=q[_],q[_]=ox5(K),q};var eC7=()=>{};function r31(q,K,{ignoreNonConfigurable:_=!1}={}){let{name:z}=q;for(let Y of Reflect.ownKeys(K))tx5(q,K,Y,_);return qI5(q,K),YI5(q,K,z),q}var tx5=(q,K,_,z)=>{if(_===\"length\"||_===\"prototype\")return;if(_===\"arguments\"||_===\"caller\")return;let Y=Object.getOwnPropertyDescriptor(q,_),A=Object.get"
+      }
+    ],
+    "s96": [
+      {
+        "idx": 900012,
+        "snip": "rive/\"+K[1]).length);return z+\":\"+(Y||\"\\\\\").replace(/\\//g,\"\\\\\")}let _=q.match(/^\\/([A-Za-z])(\\/|$)/);if(_){let z=_[1].toUpperCase(),Y=q.slice(2);return z+\":\"+(Y||\"\\\\\").replace(/\\//g,\"\\\\\")}return q.replace(/\\//g,\"\\\\\")},(q)=>q,500)});import{execFile as fx5}from\"child_process\";import{promisify as Zx5}from\"util\";async function Z28(q){try{let{stdout:K}=await Gx5(\"git\",[\"worktree\",\"list\",\"--porcelain\"],{cwd:q,timeout:5000});if(!K)return[];return K.split(`\n`).filter((_)=>_.startsWith(\"worktree \")).map((_)=>_.slice(9).normalize(\"NFC\"))}catch{return[]}}var Gx5;var G28=L(()=>{Gx5=Zx5(fx5)});import{open as TC7,readdir as wcO,realpath as jcO,stat as HcO}from\"fs/promises\";import{join as kC7}from\"path\";function VC7(q){if(typeof q!==\"string\")return null;return vx5.test(q)?q:null}function NC7(q){if(!q.includes(\"\\\\\"))return q;try{return JSON.parse(`\"${q}\"`)}catch{return q}}function A86(q,K){let _=[`\"${K}\":\"`,`\"${K}\": \"`];for(let z of _){let Y=q.indexOf(z);if(Y<0)continue;let O=Y+z.length,A=O;while(A<q.length){if(q[A]===\"\\\\\"){A+=2;continue}if(q[A]==='\"')return NC7(q.slice(O,A));A++}}return}function rT(q,K){let _=[`\"${K}\":\"`,`\"${K}\": \"`],z;for(let Y of _){let O=0;while(!0){let A=q.indexOf(Y,O);if(A<0"
+      }
+    ]
+  },
+  "hook_success": {
+    "c96": 6,
+    "c97": 6,
+    "s97": [
+      {
+        "idx": 8829530,
+        "snip": "Lq.default.createElement(jJ,{color:\"error\"},O):null)}case\"hook_non_blocking_error\":{if(q.hookEvent===\"Stop\"||q.hookEvent===\"SubagentStop\")return null;return Lq.default.createElement(jJ,{color:\"error\"},q.hookName,\" hook error\")}case\"hook_error_during_execution\":if(q.hookEvent===\"Stop\"||q.hookEvent===\"SubagentStop\")return null;return Lq.default.createElement(jJ,null,q.hookName,\" hook warning\");case\"hook_success\":return null;case\"hook_stopped_continuation\":if(q.hookEvent===\"Stop\"||q.hookEvent===\"SubagentStop\")return null;return Lq.default.createElement(jJ,{color:\"warning\"},q.hookName,\" hook stopped continuation: \",q.message);case\"hook_deferred_tool\":return Lq.default.createElement(jJ,{color:\"warning\"},q.hookName,\" deferred \",q.toolName,\" · resume with -p --resume to continue\");case\"hook_system_message\":return Lq.default.createElement(jJ,null,q.hookName,\" says: \",q.content);case\"hook_permission_decision\":{let O=q.decision===\"allow\"?\"Allowed\":\"Denied\";return Lq.default.createElement(jJ,null,O,\" by \",Lq.default.createElement(T,{bold:!0},q.hookEvent),\" hook\")}case\"task_status\":return Lq.default.createElement(z3Y,{attachment:q});case\"teammate_shutdown_batch\":return Lq.default.createElement"
+      },
+      {
+        "idx": 9569034,
+        "snip": "D++;let k=V.message.data;if(k.command)v.push({command:k.command,promptText:k.promptText})}if(V.message.type===\"attachment\"){let k=V.message.attachment;if(\"hookEvent\"in k&&(k.hookEvent===\"Stop\"||k.hookEvent===\"SubagentStop\")){if(k.type===\"hook_non_blocking_error\")Z.push(k.stderr||`Exit code ${k.exitCode}`),G=!0;else if(k.type===\"hook_error_during_execution\")Z.push(k.content),G=!0;else if(k.type===\"hook_success\"){if(k.stdout&&k.stdout.trim()||k.stderr&&k.stderr.trim())G=!0}if(\"durationMs\"in k&&\"command\"in k){let h=v.find((E)=>E.command===k.command&&E.durationMs===void 0);if(h)h.durationMs=k.durationMs}}}}if(V.blockingError){let k=i8({content:C47(V.blockingError),isMeta:!0});H.push(k),yield k,G=!0,Z.push(V.blockingError.blockingError)}if(V.preventContinuation)W=!0,f=V.stopReason||\"Stop hook prevented continuation\",yield O4({type:\"hook_stopped_continuation\",message:f,hookName:\"Stop\",toolUseID:P,hookEvent:\"Stop\"});if(A.abortController.signal.aborted)return d(\"tengu_pre_stop_hooks_cancelled\",{queryChainId:A.queryTracking?.chainId,queryDepth:A.queryTracking?.depth}),yield Us({toolUse:!1}),{blockingErrors:[],preventContinuation:!0}}if(D>0){if(yield wvK(D,v,Z,W,f,G,\"suggestion\",P),Z.length>"
+      },
+      {
+        "idx": 9848365,
+        "snip": "h-1]=O;else z.push(O);continue}z.push(O)}for(let O of K)z.push(O);let A=z.at(-1);return z.filter((O)=>O.type!==\"system\"||O.subtype!==\"api_error\"||O===A)}function GK8(q){return q.type===\"attachment\"&&(q.attachment.type===\"hook_blocking_error\"||q.attachment.type===\"hook_cancelled\"||q.attachment.type===\"hook_error_during_execution\"||q.attachment.type===\"hook_non_blocking_error\"||q.attachment.type===\"hook_success\"||q.attachment.type===\"hook_system_message\"||q.attachment.type===\"hook_additional_context\"||q.attachment.type===\"hook_stopped_continuation\"||q.attachment.type===\"hook_deferred_tool\")}function xkK(q,K){let _=new Map,z=new Map,Y=new Map;for(let W of K)if(W.type===\"assistant\"){let f=W.message.id,G=_.get(f);if(!G)G=new Set,_.set(f,G);for(let Z of W.message.content)if(Z.type===\"tool_use\")G.add(Z.id),z.set(Z.id,f),Y.set(Z.id,Z)}let A=new Map;for(let[W,f]of z)A.set(W,_.get(f));let O=new Map,$=new Map,w=new Map,j=new Map,H=new Map,J=new Set,M=new Set;for(let W of q){if(W.type===\"progress\"){let f=W.parentToolUseID,G=O.get(f);if(G)G.push(W);else O.set(f,[W]);if(W.data.type===\"hook_progress\"){let Z=W.data.hookEvent,v=$.get(f);if(!v)v=new Map,$.set(f,v);v.set(Z,(v.get(Z)??0)+1)}}if(W.type"
+      }
+    ],
+    "s96": [
+      {
+        "idx": 8338304,
+        "snip": "Rq.default.createElement($J,{color:\"error\"},A):null)}case\"hook_non_blocking_error\":{if(q.hookEvent===\"Stop\"||q.hookEvent===\"SubagentStop\")return null;return Rq.default.createElement($J,{color:\"error\"},q.hookName,\" hook error\")}case\"hook_error_during_execution\":if(q.hookEvent===\"Stop\"||q.hookEvent===\"SubagentStop\")return null;return Rq.default.createElement($J,null,q.hookName,\" hook warning\");case\"hook_success\":return null;case\"hook_stopped_continuation\":if(q.hookEvent===\"Stop\"||q.hookEvent===\"SubagentStop\")return null;return Rq.default.createElement($J,{color:\"warning\"},q.hookName,\" hook stopped continuation: \",q.message);case\"hook_deferred_tool\":return Rq.default.createElement($J,{color:\"warning\"},q.hookName,\" deferred \",q.toolName,\" · resume with -p --resume to continue\");case\"hook_system_message\":return Rq.default.createElement($J,null,q.hookName,\" says: \",q.content);case\"hook_permission_decision\":{let A=q.decision===\"allow\"?\"Allowed\":\"Denied\";return Rq.default.createElement($J,null,A,\" by \",Rq.default.createElement(T,{bold:!0},q.hookEvent),\" hook\")}case\"task_status\":return Rq.default.createElement(Dsz,{attachment:q});case\"teammate_shutdown_batch\":return Rq.default.createElement"
+      }
+    ]
+  },
+  "pending|opened|blocked": {
+    "c96": 0,
+    "c97": 0,
+    "s97": [],
+    "s96": []
+  },
+  "onOpenRateLimitOptions": {
+    "c96": 6,
+    "c97": 6,
+    "s97": [
+      {
+        "idx": 8779441,
+        "snip": "age-billed account.\"}if(Y){if(!w)return null;if(A)return\"/extra-usage to finish what you’re working on.\";return\"/extra-usage to request more usage from your admin.\"}if(O){if(w)return\"/extra-usage to finish what you’re working on.\";return null}if(!w)return\"/upgrade to increase your usage limit.\";return\"/upgrade or /extra-usage to finish what you’re working on.\"}function TjK(q){let K=_6(27),{text:_,onOpenRateLimitOptions:z}=q,Y;if(K[0]===Symbol.for(\"react.memo_cache_sentinel\"))Y=$K(),K[0]=Y;else Y=K[0];let A=Y,O;if(K[1]===Symbol.for(\"react.memo_cache_sentinel\"))O=EU(),K[1]=O;else O=K[1];let $=O,w=A===\"team\"||A===\"enterprise\",j=A===\"max\"&&$===\"default_claude_max_20x\",H;if(K[2]===Symbol.for(\"react.memo_cache_sentinel\"))H=aZ6()||I7(),K[2]=H;else H=K[2];let J=H,M=t56(),X=M.upgradePaths,P;if(K[3]!==X)P=X!==void 0&&!X.includes(\"upgrade_plan\"),K[3]=X,K[4]=P;else P=K[4];let D=P,W;if(K[5]!==X)W=X!==void 0&&!X.includes(\"overage\"),K[5]=X,K[6]=W;else W=K[6];let f=W,G;if(K[7]===Symbol.for(\"react.memo_cache_sentinel\"))G=R8(\"tengu_coral_beacon\",!1)&&!w&&!B6(process.env.DISABLE_UPGRADE_COMMAND),K[7]=G;else G=K[7];let Z=G,v;if(K[8]===Symbol.for(\"react.memo_cache_sentinel\"))v=s56.isEnabled(),K[8]=v;el"
+      },
+      {
+        "idx": 8782138,
+        "snip": "let _=K,z;if(q[1]===Symbol.for(\"react.memo_cache_sentinel\"))z=j9.default.createElement(O1,null,j9.default.createElement(u,{flexDirection:\"column\"},j9.default.createElement(T,{color:\"error\"},qg8),_&&j9.default.createElement(T,{dimColor:!0},\"· Run in another terminal: security unlock-keychain\"))),q[1]=z;else z=q[1];return z}function NjK(q){let K=_6(57),{param:_,addMargin:z,shouldShowDot:Y,verbose:A,onOpenRateLimitOptions:O,messageUuid:$}=q,{text:w}=_,j=j9.useContext(Ga),H=j9.useContext(lj6),J=Un4(),M=Qn4(),X=J===$,P=$h6($),[D,W]=j9.useState(null);if(iy6(w))return null;if(NR4(w)){let f;if(K[0]!==O||K[1]!==w)f=j9.default.createElement(TjK,{text:w,onOpenRateLimitOptions:O}),K[0]=O,K[1]=w,K[2]=f;else f=K[2];return f}switch(w){case wJ6:return null;case vp:{let f;if(K[3]===Symbol.for(\"react.memo_cache_sentinel\"))f=Oh6(\"warning\"),K[3]=f;else f=K[3];let G=f,Z;if(K[4]===Symbol.for(\"react.memo_cache_sentinel\"))Z=j9.default.createElement(O1,{height:1},j9.default.createElement(T,{color:\"error\"},\"Context limit reached · /compact or /clear to continue\",G?` · ${G}`:\"\")),K[4]=Z;else Z=K[4];return Z}case ep8:{let f;if(K[5]===Symbol.for(\"react.memo_cache_sentinel\"))f=j9.default.createElement(O1,{heigh"
+      },
+      {
+        "idx": 8782389,
+        "snip": "other terminal: security unlock-keychain\"))),q[1]=z;else z=q[1];return z}function NjK(q){let K=_6(57),{param:_,addMargin:z,shouldShowDot:Y,verbose:A,onOpenRateLimitOptions:O,messageUuid:$}=q,{text:w}=_,j=j9.useContext(Ga),H=j9.useContext(lj6),J=Un4(),M=Qn4(),X=J===$,P=$h6($),[D,W]=j9.useState(null);if(iy6(w))return null;if(NR4(w)){let f;if(K[0]!==O||K[1]!==w)f=j9.default.createElement(TjK,{text:w,onOpenRateLimitOptions:O}),K[0]=O,K[1]=w,K[2]=f;else f=K[2];return f}switch(w){case wJ6:return null;case vp:{let f;if(K[3]===Symbol.for(\"react.memo_cache_sentinel\"))f=Oh6(\"warning\"),K[3]=f;else f=K[3];let G=f,Z;if(K[4]===Symbol.for(\"react.memo_cache_sentinel\"))Z=j9.default.createElement(O1,{height:1},j9.default.createElement(T,{color:\"error\"},\"Context limit reached · /compact or /clear to continue\",G?` · ${G}`:\"\")),K[4]=Z;else Z=K[4];return Z}case ep8:{let f;if(K[5]===Symbol.for(\"react.memo_cache_sentinel\"))f=j9.default.createElement(O1,{height:1},j9.default.createElement(T,{color:\"error\"},\"Credit balance too low · Add funds: https://platform.claude.com/settings/billing\")),K[5]=f;else f=K[5];return f}case qg8:{let f;if(K[6]===Symbol.for(\"react.memo_cache_sentinel\"))f=j9.default.createEleme"
+      }
+    ],
+    "s96": [
+      {
+        "idx": 8281588,
+        "snip": "age-billed account.\"}if(Y){if(!_)return null;if(O)return\"/extra-usage to finish what you’re working on.\";return\"/extra-usage to request more usage from your admin.\"}if(A){if(_)return\"/extra-usage to finish what you’re working on.\";return null}if(!_)return\"/upgrade to increase your usage limit.\";return\"/upgrade or /extra-usage to finish what you’re working on.\"}function C_K(q){let K=K6(20),{text:_,onOpenRateLimitOptions:z}=q,Y;if(K[0]===Symbol.for(\"react.memo_cache_sentinel\"))Y=MK(),K[0]=Y;else Y=K[0];let O=Y,A;if(K[1]===Symbol.for(\"react.memo_cache_sentinel\"))A=hU(),K[1]=A;else A=K[1];let $=A,w=O===\"team\"||O===\"enterprise\",j=O===\"max\"&&$===\"default_claude_max_20x\",H;if(K[2]===Symbol.for(\"react.memo_cache_sentinel\"))H=XG6()||p7(),K[2]=H;else H=K[2];let J=H,M=m56(),X=M.upgradePaths,P;if(K[3]!==X)P=X!==void 0&&!X.includes(\"upgrade_plan\"),K[3]=X,K[4]=P;else P=K[4];let W=P,D;if(K[5]===Symbol.for(\"react.memo_cache_sentinel\"))D=C8(\"tengu_amber_lantern\",!1)&&!w&&!p6(process.env.DISABLE_UPGRADE_COMMAND),K[5]=D;else D=K[5];let G=J&&(!j||D),[Z,v]=vs.useState(!1),k=M.status===\"rejected\"&&M.resetsAt!==void 0&&!M.isUsingOverage,V=G&&!Z&&k&&z,E,y;if(K[6]!==z||K[7]!==V)E=()=>{if(V)v(!0),z()},y=[V,"
+      }
+    ]
+  },
+  "rateLimitOptions": {
+    "c96": 0,
+    "c97": 0,
+    "s97": [],
+    "s96": []
+  },
+  "Loading conversations": {
+    "c96": 2,
+    "c97": 2,
+    "s97": [
+      {
+        "idx": 11018594,
+        "snip": "t sX(V.command);if(k)process.stdout.write(k);let h=[\"\",\"This conversation is from a different directory.\",\"\",\"To resume, run:\",`  ${V.command}`,\"\",\"(Command copied to clipboard)\",\"\"].join(`\n`);q(h,{display:\"user\"});return}j(!0),K(Z,v,\"slash_command_picker\")}function f(){q(\"Resume cancelled\",{display:\"system\"})}if(O)return g9.createElement(u,null,g9.createElement(EK,null),g9.createElement(T,null,\" Loading conversations…\"));if(w)return g9.createElement(u,null,g9.createElement(EK,null),g9.createElement(T,null,\" Resuming conversation…\"));return g9.createElement(tc8,{logs:_,maxHeight:X?Math.floor(M/2):M-2,onCancel:f,onSelect:W,onLogsChanged:()=>P(H,Y),showAllProjects:H,onToggleAllProjects:D,onAgenticSearch:ec8})}function MBK(q,K){return q.filter((_)=>!_.isSidechain&&pA(_)!==K)}var g9,_bY=async(q,K,_)=>{let z=async(j,H,J)=>{try{await K.resume?.(j,H,J),q(void 0,{display:\"skip\"})}catch(M){w6(M),q(`Failed to resume: ${M.message}`)}},Y=_?.trim();if(!Y)return g9.createElement(KbY,{key:Date.now(),onDone:q,onResume:z});let A=await It(A7()),O=await Kl8(A);if(O.length===0)return g9.createElement(MY7,{message:\"No conversations found to resume.\",args:Y,onDone:()=>q(\"No conversations found to resume"
+      },
+      {
+        "idx": 12623740,
+        "snip": "AgentColor:m.agentColor,mcpClients:z,dynamicMcpConfig:Y,strictMcpConfig:w,systemPrompt:j,appendSystemPrompt:H,mainThreadAgentDefinition:m.mainThreadAgentDefinition,autoConnectIdeFlag:$,disableSlashCommands:M,taskListId:P,thinkingConfig:W,onTurnComplete:f});if(h&&(V.length===0||O6.length===0))return JY.default.createElement(u,null,JY.default.createElement(EK,null),JY.default.createElement(T,null,\" Loading conversations…\"));if(R)return JY.default.createElement(u,null,JY.default.createElement(EK,null),JY.default.createElement(T,null,\" Resuming conversation…\"));if(O6.length===0&&!h)return JY.default.createElement(T4A,null);return JY.default.createElement(tc8,{logs:O6,maxHeight:G,onCancel:W6,onSelect:v6,onLogsChanged:i?()=>J6(I):void 0,onLoadMore:K6,initialSearchQuery:J,isLoading:h,reloadGeneration:c,showAllProjects:I,onToggleAllProjects:H6,onAgenticSearch:ec8})}function T4A(){let q=_6(2),K;if(q[0]===Symbol.for(\"react.memo_cache_sentinel\"))K={context:\"Global\"},q[0]=K;else K=q[0];D1(\"app:interrupt\",V4A,K);let _;if(q[1]===Symbol.for(\"react.memo_cache_sentinel\"))_=JY.default.createElement(u,{flexDirection:\"column\"},JY.default.createElement(T,null,\"No conversations found to resume.\"),JY.def"
+      }
+    ],
+    "s96": [
+      {
+        "idx": 10986841,
+        "snip": "t KP(k.command);if(V)process.stdout.write(V);let E=[\"\",\"This conversation is from a different directory.\",\"\",\"To resume, run:\",`  ${k.command}`,\"\",\"(Command copied to clipboard)\",\"\"].join(`\n`);q(E,{display:\"user\"});return}j(!0),K(Z,v,\"slash_command_picker\")}function f(){q(\"Resume cancelled\",{display:\"system\"})}if(A)return t9.createElement(u,null,t9.createElement(xK,null),t9.createElement(T,null,\" Loading conversations…\"));if(w)return t9.createElement(u,null,t9.createElement(xK,null),t9.createElement(T,null,\" Resuming conversation…\"));return t9.createElement(yl8,{logs:_,maxHeight:X?Math.floor(M/2):M-2,onCancel:f,onSelect:D,onLogsChanged:()=>P(H,Y),showAllProjects:H,onToggleAllProjects:W,onAgenticSearch:El8})}function WpK(q,K){return q.filter((_)=>!_.isSidechain&&iO(_)!==K)}var t9,QCY=async(q,K,_)=>{let z=async(j,H,J)=>{try{await K.resume?.(j,H,J),q(void 0,{display:\"skip\"})}catch(M){j6(M),q(`Failed to resume: ${M.message}`)}},Y=_?.trim();if(!Y)return t9.createElement(UCY,{key:Date.now(),onDone:q,onResume:z});let O=await Ct(A7()),A=await hl8(O);if(A.length===0)return t9.createElement(IY7,{message:\"No conversations found to resume.\",args:Y,onDone:()=>q(\"No conversations found to resume"
+      }
+    ]
+  },
+  "recordSidechainTranscript": {
+    "c96": 1,
+    "c97": 1,
+    "s97": [
+      {
+        "idx": 11508310,
+        "snip": "rktreeState:()=>ZE,savePermissionMode:()=>kO7,saveMode:()=>OUY,saveCustomTitle:()=>np,saveAiGeneratedTitle:()=>fO7,saveAgentSetting:()=>M38,saveAgentName:()=>xM6,saveAgentColor:()=>Dd8,restoreSessionMetadata:()=>jl,resetSessionFilePointer:()=>YI,resetProjectForTesting:()=>lFY,resetProjectFlushStateForTesting:()=>cFY,removeTranscriptMessage:()=>MO7,removeExtraFields:()=>VS6,recordTranscript:()=>PB,recordSidechainTranscript:()=>Zd,recordQueueOperation:()=>zg1,recordFileHistorySnapshot:()=>E68,recordContextCollapseSnapshot:()=>aFY,recordContextCollapseCommit:()=>oFY,recordContentReplacement:()=>iJ6,recordAttributionSnapshot:()=>rFY,readRemoteAgentMetadata:()=>QFY,readAgentMetadata:()=>A47,reAppendSessionMetadata:()=>SU8,loadTranscriptFromFile:()=>qUY,loadTranscriptFile:()=>ds,loadSubagentTranscripts:()=>Jn8,loadSameRepoMessageLogsProgressive:()=>X38,loadSameRepoMessageLogs:()=>Kl8,loadMessageLogs:()=>kS6,loadFullLog:()=>Qs,loadAllSubagentTranscriptsFromDisk:()=>CK8,loadAllProjectsMessageLogsProgressive:()=>Hn8,loadAllProjectsMessageLogs:()=>XY7,loadAllLogsFromSessionFile:()=>zn8,listRemoteAgentMetadata:()=>k17,linkSessionToPR:()=>AUY,isTranscriptMessage:()=>ns,isLoggableMessage:()=>oM"
+      }
+    ],
+    "s96": [
+      {
+        "idx": 11496644,
+        "snip": "rktreeState:()=>NE,savePermissionMode:()=>aA7,saveMode:()=>vUY,saveCustomTitle:()=>iB,saveAiGeneratedTitle:()=>cA7,saveAgentSetting:()=>N38,saveAgentName:()=>rM6,saveAgentColor:()=>cd8,restoreSessionMetadata:()=>$l,resetSessionFilePointer:()=>PI,resetProjectForTesting:()=>OUY,resetProjectFlushStateForTesting:()=>YUY,removeTranscriptMessage:()=>gA7,removeExtraFields:()=>xR6,recordTranscript:()=>Dp,recordSidechainTranscript:()=>wc,recordQueueOperation:()=>ng1,recordFileHistorySnapshot:()=>Q78,recordContextCollapseSnapshot:()=>HUY,recordContextCollapseCommit:()=>jUY,recordContentReplacement:()=>AM6,recordAttributionSnapshot:()=>wUY,readRemoteAgentMetadata:()=>_UY,readAgentMetadata:()=>lq7,reAppendSessionMetadata:()=>wQ8,loadTranscriptFromFile:()=>PUY,loadTranscriptFile:()=>Rs,loadSubagentTranscripts:()=>in8,loadSameRepoMessageLogsProgressive:()=>y38,loadSameRepoMessageLogs:()=>hl8,loadMessageLogs:()=>IR6,loadFullLog:()=>hs,loadAllSubagentTranscriptsFromDisk:()=>QK8,loadAllProjectsMessageLogsProgressive:()=>nn8,loadAllProjectsMessageLogs:()=>uY7,loadAllLogsFromSessionFile:()=>Bn8,listRemoteAgentMetadata:()=>z67,linkSessionToPR:()=>GUY,isTranscriptMessage:()=>bs,isLoggableMessage:()=>MX"
+      }
+    ]
+  },
+  "isLoggableMessage": {
+    "c96": 1,
+    "c97": 1,
+    "s97": [
+      {
+        "idx": 11509086,
+        "snip": ":()=>ds,loadSubagentTranscripts:()=>Jn8,loadSameRepoMessageLogsProgressive:()=>X38,loadSameRepoMessageLogs:()=>Kl8,loadMessageLogs:()=>kS6,loadFullLog:()=>Qs,loadAllSubagentTranscriptsFromDisk:()=>CK8,loadAllProjectsMessageLogsProgressive:()=>Hn8,loadAllProjectsMessageLogs:()=>XY7,loadAllLogsFromSessionFile:()=>zn8,listRemoteAgentMetadata:()=>k17,linkSessionToPR:()=>AUY,isTranscriptMessage:()=>ns,isLoggableMessage:()=>oM6,isLiteLog:()=>Lp,isEphemeralToolProgress:()=>OO7,isCustomTitleEnabled:()=>pt,isChainParticipant:()=>T96,hydrateRemoteSession:()=>XO7,hydrateFromCCRv2InternalEvents:()=>PO7,getUserType:()=>An8,getTranscriptPathForSession:()=>vT,getTranscriptPath:()=>lY,getSessionIdFromLog:()=>pA,getSessionFilesWithMtime:()=>O38,getSessionFilesLite:()=>wx6,getProjectsDir:()=>Qp,getProjectDir:()=>M2,getNodeEnv:()=>SlK,getLogByIndex:()=>PUY,getLastSessionLog:()=>Cq8,getFirstMeaningfulUserMessageTextContent:()=>B58,getCurrentSessionTitle:()=>CD,getCurrentSessionAgentName:()=>GO7,getCurrentSessionAgentColor:()=>ZO7,getAgentTranscriptPath:()=>SD,getAgentTranscript:()=>z36,flushSessionStorage:()=>fR,fireSessionMirror:()=>zU1,findUnresolvedToolUse:()=>EO7,findDeferredToolMarkerInTranscript"
+      }
+    ],
+    "s96": [
+      {
+        "idx": 11497420,
+        "snip": ":()=>Rs,loadSubagentTranscripts:()=>in8,loadSameRepoMessageLogsProgressive:()=>y38,loadSameRepoMessageLogs:()=>hl8,loadMessageLogs:()=>IR6,loadFullLog:()=>hs,loadAllSubagentTranscriptsFromDisk:()=>QK8,loadAllProjectsMessageLogsProgressive:()=>nn8,loadAllProjectsMessageLogs:()=>uY7,loadAllLogsFromSessionFile:()=>Bn8,listRemoteAgentMetadata:()=>z67,linkSessionToPR:()=>GUY,isTranscriptMessage:()=>bs,isLoggableMessage:()=>MX6,isLiteLog:()=>GB,isEphemeralToolProgress:()=>xA7,isCustomTitleEnabled:()=>pt,isChainParticipant:()=>h96,hydrateRemoteSession:()=>FA7,hydrateFromCCRv2InternalEvents:()=>UA7,getUserType:()=>Un8,getTranscriptPathForSession:()=>GT,getTranscriptPath:()=>dO,getSessionIdFromLog:()=>iO,getSessionFilesWithMtime:()=>G38,getSessionFilesLite:()=>Vx6,getProjectsDir:()=>cB,getProjectDir:()=>jH,getNodeEnv:()=>slK,getLogByIndex:()=>LUY,getLastSessionLog:()=>t78,getFirstMeaningfulUserMessageTextContent:()=>o58,getCurrentSessionTitle:()=>PP,getCurrentSessionAgentName:()=>nA7,getCurrentSessionAgentColor:()=>lA7,getAgentTranscriptPath:()=>nW,getAgentTranscript:()=>c56,flushSessionStorage:()=>Vt,findUnresolvedToolUse:()=>eA7,findDeferredToolMarkerInTranscript:()=>ie1,fetchLogs:()=>elK"
+      }
+    ]
+  },
+  "attachment types": {
+    "c96": 0,
+    "c97": 0,
+    "s97": [],
+    "s96": []
+  },
+  "structuredPatch": {
+    "c96": 6,
+    "c97": 6,
+    "s97": [
+      {
+        "idx": 7218555,
+        "snip": "repository:y.string().nullable().optional().describe(\"GitHub owner/repo when available\")})),mU4=x6(()=>y.object({filePath:y.string().describe(\"The file path that was edited\"),oldString:y.string().describe(\"The original string that was replaced\"),newString:y.string().describe(\"The new string that replaced it\"),originalFile:y.string().nullable().describe(\"The original file contents before editing\"),structuredPatch:y.array(gl1()).describe(\"Diff patch showing the changes\"),userModified:y.boolean().describe(\"Whether the user modified the proposed changes\"),replaceAll:y.boolean().describe(\"Whether all occurrences were replaced\"),gitDiff:Fl1().optional()}))});function F$(){return H8((q)=>q.settings)}var ch=L(()=>{k7()});import{extname as Qkz}from\"path\";function BU4(q,K,_){let z=tR7(_,K),Y=kj6.get(z);if(Y!==void 0)return kj6.delete(z),kj6.set(z,Y),Y;let A=q.highlight(K,{language:_});if(kj6.size>=dkz){let O=kj6.keys().next().value;if(O!==void 0)kj6.delete(O)}return kj6.set(z,A),A}function pU4(q){let K=_6(20),{code:_,filePath:z,dim:Y,skipColoring:A}=q,O=Y===void 0?!1:Y,$=A===void 0?!1:A,w;if(K[0]!==_)w=ig(_),K[0]=_,K[1]=w;else w=K[1];let j=w;if($){let W;if(K[2]!==j)W=Wx.default.createElement"
+      },
+      {
+        "idx": 7241953,
+        "snip": "{hunks:Y,dim:!0,width:W,filePath:_,firstLine:A,fileContent:O}),K[29]=O,K[30]=_,K[31]=A,K[32]=Y,K[33]=W,K[34]=f;else f=K[34];let G;if(K[35]!==f||K[36]!==D)G=_j.createElement(O1,null,_j.createElement(u,{flexDirection:\"column\"},D,f)),K[35]=f,K[36]=D,K[37]=G;else G=K[37];return G}var _j,MQ4=10;var il1=L(()=>{a6();B4();U7();l6();Nj6();gK();Qb8();_j=Y6(f6(),1)});function db8(q){let K=_6(22),{filePath:_,structuredPatch:z,firstLine:Y,fileContent:A,style:O,verbose:$,previewHint:w}=q,{columns:j}=_7(),H=z.reduce(yNz,0),J=z.reduce(kNz,0),M;if(K[0]!==H)M=H>0?U$.createElement(U$.Fragment,null,\"Added \",U$.createElement(T,{bold:!0},H),\" \",H>1?\"lines\":\"line\"):null,K[0]=H,K[1]=M;else M=K[1];let X=H>0&&J>0?\", \":null,P;if(K[2]!==H||K[3]!==J)P=J>0?U$.createElement(U$.Fragment,null,H===0?\"R\":\"r\",\"emoved \",U$.createElement(T,{bold:!0},J),\" \",J>1?\"lines\":\"line\"):null,K[2]=H,K[3]=J,K[4]=P;else P=K[4];let D;if(K[5]!==M||K[6]!==X||K[7]!==P)D=U$.createElement(T,null,M,X,P),K[5]=M,K[6]=X,K[7]=P,K[8]=D;else D=K[8];let W=D;if(w){if(O!==\"condensed\"&&!$){let V;if(K[9]!==w)V=U$.createElement(O1,null,U$.createElement(T,{dimColor:!0},w)),K[9]=w,K[10]=V;else V=K[10];return V}}else if(O===\"condensed\"&&!$)return W;let f"
+      },
+      {
+        "idx": 7262292,
+        "snip": "n eb8(q){if(!q)return\"Update\";if(q.file_path?.startsWith(mA()))return\"Updated plan\";if(q.edits!=null)return\"Update\";if(q.old_string===\"\")return\"Create\";return\"Update\"}function An1(q){if(!q?.file_path)return null;return C5(q.file_path)}function SQ4({file_path:q},{verbose:K}){if(!q)return null;if(q.startsWith(mA()))return\"\";return MA.createElement(RZ,{filePath:q},K?q:C5(q))}function CQ4({filePath:q,structuredPatch:K,originalFile:_},z,{style:Y,verbose:A}){let O=q.startsWith(mA());return MA.createElement(db8,{filePath:q,structuredPatch:K,firstLine:_?_w(_):null,fileContent:_||void 0,style:Y,verbose:A,previewHint:O?\"/plan to preview\":void 0})}function bQ4(q,K){let{style:_,verbose:z}=K,Y=q.file_path,A=q.old_string??\"\",O=q.new_string??\"\",$=q.replace_all??!1;if(\"edits\"in q&&q.edits!=null)return MA.createElement(hK6,{file_path:Y,operation:\"update\",firstLine:null,verbose:z});if(A===\"\")return MA.createElement(hK6,{file_path:Y,operation:\"write\",content:O,firstLine:_w(O),verbose:z});return MA.createElement(rNz,{filePath:Y,oldString:A,newString:O,replaceAll:$,style:_,verbose:z})}function xQ4(q,K){let{verbose:_}=K;if(!_&&typeof q===\"string\"&&YK(q,\"tool_use_error\")){let z=YK(q,\"tool_use_error\");if("
+      }
+    ],
+    "s96": [
+      {
+        "idx": 8780631,
+        "snip": "h.string(),repository:h.string().nullable().optional().describe(\"GitHub owner/repo when available\")})),rjK=x6(()=>h.object({filePath:h.string().describe(\"The file path that was edited\"),oldString:h.string().describe(\"The original string that was replaced\"),newString:h.string().describe(\"The new string that replaced it\"),originalFile:h.string().describe(\"The original file contents before editing\"),structuredPatch:h.array(d87()).describe(\"Diff patch showing the changes\"),userModified:h.boolean().describe(\"Whether the user modified the proposed changes\"),replaceAll:h.boolean().describe(\"Whether all occurrences were replaced\"),gitDiff:c87().optional()}))});import{extname as ZKY}from\"path\";function ojK(q,K,_){let z=CS7(_,K),Y=yJ6.get(z);if(Y!==void 0)return yJ6.delete(z),yJ6.set(z,Y),Y;let O=q.highlight(K,{language:_});if(yJ6.size>=GKY){let A=yJ6.keys().next().value;if(A!==void 0)yJ6.delete(A)}return yJ6.set(z,O),O}function ajK(q){let K=K6(20),{code:_,filePath:z,dim:Y,skipColoring:O}=q,A=Y===void 0?!1:Y,$=O===void 0?!1:O,w;if(K[0]!==_)w=rg(_),K[0]=_,K[1]=w;else w=K[1];let j=w;if($){let D;if(K[2]!==j)D=ex.default.createElement(y5,null,j),K[2]=j,K[3]=D;else D=K[3];let f;if(K[4]!==A||K[5]!"
+      }
+    ]
+  },
+  "firstLine": {
+    "c96": 6,
+    "c97": 6,
+    "s97": [
+      {
+        "idx": 7228195,
+        "snip": "=f-P,Z=X.slice(0,G);if(w.push([{...j,background:W?Y:z},Z]),X=X.slice(G),P=f,P>=D.end)A++}if(X.length>0)w.push([{...j,background:z},X]);O=M}q.lines[$]=w}}function _Q4(q,K,_,z){return q.lines.map((Y)=>rkz(Y,z,_,K))}function wNz(q){let K=Math.max(0,q.oldStart+q.oldLines-1),_=Math.max(0,q.newStart+q.newLines-1);return Math.max(K,_)}function jNz(q){return q===\"+\"||q===\"-\"?q:\" \"}class ll1{hunk;filePath;firstLine;prefixContent;constructor(q,K,_,z){this.hunk=q,this.filePath=_,this.firstLine=K,this.prefixContent=z??null}render(q,K,_){let z=iU4(q),Y=rU4(q,z),O={lang:aU4(this.filePath,this.firstLine),stack:null};this.prefixContent;let $=String(wNz(this.hunk)).length,w=this.hunk.oldStart,j=this.hunk.newStart,H=Math.max(1,K-$-2-1),J=this.hunk.lines.map((P)=>{let D=jNz(P.slice(0,1)),W=P.slice(1),f;switch(D){case\"+\":f=j++;break;case\"-\":f=w++;break;case\" \":f=j,w++,j++;break}return{lineNumber:f,marker:D,code:W}}),M=J.map(()=>[]);if(!_){let P=J.map((D)=>D.marker);for(let[D,W]of _Nz(P)){let[f,G]=zNz(J[D].code,J[W].code);M[D]=f,M[W]=G}}let X=[];for(let P=0;P<J.length;P++){let{lineNumber:D,marker:W,code:f}=J[P],G=W===\"-\"?[[gb8(Y),f]]:tU4(O,f,Y),Z={marker:W,lineNumber:D,lines:[G]};if(eU4(Z),$Nz(Z,Y,M[P]"
+      },
+      {
+        "idx": 7228273,
+        "snip": "=D.end)A++}if(X.length>0)w.push([{...j,background:z},X]);O=M}q.lines[$]=w}}function _Q4(q,K,_,z){return q.lines.map((Y)=>rkz(Y,z,_,K))}function wNz(q){let K=Math.max(0,q.oldStart+q.oldLines-1),_=Math.max(0,q.newStart+q.newLines-1);return Math.max(K,_)}function jNz(q){return q===\"+\"||q===\"-\"?q:\" \"}class ll1{hunk;filePath;firstLine;prefixContent;constructor(q,K,_,z){this.hunk=q,this.filePath=_,this.firstLine=K,this.prefixContent=z??null}render(q,K,_){let z=iU4(q),Y=rU4(q,z),O={lang:aU4(this.filePath,this.firstLine),stack:null};this.prefixContent;let $=String(wNz(this.hunk)).length,w=this.hunk.oldStart,j=this.hunk.newStart,H=Math.max(1,K-$-2-1),J=this.hunk.lines.map((P)=>{let D=jNz(P.slice(0,1)),W=P.slice(1),f;switch(D){case\"+\":f=j++;break;case\"-\":f=w++;break;case\" \":f=j,w++,j++;break}return{lineNumber:f,marker:D,code:W}}),M=J.map(()=>[]);if(!_){let P=J.map((D)=>D.marker);for(let[D,W]of _Nz(P)){let[f,G]=zNz(J[D].code,J[W].code);M[D]=f,M[W]=G}}let X=[];for(let P=0;P<J.length;P++){let{lineNumber:D,marker:W,code:f}=J[P],G=W===\"-\"?[[gb8(Y),f]]:tU4(O,f,Y),Z={marker:W,lineNumber:D,lines:[G]};if(eU4(Z),$Nz(Z,Y,M[P]),qQ4(Z,H,Y),z===\"ansi\"&&W===\"-\")ONz(Z);ANz(Z,Y),KQ4(Z,Y,$,_),X.push(..._Q4(Z,"
+      },
+      {
+        "idx": 7228381,
+        "snip": "nes.map((Y)=>rkz(Y,z,_,K))}function wNz(q){let K=Math.max(0,q.oldStart+q.oldLines-1),_=Math.max(0,q.newStart+q.newLines-1);return Math.max(K,_)}function jNz(q){return q===\"+\"||q===\"-\"?q:\" \"}class ll1{hunk;filePath;firstLine;prefixContent;constructor(q,K,_,z){this.hunk=q,this.filePath=_,this.firstLine=K,this.prefixContent=z??null}render(q,K,_){let z=iU4(q),Y=rU4(q,z),O={lang:aU4(this.filePath,this.firstLine),stack:null};this.prefixContent;let $=String(wNz(this.hunk)).length,w=this.hunk.oldStart,j=this.hunk.newStart,H=Math.max(1,K-$-2-1),J=this.hunk.lines.map((P)=>{let D=jNz(P.slice(0,1)),W=P.slice(1),f;switch(D){case\"+\":f=j++;break;case\"-\":f=w++;break;case\" \":f=j,w++,j++;break}return{lineNumber:f,marker:D,code:W}}),M=J.map(()=>[]);if(!_){let P=J.map((D)=>D.marker);for(let[D,W]of _Nz(P)){let[f,G]=zNz(J[D].code,J[W].code);M[D]=f,M[W]=G}}let X=[];for(let P=0;P<J.length;P++){let{lineNumber:D,marker:W,code:f}=J[P],G=W===\"-\"?[[gb8(Y),f]]:tU4(O,f,Y),Z={marker:W,lineNumber:D,lines:[G]};if(eU4(Z),$Nz(Z,Y,M[P]),qQ4(Z,H,Y),z===\"ansi\"&&W===\"-\")ONz(Z);ANz(Z,Y),KQ4(Z,Y,$,_),X.push(..._Q4(Z,_,!1,z))}return X}}class nl1{code;filePath;constructor(q,K){this.code=q,this.filePath=K}render(q,K,_){let z="
+      }
+    ],
+    "s96": [
+      {
+        "idx": 8790181,
+        "snip": "=f-P,Z=X.slice(0,G);if(w.push([{...j,background:D?Y:z},Z]),X=X.slice(G),P=f,P>=W.end)O++}if(X.length>0)w.push([{...j,background:z},X]);A=M}q.lines[$]=w}}function PHK(q,K,_,z){return q.lines.map((Y)=>NKY(Y,z,_,K))}function BKY(q){let K=Math.max(0,q.oldStart+q.oldLines-1),_=Math.max(0,q.newStart+q.newLines-1);return Math.max(K,_)}function gKY(q){return q===\"+\"||q===\"-\"?q:\" \"}class o87{hunk;filePath;firstLine;prefixContent;constructor(q,K,_,z){this.hunk=q,this.filePath=_,this.firstLine=K,this.prefixContent=z??null}render(q,K,_){let z=OHK(q),Y=AHK(q,z),A={lang:wHK(this.filePath,this.firstLine),stack:null};this.prefixContent;let $=String(BKY(this.hunk)).length,w=this.hunk.oldStart,j=this.hunk.newStart,H=Math.max(1,K-$-2-1),J=this.hunk.lines.map((P)=>{let W=gKY(P.slice(0,1)),D=P.slice(1),f;switch(W){case\"+\":f=j++;break;case\"-\":f=w++;break;case\" \":f=j,w++,j++;break}return{lineNumber:f,marker:W,code:D}}),M=J.map(()=>[]);if(!_){let P=J.map((W)=>W.marker);for(let[W,D]of bKY(P)){let[f,G]=xKY(J[W].code,J[D].code);M[W]=f,M[D]=G}}let X=[];for(let P=0;P<J.length;P++){let{lineNumber:W,marker:D,code:f}=J[P],G=D===\"-\"?[[Ug8(Y),f]]:HHK(A,f,Y),Z={marker:D,lineNumber:W,lines:[G]};if(JHK(Z),pKY(Z,Y,M[P]"
+      }
+    ]
+  }
+}

@@ -1,0 +1,512 @@
+{
+  "v92": [
+    {
+      "needle": "function cZY(",
+      "count": 1,
+      "hits": [
+        {
+          "i": 10422086,
+          "snip": "Y(q,K){return V_.default.createElement(u,{key:K,paddingLeft:3},V_.default.createElement(T,{dimColor:!0},\"• \",q.name,\": \",r37(q.workspaceFolders)))}function QZY(q){return q.name===\"VS Code\"||q.name===\"Visual Studio Code\"}function dZY(q,K){return q[K.name]=(q[K.name]||0)+1,q}async function cZY(q,K){let _=K?.ide;if(!_||_.type!==\"sse-ide\"&&_.type!==\"ws-ide\")return null;for(let z of q)if(z.url===_.url)return z;return null}function lZY(q){let K=K6(18),{availableIDEs:_,onSelectIDE:z,onDone:Y}=q,O;if(K[0]!==_[0]?.port)O=_[0]?.port?.toString()??\"\",K[0]=_[0]?.port,K[1]=O;else O=K[1];let[A,$]=V_.useState(O),w;if(K[2]!==_||K[3]!==z)w=(f)=>{let G=_.find((Z)=>Z.port===parseInt(f));z(G)},K[2]=_,K[3]=z,K[4]=w;else w=K[4];let j=w,H;if(K[5]!==_)H=_.map(nZY),K[5]=_,K[6]=H;else H=K[6];let "
+        }
+      ]
+    },
+    {
+      "needle": "function cZY",
+      "count": 1,
+      "hits": [
+        {
+          "i": 10422086,
+          "snip": "Y(q,K){return V_.default.createElement(u,{key:K,paddingLeft:3},V_.default.createElement(T,{dimColor:!0},\"• \",q.name,\": \",r37(q.workspaceFolders)))}function QZY(q){return q.name===\"VS Code\"||q.name===\"Visual Studio Code\"}function dZY(q,K){return q[K.name]=(q[K.name]||0)+1,q}async function cZY(q,K){let _=K?.ide;if(!_||_.type!==\"sse-ide\"&&_.type!==\"ws-ide\")return null;for(let z of q)if(z.url===_.url)return z;return null}function lZY(q){let K=K6(18),{availableIDEs:_,onSelectIDE:z,onDone:Y}=q,O;if(K[0]!==_[0]?.port)O=_[0]?.port?.toString()??\"\",K[0]=_[0]?.port,K[1]=O;else O=K[1];let[A,$]=V_.useState(O),w;if(K[2]!==_||K[3]!==z)w=(f)=>{let G=_.find((Z)=>Z.port===parseInt(f));z(G)},K[2]=_,K[3]=z,K[4]=w;else w=K[4];let j=w,H;if(K[5]!==_)H=_.map(nZY),K[5]=_,K[6]=H;else H=K[6];let "
+        }
+      ]
+    },
+    {
+      "needle": "isCurrent:y===",
+      "count": 0,
+      "hits": []
+    },
+    {
+      "needle": "client_termtype",
+      "count": 0,
+      "hits": []
+    },
+    {
+      "needle": "display-message",
+      "count": 3,
+      "hits": [
+        {
+          "i": 7004028,
+          "snip": "ess.env.TMUX)return!1;if(process.env.TERM_PROGRAM!==\"iTerm.app\")return!1;let q=process.env.TERM??\"\";return!q.startsWith(\"screen\")&&!q.startsWith(\"tmux\")}function NZz(){if(je6=VZz(),je6)return;if(!process.env.TMUX)return;if(process.env.TERM_PROGRAM)return;let q;try{q=kZz(\"tmux\",[\"display-message\",\"-p\",\"#{client_control_mode}\"],{encoding:\"utf8\",timeout:2000})}catch{return}if(q.status!==0)return;je6=q.stdout.trim()===\"1\"}function $p4(){if(je6===void 0)NZz();return je6??!1}function E4(){if(h_(process.env.CLAUDE_CODE_NO_FLICKER))return!1;if(U6(process.env.CLAUDE_CODE_NO_FLICKER))return!0;if($p4()){if(!Op4)Op4=!0,N(\"fullscreen disabled: tmux -CC (iTerm2 integration mode) detected · set CLAUDE_CODE_NO_FLICKER=1 to override\");return!1}return!1}function wp4(){if(U6(process.env.C"
+        },
+        {
+          "i": 8170397,
+          "snip": "ait z([\"select-layout\",\"-t\",K,\"main-vertical\"]);let A=(await z([\"list-panes\",\"-t\",K,\"-F\",\"#{pane_id}\"])).stdout.trim().split(`\n`).filter(Boolean);if(A[0])await z([\"resize-pane\",\"-t\",A[0],\"-x\",\"30%\"]);return!0}async getCurrentPaneId(){let q=xI8();if(q)return q;let K=await K1(Z0,[\"display-message\",\"-p\",\"#{pane_id}\"]);if(K.code!==0)return N(`[TmuxBackend] Failed to get current pane ID (exit ${K.code}): ${K.stderr}`),null;return K.stdout.trim()}async getCurrentWindowTarget(){if(this.cachedLeaderWindowTarget)return this.cachedLeaderWindowTarget;let q=xI8(),K=[\"display-message\"];if(q)K.push(\"-t\",q);K.push(\"-p\",\"#{window_id}\");let _=await K1(Z0,K);if(_.code!==0)return N(`[TmuxBackend] Failed to get current window target (exit ${_.code}): ${_.stderr}`),null;return this.cachedLe"
+        },
+        {
+          "i": 8170679,
+          "snip": "splay-message\",\"-p\",\"#{pane_id}\"]);if(K.code!==0)return N(`[TmuxBackend] Failed to get current pane ID (exit ${K.code}): ${K.stderr}`),null;return K.stdout.trim()}async getCurrentWindowTarget(){if(this.cachedLeaderWindowTarget)return this.cachedLeaderWindowTarget;let q=xI8(),K=[\"display-message\"];if(q)K.push(\"-t\",q);K.push(\"-p\",\"#{window_id}\");let _=await K1(Z0,K);if(_.code!==0)return N(`[TmuxBackend] Failed to get current window target (exit ${_.code}): ${_.stderr}`),null;return this.cachedLeaderWindowTarget=_.stdout.trim(),this.cachedLeaderWindowTarget}async getCurrentWindowPaneCount(q,K=!1){let _=q||await this.getCurrentWindowTarget();if(!_)return null;let z=[\"list-panes\",\"-t\",_,\"-F\",\"#{pane_id}\"],Y=K?await G0(z):await Cp(z);if(Y.code!==0)return H6(Error(`[TmuxBacken"
+        }
+      ]
+    },
+    {
+      "needle": "#{client_termtype}",
+      "count": 0,
+      "hits": []
+    },
+    {
+      "needle": "startsWith(\"tmux \")",
+      "count": 0,
+      "hits": []
+    },
+    {
+      "needle": "name===\"space\"?",
+      "count": 2,
+      "hits": [
+        {
+          "i": 3794931,
+          "snip": "||q.option,super:q.super},_=q.ctrl?q.name:q.sequence;if(_===void 0)_=\"\";if(q.ctrl&&_===\"space\")_=\" \";if(q.code&&!q.name)_=\"\";if(!q.name&&/^\\[<\\d+;\\d+;\\d+[Mm]/.test(_))_=\"\";if(_.startsWith(\"\\x1B\"))_=_.slice(1);let z=!1;if(/^\\[\\d/.test(_)&&_.endsWith(\"u\")){if(!q.name)_=\"\";else _=q.name===\"space\"?\" \":q.name===\"escape\"?\"\":q.name;z=!0}if(_.startsWith(\"[27;\")&&_.endsWith(\"~\")){if(!q.name)_=\"\";else _=q.name===\"space\"?\" \":q.name===\"escape\"?\"\":q.name;z=!0}if(_.startsWith(\"O\")&&_.length===2&&q.name&&q.name.length===1)_=q.name,z=!0;if(!z&&q.name&&T64.includes(q.name))_=\"\";if(_.length===1&&typeof _[0]===\"string\"&&_[0]>=\"A\"&&_[0]<=\"Z\")K.shift=!0;return[K,_]}var sn6;var jh1=L(()=>{wh1();sn6=class sn6 extends cL{keypress;key;input;constructor(q){super();let[K,_]=v0_(q);this.keypress=q"
+        },
+        {
+          "i": 3795050,
+          "snip": ")_=\"\";if(!q.name&&/^\\[<\\d+;\\d+;\\d+[Mm]/.test(_))_=\"\";if(_.startsWith(\"\\x1B\"))_=_.slice(1);let z=!1;if(/^\\[\\d/.test(_)&&_.endsWith(\"u\")){if(!q.name)_=\"\";else _=q.name===\"space\"?\" \":q.name===\"escape\"?\"\":q.name;z=!0}if(_.startsWith(\"[27;\")&&_.endsWith(\"~\")){if(!q.name)_=\"\";else _=q.name===\"space\"?\" \":q.name===\"escape\"?\"\":q.name;z=!0}if(_.startsWith(\"O\")&&_.length===2&&q.name&&q.name.length===1)_=q.name,z=!0;if(!z&&q.name&&T64.includes(q.name))_=\"\";if(_.length===1&&typeof _[0]===\"string\"&&_[0]>=\"A\"&&_[0]<=\"Z\")K.shift=!0;return[K,_]}var sn6;var jh1=L(()=>{wh1();sn6=class sn6 extends cL{keypress;key;input;constructor(q){super();let[K,_]=v0_(q);this.keypress=q,this.key=K,this.input=_}}});var TT6;var Hh1=L(()=>{TT6=class TT6 extends cL{type;constructor(q){super();this.type=q}}}"
+        }
+      ]
+    },
+    {
+      "needle": "q.name===\"space\"",
+      "count": 2,
+      "hits": [
+        {
+          "i": 3794929,
+          "snip": "e\"||q.option,super:q.super},_=q.ctrl?q.name:q.sequence;if(_===void 0)_=\"\";if(q.ctrl&&_===\"space\")_=\" \";if(q.code&&!q.name)_=\"\";if(!q.name&&/^\\[<\\d+;\\d+;\\d+[Mm]/.test(_))_=\"\";if(_.startsWith(\"\\x1B\"))_=_.slice(1);let z=!1;if(/^\\[\\d/.test(_)&&_.endsWith(\"u\")){if(!q.name)_=\"\";else _=q.name===\"space\"?\" \":q.name===\"escape\"?\"\":q.name;z=!0}if(_.startsWith(\"[27;\")&&_.endsWith(\"~\")){if(!q.name)_=\"\";else _=q.name===\"space\"?\" \":q.name===\"escape\"?\"\":q.name;z=!0}if(_.startsWith(\"O\")&&_.length===2&&q.name&&q.name.length===1)_=q.name,z=!0;if(!z&&q.name&&T64.includes(q.name))_=\"\";if(_.length===1&&typeof _[0]===\"string\"&&_[0]>=\"A\"&&_[0]<=\"Z\")K.shift=!0;return[K,_]}var sn6;var jh1=L(()=>{wh1();sn6=class sn6 extends cL{keypress;key;input;constructor(q){super();let[K,_]=v0_(q);this.keypress"
+        },
+        {
+          "i": 3795048,
+          "snip": "me)_=\"\";if(!q.name&&/^\\[<\\d+;\\d+;\\d+[Mm]/.test(_))_=\"\";if(_.startsWith(\"\\x1B\"))_=_.slice(1);let z=!1;if(/^\\[\\d/.test(_)&&_.endsWith(\"u\")){if(!q.name)_=\"\";else _=q.name===\"space\"?\" \":q.name===\"escape\"?\"\":q.name;z=!0}if(_.startsWith(\"[27;\")&&_.endsWith(\"~\")){if(!q.name)_=\"\";else _=q.name===\"space\"?\" \":q.name===\"escape\"?\"\":q.name;z=!0}if(_.startsWith(\"O\")&&_.length===2&&q.name&&q.name.length===1)_=q.name,z=!0;if(!z&&q.name&&T64.includes(q.name))_=\"\";if(_.length===1&&typeof _[0]===\"string\"&&_[0]>=\"A\"&&_[0]<=\"Z\")K.shift=!0;return[K,_]}var sn6;var jh1=L(()=>{wh1();sn6=class sn6 extends cL{keypress;key;input;constructor(q){super();let[K,_]=v0_(q);this.keypress=q,this.key=K,this.input=_}}});var TT6;var Hh1=L(()=>{TT6=class TT6 extends cL{type;constructor(q){super();this.type=q}"
+        }
+      ]
+    },
+    {
+      "needle": "parsed.name===\"space\"",
+      "count": 0,
+      "hits": []
+    },
+    {
+      "needle": "===\"space\")return\" \"",
+      "count": 0,
+      "hits": []
+    },
+    {
+      "needle": "name===\"space\")return",
+      "count": 0,
+      "hits": []
+    },
+    {
+      "needle": "keyFromParsed",
+      "count": 0,
+      "hits": []
+    },
+    {
+      "needle": "seq.length===1",
+      "count": 0,
+      "hits": []
+    },
+    {
+      "needle": "charCodeAt(0)",
+      "count": 62,
+      "hits": [
+        {
+          "i": 20381,
+          "snip": ")_.clear();return z}),_=K.cache;return K}var S$5=500,XM7;var PM7=L(()=>{p4();XM7=C$5});var b$5,x$5,I$5,WM7;var DM7=L(()=>{PM7();b$5=/[^.[\\]]+|\\[(?:(-?\\d+(?:\\.\\d+)?)|([\"'])((?:(?!\\2)[^\\\\]|\\\\.)*?)\\2)\\]|(?=(?:\\.|\\[\\])(?:\\.|\\[\\]|$))/g,x$5=/\\\\(\\\\)?/g,I$5=XM7(function(q){var K=[];if(q.charCodeAt(0)===46)K.push(\"\");return q.replace(b$5,function(_,z,Y,O){K.push(Y?O.replace(x$5,\"$1\"):z||_)}),K}),WM7=I$5});function u$5(q,K){var _=-1,z=q==null?0:q.length,Y=Array(z);while(++_<z)Y[_]=K(q[_],_,q);return Y}var he;var NI6=L(()=>{he=u$5});function GM7(q){if(typeof q==\"string\")return q;if(vA(q))return he(q,GM7)+\"\";if(Le(q))return ZM7?ZM7.call(q):\"\";var K=q+\"\";return K==\"0\"&&1/q==-m$5?\"-0\":K}var m$5=1/0,fM7,ZM7,vM7;var TM7=L(()=>{c96();NI6();MT();VI6();fM7=rW?rW.prototype:void 0,ZM7=fM7?f"
+        },
+        {
+          "i": 709504,
+          "snip": "&&q!==o_6,qy5=(q,K,_,{allOwnKeys:z}={})=>{return YB6(K,(Y,O)=>{if(_&&IV(Y))Object.defineProperty(q,O,{value:KB6(Y,_),writable:!0,enumerable:!0,configurable:!0});else Object.defineProperty(q,O,{value:Y,writable:!0,enumerable:!0,configurable:!0})},{allOwnKeys:z}),q},Ky5=(q)=>{if(q.charCodeAt(0)===65279)q=q.slice(1);return q},_y5=(q,K,_,z)=>{q.prototype=Object.create(K.prototype,z),Object.defineProperty(q.prototype,\"constructor\",{value:q,writable:!0,enumerable:!1,configurable:!0}),Object.defineProperty(q,\"super\",{value:K.prototype}),_&&Object.assign(q.prototype,_)},zy5=(q,K,_,z)=>{let Y,O,A,$={};if(K=K||{},q==null)return K;do{Y=Object.getOwnPropertyNames(q),O=Y.length;while(O-- >0)if(A=Y[O],(!z||z(A,q,K))&&!$[A])K[A]=q[A],$[A]=!0;q=_!==!1&&i41(q)}while(q&&(!_||_(q,K))&&q!="
+        },
+        {
+          "i": 820505,
+          "snip": "in K)||(\"css\"in K))))return\"visual\";return\"unknown\"}async function D$8(q,K){return new Promise((_)=>{let z=!1,Y,O=(A)=>{if(z)return;z=!0,Y&&clearTimeout(Y),_(A||null)};if(K)Y=setTimeout(()=>O(),K);q.then((A)=>O(A)).catch(()=>O())})}var cL7,H51=(q)=>Uint8Array.from(atob(q),(K)=>K.charCodeAt(0));var SB6=L(()=>{cL7={fetch:globalThis.fetch?globalThis.fetch.bind(globalThis):void 0,SubtleCrypto:globalThis.crypto?globalThis.crypto.subtle:void 0,EventSource:globalThis.EventSource}});function Kh7(q){if(Object.assign(fG,q),!fG.backgroundSync)nR5()}async function _h7(q){let{instance:K,timeout:_,skipCache:z,allowStale:Y,backgroundSync:O}=q;if(!O)fG.backgroundSync=!1;return QR5({instance:K,allowStale:Y,timeout:_,skipCache:z})}function gR5(q){let K=CB6(q),_=ND6.get(K)||new Set;_.add("
+        },
+        {
+          "i": 1034410,
+          "snip": "+\"s\"){return q===1?K:_}function Pw(q,K){let _=q.indexOf(K);return _===-1?q:q.slice(0,_)}function QV(q){return Pw(q,`\n`)}function SO(q,K,_=0){let z=0,Y=q.indexOf(K,_);while(Y!==-1)z++,Y=q.indexOf(K,Y+1);return z}function aw8(q){return q.replace(/[０-９]/g,(K)=>String.fromCharCode(K.charCodeAt(0)-65248))}function Sz6(q){return q.replace(/\\u3000/g,\" \")}function sw8(q,K=\",\",_=Qx7){let Y=\"\";for(let O of q){let A=Y?K:\"\",$=A+O;if(Y.length+$.length<=_)Y+=$;else{let w=_-Y.length-A.length-14;if(w>0)Y+=A+O.slice(0,w)+\"...[truncated]\";else Y+=\"...[truncated]\";return Y}}return Y}class kg6{maxSize;content=\"\";isTruncated=!1;totalBytesReceived=0;constructor(q=Qx7){this.maxSize=q}append(q){let K=typeof q===\"string\"?q:q.toString();if(this.totalBytesReceived+=K.length,this.isTruncated&&this"
+        }
+      ]
+    },
+    {
+      "needle": "code>=32",
+      "count": 0,
+      "hits": []
+    },
+    {
+      "needle": "code>=0x20",
+      "count": 0,
+      "hits": []
+    },
+    {
+      "needle": "blank page",
+      "count": 0,
+      "hits": []
+    },
+    {
+      "needle": "same diff",
+      "count": 0,
+      "hits": []
+    },
+    {
+      "needle": "heightCache",
+      "count": 0,
+      "hits": []
+    },
+    {
+      "needle": "scrollbackRows",
+      "count": 0,
+      "hits": []
+    },
+    {
+      "needle": "fullReset",
+      "count": 0,
+      "hits": []
+    },
+    {
+      "needle": "i6??=",
+      "count": 0,
+      "hits": []
+    },
+    {
+      "needle": "i6??P6.bottom",
+      "count": 0,
+      "hits": []
+    },
+    {
+      "needle": "send_message",
+      "count": 7,
+      "hits": [
+        {
+          "i": 7471988,
+          "snip": "0,\"grpc.keepalive_time_ms\":!0,\"grpc.keepalive_timeout_ms\":!0,\"grpc.keepalive_permit_without_calls\":!0,\"grpc.service_config\":!0,\"grpc.max_concurrent_streams\":!0,\"grpc.initial_reconnect_backoff_ms\":!0,\"grpc.max_reconnect_backoff_ms\":!0,\"grpc.use_local_subchannel_pool\":!0,\"grpc.max_send_message_length\":!0,\"grpc.max_receive_message_length\":!0,\"grpc.enable_http_proxy\":!0,\"grpc.enable_channelz\":!0,\"grpc.dns_min_time_between_resolutions_ms\":!0,\"grpc.enable_retries\":!0,\"grpc.per_rpc_retry_buffer_size\":!0,\"grpc.retry_buffer_size\":!0,\"grpc.max_connection_age_ms\":!0,\"grpc.max_connection_age_grace_ms\":!0,\"grpc-node.max_session_memory\":!0,\"grpc.service_config_disable_resolution\":!0,\"grpc.client_idle_timeout_ms\":!0,\"grpc-node.tls_enable_trace\":!0,\"grpc.lb.ring_hash.ring_size_cap\":!0,"
+        },
+        {
+          "i": 7628576,
+          "snip": "ression=new zL6,this.currentCompressionAlgorithm=\"identity\";let O=q[\"grpc.default_compression_algorithm\"];if(this.maxReceiveMessageLength=(_=q[\"grpc.max_receive_message_length\"])!==null&&_!==void 0?_:_L6.DEFAULT_MAX_RECEIVE_MESSAGE_LENGTH,this.maxSendMessageLength=(z=q[\"grpc.max_send_message_length\"])!==null&&z!==void 0?z:_L6.DEFAULT_MAX_SEND_MESSAGE_LENGTH,O!==void 0)if(Vbz(O)){let A=Ns4.CompressionAlgorithms[O],$=(Y=K.serverSupportedEncodingHeader)===null||Y===void 0?void 0:Y.split(\",\");if(!$||$.includes(A))this.currentCompressionAlgorithm=A,this.sendCompression=Vs4(this.currentCompressionAlgorithm,-1)}else kbz.log(_L6.LogVerbosity.ERROR,`Invalid value provided for grpc.default_compression_algorithm option: ${O}`)}async sendMetadata(q){let K=await q;if(K.set(\"grpc-acc"
+        },
+        {
+          "i": 7740625,
+          "snip": "),this.callEventTracker.onCallEnd({code:hy.Status.CANCELLED,details:\"Stream closed before sending status\",metadata:null});this.notifyOnCancel()}),this.stream.on(\"data\",(J)=>{this.handleDataFrame(J)}),this.stream.pause(),this.stream.on(\"end\",()=>{this.handleEndEvent()}),\"grpc.max_send_message_length\"in Y)this.maxSendMessageSize=Y[\"grpc.max_send_message_length\"];if(\"grpc.max_receive_message_length\"in Y)this.maxReceiveMessageSize=Y[\"grpc.max_receive_message_length\"];this.host=(O=K[\":authority\"])!==null&&O!==void 0?O:K.host,this.decoder=new Duz.StreamDecoder(this.maxReceiveMessageSize);let $=sb8.Metadata.fromHttp2Headers(K);if(ye4.isTracerEnabled(Ee4))Tj6(\"Request to \"+this.handler.path+\" received headers \"+JSON.stringify($.toJSON()));let w=$.get(Li1);if(w.length>0)this.han"
+        },
+        {
+          "i": 7740686,
+          "snip": "etails:\"Stream closed before sending status\",metadata:null});this.notifyOnCancel()}),this.stream.on(\"data\",(J)=>{this.handleDataFrame(J)}),this.stream.pause(),this.stream.on(\"end\",()=>{this.handleEndEvent()}),\"grpc.max_send_message_length\"in Y)this.maxSendMessageSize=Y[\"grpc.max_send_message_length\"];if(\"grpc.max_receive_message_length\"in Y)this.maxReceiveMessageSize=Y[\"grpc.max_receive_message_length\"];this.host=(O=K[\":authority\"])!==null&&O!==void 0?O:K.host,this.decoder=new Duz.StreamDecoder(this.maxReceiveMessageSize);let $=sb8.Metadata.fromHttp2Headers(K);if(ye4.isTracerEnabled(Ee4))Tj6(\"Request to \"+this.handler.path+\" received headers \"+JSON.stringify($.toJSON()));let w=$.get(Li1);if(w.length>0)this.handleTimeoutHeader(w[0]);let j=$.get(hi1);if(j.length>0)this.in"
+        }
+      ]
+    },
+    {
+      "needle": "slack_send_message",
+      "count": 2,
+      "hits": [
+        {
+          "i": 10005333,
+          "snip": "it checkout --branch:*)\",\"Bash(git checkout -b:*)\",\"Bash(git add:*)\",\"Bash(git status:*)\",\"Bash(git push:*)\",\"Bash(git commit:*)\",\"Bash(gh pr create:*)\",\"Bash(gh pr edit:*)\",\"Bash(gh pr view:*)\",\"Bash(gh pr merge:*)\",\"ToolSearch\",\"mcp__slack__send_message\",\"mcp__claude_ai_Slack__slack_send_message\"];zPY={type:\"prompt\",name:\"commit-push-pr\",description:\"Commit, push, and open a PR\",allowedTools:cyK,get contentLength(){return lyK(\"main\").length},progressMessage:\"creating commit and PR\",source:\"builtin\",async getPromptForCommand(q,K){let[_,z]=await Promise.all([RT(),nZK(K.getAppState)]),Y=lyK(_,z),O=q?.trim();if(O)Y+=`\n\n## Additional instructions from user\n\n${O}`;return[{type:\"text\",text:await cd(Y,{...K,getAppState(){let $=K.getAppState();return{...$,toolPermissionContext"
+        },
+        {
+          "i": 12615015,
+          "snip": "ound something stuck.** If every session looks healthy, tell the user that directly — do not post an all-clear to the channel.\\n\\nIf you did find a stuck/slow session, post to **#claude-code-feedback** (channel ID: `C07VBSHV7EV`) using the Slack MCP tool. Use ToolSearch to find `slack_send_message` if it's not already loaded.\\n\\n**Use a two-message structure** to keep the channel scannable:\\n\\n1. **Top-level message** — one short line: hostname, Claude Code version, and a terse symptom (e.g. \\\"session PID 12345 pegged at 100% CPU for 10min\\\" or \\\"git subprocess hung in D state\\\"). No code blocks, no details.\\n2. **Thread reply** — the full diagnostic dump. Pass the top-level message's `ts` as `thread_ts`. Include:\\n   - PID, CPU%, RSS, state, uptime, command line, child"
+        }
+      ]
+    },
+    {
+      "needle": "dDz=",
+      "count": 0,
+      "hits": []
+    },
+    {
+      "needle": "Lu4(q)",
+      "count": 1,
+      "hits": [
+        {
+          "i": 6891719,
+          "snip": "ct(K),N(\"[Computer Use MCP] MCP server started\")}var vu4=1000;var pQ1=L(()=>{oa6();kA8();GX();zT6();Vr();pn6();y1();_8();Gu4();AE6();xQ1()});import{mkdir as Ofz,readFile as Afz,unlink as $fz,writeFile as wfz}from\"fs/promises\";import{dirname as jfz,join as Hfz}from\"path\";function Lu4(q){if((\"code\"in q?q.code:void 0)!==404)return!1;return q.message.includes('\"code\":-32001')||q.message.includes('\"code\": -32001')}function _fz(){let q=parseInt(process.env.MCP_TOOL_TIMEOUT||\"\",10);return q>0?q:Kfz}function cQ1(){return Hfz(Y7(),\"mcp-needs-auth-cache.json\")}function hu4(){if(!rt6)rt6=Afz(cQ1(),\"utf-8\").then((q)=>c8(q)).catch(()=>({}));return rt6}async function Mfz(q){let _=(await hu4())[q];if(!_)return!1;return Date.now()-_.timestamp<Jfz}function Xfz(q){ku4=ku4.then(async()=>{"
+        }
+      ]
+    }
+  ],
+  "v94": [
+    {
+      "needle": "function cZY(",
+      "count": 1,
+      "hits": [
+        {
+          "i": 10081135,
+          "snip": "rovider,{value:{selectedTab:G[y][0],width:c,headerFocused:b,focusHeader:m,blurHeader:g,registerOptIn:r}},H6)}function FZY(q,K){let[,_]=K;return q+(_?f1(_):0)+2+1}function UZY(q){return q-1}function QZY(q){return q+1}function dZY(q){return[q.props.id??q.props.title,q.props.title]}function cZY(q){let K=K6(11),{title:_,isCurrent:z,headerFocused:Y,color:O}=q,A=z&&Y,$;if(K[0]!==A)$={line:0,column:1,active:A},K[0]=A,K[1]=$;else $=K[1];let w=vK6($),j=O&&z&&Y,H=j?O:void 0,J=j?\"inverseText\":void 0,M=z&&!j,X;if(K[2]!==z||K[3]!==H||K[4]!==J||K[5]!==M||K[6]!==_)X=Dj.default.createElement(T,{backgroundColor:H,color:J,inverse:M,bold:z},\" \",_,\" \"),K[2]=z,K[3]=H,K[4]=J,K[5]=M,K[6]=_,K[7]=X;else X=K[7];let P;if(K[8]!==w||K[9]!==X)P=Dj.default.createElement(u,{ref:w},X),K[8]=w,K[9]=X,K[1"
+        }
+      ]
+    },
+    {
+      "needle": "function cZY",
+      "count": 1,
+      "hits": [
+        {
+          "i": 10081135,
+          "snip": "rovider,{value:{selectedTab:G[y][0],width:c,headerFocused:b,focusHeader:m,blurHeader:g,registerOptIn:r}},H6)}function FZY(q,K){let[,_]=K;return q+(_?f1(_):0)+2+1}function UZY(q){return q-1}function QZY(q){return q+1}function dZY(q){return[q.props.id??q.props.title,q.props.title]}function cZY(q){let K=K6(11),{title:_,isCurrent:z,headerFocused:Y,color:O}=q,A=z&&Y,$;if(K[0]!==A)$={line:0,column:1,active:A},K[0]=A,K[1]=$;else $=K[1];let w=vK6($),j=O&&z&&Y,H=j?O:void 0,J=j?\"inverseText\":void 0,M=z&&!j,X;if(K[2]!==z||K[3]!==H||K[4]!==J||K[5]!==M||K[6]!==_)X=Dj.default.createElement(T,{backgroundColor:H,color:J,inverse:M,bold:z},\" \",_,\" \"),K[2]=z,K[3]=H,K[4]=J,K[5]=M,K[6]=_,K[7]=X;else X=K[7];let P;if(K[8]!==w||K[9]!==X)P=Dj.default.createElement(u,{ref:w},X),K[8]=w,K[9]=X,K[1"
+        }
+      ]
+    },
+    {
+      "needle": "isCurrent:y===",
+      "count": 1,
+      "hits": [
+        {
+          "i": 10080056,
+          "snip": "=$?f:void 0,n=u,O6=\"column\",P6=0,G6=!0,V6=S?0:void 0,L6=!A&&Dj.default.createElement(u,{flexDirection:\"row\",gap:1,flexShrink:S?0:void 0},_!==void 0&&Dj.default.createElement(T,{bold:!0,color:z},_),G.map((y6,T6)=>{let[B6,l6]=y6;return Dj.default.createElement(cZY,{key:B6,title:l6,isCurrent:y===T6,headerFocused:b,color:z})}),w6>0&&Dj.default.createElement(T,null,\" \".repeat(w6))),D6;if(K[11]!==O||K[12]!==X||K[13]!==c||K[14]!==A||K[15]!==S||K[16]!==y)D6=S?Dj.default.createElement(u,{width:c,marginTop:A?0:1,flexShrink:0},Dj.default.createElement(Pb6,{key:y,ref:S,flexDirection:\"column\",flexShrink:0},O)):Dj.default.createElement(u,{width:c,marginTop:A?0:1,height:X,overflowY:X!==void 0?\"hidden\":void 0},O),K[11]=O,K[12]=X,K[13]=c,K[14]=A,K[15]=S,K[16]=y,K[17]=D6;else D6=K[17];le"
+        }
+      ]
+    },
+    {
+      "needle": "client_termtype",
+      "count": 1,
+      "hits": [
+        {
+          "i": 4034841,
+          "snip": "r6())this.props.stdout.write(oi6),this.props.stdout.write(ai6);setImmediate(()=>{Promise.all([this.querier.send(lq4()),this.querier.flush()]).then(async([_])=>{if(_){let z=_.name;if(process.env.TMUX&&z.startsWith(\"tmux \")){let{stdout:Y}=await t8(\"tmux\",[\"display-message\",\"-p\",\"#{client_termtype}\"],{timeout:1000,useCwd:!1}),O=Y.trim();if(O)z=O}Qq4(z),N(`XTVERSION: terminal identified as \"${z}\"`)}else N(\"XTVERSION: no reply (terminal ignored query)\");N(`DECSTBM: ${br6?\"enabled\":\"gated\"} (TMUX=${process.env.TMUX?\"set\":\"unset\"} TERM_PROGRAM=${process.env.TERM_PROGRAM??\"unset\"} TERM=${process.env.TERM??\"unset\"})`)})})}this.rawModeEnabledCount++;return}if(--this.rawModeEnabledCount===0)this.props.stdout.write(p$6),this.props.stdout.write(zo),this.props.stdout.write(i$6),this."
+        }
+      ]
+    },
+    {
+      "needle": "display-message",
+      "count": 4,
+      "hits": [
+        {
+          "i": 4034816,
+          "snip": "props.stdout.write(xq4),Cr6())this.props.stdout.write(oi6),this.props.stdout.write(ai6);setImmediate(()=>{Promise.all([this.querier.send(lq4()),this.querier.flush()]).then(async([_])=>{if(_){let z=_.name;if(process.env.TMUX&&z.startsWith(\"tmux \")){let{stdout:Y}=await t8(\"tmux\",[\"display-message\",\"-p\",\"#{client_termtype}\"],{timeout:1000,useCwd:!1}),O=Y.trim();if(O)z=O}Qq4(z),N(`XTVERSION: terminal identified as \"${z}\"`)}else N(\"XTVERSION: no reply (terminal ignored query)\");N(`DECSTBM: ${br6?\"enabled\":\"gated\"} (TMUX=${process.env.TMUX?\"set\":\"unset\"} TERM_PROGRAM=${process.env.TERM_PROGRAM??\"unset\"} TERM=${process.env.TERM??\"unset\"})`)})})}this.rawModeEnabledCount++;return}if(--this.rawModeEnabledCount===0)this.props.stdout.write(p$6),this.props.stdout.write(zo),this.prop"
+        },
+        {
+          "i": 7004905,
+          "snip": "ess.env.TMUX)return!1;if(process.env.TERM_PROGRAM!==\"iTerm.app\")return!1;let q=process.env.TERM??\"\";return!q.startsWith(\"screen\")&&!q.startsWith(\"tmux\")}function G0z(){if(W68=Z0z(),W68)return;if(!process.env.TMUX)return;if(process.env.TERM_PROGRAM)return;let q;try{q=f0z(\"tmux\",[\"display-message\",\"-p\",\"#{client_control_mode}\"],{encoding:\"utf8\",timeout:2000})}catch{return}if(q.status!==0)return;W68=q.stdout.trim()===\"1\"}function AB4(){if(W68===void 0)G0z();return W68??!1}function S4(){if(B9(process.env.CLAUDE_CODE_NO_FLICKER))return!1;if(p6(process.env.CLAUDE_CODE_NO_FLICKER))return!0;if(AB4()){if(!YB4)YB4=!0,N(\"fullscreen disabled: tmux -CC (iTerm2 integration mode) detected · set CLAUDE_CODE_NO_FLICKER=1 to override\");return!1}return!1}function $B4(){if(p6(process.env.C"
+        },
+        {
+          "i": 8195011,
+          "snip": "ait z([\"select-layout\",\"-t\",K,\"main-vertical\"]);let A=(await z([\"list-panes\",\"-t\",K,\"-F\",\"#{pane_id}\"])).stdout.trim().split(`\n`).filter(Boolean);if(A[0])await z([\"resize-pane\",\"-t\",A[0],\"-x\",\"30%\"]);return!0}async getCurrentPaneId(){let q=Hm8();if(q)return q;let K=await t8(m0,[\"display-message\",\"-p\",\"#{pane_id}\"]);if(K.code!==0)return N(`[TmuxBackend] Failed to get current pane ID (exit ${K.code}): ${K.stderr}`),null;return K.stdout.trim()}async getCurrentWindowTarget(){if(this.cachedLeaderWindowTarget)return this.cachedLeaderWindowTarget;let q=Hm8(),K=[\"display-message\"];if(q)K.push(\"-t\",q);K.push(\"-p\",\"#{window_id}\");let _=await t8(m0,K);if(_.code!==0)return N(`[TmuxBackend] Failed to get current window target (exit ${_.code}): ${_.stderr}`),null;return this.cachedLe"
+        },
+        {
+          "i": 8195293,
+          "snip": "splay-message\",\"-p\",\"#{pane_id}\"]);if(K.code!==0)return N(`[TmuxBackend] Failed to get current pane ID (exit ${K.code}): ${K.stderr}`),null;return K.stdout.trim()}async getCurrentWindowTarget(){if(this.cachedLeaderWindowTarget)return this.cachedLeaderWindowTarget;let q=Hm8(),K=[\"display-message\"];if(q)K.push(\"-t\",q);K.push(\"-p\",\"#{window_id}\");let _=await t8(m0,K);if(_.code!==0)return N(`[TmuxBackend] Failed to get current window target (exit ${_.code}): ${_.stderr}`),null;return this.cachedLeaderWindowTarget=_.stdout.trim(),this.cachedLeaderWindowTarget}async getCurrentWindowPaneCount(q,K=!1){let _=q||await this.getCurrentWindowTarget();if(!_)return null;let z=[\"list-panes\",\"-t\",_,\"-F\",\"#{pane_id}\"],Y=K?await p0(z):await OB(z);if(Y.code!==0)return j6(Error(`[TmuxBacken"
+        }
+      ]
+    },
+    {
+      "needle": "#{client_termtype}",
+      "count": 1,
+      "hits": [
+        {
+          "i": 4034839,
+          "snip": ",Cr6())this.props.stdout.write(oi6),this.props.stdout.write(ai6);setImmediate(()=>{Promise.all([this.querier.send(lq4()),this.querier.flush()]).then(async([_])=>{if(_){let z=_.name;if(process.env.TMUX&&z.startsWith(\"tmux \")){let{stdout:Y}=await t8(\"tmux\",[\"display-message\",\"-p\",\"#{client_termtype}\"],{timeout:1000,useCwd:!1}),O=Y.trim();if(O)z=O}Qq4(z),N(`XTVERSION: terminal identified as \"${z}\"`)}else N(\"XTVERSION: no reply (terminal ignored query)\");N(`DECSTBM: ${br6?\"enabled\":\"gated\"} (TMUX=${process.env.TMUX?\"set\":\"unset\"} TERM_PROGRAM=${process.env.TERM_PROGRAM??\"unset\"} TERM=${process.env.TERM??\"unset\"})`)})})}this.rawModeEnabledCount++;return}if(--this.rawModeEnabledCount===0)this.props.stdout.write(p$6),this.props.stdout.write(zo),this.props.stdout.write(i$6),thi"
+        }
+      ]
+    },
+    {
+      "needle": "startsWith(\"tmux \")",
+      "count": 1,
+      "hits": [
+        {
+          "i": 4034763,
+          "snip": ".stdout.write(bq4),this.props.stdout.write(qC1),this.props.stdout.write(xq4),Cr6())this.props.stdout.write(oi6),this.props.stdout.write(ai6);setImmediate(()=>{Promise.all([this.querier.send(lq4()),this.querier.flush()]).then(async([_])=>{if(_){let z=_.name;if(process.env.TMUX&&z.startsWith(\"tmux \")){let{stdout:Y}=await t8(\"tmux\",[\"display-message\",\"-p\",\"#{client_termtype}\"],{timeout:1000,useCwd:!1}),O=Y.trim();if(O)z=O}Qq4(z),N(`XTVERSION: terminal identified as \"${z}\"`)}else N(\"XTVERSION: no reply (terminal ignored query)\");N(`DECSTBM: ${br6?\"enabled\":\"gated\"} (TMUX=${process.env.TMUX?\"set\":\"unset\"} TERM_PROGRAM=${process.env.TERM_PROGRAM??\"unset\"} TERM=${process.env.TERM??\"unset\"})`)})})}this.rawModeEnabledCount++;return}if(--this.rawModeEnabledCount===0)this.props.st"
+        }
+      ]
+    },
+    {
+      "needle": "name===\"space\"?",
+      "count": 2,
+      "hits": [
+        {
+          "i": 3790386,
+          "snip": "||q.option,super:q.super},_=q.ctrl?q.name:q.sequence;if(_===void 0)_=\"\";if(q.ctrl&&_===\"space\")_=\" \";if(q.code&&!q.name)_=\"\";if(!q.name&&/^\\[<\\d+;\\d+;\\d+[Mm]/.test(_))_=\"\";if(_.startsWith(\"\\x1B\"))_=_.slice(1);let z=!1;if(/^\\[\\d/.test(_)&&_.endsWith(\"u\")){if(!q.name)_=\"\";else _=q.name===\"space\"?\" \":q.name===\"escape\"?\"\":q.name;z=!0}if(_.startsWith(\"[27;\")&&_.endsWith(\"~\")){if(!q.name)_=\"\";else _=q.name===\"space\"?\" \":q.name===\"escape\"?\"\":q.name;z=!0}if(_.startsWith(\"O\")&&_.length===2&&q.name&&q.name.length===1)_=q.name,z=!0;if(!z&&q.name&&j84.includes(q.name))_=\"\";if(_.length===1&&typeof _[0]===\"string\"&&_[0]>=\"A\"&&_[0]<=\"Z\")K.shift=!0;return[K,_]}var si6;var hR1=L(()=>{LR1();si6=class si6 extends Vh{keypress;key;input;constructor(q){super();let[K,_]=zG_(q);this.keypress=q"
+        },
+        {
+          "i": 3790505,
+          "snip": ")_=\"\";if(!q.name&&/^\\[<\\d+;\\d+;\\d+[Mm]/.test(_))_=\"\";if(_.startsWith(\"\\x1B\"))_=_.slice(1);let z=!1;if(/^\\[\\d/.test(_)&&_.endsWith(\"u\")){if(!q.name)_=\"\";else _=q.name===\"space\"?\" \":q.name===\"escape\"?\"\":q.name;z=!0}if(_.startsWith(\"[27;\")&&_.endsWith(\"~\")){if(!q.name)_=\"\";else _=q.name===\"space\"?\" \":q.name===\"escape\"?\"\":q.name;z=!0}if(_.startsWith(\"O\")&&_.length===2&&q.name&&q.name.length===1)_=q.name,z=!0;if(!z&&q.name&&j84.includes(q.name))_=\"\";if(_.length===1&&typeof _[0]===\"string\"&&_[0]>=\"A\"&&_[0]<=\"Z\")K.shift=!0;return[K,_]}var si6;var hR1=L(()=>{LR1();si6=class si6 extends Vh{keypress;key;input;constructor(q){super();let[K,_]=zG_(q);this.keypress=q,this.key=K,this.input=_}}});var Xk6;var RR1=L(()=>{Xk6=class Xk6 extends Vh{type;constructor(q){super();this.type=q}}}"
+        }
+      ]
+    },
+    {
+      "needle": "q.name===\"space\"",
+      "count": 2,
+      "hits": [
+        {
+          "i": 3790384,
+          "snip": "e\"||q.option,super:q.super},_=q.ctrl?q.name:q.sequence;if(_===void 0)_=\"\";if(q.ctrl&&_===\"space\")_=\" \";if(q.code&&!q.name)_=\"\";if(!q.name&&/^\\[<\\d+;\\d+;\\d+[Mm]/.test(_))_=\"\";if(_.startsWith(\"\\x1B\"))_=_.slice(1);let z=!1;if(/^\\[\\d/.test(_)&&_.endsWith(\"u\")){if(!q.name)_=\"\";else _=q.name===\"space\"?\" \":q.name===\"escape\"?\"\":q.name;z=!0}if(_.startsWith(\"[27;\")&&_.endsWith(\"~\")){if(!q.name)_=\"\";else _=q.name===\"space\"?\" \":q.name===\"escape\"?\"\":q.name;z=!0}if(_.startsWith(\"O\")&&_.length===2&&q.name&&q.name.length===1)_=q.name,z=!0;if(!z&&q.name&&j84.includes(q.name))_=\"\";if(_.length===1&&typeof _[0]===\"string\"&&_[0]>=\"A\"&&_[0]<=\"Z\")K.shift=!0;return[K,_]}var si6;var hR1=L(()=>{LR1();si6=class si6 extends Vh{keypress;key;input;constructor(q){super();let[K,_]=zG_(q);this.keypress"
+        },
+        {
+          "i": 3790503,
+          "snip": "me)_=\"\";if(!q.name&&/^\\[<\\d+;\\d+;\\d+[Mm]/.test(_))_=\"\";if(_.startsWith(\"\\x1B\"))_=_.slice(1);let z=!1;if(/^\\[\\d/.test(_)&&_.endsWith(\"u\")){if(!q.name)_=\"\";else _=q.name===\"space\"?\" \":q.name===\"escape\"?\"\":q.name;z=!0}if(_.startsWith(\"[27;\")&&_.endsWith(\"~\")){if(!q.name)_=\"\";else _=q.name===\"space\"?\" \":q.name===\"escape\"?\"\":q.name;z=!0}if(_.startsWith(\"O\")&&_.length===2&&q.name&&q.name.length===1)_=q.name,z=!0;if(!z&&q.name&&j84.includes(q.name))_=\"\";if(_.length===1&&typeof _[0]===\"string\"&&_[0]>=\"A\"&&_[0]<=\"Z\")K.shift=!0;return[K,_]}var si6;var hR1=L(()=>{LR1();si6=class si6 extends Vh{keypress;key;input;constructor(q){super();let[K,_]=zG_(q);this.keypress=q,this.key=K,this.input=_}}});var Xk6;var RR1=L(()=>{Xk6=class Xk6 extends Vh{type;constructor(q){super();this.type=q}"
+        }
+      ]
+    },
+    {
+      "needle": "parsed.name===\"space\"",
+      "count": 0,
+      "hits": []
+    },
+    {
+      "needle": "===\"space\")return\" \"",
+      "count": 1,
+      "hits": [
+        {
+          "i": 4037415,
+          "snip": "AUDE_CODE_ACCESSIBILITY))this.props.stdout.write(Rr6);this.props.stdout.write(qC1)}this.internal_eventEmitter.emit(\"resume\"),process.removeListener(\"SIGCONT\",K)};process.on(\"SIGCONT\",K),process.kill(process.pid,\"SIGSTOP\")}}});function iV_(q){let K=q.sequence??\"\",_=q.name??\"\";if(_===\"space\")return\" \";if(q.ctrl)return _;if(K.length===1){let z=K.charCodeAt(0);if(z>=32&&z!==127)return K}return _||K}var Lh;var Kw6=L(()=>{DS1();Lh=class Lh extends jr6{key;ctrl;shift;meta;superKey;fn;constructor(q){super(\"keydown\",{bubbles:!0,cancelable:!0});this.key=iV_(q),this.ctrl=q.ctrl,this.shift=q.shift,this.meta=q.meta||q.option,this.superKey=q.super,this.fn=q.fn}}});function Jq6(q,K,_,z,Y){return{screen:$o(0,0,_,z,Y),viewport:{width:K,height:q},cursor:{x:0,y:0,visible:!0}}}var T44=L(()"
+        }
+      ]
+    },
+    {
+      "needle": "name===\"space\")return",
+      "count": 0,
+      "hits": []
+    },
+    {
+      "needle": "keyFromParsed",
+      "count": 0,
+      "hits": []
+    },
+    {
+      "needle": "seq.length===1",
+      "count": 0,
+      "hits": []
+    },
+    {
+      "needle": "charCodeAt(0)",
+      "count": 61,
+      "hits": [
+        {
+          "i": 20384,
+          "snip": ")_.clear();return z}),_=K.cache;return K}var Z25=500,iX7;var rX7=L(()=>{I4();iX7=G25});var v25,T25,k25,oX7;var aX7=L(()=>{rX7();v25=/[^.[\\]]+|\\[(?:(-?\\d+(?:\\.\\d+)?)|([\"'])((?:(?!\\2)[^\\\\]|\\\\.)*?)\\2)\\]|(?=(?:\\.|\\[\\])(?:\\.|\\[\\]|$))/g,T25=/\\\\(\\\\)?/g,k25=iX7(function(q){var K=[];if(q.charCodeAt(0)===46)K.push(\"\");return q.replace(v25,function(_,z,Y,O){K.push(Y?O.replace(T25,\"$1\"):z||_)}),K}),oX7=k25});function V25(q,K){var _=-1,z=q==null?0:q.length,Y=Array(z);while(++_<z)Y[_]=K(q[_],_,q);return Y}var K66;var Tu6=L(()=>{K66=V25});function eX7(q){if(typeof q==\"string\")return q;if(LA(q))return K66(q,eX7)+\"\";if(q66(q))return tX7?tX7.call(q):\"\";var K=q+\"\";return K==\"0\"&&1/q==-N25?\"-0\":K}var N25=1/0,sX7,tX7,qP7;var KP7=L(()=>{N_6();Tu6();bT();vu6();sX7=MD?MD.prototype:void 0,tX7=s"
+        },
+        {
+          "i": 709731,
+          "snip": "&&q!==Rz6,UE5=(q,K,_,{allOwnKeys:z}={})=>{return Kg6(K,(Y,O)=>{if(_&&AN(Y))Object.defineProperty(q,O,{value:tB6(Y,_),writable:!0,enumerable:!0,configurable:!0});else Object.defineProperty(q,O,{value:Y,writable:!0,enumerable:!0,configurable:!0})},{allOwnKeys:z}),q},QE5=(q)=>{if(q.charCodeAt(0)===65279)q=q.slice(1);return q},dE5=(q,K,_,z)=>{q.prototype=Object.create(K.prototype,z),Object.defineProperty(q.prototype,\"constructor\",{value:q,writable:!0,enumerable:!1,configurable:!0}),Object.defineProperty(q,\"super\",{value:K.prototype}),_&&Object.assign(q.prototype,_)},cE5=(q,K,_,z)=>{let Y,O,A,$={};if(K=K||{},q==null)return K;do{Y=Object.getOwnPropertyNames(q),O=Y.length;while(O-- >0)if(A=Y[O],(!z||z(A,q,K))&&!$[A])K[A]=q[A],$[A]=!0;q=_!==!1&&P51(q)}while(q&&(!_||_(q,K))&&q!="
+        },
+        {
+          "i": 820714,
+          "snip": "in K)||(\"css\"in K))))return\"visual\";return\"unknown\"}async function Fw8(q,K){return new Promise((_)=>{let z=!1,Y,O=(A)=>{if(z)return;z=!0,Y&&clearTimeout(Y),_(A||null)};if(K)Y=setTimeout(()=>O(),K);q.then((A)=>O(A)).catch(()=>O())})}var NR7,C31=(q)=>Uint8Array.from(atob(q),(K)=>K.charCodeAt(0));var Lg6=L(()=>{NR7={fetch:globalThis.fetch?globalThis.fetch.bind(globalThis):void 0,SubtleCrypto:globalThis.crypto?globalThis.crypto.subtle:void 0,EventSource:globalThis.EventSource}});function uR7(q){if(Object.assign(uG,q),!uG.backgroundSync)xC5()}async function mR7(q){let{instance:K,timeout:_,skipCache:z,allowStale:Y,backgroundSync:O}=q;if(!O)uG.backgroundSync=!1;return RC5({instance:K,allowStale:Y,timeout:_,skipCache:z})}function EC5(q){let K=hg6(q),_=Xf6.get(K)||new Set;_.add("
+        },
+        {
+          "i": 1034672,
+          "snip": "+\"s\"){return q===1?K:_}function yw(q,K){let _=q.indexOf(K);return _===-1?q:q.slice(0,_)}function nG(q){return yw(q,`\n`)}function IO(q,K,_=0){let z=0,Y=q.indexOf(K,_);while(Y!==-1)z++,Y=q.indexOf(K,Y+1);return z}function Vj8(q){return q.replace(/[０-９]/g,(K)=>String.fromCharCode(K.charCodeAt(0)-65248))}function HY6(q){return q.replace(/\\u3000/g,\" \")}function Nj8(q,K=\",\",_=vu7){let Y=\"\";for(let O of q){let A=Y?K:\"\",$=A+O;if(Y.length+$.length<=_)Y+=$;else{let w=_-Y.length-A.length-14;if(w>0)Y+=A+O.slice(0,w)+\"...[truncated]\";else Y+=\"...[truncated]\";return Y}}return Y}class TF6{maxSize;content=\"\";isTruncated=!1;totalBytesReceived=0;constructor(q=vu7){this.maxSize=q}append(q){let K=typeof q===\"string\"?q:q.toString();if(this.totalBytesReceived+=K.length,this.isTruncated&&this"
+        }
+      ]
+    },
+    {
+      "needle": "code>=32",
+      "count": 0,
+      "hits": []
+    },
+    {
+      "needle": "code>=0x20",
+      "count": 0,
+      "hits": []
+    },
+    {
+      "needle": "blank page",
+      "count": 0,
+      "hits": []
+    },
+    {
+      "needle": "same diff",
+      "count": 0,
+      "hits": []
+    },
+    {
+      "needle": "heightCache",
+      "count": 0,
+      "hits": []
+    },
+    {
+      "needle": "scrollbackRows",
+      "count": 0,
+      "hits": []
+    },
+    {
+      "needle": "fullReset",
+      "count": 0,
+      "hits": []
+    },
+    {
+      "needle": "i6??=",
+      "count": 1,
+      "hits": [
+        {
+          "i": 4076632,
+          "snip": "$6){let F6=BH.get(g6);if(F6){let K8=Math.floor(F6.y)-T6;if(K8===S6)continue;let R8=Math.max(K8,P6.top),X8=Math.min(K8+F6.height,i6??P6.bottom+1);if(R8<X8)K.write(Math.floor(w),R8,Array(X8-R8).fill(C6).join(`\n`))}}let a6=Math.min(Math.floor(n+N6),Math.floor((S??H)+I+B));if(S6<a6){i6??=S6;let F6=Array(a6-S6).fill(C6).join(`\n`);K.write(Math.floor(w),S6,F6),K.clip({x1:void 0,x2:void 0,y1:S6,y2:a6}),bk8(g6,K,{offsetX:c,offsetY:n,prevScreen:void 0,inheritedBackgroundColor:G}),K.unclip()}}}let H8=CC1.length?\" \".repeat(B6):\"\";for(let V8 of CC1){if(V8.y>=y6+1||V8.y+V8.height<=H6)continue;let k6=Math.max(H6,Math.floor(V8.y)-T6),C6=Math.min(y6+1,Math.floor(V8.y+V8.height)-T6);if(k6>=l6&&C6<=e6+1)continue;if(k6>=C6)continue;let t6=Array(C6-k6).fill(H8).join(`\n`);K.write(Math.floor("
+        }
+      ]
+    },
+    {
+      "needle": "i6??P6.bottom",
+      "count": 1,
+      "hits": [
+        {
+          "i": 4076480,
+          "snip": "tedHeight(),N6=h6+J6;if($6){let F6=BH.get(g6);t6+=J6-(F6?F6.height:0)}if(N6<=t||h6>=t+B)continue;if(h6>=V8&&N6<=k6)continue;let S6=Math.floor(n+h6);if(!$6){let F6=BH.get(g6);if(F6){let K8=Math.floor(F6.y)-T6;if(K8===S6)continue;let R8=Math.max(K8,P6.top),X8=Math.min(K8+F6.height,i6??P6.bottom+1);if(R8<X8)K.write(Math.floor(w),R8,Array(X8-R8).fill(C6).join(`\n`))}}let a6=Math.min(Math.floor(n+N6),Math.floor((S??H)+I+B));if(S6<a6){i6??=S6;let F6=Array(a6-S6).fill(C6).join(`\n`);K.write(Math.floor(w),S6,F6),K.clip({x1:void 0,x2:void 0,y1:S6,y2:a6}),bk8(g6,K,{offsetX:c,offsetY:n,prevScreen:void 0,inheritedBackgroundColor:G}),K.unclip()}}}let H8=CC1.length?\" \".repeat(B6):\"\";for(let V8 of CC1){if(V8.y>=y6+1||V8.y+V8.height<=H6)continue;let k6=Math.max(H6,Math.floor(V8.y)-T6),C6"
+        }
+      ]
+    },
+    {
+      "needle": "send_message",
+      "count": 8,
+      "hits": [
+        {
+          "i": 6832437,
+          "snip": "){let K=cDz(q);if(K===null)return null;return le6.createElement(u,{flexWrap:\"nowrap\",marginLeft:1},le6.createElement(y5,null,K.url&&_0()?Yd(K.url,K.label):K.label))}}}var le6,QDz,dDz;var Ru4=L(()=>{aU();c6();Pe6();n8();le6=Y6(Z6(),1),QDz=/^[CDG][A-Z0-9]{6,}$/,dDz=new Set([\"slack_send_message\",\"slack_post_message\"])});function lDz(q){return q.scope===\"project\"||q.scope===\"local\"}async function nDz(q,K){if(!K.headersHelper)return null;if(\"scope\"in K&&lDz(K)&&!U7()){if(!OA()){let z=Error(`Security: headersHelper for MCP server '${q}' executed before workspace trust is confirmed. If you see this message, post in ${{ISSUES_EXPLAINER:\"report the issue at https://github.com/anthropics/claude-code/issues\",PACKAGE_URL:\"@anthropic-ai/claude-code\",README_URL:\"https://code.claude.c"
+        },
+        {
+          "i": 7473032,
+          "snip": "0,\"grpc.keepalive_time_ms\":!0,\"grpc.keepalive_timeout_ms\":!0,\"grpc.keepalive_permit_without_calls\":!0,\"grpc.service_config\":!0,\"grpc.max_concurrent_streams\":!0,\"grpc.initial_reconnect_backoff_ms\":!0,\"grpc.max_reconnect_backoff_ms\":!0,\"grpc.use_local_subchannel_pool\":!0,\"grpc.max_send_message_length\":!0,\"grpc.max_receive_message_length\":!0,\"grpc.enable_http_proxy\":!0,\"grpc.enable_channelz\":!0,\"grpc.dns_min_time_between_resolutions_ms\":!0,\"grpc.enable_retries\":!0,\"grpc.per_rpc_retry_buffer_size\":!0,\"grpc.retry_buffer_size\":!0,\"grpc.max_connection_age_ms\":!0,\"grpc.max_connection_age_grace_ms\":!0,\"grpc-node.max_session_memory\":!0,\"grpc.service_config_disable_resolution\":!0,\"grpc.client_idle_timeout_ms\":!0,\"grpc-node.tls_enable_trace\":!0,\"grpc.lb.ring_hash.ring_size_cap\":!0,"
+        },
+        {
+          "i": 7629604,
+          "snip": "ression=new nL6,this.currentCompressionAlgorithm=\"identity\";let O=q[\"grpc.default_compression_algorithm\"];if(this.maxReceiveMessageLength=(_=q[\"grpc.max_receive_message_length\"])!==null&&_!==void 0?_:lL6.DEFAULT_MAX_RECEIVE_MESSAGE_LENGTH,this.maxSendMessageLength=(z=q[\"grpc.max_send_message_length\"])!==null&&z!==void 0?z:lL6.DEFAULT_MAX_SEND_MESSAGE_LENGTH,O!==void 0)if(Zxz(O)){let A=Vt4.CompressionAlgorithms[O],$=(Y=K.serverSupportedEncodingHeader)===null||Y===void 0?void 0:Y.split(\",\");if(!$||$.includes(A))this.currentCompressionAlgorithm=A,this.sendCompression=kt4(this.currentCompressionAlgorithm,-1)}else fxz.log(lL6.LogVerbosity.ERROR,`Invalid value provided for grpc.default_compression_algorithm option: ${O}`)}async sendMetadata(q){let K=await q;if(K.set(\"grpc-acc"
+        },
+        {
+          "i": 7741653,
+          "snip": "),this.callEventTracker.onCallEnd({code:YE.Status.CANCELLED,details:\"Stream closed before sending status\",metadata:null});this.notifyOnCancel()}),this.stream.on(\"data\",(J)=>{this.handleDataFrame(J)}),this.stream.pause(),this.stream.on(\"end\",()=>{this.handleEndEvent()}),\"grpc.max_send_message_length\"in Y)this.maxSendMessageSize=Y[\"grpc.max_send_message_length\"];if(\"grpc.max_receive_message_length\"in Y)this.maxReceiveMessageSize=Y[\"grpc.max_receive_message_length\"];this.host=(O=K[\":authority\"])!==null&&O!==void 0?O:K.host,this.decoder=new Jmz.StreamDecoder(this.maxReceiveMessageSize);let $=vI8.Metadata.fromHttp2Headers(K);if(N6K.isTracerEnabled(y6K))qH6(\"Request to \"+this.handler.path+\" received headers \"+JSON.stringify($.toJSON()));let w=$.get(Ko1);if(w.length>0)this.han"
+        }
+      ]
+    },
+    {
+      "needle": "slack_send_message",
+      "count": 3,
+      "hits": [
+        {
+          "i": 6832431,
+          "snip": "eTag(q){let K=cDz(q);if(K===null)return null;return le6.createElement(u,{flexWrap:\"nowrap\",marginLeft:1},le6.createElement(y5,null,K.url&&_0()?Yd(K.url,K.label):K.label))}}}var le6,QDz,dDz;var Ru4=L(()=>{aU();c6();Pe6();n8();le6=Y6(Z6(),1),QDz=/^[CDG][A-Z0-9]{6,}$/,dDz=new Set([\"slack_send_message\",\"slack_post_message\"])});function lDz(q){return q.scope===\"project\"||q.scope===\"local\"}async function nDz(q,K){if(!K.headersHelper)return null;if(\"scope\"in K&&lDz(K)&&!U7()){if(!OA()){let z=Error(`Security: headersHelper for MCP server '${q}' executed before workspace trust is confirmed. If you see this message, post in ${{ISSUES_EXPLAINER:\"report the issue at https://github.com/anthropics/claude-code/issues\",PACKAGE_URL:\"@anthropic-ai/claude-code\",README_URL:\"https://code.cl"
+        },
+        {
+          "i": 10068220,
+          "snip": "it checkout --branch:*)\",\"Bash(git checkout -b:*)\",\"Bash(git add:*)\",\"Bash(git status:*)\",\"Bash(git push:*)\",\"Bash(git commit:*)\",\"Bash(gh pr create:*)\",\"Bash(gh pr edit:*)\",\"Bash(gh pr view:*)\",\"Bash(gh pr merge:*)\",\"ToolSearch\",\"mcp__slack__send_message\",\"mcp__claude_ai_Slack__slack_send_message\"];RZY={type:\"prompt\",name:\"commit-push-pr\",description:\"Commit, push, and open a PR\",allowedTools:vLK,get contentLength(){return TLK(\"main\").length},progressMessage:\"creating commit and PR\",source:\"builtin\",async getPromptForCommand(q,K){let[_,z]=await Promise.all([kZ(),$GK(K.getAppState)]),Y=TLK(_,z),O=q?.trim();if(O)Y+=`\n\n## Additional instructions from user\n\n${O}`;return[{type:\"text\",text:await Wc(Y,{...K,getAppState(){let $=K.getAppState();return{...$,toolPermissionContext"
+        },
+        {
+          "i": 12699551,
+          "snip": "ound something stuck.** If every session looks healthy, tell the user that directly — do not post an all-clear to the channel.\\n\\nIf you did find a stuck/slow session, post to **#claude-code-feedback** (channel ID: `C07VBSHV7EV`) using the Slack MCP tool. Use ToolSearch to find `slack_send_message` if it's not already loaded.\\n\\n**Use a two-message structure** to keep the channel scannable:\\n\\n1. **Top-level message** — one short line: hostname, Claude Code version, and a terse symptom (e.g. \\\"session PID 12345 pegged at 100% CPU for 10min\\\" or \\\"git subprocess hung in D state\\\"). No code blocks, no details.\\n2. **Thread reply** — the full diagnostic dump. Pass the top-level message's `ts` as `thread_ts`. Include:\\n   - PID, CPU%, RSS, state, uptime, command line, child"
+        }
+      ]
+    },
+    {
+      "needle": "dDz=",
+      "count": 1,
+      "hits": [
+        {
+          "i": 6832417,
+          "snip": "},renderToolUseTag(q){let K=cDz(q);if(K===null)return null;return le6.createElement(u,{flexWrap:\"nowrap\",marginLeft:1},le6.createElement(y5,null,K.url&&_0()?Yd(K.url,K.label):K.label))}}}var le6,QDz,dDz;var Ru4=L(()=>{aU();c6();Pe6();n8();le6=Y6(Z6(),1),QDz=/^[CDG][A-Z0-9]{6,}$/,dDz=new Set([\"slack_send_message\",\"slack_post_message\"])});function lDz(q){return q.scope===\"project\"||q.scope===\"local\"}async function nDz(q,K){if(!K.headersHelper)return null;if(\"scope\"in K&&lDz(K)&&!U7()){if(!OA()){let z=Error(`Security: headersHelper for MCP server '${q}' executed before workspace trust is confirmed. If you see this message, post in ${{ISSUES_EXPLAINER:\"report the issue at https://github.com/anthropics/claude-code/issues\",PACKAGE_URL:\"@anthropic-ai/claude-code\",README_URL:\"h"
+        }
+      ]
+    },
+    {
+      "needle": "Lu4(q)",
+      "count": 1,
+      "hits": [
+        {
+          "i": 6831732,
+          "snip": "etric_metadata\",\"kubectl_get\",\"kubectl_describe\",\"kubectl_logs\",\"kubectl_context\",\"explain_resource\",\"list_api_resources\",\"namespaces_list\",\"nodes_log\",\"nodes_top\",\"pods_get\",\"pods_list\",\"pods_list_in_namespace\",\"pods_log\",\"pods_top\",\"resources_get\",\"resources_list\"])});function Lu4(q){return dDz.has(q)}function cDz(q){let K=q.channel_id??q.channel;if(typeof K!==\"string\"||!K)return null;let _=K.replace(/^#/,\"\"),z=`#${_}`,Y=QDz.test(_)?`https://slack.com/app_redirect?channel=${_}`:null;return{label:z,url:Y}}function hu4(){return{userFacingName(){return\"Slacked\"},renderToolUseMessage(q,{verbose:K}){if(!K)return\"\";return Object.entries(q).map(([_,z])=>`${_}: ${I6(z)}`).join(\", \")},renderToolUseTag(q){let K=cDz(q);if(K===null)return null;return le6.createElement(u,{flexWrap"
+        }
+      ]
+    }
+  ]
+}

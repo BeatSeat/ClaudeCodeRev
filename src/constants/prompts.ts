@@ -446,10 +446,14 @@ export async function getSystemPrompt(
   model: string,
   additionalWorkingDirectories?: string[],
   mcpClients?: MCPServerConnection[],
+  options?: { excludeDynamicSections?: boolean },
 ): Promise<string[]> {
+  const excludeDynamicSections = options?.excludeDynamicSections === true
   if (isEnvTruthy(process.env.CLAUDE_CODE_SIMPLE)) {
     return [
-      `You are Claude Code, Anthropic's official CLI for Claude.\n\nCWD: ${getCwd()}\nDate: ${getSessionStartDate()}`,
+      excludeDynamicSections
+        ? `You are Claude Code, Anthropic's official CLI for Claude.`
+        : `You are Claude Code, Anthropic's official CLI for Claude.\n\nCWD: ${getCwd()}\nDate: ${getSessionStartDate()}`,
     ]
   }
 
@@ -492,13 +496,19 @@ ${CYBER_RISK_INSTRUCTION}`,
     systemPromptSection('session_guidance', () =>
       getSessionSpecificGuidanceSection(enabledTools, skillToolCommands),
     ),
-    systemPromptSection('memory', () => loadMemoryPrompt()),
+    ...(excludeDynamicSections
+      ? []
+      : [systemPromptSection('memory', () => loadMemoryPrompt())]),
     systemPromptSection('ant_model_override', () =>
       getAntModelOverrideSection(),
     ),
-    systemPromptSection('env_info_simple', () =>
-      computeSimpleEnvInfo(model, additionalWorkingDirectories),
-    ),
+    ...(excludeDynamicSections
+      ? []
+      : [
+          systemPromptSection('env_info_simple', () =>
+            computeSimpleEnvInfo(model, additionalWorkingDirectories),
+          ),
+        ]),
     systemPromptSection('language', () =>
       getLanguageSection(settings.language),
     ),
@@ -707,6 +717,38 @@ export async function computeSimpleEnvInfo(
     `You have been invoked in the following environment: `,
     ...prependBullets(envItems),
   ].join(`\n`)
+}
+
+function parseExcludedSection(body: string): [string, string] {
+  const newline = body.indexOf('\n')
+  const heading = newline === -1 ? body : body.slice(0, newline)
+  if (!heading.startsWith('# ')) {
+    throw new Error(
+      `getExcludedDynamicSectionsContent: expected section body to start with a "# <heading>" line, got "${heading}"`,
+    )
+  }
+  return [heading.slice(2), newline === -1 ? '' : body.slice(newline + 1)]
+}
+
+/** Move cwd/env/memory out of the system prompt for cross-user cache reuse. */
+export async function getExcludedDynamicSectionsContent(
+  model: string,
+  additionalWorkingDirectories?: string[],
+): Promise<{ [k: string]: string }> {
+  const [env, memory] = await Promise.all([
+    computeSimpleEnvInfo(model, additionalWorkingDirectories),
+    loadMemoryPrompt(),
+  ])
+  const out: { [k: string]: string } = {}
+  if (env) {
+    const parsed = parseExcludedSection(env)
+    out[parsed[0]] = parsed[1]
+  }
+  if (memory) {
+    const parsed = parseExcludedSection(memory)
+    out[parsed[0]] = parsed[1]
+  }
+  return out
 }
 
 // @[MODEL LAUNCH]: Add a knowledge cutoff date for the new model.

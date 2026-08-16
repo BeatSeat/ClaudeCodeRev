@@ -1,0 +1,88 @@
+{
+  "Xhz": {
+    "idx": 7422799,
+    "snip": "function Xhz(q,K){let _=XB(q),[z]=_.split(/\\s+/);if(!z)return{behavior:\"passthrough\",message:\"Base command not found\"};if(K.mode===\"acceptEdits\"&&Mhz(z))return{behavior:\"allow\",updatedInput:{command:q},decisionReason:{type:\"mode\",mode:\"acceptEdits\"}};return{behavior:\"passthrough\",message:`No mode-specific handling for '${z}' in ${K.mode} mode`}}function ic4(q,K){if(K.mode===\"bypassPermissions\")return{behavior:\"passthrough\",message:\"Bypass mode is handled in main permission flow\"};if(K.mode===\"dontAsk\")return{behavior:\"passthrough\",message:\"DontAsk mode is handled in main permission flow\"};let _=CO(q.command);for(let z of _){let Y=Xhz(z,K);if(Y.behavior!==\"passthrough\")return Y}return{behavior:\"passthrough\",message:\"No mode-specific validation required\"}}var Jhz;var rc4=L(()=>{w0();sV();Jhz=[\"mkdir\",\"touch\",\"rm\",\"rmdir\",\"mv\",\"cp\",\"sed\"]});function oc4(q,K,_,z){return}function Ix8(q){let K=q.trim().split(/\\s+/).filter(Boolean);if(K.length===0)return null;let _=0;while(_<K.length&&wi1.test(K[_])){let A=oz(K[_],\"=\"),O=!1;if(!s68.has(A))return null;_++}let z=K.slice(_);if(z.length<2)return null;let Y=z[1];if(!/^[a-z][a-z0-9]*(-[a-z0-9]+)*$/.test(Y))return null;return z.slice(0,2).join(\" \")}function sc4(q){let K=q.trim().split(/\\s+/).filter(Boolean),_=0;while(_<K.length&&wi1.test(K[_])){let Y=oz(K[_],\"=\"),A=!1;if(!s68.has(Y))return null;_++}let z=K[_];if(!z)return null;if(!/^[a-z][a-z0-9]*(-[a-z0-9]+)*$/.test(z))return null;if(Dhz.has(z))return null;return z}function rL6(q){let K=W"
+  },
+  "ic4": {
+    "idx": 7423146,
+    "snip": "function ic4(q,K){if(K.mode===\"bypassPermissions\")return{behavior:\"passthrough\",message:\"Bypass mode is handled in main permission flow\"};if(K.mode===\"dontAsk\")return{behavior:\"passthrough\",message:\"DontAsk mode is handled in main permission flow\"};let _=CO(q.command);for(let z of _){let Y=Xhz(z,K);if(Y.behavior!==\"passthrough\")return Y}return{behavior:\"passthrough\",message:\"No mode-specific validation required\"}}var Jhz;var rc4=L(()=>{w0();sV();Jhz=[\"mkdir\",\"touch\",\"rm\",\"rmdir\",\"mv\",\"cp\",\"sed\"]});function oc4(q,K,_,z){return}function Ix8(q){let K=q.trim().split(/\\s+/).filter(Boolean);if(K.length===0)return null;let _=0;while(_<K.length&&wi1.test(K[_])){let A=oz(K[_],\"=\"),O=!1;if(!s68.has(A))return null;_++}let z=K.slice(_);if(z.length<2)return null;let Y=z[1];if(!/^[a-z][a-z0-9]*(-[a-z0-9]+)*$/.test(Y))return null;return z.slice(0,2).join(\" \")}function sc4(q){let K=q.trim().split(/\\s+/).filter(Boolean),_=0;while(_<K.length&&wi1.test(K[_])){let Y=oz(K[_],\"=\"),A=!1;if(!s68.has(Y))return null;_++}let z=K[_];if(!z)return null;if(!/^[a-z][a-z0-9]*(-[a-z0-9]+)*$/.test(z))return null;if(Dhz.has(z))return null;return z}function rL6(q){let K=Whz(q);if(K)return Gt6(t4.name,K);if(q.includes("
+  },
+  "sandboxCall": [
+    {
+      "idx": 993756,
+      "snip": " paths.\"),allowManagedReadPathsOnly:y.boolean().optional().describe(\"When true (set in managed settings), only allowRead paths from policySettings are used.\")}).optional()),wI7=x6(()=>y.object({enabled:y.boolean().optional(),failIfUnavailable:y.boolean().optional().describe(\"Exit with an error at startup if sandbox.enabled is true but the sandbox cannot start (missing dependencies, unsupported platform, or platform not in enabledPlatforms). When false (default), a warning is shown and commands run unsandboxed. Intended for managed-settings deployments that require sandboxing as a hard gate.\"),autoAllowBashIfSandboxed:y.boolean().optional(),allowUnsandboxedCommands:y.boolean().optional().describe(\"Allow commands to run outside the sandbox via the dangerouslyDisableSandbox parameter. When false, the dangerouslyDisableSandbox parameter is completely ignored and all commands must run sandboxed. Default: true.\"),network:Vm5(),filesystem:km5(),ignoreViolations:y.record(y.string(),y.array(y.s"
+    },
+    {
+      "idx": 1079092,
+      "snip": "ttings\"),A7())}catch(z){let Y=Error(`Failed to read raw settings from ${_}: ${z}`);return w6(Y),{error:Y}}return{error:null}}function bB5(q,K){return O5([...q,...K])}function X86(q,K){if(Array.isArray(q)&&Array.isArray(K))return bB5(q,K);return}function L_1(q){let K=tP().strip().parse(q),_=[\"permissions\",\"sandbox\",\"hooks\"],z=[],Y={permissions:new Set([\"allow\",\"deny\",\"ask\",\"defaultMode\",\"disableBypassPermissionsMode\",\"disableAutoMode\",\"additionalDirectories\"]),sandbox:new Set([\"enabled\",\"failIfUnavailable\",\"allowUnsandboxedCommands\",\"network\",\"filesystem\",\"ignoreViolations\",\"excludedCommands\",\"autoAllowBashIfSandboxed\",\"enableWeakerNestedSandbox\",\"enableWeakerNetworkIsolation\",\"ripgrep\"]),hooks:new Set([\"PreToolUse\",\"PostToolUse\",\"Notification\",\"UserPromptSubmit\",\"SessionStart\",\"SessionEnd\",\"Stop\",\"SubagentStop\",\"PreCompact\",\"PostCompact\",\"TeammateIdle\",\"TaskCreated\",\"TaskCompleted\"])};for(let A of Object.keys(K))if(_.includes(A)&&K[A]&&typeof K[A]===\"object\"){let O=K[A],$=Y[A];if($){fo"
+    },
+    {
+      "idx": 4391609,
+      "snip": "NetworkIsolation,ripgrep:W,seccomp:yz4()}}function CB_(){for(let q of rk8)try{yB_(q,{recursive:!0}),N(`[Sandbox] scrubbed planted bare-repo file: ${q}`)}catch{}}async function bB_(q){let K=hB_(q,\".git\");try{let z=(await LB_(K,{encoding:\"utf8\"})).match(/^gitdir:\\s*(.+)$/m);if(!z?.[1])return null;let Y=Xw6(q,z[1].trim()),A=`${Vx1}.git${Vx1}worktrees${Vx1}`,O=Y.lastIndexOf(A);if(O>0)return Y.substring(0,O);return null}catch{return null}}function ok8(){try{return v7()?.sandbox?.enabled??!1}catch(q){return N(`Failed to get settings for sandbox check: ${q}`),!1}}function xB_(){return v7()?.sandbox?.autoAllowBashIfSandboxed??!0}function IB_(){return v7()?.sandbox?.allowUnsandboxedCommands??!0}function uB_(){let q=v7();return ok8()&&(q?.sandbox?.failIfUnavailable??!1)}function Nx1(){try{let K=P7()?.sandbox?.enabledPlatforms;if(K===void 0)return!0;if(K.length===0)return!1;let _=y1();return K.includes(_)}catch(q){return N(`Failed to check enabledPlatforms: ${q}`),!0}}function sk8(){if(!ak8())ret"
+    },
+    {
+      "idx": 4393228,
+      "snip": "re missing: ${q.errors.join(\", \")} · ${_}`}return}function BB_(){let q=y1();if(q!==\"linux\"&&q!==\"wsl\")return[];try{let K=v7();if(!K?.sandbox?.enabled)return[];let _=K?.permissions||{},z=[],Y=(A)=>{let O=A.replace(/\\/\\*\\*$/,\"\");return/[*?[\\]]/.test(O)};for(let A of[..._.allow||[],..._.deny||[]]){let O=wk6(A);if((O.toolName===j4||O.toolName===Rq)&&O.ruleContent&&Y(O.ruleContent))z.push(A)}return z}catch(K){return N(`Failed to get Linux glob pattern warnings: ${K}`),[]}}function pB_(){let q=[\"flagSettings\",\"policySettings\"];for(let K of q){let _=E1(K);if(_?.sandbox?.enabled!==void 0||_?.sandbox?.autoAllowBashIfSandboxed!==void 0||_?.sandbox?.allowUnsandboxedCommands!==void 0)return!0}return!1}async function gB_(q){let K=E1(\"localSettings\");X7(\"localSettings\",{sandbox:{...K?.sandbox,...q.enabled!==void 0&&{enabled:q.enabled},...q.autoAllowBashIfSandboxed!==void 0&&{autoAllowBashIfSandboxed:q.autoAllowBashIfSandboxed},...q.allowUnsandboxedCommands!==void 0&&{allowUnsandboxedCommands:q.allow"
+    }
+  ],
+  "fhzAll": [
+    {
+      "idx": 7425776,
+      "snip": "]+/,z=q,Y=\"\";while(z!==Y){Y=z,z=Oi1(z);let A=z.match(_);if(A){let O=A[1],$=!1;if(s68.has(O))z=z.replace(_,\"\")}}Y=\"\";while(z!==Y){Y=z,z=Oi1(z);for(let A of K)z=z.replace(A,\"\")}return z.trim()}function fhz(q,K){if(K)return K.envVars.some((A)=>!Ly6(A.name));let _=/^([A-Za-z_][A-Za-z"
+    },
+    {
+      "idx": 7436665,
+      "snip": "havior:\"allow\",updatedInput:q,decisionReason:{type:\"rule\",rule:w[0]}};let H=iR4(q,K);if(H.behavior!==\"passthrough\")return H;let J=ic4(q,K);if(J.behavior!==\"passthrough\")return J;if(t4.isReadOnly(q)&&!fhz(q,z))return{behavior:\"allow\",updatedInput:q,decisionReason:{type:\"other\",rea"
+    }
+  ],
+  "vp8": {
+    "idx": 8663153,
+    "snip": "function vp8(q,K,_,z,Y){let A=Y||_9();if(!A)return N(\"[PermissionSync] Cannot send sandbox permission response: team name not found\"),!1;try{let O=T67({requestId:K,host:_,allow:z}),$=P_()||\"team-lead\";return await B_(q,{from:$,text:b6(O),timestamp:new Date().toISOString()},A),N(`[PermissionSync] Sent sandbox permission response for ${K} (host: ${_}, allow: ${z}) to worker ${q} via mailbox`),!0}catch(O){return N(`[PermissionSync] Failed to send sandbox permission response via mailbox: ${O}`),w6(O),!1}}var iXw;var lR6=L(()=>{B7();K8();y8();h8();l8();ez();eJ();k0();iXw=x6(()=>y.object({id:y.string(),workerId:y.string(),workerName:y.string(),workerColor:y.string().optional(),teamName:y.string(),toolName:y.string(),toolUseId:y.string(),description:y.string(),input:y.record(y.string(),y.unknown()),permissionSuggestions:y.array(y.unknown()),status:y.enum([\"pending\",\"approved\",\"rejected\"]),resolvedBy:y.enum([\"worker\",\"leader\"]).optional(),resolvedAt:y.number().optional(),feedback:y.string().optional(),updatedInput:y.record(y.string(),y.unknown()).optional(),permissionUpdates:y.array(y.unknown()).optional(),createdAt:y.number()}))});function KKY(q){if(!Array.isArray(q))return[];let K=cR6(),"
+  },
+  "Xq": {
+    "idx": 908086,
+    "snip": "function Xq(q,K){let _=K??Z8()??X8().cwd();if(typeof q!==\"string\")throw TypeError(`Path must be a string, received ${typeof q}`);if(typeof _!==\"string\")throw TypeError(`Base directory must be a string, received ${typeof _}`);if(q.includes(\"\\x00\")||_.includes(\"\\x00\"))throw Error(\"Path contains null bytes\");let z=q.trim();if(!z)return x31(_).normalize(\"NFC\");if(z===\"~\")return sS7().normalize(\"NFC\");"
+  },
+  "xNK": {
+    "idx": 9962974,
+    "snip": "function xNK(q){return uDY(Xq(q))}var l57=L(()=>{K8();B8();jj6();j_();rj();bM();qj();JB();EA();e1()});function sJ(q){let K=_6(13),{children:_,initialState:z,onChangeAppState:Y}=q;if(yP.useContext(INK)"
+  },
+  "mDY": {
+    "idx": 9962448,
+    "snip": "function mDY(q,K,_){let z=new Set((K??[]).map(xNK)),Y=new Set((_??[]).map(xNK)),A=q.additionalWorkingDirectories,O=[...z].filter((j)=>!Y.has(j)&&!bNK(A.get(j)?.source)),$=[...Y].filter((j)=>!z.has(j)&&!bNK(A.get(j)?.source));if(O.length===0&&$.length===0)return q;let w=q;if(O.length>0)w=VY(w,{type:\"removeDirectories\",directories:O,destination:\"localSettings\"});if($.length>0)w=VY(w,{type:\"addDirectories\",directories:$,destination:\"localSettings\"});return w}function bNK(q){return q===\"cliArg\"||q===\"command\"||q===\"session\"}function xNK(q){return uDY(Xq(q))}var l57=L(()=>{K8();B8();jj6();j_();rj();bM();qj();JB();EA();e1()});function sJ(q){let K=_6(13),{children:_,initialState:z,onChangeAppState:Y}=q;if(yP.useContext(INK))throw Error(\"AppStateProvider can not be nested within another AppStateProvider\");let O;if(K[0]!==z||K[1]!==Y)O=()=>Jq6(z??Pa(),Y),K[0]=z,K[1]=Y,K[2]=O;else O=K[2];let[$]=yP"
+  },
+  "CQ8": {
+    "idx": 9961838,
+    "snip": "function CQ8(q,K){let _=P7();N(`Settings changed from ${q}, updating app state`);let z=Zh8();QE6(),K((Y)=>{let A=kNK(Y.toolPermissionContext,z);if(A=mDY(A,Y.settings.permissions?.additionalDirectories,_.permissions?.additionalDirectories),A.isBypassPermissionsModeAvailable&&Zt())A=OJ6(A);if(A.strippedDangerousRules!==void 0){let j=new Set(lG),H={};for(let[J,M]of Object.entries(A.strippedDangerousRules))if(M&&!j.has(J))H[J]=[...M];A={...A,strippedDangerousRules:H}}A=dC6(A);let O=Y.settings.effortLevel,$=_.effortLevel;return{...Y,settings:_,toolPermissionContext:A,...O!==$&&$!==void 0&&{effortValue:$}}})}function mDY(q,K,_){let z=new Set((K??[]).map(xNK)),Y=new Set((_??[]).map(xNK)),A=q.additionalWorkingDirectories,O=[...z].filter((j)=>!Y.has(j)&&!bNK(A.get(j)?.source)),$=[...Y].filter((j)=>!z.has(j)&&!bNK(A.get(j)?.source));if(O.length===0&&$.length===0)return q;let w=q;if(O.length>0)w=VY(w,{type:\"removeDirectories\",directories:O,destination:\"localSettings\"});if($.length>0)w=VY(w,{type:\"addDirectories\",directories:$,destination:\"localSettings\"});return w}function bNK(q){return q===\"cliArg\"||q===\"command\"||q===\"session\"}function xNK(q){return uDY(Xq(q))}var l57=L(()=>{K8();B8();jj6()"
+  },
+  "VNK": [
+    {
+      "idx": 6480847,
+      "snip": "!1}function oV(q,K,_=!1,z=!1){let Y=q.trim(),A=z?Y.replace(/[ \\t]+/g,\" \"):Y,O=z?K.replace(/[ \\t]+/g,\" \"):K,$=\"\",w=0;while(w<A.length){let D=A[w];if(D===\"\\\\\"&&w+1<A.length){let W=A[w+1];if(W===\"*\"){$+=\"\\x00ESCAPED_STAR\\x00\",w+=2;continue}else if(W===\"\\\\\"){$+=\"\\x00ESCAPED_BACKSLASH\\x00\",w+=2;continue}}$+=D,w++}let J=$.replace(/[.+?^${}()|[\\]\\\\'\"]/g,\"\\\\$&\").replaceAll(\"*\",\".*\").replace(P2z,\"\\\\*\").replace(D2z,\"\\\\\\\\\"),M=($.match(/\\*/g)||[]).length;if(J.endsWith(\" .*\")&&M===1)J=J.slice(0,-3)+\"( .*)?\";let X=\"s\"+(_?\"i\":\"\");return new RegExp(`^${J}$`,X).test(O)}function Gh8(q){let K=Zt6(q);if(K!==null)return{type:\"prefix\",prefix:K};if(W2z(q))return{type:\"wildcard\",pattern:q};return{type:\"exact\",command:q}}function vh8(q,K){return[{type:\"addRules\",rules:[{toolName:q,ruleContent:K}],behavior:\"allow\",destination:\"localSettings\"}]}function Gt6(q,K){return[{type:\"addRules\",rules:[{toolName:q,ruleContent:`${K}:*`}],behavior:\"allow\",destination:\"localSettings\"}]}var P2z,D2z;var Ma=L(()=>{P2z=new RegEx"
+    }
+  ],
+  "initDirs": [
+    {
+      "idx": 9956938,
+      "snip": "nsMode===\"disable\",P=(z===\"bypassPermissions\"||Y)&&!J&&!X,D=Zh8(),W=[],f=[];if(z===\"auto\")f=B57(D,O);let G=VNK({mode:z,additionalWorkingDirectories:j,alwaysAllowRules:{cliArg:O},alwaysDenyRules:{cliArg:$},alwaysAskRules:{},isBypassPermissionsModeAvailable:P,...{isAutoModeAvailable:kE()},...{},isRemoteMode:B6(process.env.CLAUDE_CODE_REMOTE)||cK()},D),Z=[...(M.permissions?.additionalDirectories||[]).map((V)=>({dir:V,destination:\"localSettings\"})),...A.map((V)=>({dir:V,destination:\"cliArg\"}))],v=await Promise.all(Z.map(async({dir:V,destination:k})=>({destination:k,result:await uV6(V,G)})));for(let{result:V,destination:k}of v)if(V.resultType===\"success\")G=VY(G,{type:\"addDirectories\",directories:[V.absolutePath],destination:k});else if(V.resultType!==\"alreadyInWorkingDirectory\"&&V.resultType!==\"pathNotFound\")w.push(mV6(V));return{toolPermissionContext:G,warnings:w,dangerousPermissions:f,overlyBroadBashPermissions:W}}function u36(q){let K;switch(q){case\"settings\":K=\"auto mode disabled by set"
+    }
+  ],
+  "Ly6ANT": [
+    {
+      "idx": 7424898,
+      "snip": "eturn oV(q,K,!1,!0)}function Ly6(q){return s68.has(q)||!1}function Oi1(q){let _=q.split(`\n`).filter("
+    }
+  ],
+  "s68": [
+    {
+      "idx": 7437270,
+      "snip": "\",\"time\",\"sudo\",\"doas\",\"pkexec\"]);gc4=Zt6;ji1=Gh8,s68=new Set([\"GOEXPERIMENT\",\"GOOS\",\"GOARCH\",\"CGO_ENABLED\",\"GO111MODULE\",\"RUST_BACKTRACE\",\"RUST_LOG\",\"NODE_ENV\",\"PYTHONUNBUFFERED\",\"PYTHONDONTWRITEBYTECODE\",\"PYTEST_DISABLE_PLUGIN_AUTOLOAD\",\"PYTEST_DEBUG\",\"ANTHROPIC_API_KEY\",\"LANG\",\"LANGUAGE\",\"LC_ALL\",\"LC_CTYPE\",\"LC_TIME\",\"CHARSET\",\"TERM\",\"COLORTERM\",\"NO_COLOR\",\"FORCE_COLOR\",\"TZ\",\"LS_COLORS\",\"LSCOLORS\",\"GREP_COLOR\",\"GREP_COLORS\",\"GCC_COLORS\",\"TIME_STYLE\",\"BLOCK_SIZE\",\"BLOCKSIZE\",\"COLUMNS\",\"LINES\",\"CLICOLOR\",\"CLICOLOR_FORCE\",\"CI\",\"DEBIAN_FRONTEND\""
+    }
+  ],
+  "SAFE_ENV_full": [
+    {
+      "idx": 7437690,
+      "snip": "e,M),decisionReason:M,suggestions:rL6(Y)}},Kl4;var sV=L(()=>{IT();T8();Dt6();w0();k26();U7();y8();rj();ff();qj();Ma();VK();jA();l8();Mu();LZ();nc4();rc4();nF1();hh8();wL6();wi1=/^[A-Za-z_]\\w*=/;Dhz=new Set([\"sh\",\"bash\",\"zsh\",\"fish\",\"csh\",\"tcsh\",\"ksh\",\"dash\",\"cmd\",\"powershell\",\"pwsh\",\"env\",\"xargs\",\"nice\",\"stdbuf\",\"nohup\",\"timeout\",\"time\",\"sudo\",\"doas\",\"pkexec\"]);gc4=Zt6;ji1=Gh8,s68=new Set([\"GOEXPERIMENT\",\"GOOS\",\"GOARCH\",\"CGO_ENABLED\",\"GO111MODULE\",\"RUST_BACKTRACE\",\"RUST_LOG\",\"NODE_ENV\",\"PYTHONUNBUFFERED\",\"PYTHONDONTWRITEBYTECODE\",\"PYTEST_DISABLE_PLUGIN_AUTOLOAD\",\"PYTEST_DEBUG\",\"ANTHROPIC_API_KEY\",\"LANG\",\"LANGUAGE\",\"LC_ALL\",\"LC_CTYPE\",\"LC_TIME\",\"CHARSET\",\"TERM\",\"COLORTERM\",\"NO_COLOR\",\"FORCE_COLOR\",\"TZ\",\"LS_COLORS\",\"LSCOLORS\",\"GREP_COLOR\",\"GREP_COLORS\",\"GCC_COLORS\",\"TIME_STYLE\",\"BLOCK_SIZE\",\"BLOCKSIZE\",\"COLUMNS\",\"LINES\",\"CLICOLOR\",\"CLICOLOR_FORCE\",\"CI\",\"DEBIAN_FRONTEND\",\"GIT_TERMINAL_PROMPT\"]);Kl4=new Map});function Bx8(q,K){if(K)return q?`agent:builtin:${q}`:\"agent:default\";else return\""
+    }
+  ]
+}

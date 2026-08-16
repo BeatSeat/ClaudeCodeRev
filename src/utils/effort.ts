@@ -48,20 +48,40 @@ export function modelSupportsEffort(model: string): boolean {
   return isFirstPartyApiFamily()
 }
 
-// @[MODEL LAUNCH]: Add the new model to the allowlist if it supports 'max' effort.
-// Per API docs, 'max' is Opus 4.6 only for public models — other models return an error.
+// Official 2.1.98: denylist. Unknown/future model IDs default to allowed.
+// Haiku never supports max. Legacy 3.x / sonnet-4 / opus-4 (not 4.6) denied.
+const MAX_EFFORT_DENIED = new Set([
+  'claude-3-opus',
+  'claude-3-sonnet',
+  'claude-3-5-sonnet',
+  'claude-3-7-sonnet',
+  'claude-sonnet-4',
+  'claude-sonnet-4-0',
+  'claude-sonnet-4-5',
+  'claude-opus-4',
+  'claude-opus-4-0',
+  'claude-opus-4-1',
+  'claude-opus-4-5',
+])
+
+function normalizeEffortModelId(model: string): string {
+  const lower = model.toLowerCase()
+  const match = lower.match(/claude-[a-z0-9-]+/)
+  let id = match ? match[0] : lower
+  id = id.replace(/-v\d+(:\d+)?$/, '')
+  id = id.replace(/-\d{8}$/, '')
+  return id
+}
+
 export function modelSupportsMaxEffort(model: string): boolean {
   const supported3P = get3PModelCapabilityOverride(model, 'max_effort')
   if (supported3P !== undefined) {
     return supported3P
   }
-  if (model.toLowerCase().includes('opus-4-6')) {
-    return true
+  if (model.toLowerCase().includes('haiku')) {
+    return false
   }
-  if (process.env.USER_TYPE === 'ant' && resolveAntModel(model)) {
-    return true
-  }
-  return false
+  return !MAX_EFFORT_DENIED.has(normalizeEffortModelId(model))
 }
 
 export function isEffortLevel(value: string): value is EffortLevel {

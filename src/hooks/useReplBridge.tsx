@@ -670,6 +670,7 @@ export function useReplBridge(
               },
               cancelRequest(requestId) {
                 handle.sendControlCancelRequest(requestId)
+                pendingPermissionHandlers.delete(requestId)
               },
               onResponse(requestId, handler) {
                 pendingPermissionHandlers.set(requestId, handler)

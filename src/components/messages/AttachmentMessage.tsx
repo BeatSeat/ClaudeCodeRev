@@ -390,7 +390,18 @@ export function AttachmentMessage({
         return null
       }
       // Full hook output is logged to debug log via hookEvents.ts
-      return <Line color="error">{attachment.hookName} hook error</Line>
+      {
+        const detail = formatHookErrorDetail(
+          attachment.stderr || '',
+          attachment.stdout || '',
+        )
+        return (
+          <>
+            <Line color="error">{`${attachment.hookName} hook error`}</Line>
+            {detail ? <Line color="error">{detail}</Line> : null}
+          </>
+        )
+      }
     }
     case 'hook_error_during_execution':
       // Stop hooks are rendered as a summary in SystemStopHookSummaryMessage
@@ -551,6 +562,18 @@ function TeammateTaskStatus({
     </Box>
   )
 }
+/** Official 2.1.98 VzY: stderr else stdout; drop schema trailer; first line; 200+ ellipsis. */
+function formatHookErrorDetail(stderr: string, stdout: string): string {
+  const raw = stderr.trim().length > 0 ? stderr : stdout
+  const withoutSchema = raw.split('\n\nExpected schema:')[0] ?? raw
+  const firstLine =
+    withoutSchema.split('\n').find(line => line.trim().length > 0) ?? ''
+  if (firstLine.length > 200) {
+    return `${firstLine.slice(0, 200)}…`
+  }
+  return firstLine
+}
+
 // We allow setting dimColor to false here to help work around the dim-bold bug.
 // https://github.com/chalk/chalk/issues/290
 function Line({

@@ -1,0 +1,86 @@
+{
+  "effort92": {
+    "label": "or6@92",
+    "start": 4431324,
+    "end": 4431488,
+    "code": "function or6(q){if(q.toLowerCase().includes(\"opus-4-6\")){if(_C())return\"medium\";if(rr6().enabled&&(KC()||yA6()))return\"medium\"}if(jo()&&tL(q))return\"medium\";return}"
+  },
+  "effort94": {
+    "label": "ao6@94",
+    "start": 4427441,
+    "end": 4427610,
+    "code": "function ao6(q){if(q.toLowerCase().includes(\"opus-4-6\")){if(Oh())return\"medium\";if(oo6().enabled&&Yh())return\"medium\"}if(ho()&&Ch(q)&&(Oh()||Yh()))return\"medium\";return}"
+  },
+  "effort92_ctx": {
+    "label": "effort-ctx-92",
+    "start": 4431000,
+    "end": 4432000,
+    "code": "ing (Opus 4.6 only)\"}}function Hx1(q){if(typeof q===\"string\"){let K=ep_(q);if(q===\"high\"&&_C()&&S8(\"tengu_slate_finch\",!1))return`${K} · burns fastest — medium handles most tasks`;return K}return\"Balanced approach with standard implementation and testing\"}function rr6(){let q=S8(\"tengu_grey_step2\",Bz4);return{...Bz4,...q}}function or6(q){if(q.toLowerCase().includes(\"opus-4-6\")){if(_C())return\"medium\";if(rr6().enabled&&(KC()||yA6()))return\"medium\"}if(jo()&&tL(q))return\"medium\";return}var sL,Bz4;var pD=L(()=>{cN();r1();T7();s1();K_();iZ8();g8();sL=[\"low\",\"medium\",\"high\",\"max\"];Bz4={enabled:!0,dialogTitle:\"We recommend medium effort for Opus\",dialogDescription:\"Effort determines how long Claude thinks for when completing your task. We recommend medium effort for most tasks to balance speed and intelligence and maximize rate limits. Use ultrathink to trigger high effort when needed.\"}});var NV8=(q)=>q.name===\"up\"||q.name===\"k\"||q.ctrl&&q.name===\"p\",Jx1=(q)=>q.name===\"down\"||q.name===\"j\"||q"
+  },
+  "effort94_ctx": {
+    "label": "effort-ctx-94",
+    "start": 4427100,
+    "end": 4428100,
+    "code": "th deepest reasoning (Opus 4.6 only)\"}}function LI1(q){if(typeof q===\"string\"){let K=mB_(q);if(q===\"high\"&&Oh()&&C8(\"tengu_slate_finch\",!1))return`${K} · burns fastest — medium handles most tasks`;return K}return\"Balanced approach with standard implementation and testing\"}function oo6(){let q=C8(\"tengu_grey_step2\",EY4);return{...EY4,...q}}function ao6(q){if(q.toLowerCase().includes(\"opus-4-6\")){if(Oh())return\"medium\";if(oo6().enabled&&Yh())return\"medium\"}if(ho()&&Ch(q)&&(Oh()||Yh()))return\"medium\";return}var Sh,EY4;var Of=L(()=>{fy();o1();W7();r1();$_();XG8();p8();Sh=[\"low\",\"medium\",\"high\",\"max\"];EY4={enabled:!0,dialogTitle:\"We recommend medium effort for Opus\",dialogDescription:\"Effort determines how long Claude thinks for when completing your task. We recommend medium effort for most tasks to balance speed and intelligence and maximize rate limits. Use ultrathink to trigger high effort when needed.\"}});var nN8=(q)=>q.name===\"up\"||q.name===\"k\"||q.ctrl&&q.name===\"p\",hI1=(q)=>q.name===\""
+  },
+  "sonnet92": {
+    "index": 2280171,
+    "snippet": "}catch(K){return H6(K),null}});lP9=[\"us\",\"eu\",\"apac\",\"global\"]});var TP1,kP1,VP1,NP1,yP1,EP1,LP1,hP1,RP1,y06,SP1,Di,NtO,Z$q;var VQ6=L(()=>{TP1={firstParty:\"claude-3-7-sonnet-20250219\",bedrock:\"us.anthropic.claude-3-7-sonnet-20250219-v1:0\",vertex:\"claude-3-7-sonnet@20250219\",foundry:\"claude-3-7-sonnet\",anthropicAws:\"claude-3-7-sonnet-20250219\"},kP1={firstParty:\"claude-3-5-sonnet-20241022\",bedrock:\"anthropic.claude-3-5-sonnet-20241022-v2:0\",vertex:\"claude-3-5-sonnet-v2@20241022\",foundry:\"claude-3-5-sonnet\",anthropicAws:\"claude-3-5-sonnet-20241022\"},VP1={firstParty:\"claude-3-5-haiku-20241022\",bed"
+  },
+  "sonnet94_us": {
+    "index": 2282843,
+    "snippet": "==\"string\"&&z.toLowerCase()===K)return _;return null}var aW1,sW1,tW1,eW1,qD1,KD1,_D1,zD1,YD1,YW8,OD1,kM,c7A,Qwq;var MG6=L(()=>{aW1={firstParty:\"claude-3-7-sonnet-20250219\",bedrock:\"us.anthropic.claude-3-7-sonnet-20250219-v1:0\",vertex:\"claude-3-7-sonnet@20250219\",foundry:\"claude-3-7-sonnet\",anthropicAws:\"claude-3-7-sonnet-20250219\",mantle:null},sW1={firstParty:\"claude-3-5-sonnet-20241022\",bedrock:\"us.anthropic.claude-3-5-sonnet-20241022-v2:0\",vertex:\"claude-3-5-sonnet-v2@20241022\",foundry:\"claude-3-5-sonnet\",anthropicAws:\"claude-3-5-sonnet-20241022\",mantle:null},tW1={firstParty:\"claude-3-5-haik"
+  },
+  "sonnet94_old": {
+    "index": 2282846,
+    "snippet": "string\"&&z.toLowerCase()===K)return _;return null}var aW1,sW1,tW1,eW1,qD1,KD1,_D1,zD1,YD1,YW8,OD1,kM,c7A,Qwq;var MG6=L(()=>{aW1={firstParty:\"claude-3-7-sonnet-20250219\",bedrock:\"us.anthropic.claude-3-7-sonnet-20250219-v1:0\",vertex:\"claude-3-7-sonnet@20250219\",foundry:\"claude-3-7-sonnet\",anthropicAws:\"claude-3-7-sonnet-20250219\",mantle:null},sW1={firstParty:\"claude-3-5-sonnet-20241022\",bedrock:\"us.anthropic.claude-3-5-sonnet-20241022-v2:0\",vertex:\"claude-3-5-sonnet-v2@20241022\",foundry:\"claude-3-5-sonnet\",anthropicAws:\"claude-3-5-sonnet-20241022\",mantle:null},tW1={firstParty:\"claude-3-5-haiku-2"
+  },
+  "mantle_client": {
+    "label": "mantle-client",
+    "start": 2549916,
+    "end": 2551860,
+    "code": "()=>{m01();cD8();ZS();nW6();j0q();F01=class F01 extends sz{constructor({awsRegion:q,baseURL:K,apiKey:_,awsAccessKey:z=null,awsSecretAccessKey:Y=null,awsSessionToken:O=null,awsProfile:A,providerChainResolver:$=null,skipAuth:w=!1,...j}={}){let H=q??ii(\"AWS_REGION\")??ii(\"AWS_DEFAULT_REGION\"),J=K??ii(\"ANTHROPIC_BEDROCK_MANTLE_BASE_URL\")??(H?`https://bedrock-mantle.${H}.api.aws/anthropic`:void 0);if(!J)throw new vq(\"No AWS region or base URL found. Set `awsRegion` in the constructor, the `AWS_REGION` / `AWS_DEFAULT_REGION` environment variable, or provide a `baseURL` / `ANTHROPIC_BEDROCK_MANTLE_BASE_URL` environment variable.\");let M=_!=null;if(z!=null!==(Y!=null))throw new vq(\"`awsAccessKey` and `awsSecretAccessKey` must be provided together. You provided only one.\");let P=z!=null&&Y!=null,W=A!=null,D;if(M)D=_;else if(!P&&!W)D=ii(\"AWS_BEARER_TOKEN_BEDROCK\")??void 0;super({apiKey:D,baseURL:J,...j});this.messages=new pT(this),this.beta=rm9(this),this.skipAuth=!1,this.awsRegion=H,this.awsAccessKey=z,this.awsSecretAccessKey=Y,this.awsSessionToken=O,this.awsProfile=A??null,this.providerChainResolver=$,this.skipAuth=w,this._useSigV4=D==null}async authHeaders(q){if(this.skipAuth)return;if(!this._useSigV4)return super.authHeaders(q);return}validateHeaders(){}async prepareRequest(q,{url:K,options:_}){if(this.skipAuth||!this._useSigV4)return;let z=this.awsRegion;if(!z)throw new vq(\"No AWS region found. Set `awsRegion` in the constructor or the `AWS_REGION` / `AWS_DEFAULT_REGION` environment variable.\");let Y=await w0q(q,{url:K,regionName:z,serviceName:im9,awsAccessKey:this.awsAccessKey,awsSecretAccessKey:this.awsSecretAccessKey,awsSessionToken:this.awsSessionToken,awsProfile:this.awsProfile,providerChainResolver:this.providerChainResolver});q.headers=wc6([Y,q.headers]).values}}});var jc6={};Z8(jc6,{default:()=>B01,BaseAnthropic:()=>sz,AnthropicBedrockMantle:()=>F01,AnthropicBedrock:()=>B01});var Hc6=L(()=>{g01();H0q();g01()}"
+  },
+  "mantle_uses": [
+    {
+      "index": 871455,
+      "snippet": "_.serverName,_.message);break}}}function j6(q){let K=U1(q);try{if(p6(process.env.CLAUDE_CODE_USE_BEDROCK)||p6(process.env.CLAUDE_CODE_USE_VERTEX)||p6(process.env.CLAUDE_CODE_USE_FOUNDRY)||p6(process.env.CLAUDE_CODE_USE_ANTHROPIC_AWS)||p6(process.env.CLAUDE_CODE_USE_MANTLE)||process.env.DISABLE_ERROR_REPORTING||WY())return;let z={error:K.stack||K.message,timestamp:new Date().toISOString()};if(hb5(z),Gu===null){Ef6.push({type:\"e"
+    },
+    {
+      "index": 2285313,
+      "snippet": "Object.entries(kM).map(([q,K])=>[K.firstParty,q]))});function cq(){return p6(process.env.CLAUDE_CODE_USE_BEDROCK)?\"bedrock\":p6(process.env.CLAUDE_CODE_USE_FOUNDRY)?\"foundry\":p6(process.env.CLAUDE_CODE_USE_ANTHROPIC_AWS)?\"anthropicAws\":p6(process.env.CLAUDE_CODE_USE_MANTLE)?\"mantle\":p6(process.env.CLAUDE_CODE_USE_VERTEX)?\"vertex\":\"firstParty\"}function gi(){return cq()}function OW8(){if(cq()===\"bedrock\"&&p6(process.env.CLAUDE_CO"
+    },
+    {
+      "index": 2285484,
+      "snippet": "y\":p6(process.env.CLAUDE_CODE_USE_ANTHROPIC_AWS)?\"anthropicAws\":p6(process.env.CLAUDE_CODE_USE_MANTLE)?\"mantle\":p6(process.env.CLAUDE_CODE_USE_VERTEX)?\"vertex\":\"firstParty\"}function gi(){return cq()}function OW8(){if(cq()===\"bedrock\"&&p6(process.env.CLAUDE_CODE_USE_MANTLE))return\"mantle\";return null}function ID9(q){return q.startsWith(\"anthropic.\")&&!/-v\\d+(:\\d+)?$/.test(q)}function IJ(q){if(q){let K=OW8();if(K){if(K===\"mantle"
+    },
+    {
+      "index": 3478163,
+      "snippet": "PIC_UNIX_SOCKET)return!!process.env.CLAUDE_CODE_OAUTH_TOKEN;let q=p6(process.env.CLAUDE_CODE_USE_BEDROCK)||p6(process.env.CLAUDE_CODE_USE_VERTEX)||p6(process.env.CLAUDE_CODE_USE_FOUNDRY)||p6(process.env.CLAUDE_CODE_USE_ANTHROPIC_AWS)||p6(process.env.CLAUDE_CODE_USE_MANTLE),_=(T7()||{}).apiKeyHelper,z=process.env.ANTHROPIC_AUTH_TOKEN||_||process.env.CLAUDE_CODE_API_KEY_FILE_DESCRIPTOR,{source:Y}=W$({skipRetrievingKeyFromApiKeyH"
+    },
+    {
+      "index": 3492599,
+      "snippet": "ion pD(){return s7()?.scopes?.includes(dz6)??!1}function q$6(){if(p6(process.env.CLAUDE_CODE_USE_BEDROCK)||p6(process.env.CLAUDE_CODE_USE_VERTEX)||p6(process.env.CLAUDE_CODE_USE_FOUNDRY)||p6(process.env.CLAUDE_CODE_USE_ANTHROPIC_AWS)||p6(process.env.CLAUDE_CODE_USE_MANTLE))return!1;if(p7())return!1;return!0}function e_(){return FJ()?w8().oauthAccount:void 0}function ET6(){let K=e_()?.billingType;if(!p7()||!K)return!1;if(K!==\"s"
+    },
+    {
+      "index": 3493861,
+      "snippet": "n\"Claude Pro\";default:return\"Claude API\"}}function I76(){return!!(p6(process.env.CLAUDE_CODE_USE_BEDROCK)||p6(process.env.CLAUDE_CODE_USE_VERTEX)||p6(process.env.CLAUDE_CODE_USE_FOUNDRY)||p6(process.env.CLAUDE_CODE_USE_ANTHROPIC_AWS)||p6(process.env.CLAUDE_CODE_USE_MANTLE))}function vmq(){return(T7()||{}).otelHeadersHelper}function Tmq(){let q=vmq();if(!q)return!1;let K=y1(\"projectSettings\"),_=y1(\"localSettings\");return K?.ote"
+    },
+    {
+      "index": 7035853,
+      "snippet": "();return l0z.has(K)||n0z.some((_)=>K.startsWith(_))}var l0z,n0z,UB4,HL6;var Db8=L(()=>{l0z=new Set([\"CLAUDE_CODE_PROVIDER_MANAGED_BY_HOST\",\"CLAUDE_CODE_USE_BEDROCK\",\"CLAUDE_CODE_USE_VERTEX\",\"CLAUDE_CODE_USE_FOUNDRY\",\"CLAUDE_CODE_USE_ANTHROPIC_AWS\",\"CLAUDE_CODE_USE_MANTLE\",\"ANTHROPIC_BASE_URL\",\"ANTHROPIC_BEDROCK_BASE_URL\",\"ANTHROPIC_VERTEX_BASE_URL\",\"ANTHROPIC_FOUNDRY_BASE_URL\",\"ANTHROPIC_AWS_BASE_URL\",\"ANTHROPIC_BEDROCK_MANTL"
+    },
+    {
+      "index": 7038786,
+      "snippet": "TH\",\"CLAUDE_CODE_SKIP_FOUNDRY_AUTH\",\"CLAUDE_CODE_SKIP_ANTHROPIC_AWS_AUTH\",\"CLAUDE_CODE_SKIP_MANTLE_AUTH\",\"CLAUDE_CODE_SKIP_VERTEX_AUTH\",\"CLAUDE_CODE_SUBAGENT_MODEL\",\"CLAUDE_CODE_USE_BEDROCK\",\"CLAUDE_CODE_USE_FOUNDRY\",\"CLAUDE_CODE_USE_ANTHROPIC_AWS\",\"CLAUDE_CODE_USE_MANTLE\",\"CLAUDE_CODE_USE_VERTEX\",\"DISABLE_AUTOUPDATER\",\"DISABLE_BUG_COMMAND\",\"DISABLE_COST_WARNINGS\",\"DISABLE_ERROR_REPORTING\",\"DISABLE_FEEDBACK_COMMAND\",\"DISABLE_T"
+    },
+    {
+      "index": 8187963,
+      "snippet": "et K of voz){let _=process.env[K];if(_!==void 0&&_!==\"\")q.push(`${K}=${oK([_])}`)}return q.join(\" \")}var voz;var zt1=L(()=>{T8();gH6();voz=[\"CLAUDE_CODE_USE_BEDROCK\",\"CLAUDE_CODE_USE_VERTEX\",\"CLAUDE_CODE_USE_FOUNDRY\",\"CLAUDE_CODE_USE_ANTHROPIC_AWS\",\"CLAUDE_CODE_USE_MANTLE\",\"ANTHROPIC_AWS_WORKSPACE_ID\",\"ANTHROPIC_AWS_BASE_URL\",\"ANTHROPIC_AWS_API_KEY\",\"CLAUDE_CODE_SKIP_ANTHROPIC_AWS_AUTH\",\"AWS_BEARER_TOKEN_BEDROCK\",\"ANTHROPIC_BE"
+    },
+    {
+      "index": 11822090,
+      "snippet": "P3,Help:lWj}=SrK.default});function IrK(){if(xrK)return;if(xrK=!0,p6(process.env.CLAUDE_CODE_USE_BEDROCK)||p6(process.env.CLAUDE_CODE_USE_VERTEX)||p6(process.env.CLAUDE_CODE_USE_FOUNDRY)||p6(process.env.CLAUDE_CODE_USE_ANTHROPIC_AWS)||p6(process.env.CLAUDE_CODE_USE_MANTLE))return;if(process.env.HTTPS_PROXY||process.env.https_proxy||process.env.HTTP_PROXY||process.env.http_proxy||process.env.ANTHROPIC_UNIX_SOCKET||process.env.C"
+    }
+  ]
+}

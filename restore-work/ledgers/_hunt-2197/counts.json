@@ -1,0 +1,182 @@
+{
+  "counts": {
+    "\"Focus\"": {
+      "c96": 0,
+      "c97": 1,
+      "delta": 1
+    },
+    "ctrl+o": {
+      "c96": 20,
+      "c97": 20,
+      "delta": 0
+    },
+    "toggleTranscript": {
+      "c96": 18,
+      "c97": 18,
+      "delta": 0
+    },
+    "diffStat": {
+      "c96": 8,
+      "c97": 8,
+      "delta": 0
+    },
+    "NO_FLICKER": {
+      "c96": 5,
+      "c97": 5,
+      "delta": 0
+    },
+    "noFlicker": {
+      "c96": 1,
+      "c97": 1,
+      "delta": 0
+    },
+    "CLAUDE_CODE_NO_FLICKER": {
+      "c96": 5,
+      "c97": 5,
+      "delta": 0
+    },
+    "fullscreen": {
+      "c96": 11,
+      "c97": 11,
+      "delta": 0
+    },
+    "ZELLIJ": {
+      "c96": 0,
+      "c97": 3,
+      "delta": 3
+    },
+    "softWrap": {
+      "c96": 17,
+      "c97": 18,
+      "delta": 1
+    },
+    "scrolledOff": {
+      "c96": 44,
+      "c97": 44,
+      "delta": 0
+    },
+    "MCP tool": {
+      "c96": 31,
+      "c97": 37,
+      "delta": 6
+    },
+    "hover": {
+      "c96": 54,
+      "c97": 54,
+      "delta": 0
+    },
+    "onHover": {
+      "c96": 2,
+      "c97": 2,
+      "delta": 0
+    },
+    "Windows Terminal": {
+      "c96": 3,
+      "c97": 3,
+      "delta": 0
+    },
+    "WT_SESSION": {
+      "c96": 8,
+      "c97": 9,
+      "delta": 1
+    },
+    "WarpTerminal": {
+      "c96": 3,
+      "c97": 4,
+      "delta": 1
+    },
+    "Warp": {
+      "c96": 16,
+      "c97": 17,
+      "delta": 1
+    },
+    "status line": {
+      "c96": 8,
+      "c97": 9,
+      "delta": 1
+    },
+    "statusline": {
+      "c96": 8,
+      "c97": 8,
+      "delta": 0
+    },
+    "statusLine": {
+      "c96": 23,
+      "c97": 24,
+      "delta": 1
+    },
+    "<24": {
+      "c96": 44,
+      "c97": 43,
+      "delta": -1
+    },
+    "Context low": {
+      "c96": 2,
+      "c97": 2,
+      "delta": 0
+    },
+    "blockquote": {
+      "c96": 44,
+      "c97": 45,
+      "delta": 1
+    },
+    "BLOCKQUOTE": {
+      "c96": 8,
+      "c97": 8,
+      "delta": 0
+    },
+    "clipboard": {
+      "c96": 99,
+      "c97": 99,
+      "delta": 0
+    },
+    "win32": {
+      "c96": 180,
+      "c97": 181,
+      "delta": 1
+    },
+    "Japanese": {
+      "c96": 1,
+      "c97": 1,
+      "delta": 0
+    },
+    "utf16": {
+      "c96": 17,
+      "c97": 17,
+      "delta": 0
+    },
+    "UTF-16": {
+      "c96": 5,
+      "c97": 5,
+      "delta": 0
+    },
+    "Shift+Enter": {
+      "c96": 18,
+      "c97": 18,
+      "delta": 0
+    },
+    "shift+enter": {
+      "c96": 3,
+      "c97": 3,
+      "delta": 0
+    }
+  },
+  "unique97Needles": [
+    "\"Focus\"",
+    "ZELLIJ"
+  ],
+  "changedNeedles": [
+    "\"Focus\"",
+    "ZELLIJ",
+    "softWrap",
+    "MCP tool",
+    "WT_SESSION",
+    "WarpTerminal",
+    "Warp",
+    "status line",
+    "statusLine",
+    "<24",
+    "blockquote",
+    "win32"
+  ]
+}

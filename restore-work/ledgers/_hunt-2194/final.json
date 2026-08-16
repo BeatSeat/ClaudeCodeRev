@@ -1,0 +1,148 @@
+{
+  "tooLong94": {
+    "idx": 5067386,
+    "snip": "y,attempt:H});continue}}let W=OD4(M),D;if(X&&M instanceof rq&&M.status===429)w++,D=vt_(M)??Math.min(CQ(w,W,zD4),FB1);else if(X)w++,D=Math.min(CQ(w,W,zD4),FB1);else if(D=CQ(H,W),!Is6()&&D>Ot_)throw d(\"tengu_api_retry_after_too_long\",{delayMs:D,status:M.status,provider:gi()}),new qx(M,Y);let f=X?w:H;if(d(\"tengu_api_retry\",{attempt:f,delayMs:D,error:M.message,status:M.status,provider:gi()}),X){if(D>60000)d(\"tengu_api_persistent_r"
+  },
+  "tooLong92": null,
+  "Ot_defs": [],
+  "Ot_all": [
+    "Ot_=60000,At_,zD4=300000,FB1=21600000,wt"
+  ],
+  "Is6": {
+    "idx": 5064774,
+    "snip": "ION_FAILED_OR_BAD_RECORD_MAC\"])});function $t_(q){return q===void 0||At_.has(q)}function Is6(){return!1}function YD4(q){return W26(q)||q instanceof rq&&q.status===429}function jt_(q){if(!(q instanceof XZ))return!1;let K=L46(q);return K?.code===\"ECONNRESET\"||K?.code===\"EPIPE\"}async function*DL"
+  },
+  "Is6_var": null,
+  "doctor94": {
+    "idx": 7886414,
+    "snip": "`Alias exists but points to invalid target: ${z}. Update alias: alias claude=\"~/.claude/local/claude\"`});else K.push({issue:\"Local installation not accessible\",fix:'Create alias: alias claude=\"~/.claude/local/claude\"'})}return K}async function JUz(){if(process.platform!==\"darwin\")return null;let q=\"Claude Code-doctor-probe\",K=ou(),_=Buffer.from(\"probe\",\"utf-8\").toString(\"hex\"),z=`add-generic-password -U -a \"${K}\" -s \"${q}\" -X \"${_}\"\n`,Y=await oT(\"security\",[\"-i\"],{input:z,reject:!1,timeout:5000});if(Y.exitCode===0)return oT(\"security\",[\"delete-generic-password\",\"-a\",K,\"-s\",q],{reject:!1,timeout:5000}),null;let O=(Y.stderr||Y.stdout||\"\").trim().replace(/\\s*\\n\\s*/g,\"; \");return{issue:`macOS Keychain is not writable${O?` (${O})`:\"\"}. Console login will fail to save your API key.`,fix:\"Run: security unlock-keychain ~/Library/Keychains/login.keychain-db — if that doesn't fix it, your login keychain password may be out of sync with your account password: open Keychain Access, select the 'login' keychain, then Edit → Change Password for Keychain 'login'.\"}}function MUz(){if(N1()!==\"linux\")return[];let q=[],K=Z7.getLinuxGlobPatternWarnings();if(K.length>0){let _=K.slice(0,3).join(\", \"),z=K.length-3,Y=z>0?`${_} (${z} more)`:_;q.push({issue:\"Glob patterns in sandbox permission rules are not fully supported on Linux\",fix:`Found ${K.length} pattern(s): ${Y}. On Linux, glob patterns in Edit/Read rules will be ignored.`})}return q}async function wH6({probeKeychain:q=!1}={}){let K=await zs(),_={ISSUES_EXPLAINER:\"report the issue at https://github.com/anthropics/claude-code/issues\",PACKAGE_URL:\"@anthropic-ai/claude-code\",README_URL:\"https://code.claude.com/docs/en/overview\",VERSION:\"2.1.94\",FEEDBACK_CHANNEL:\"https://github.com/anthropics/claude-code/issues\",BUILD_TIME:\"2026-04-07T20:19:20Z\"}.VERSION?{ISSUES_EXPLAINER:\"report the issue at https://github.com/anthropics/claude-code/issues\",PACKAGE_URL:\"@anthropic-ai/claude-code\",README_URL:\"https://code.claude.com/docs/en/overview\",VERSION:\"2.1.94\",FEEDBACK_CHANNEL:\"https://github.com/anthropics/claude-code/issues\",BUILD_TIME:\"2026-04-07T20:19:20Z\"}.VERSIO"
+  },
+  "keychainWriteFail": {
+    "idx": 7886812,
+    "snip": "=\"Claude Code-doctor-probe\",K=ou(),_=Buffer.from(\"probe\",\"utf-8\").toString(\"hex\"),z=`add-generic-password -U -a \"${K}\" -s \"${q}\" -X \"${_}\"\n`,Y=await oT(\"security\",[\"-i\"],{input:z,reject:!1,timeout:5000});if(Y.exitCode===0)return oT(\"security\",[\"delete-generic-password\",\"-a\",K,\"-s\",q],{reject:!1,timeout:5000}),null;let O=(Y.stderr||Y.stdout||\"\").trim().replace(/\\s*\\n\\s*/g,\"; \");return{issue:`macOS Keychain is not writable${O?` (${O})`:\"\"}. Console login will fail to save your API key.`,fix:\"Run: security unlock-keychain ~/Library/Keychains/login.keychain-db — if that doesn't fix it, your login keychain password may be"
+  },
+  "str:Failed to save": {
+    "c92": 20,
+    "c94": 22,
+    "s94": {
+      "idx": 3488717,
+      "snip": "ut:5000});if($.exitCode!==0){let w=($.stderr||$.stdout||\"\").trim().replace(/\\s*\\n\\s*/g,\"; \");throw d(\"tengu_api_key_keychain_error\",{error:w}),Error(`Failed to save API key to macOS Keychain${w?` (${w})`:\"\"}. Run \\`claude doctor\\` to diagnose keychain access.`)}d(\"tengu_api_key_saved_to_keychain\",{})}else d(\"tengu_api_key_saved_to_config\",{});let _=pN(q);x8((z)=>{let Y=z.customApiKeyResponses?.approved??[];retu"
+    }
+  },
+  "str:success:!1": {
+    "c92": 229,
+    "c94": 233,
+    "s94": {
+      "idx": 277957,
+      "snip": "mZ7=(q,K)=>{if(E66(K))return{success:!0,data:K.value};else{if(!q.common.issues.length)throw Error(\"Validation failed but no issues detected.\");return{success:!1,get error(){if(this._error)return this._error;let _=new eV(q.common.issues);return this._error=_,this._error}}}},nX5,iX5,rX5,oX5,aX5,sX5,tX5,eX5,qP5=\"^(\\\\p{Extended_Pictographic}|\\\\p{Emoji_Component})+$\",I61,KP5,_P5,zP5,YP5,OP5,AP5,BZ7=\"((\\\\d\\\\d[246"
+    }
+  },
+  "stdinSetEnc92": [
+    {
+      "idx": 3374989,
+      "snip": "ync(q)}fromStreamAsync(q){return new Promise((K,_)=>{if(!q)_(Error(\"Must pass in a stream containing the service account auth settings.\"));let z=\"\";q.setEncoding(\"utf8\").on(\"data\",(Y)=>z+=Y).on(\"error\",_).on(\"end\",()=>{try{let Y=JSON.parse(z);this.fromJSON(Y),K()}catch(Y){_(Y)}})})}}dbq.JWTAccess=NV1});var LV1=B((nbq)=>{Object.defineProperty(nbq,\"__esModule\",{value:!"
+    },
+    {
+      "idx": 3379019,
+      "snip": "(q)}fromStreamAsync(q){return new Promise((K,_)=>{if(!q)throw Error(\"Must pass in a stream containing the service account auth settings.\");let z=\"\";q.setEncoding(\"utf8\").on(\"error\",_).on(\"data\",(Y)=>z+=Y).on(\"end\",()=>{try{let Y=JSON.parse(z);this.fromJSON(Y),K()}catch(Y){_(Y)}})})}fromAPIKey(q){if(typeof q!==\"string\")throw Error(\"Must provide an API Key string.\");th"
+    },
+    {
+      "idx": 3381482,
+      "snip": "c(q)}async fromStreamAsync(q){return new Promise((K,_)=>{if(!q)return _(Error(\"Must pass in a stream containing the user refresh token.\"));let z=\"\";q.setEncoding(\"utf8\").on(\"error\",_).on(\"data\",(Y)=>z+=Y).on(\"end\",()=>{try{let Y=JSON.parse(z);return this.fromJSON(Y),K()}catch(Y){return _(Y)}})})}static fromJSON(q){let K=new uZ8;return K.fromJSON(q),K}}rbq.UserRefresh"
+    },
+    {
+      "idx": 3426354,
+      "snip": "Async(q,z)}fromStreamAsync(q,K){return new Promise((_,z)=>{if(!q)throw Error(\"Must pass in a stream containing the Google auth settings.\");let Y=[];q.setEncoding(\"utf8\").on(\"error\",z).on(\"data\",(O)=>Y.push(O)).on(\"end\",()=>{try{try{let O=JSON.parse(Y.join(\"\")),A=this._cacheClientFromJSON(O,K);return _(A)}catch(O){if(!this.keyFilename)throw O;let A=new fv6.JWT({...thi"
+    },
+    {
+      "idx": 3782040,
+      "snip": "h1});function rZ_(){if(!process.stdin.isTTY||fT6||process.argv.includes(\"-p\")||process.argv.includes(\"--print\"))return;fT6=!0,Om=\"\";try{process.stdin.setEncoding(\"utf8\"),process.stdin.setRawMode(!0),process.stdin.ref(),in6=()=>{let q=process.stdin.read();while(q!==null){if(typeof q===\"string\")oZ_(q);q=process.stdin.read()}},process.stdin.on(\"readable\",in6)}catch{fT6="
+    },
+    {
+      "idx": 4038678,
+      "snip": "is not supported on the stdin provided to Ink.\nRead about how to prevent this error on https://github.com/vadimdemedes/ink/#israwmodesupported`);if(K.setEncoding(\"utf8\"),q){if(this.rawModeEnabledCount===0){if(y76(),K.ref(),K.setRawMode(!0),K.addListener(\"readable\",this.handleReadable),this.props.stdout.write(c74),this.props.stdout.write(uR1),this.props.stdout.write(l"
+    },
+    {
+      "idx": 11537009,
+      "snip": "_,command:q.command,asyncRewake:q.asyncRewake,pluginId:w}))return{stdout:\"\",stderr:\"\",output:\"\",status:0,backgrounded:!0}}let U=\"\",n=\"\",r=\"\";m.stdout.setEncoding(\"utf8\"),m.stderr.setEncoding(\"utf8\");let o=!1,z6=null,_6=new Promise((i)=>{z6=i}),l=new Set,q6=Promise.resolve(),J6=\"\";m.stdout.on(\"data\",(i)=>{if(U+=i,r+=i,J){J6+=i;let c=J6.split(`\n`);J6=c.pop()??\"\";for(le"
+    },
+    {
+      "idx": 11537038,
+      "snip": "ke:q.asyncRewake,pluginId:w}))return{stdout:\"\",stderr:\"\",output:\"\",status:0,backgrounded:!0}}let U=\"\",n=\"\",r=\"\";m.stdout.setEncoding(\"utf8\"),m.stderr.setEncoding(\"utf8\");let o=!1,z6=null,_6=new Promise((i)=>{z6=i}),l=new Set,q6=Promise.resolve(),J6=\"\";m.stdout.on(\"data\",(i)=>{if(U+=i,r+=i,J){J6+=i;let c=J6.split(`\n`);J6=c.pop()??\"\";for(let A6 of c){let j6=A6.trim();i"
+    },
+    {
+      "idx": 13095839,
+      "snip": "n_after_run\")}async function W4O(q,K){if(!process.stdin.isTTY&&!process.argv.includes(\"mcp\")){if(K===\"stream-json\")return process.stdin;process.stdin.setEncoding(\"utf8\");let _=\"\",z=(O)=>{_+=O};process.stdin.on(\"data\",z);let Y=await xt8(process.stdin,3000);if(process.stdin.off(\"data\",z),Y)process.stderr.write(`Warning: no stdin data received in 3s, proceeding without "
+    }
+  ],
+  "stdinSetEnc94": [
+    {
+      "idx": 3369253,
+      "snip": "ync(q)}fromStreamAsync(q){return new Promise((K,_)=>{if(!q)_(Error(\"Must pass in a stream containing the service account auth settings.\"));let z=\"\";q.setEncoding(\"utf8\").on(\"data\",(Y)=>z+=Y).on(\"error\",_).on(\"end\",()=>{try{let Y=JSON.parse(z);this.fromJSON(Y),K()}catch(Y){_(Y)}})})}}Sxq.JWTAccess=QN1});var lN1=p((xxq)=>{Object.defineProperty(xxq,\"__esModule\",{value:!"
+    },
+    {
+      "idx": 3373283,
+      "snip": "(q)}fromStreamAsync(q){return new Promise((K,_)=>{if(!q)throw Error(\"Must pass in a stream containing the service account auth settings.\");let z=\"\";q.setEncoding(\"utf8\").on(\"error\",_).on(\"data\",(Y)=>z+=Y).on(\"end\",()=>{try{let Y=JSON.parse(z);this.fromJSON(Y),K()}catch(Y){_(Y)}})})}fromAPIKey(q){if(typeof q!==\"string\")throw Error(\"Must provide an API Key string.\");th"
+    },
+    {
+      "idx": 3375746,
+      "snip": "c(q)}async fromStreamAsync(q){return new Promise((K,_)=>{if(!q)return _(Error(\"Must pass in a stream containing the user refresh token.\"));let z=\"\";q.setEncoding(\"utf8\").on(\"error\",_).on(\"data\",(Y)=>z+=Y).on(\"end\",()=>{try{let Y=JSON.parse(z);return this.fromJSON(Y),K()}catch(Y){return _(Y)}})})}static fromJSON(q){let K=new KG8;return K.fromJSON(q),K}}uxq.UserRefresh"
+    },
+    {
+      "idx": 3420618,
+      "snip": "Async(q,z)}fromStreamAsync(q,K){return new Promise((_,z)=>{if(!q)throw Error(\"Must pass in a stream containing the Google auth settings.\");let Y=[];q.setEncoding(\"utf8\").on(\"error\",z).on(\"data\",(O)=>Y.push(O)).on(\"end\",()=>{try{try{let O=JSON.parse(Y.join(\"\")),A=this._cacheClientFromJSON(O,K);return _(A)}catch(O){if(!this.keyFilename)throw O;let A=new wT6.JWT({...thi"
+    },
+    {
+      "idx": 3777495,
+      "snip": "R1});function C0_(){if(!process.stdin.isTTY||jk6||process.argv.includes(\"-p\")||process.argv.includes(\"--print\"))return;jk6=!0,bm=\"\";try{process.stdin.setEncoding(\"utf8\"),process.stdin.setRawMode(!0),process.stdin.ref(),ii6=()=>{let q=process.stdin.read();while(q!==null){if(typeof q===\"string\")b0_(q);q=process.stdin.read()}},process.stdin.on(\"readable\",ii6)}catch{jk6="
+    },
+    {
+      "idx": 4034337,
+      "snip": "is not supported on the stdin provided to Ink.\nRead about how to prevent this error on https://github.com/vadimdemedes/ink/#israwmodesupported`);if(K.setEncoding(\"utf8\"),q){if(this.rawModeEnabledCount===0){if(t76(),K.ref(),K.setRawMode(!0),K.addListener(\"readable\",this.handleReadable),this.props.stdout.write(bq4),this.props.stdout.write(qC1),this.props.stdout.write(x"
+    },
+    {
+      "idx": 11608177,
+      "snip": "_,command:q.command,asyncRewake:q.asyncRewake,pluginId:w}))return{stdout:\"\",stderr:\"\",output:\"\",status:0,backgrounded:!0}}let Q=\"\",i=\"\",r=\"\";B.stdout.setEncoding(\"utf8\"),B.stderr.setEncoding(\"utf8\");let o=!1,_6=null,z6=new Promise((c)=>{_6=c}),l=new Set,e=Promise.resolve(),f6=\"\";B.stdout.on(\"data\",(c)=>{if(Q+=c,r+=c,J){f6+=c;let n=f6.split(`\n`);f6=n.pop()??\"\";for(let"
+    },
+    {
+      "idx": 11608206,
+      "snip": "ke:q.asyncRewake,pluginId:w}))return{stdout:\"\",stderr:\"\",output:\"\",status:0,backgrounded:!0}}let Q=\"\",i=\"\",r=\"\";B.stdout.setEncoding(\"utf8\"),B.stderr.setEncoding(\"utf8\");let o=!1,_6=null,z6=new Promise((c)=>{_6=c}),l=new Set,e=Promise.resolve(),f6=\"\";B.stdout.on(\"data\",(c)=>{if(Q+=c,r+=c,J){f6+=c;let n=f6.split(`\n`);f6=n.pop()??\"\";for(let O6 of n){let P6=O6.trim();if"
+    },
+    {
+      "idx": 13181896,
+      "snip": " m_O(),i4(\"main_after_run\")}async function u_O(q,K){if(!process.stdin.isTTY&&!process.argv.includes(\"mcp\")){if(K===\"stream-json\")return process.stdin.setEncoding(\"utf8\"),process.stdin;process.stdin.setEncoding(\"utf8\");let _=\"\",z=(O)=>{_+=O};process.stdin.on(\"data\",z);let Y=await ee8(process.stdin,3000);if(process.stdin.off(\"data\",z),Y)process.stderr.write(`Warning: n"
+    },
+    {
+      "idx": 13181944,
+      "snip": ",K){if(!process.stdin.isTTY&&!process.argv.includes(\"mcp\")){if(K===\"stream-json\")return process.stdin.setEncoding(\"utf8\"),process.stdin;process.stdin.setEncoding(\"utf8\");let _=\"\",z=(O)=>{_+=O};process.stdin.on(\"data\",z);let Y=await ee8(process.stdin,3000);if(process.stdin.off(\"data\",z),Y)process.stderr.write(`Warning: no stdin data received in 3s, proceeding without "
+    }
+  ],
+  "inputFormat92": null,
+  "inputFormat94": null,
+  "mutableMessages92": {
+    "idx": 12969422,
+    "snip": ":G}}var Vj7=L(()=>{Sh();_y();FH();Fq();cN()});import{randomUUID as Al}from\"crypto\";class S95{config;mutableMessages;abortController;permissionDenials;totalUsage;hasHandledOrphanedPermission=!1;hasHandledDeferredToolResume=!1;readFileState;discoveredSkillNames=new Set;loadedNestedMemoryPaths=new Set;memorySelector="
+  },
+  "isNonInteractiveDelta": {
+    "c92": 49,
+    "c94": 50
+  },
+  "vscode": {
+    "vscode": {
+      "c92": 51,
+      "c94": 51
+    },
+    "VSCode": {
+      "c92": 9,
+      "c94": 9
+    },
+    "VS Code": {
+      "c92": 8,
+      "c94": 8
+    },
+    "coldOpen": {
+      "c92": 11,
+      "c94": 11
+    }
+  }
+}

@@ -1,0 +1,218 @@
+{
+  "tengu_api_retry": {
+    "c92": 1,
+    "c94": 2,
+    "s92": {
+      "idx": 5067623,
+      "snip": "Override=E,d(\"tengu_max_tokens_context_overflow_adjustment\",{inputTokens:Z,contextLimit:v,adjustedMaxTokens:E,attempt:H});continue}}let W=JW4(M),D;if(X&&M instanceof nq&&M.status===429)w++,D=hs_(M)??Math.min(wQ(w,W,jW4),Wp1);else if(X)w++,D=Math.min(wQ(w,W,jW4),Wp1);else D=wQ(H,W);let f=X?w:H;if(d(\"tengu_api_retry\",{attempt:f,delayMs:D,error:M.message,status:M.status,provider:r86()}),X){if(D>60000)d(\"tengu_api_persistent_retry_wait\",{status:M.status,delayMs:D,attempt:f,provider:r86()});let G=D;while(G>0){if(_.signal?.aborted)throw new Gz;if(M instanceof nq)yield fp1(M,G,f,z);let Z=Math.min(G,Ds_);await C7(Z,_.signal,{abortError:Xp1}),G-=Z}if(H>=z)H=z}else{if(M instanceof nq)yield fp1(M,D,H,z);await C7(D,_.signal,{abortError:Xp1})}}}throw new Im($,Y)}function JW4(q){return(q.headers?.[\"retry-after\"]||q.headers?.get?.(\"retry-after\"))??null}function wQ(q,K,_=32000){if(K){let O=parseInt(K,10);if(!isNaN(O))return O*1000}let z=Math.min(Xs_*Math.pow(2,q-1),_),Y=Math.random()*0.25*z;return z+Y}function MW4(q){if(q.status!==400||!q.message)return;if(!q.message.includes(\"input length and `max_tokens` exceed context limit\"))return;let K=/input length and `max_tokens` exceed context limit: (\\d+) \\+ (\\d+) > ("
+    },
+    "s94": {
+      "idx": 5067386,
+      "snip": "=y,d(\"tengu_max_tokens_context_overflow_adjustment\",{inputTokens:Z,contextLimit:v,adjustedMaxTokens:y,attempt:H});continue}}let W=OD4(M),D;if(X&&M instanceof rq&&M.status===429)w++,D=vt_(M)??Math.min(CQ(w,W,zD4),FB1);else if(X)w++,D=Math.min(CQ(w,W,zD4),FB1);else if(D=CQ(H,W),!Is6()&&D>Ot_)throw d(\"tengu_api_retry_after_too_long\",{delayMs:D,status:M.status,provider:gi()}),new qx(M,Y);let f=X?w:H;if(d(\"tengu_api_retry\",{attempt:f,delayMs:D,error:M.message,status:M.status,provider:gi()}),X){if(D>60000)d(\"tengu_api_persistent_retry_wait\",{status:M.status,delayMs:D,attempt:f,provider:gi()});let G=D;while(G>0){if(_.signal?.aborted)throw new r_;if(M instanceof rq)yield QB1(M,G,f,z);let Z=Math.min(G,wt_);await C7(Z,_.signal,{abortError:BB1}),G-=Z}if(H>=z)H=z}else{if(M instanceof rq)yield QB1(M,D,H,z);await C7(D,_.signal,{abortError:BB1})}}}throw new qx($,Y)}function OD4(q){return(q.headers?.[\"retry-after\"]||q.headers?.get?.(\"retry-after\"))??null}function CQ(q,K,_=32000){if(K){let O=parseInt(K,10);if(!isNaN(O))return O*1000}let z=Math.min(Yt_*Math.pow(2,q-1),_),Y=Math.random()*0.25*z;return z+Y}function AD4(q){if(q.status!==400||!q.message)return;if(!q.message.includes(\"input length and `max_tokens` exce"
+    }
+  },
+  "tengu_api_persistent_retry_wait": {
+    "c92": 1,
+    "c94": 1,
+    "s92": {
+      "idx": 5067727,
+      "snip": "ens:E,attempt:H});continue}}let W=JW4(M),D;if(X&&M instanceof nq&&M.status===429)w++,D=hs_(M)??Math.min(wQ(w,W,jW4),Wp1);else if(X)w++,D=Math.min(wQ(w,W,jW4),Wp1);else D=wQ(H,W);let f=X?w:H;if(d(\"tengu_api_retry\",{attempt:f,delayMs:D,error:M.message,status:M.status,provider:r86()}),X){if(D>60000)d(\"tengu_api_persistent_retry_wait\",{status:M.status,delayMs:D,attempt:f,provider:r86()});let G=D;while(G>0){if(_.signal?.aborted)throw new Gz;if(M instanceof nq)yield fp1(M,G,f,z);let Z=Math.min(G,Ds_);await C7(Z,_.signal,{abortError:Xp1}),G-=Z}if(H>=z)H=z}else{if(M instanceof nq)yield fp1(M,D,H,z);await C7(D,_.signal,{abortError:Xp1})}}}throw new Im($,Y)}function JW4(q){return(q.headers?.[\"retry-after\"]||q.headers?.get?.(\"retry-after\"))??null}function wQ(q,K,_=32000){if(K){let O=parseInt(K,10);if(!isNaN(O))return O*1000}let z=Math.min(Xs_*Math.pow(2,q-1),_),Y=Math.random()*0.25*z;return z+Y}function MW4(q){if(q.status!==400||!q.message)return;if(!q.message.includes(\"input length and `max_tokens` exceed context limit\"))return;let K=/input length and `max_tokens` exceed context limit: (\\d+) \\+ (\\d+) > (\\d+)/,_=q.message.match(K);if(!_||_.length!==4)return;if(!_[1]||!_[2]||!_[3]){H6(Error(\"Unable to parse max_tokens from "
+    },
+    "s94": {
+      "idx": 5067594,
+      "snip": "D4),FB1);else if(X)w++,D=Math.min(CQ(w,W,zD4),FB1);else if(D=CQ(H,W),!Is6()&&D>Ot_)throw d(\"tengu_api_retry_after_too_long\",{delayMs:D,status:M.status,provider:gi()}),new qx(M,Y);let f=X?w:H;if(d(\"tengu_api_retry\",{attempt:f,delayMs:D,error:M.message,status:M.status,provider:gi()}),X){if(D>60000)d(\"tengu_api_persistent_retry_wait\",{status:M.status,delayMs:D,attempt:f,provider:gi()});let G=D;while(G>0){if(_.signal?.aborted)throw new r_;if(M instanceof rq)yield QB1(M,G,f,z);let Z=Math.min(G,wt_);await C7(Z,_.signal,{abortError:BB1}),G-=Z}if(H>=z)H=z}else{if(M instanceof rq)yield QB1(M,D,H,z);await C7(D,_.signal,{abortError:BB1})}}}throw new qx($,Y)}function OD4(q){return(q.headers?.[\"retry-after\"]||q.headers?.get?.(\"retry-after\"))??null}function CQ(q,K,_=32000){if(K){let O=parseInt(K,10);if(!isNaN(O))return O*1000}let z=Math.min(Yt_*Math.pow(2,q-1),_),Y=Math.random()*0.25*z;return z+Y}function AD4(q){if(q.status!==400||!q.message)return;if(!q.message.includes(\"input length and `max_tokens` exceed context limit\"))return;let K=/input length and `max_tokens` exceed context limit: (\\d+) \\+ (\\d+) > (\\d+)/,_=q.message.match(K);if(!_||_.length!==4)return;if(!_[1]||!_[2]||!_[3]){j6(Error(\"Unable to parse max_tokens from m"
+    }
+  },
+  "streamJsonStdoutGuard": {
+    "c92": 1,
+    "c94": 1,
+    "s92": {
+      "idx": 12967570,
+      "snip": "0,kX6=process.stdout.write.bind(process.stdout),process.stdout.write=function(q,K,_){let z=typeof q===\"string\"?q:Buffer.from(q).toString(\"utf-8\");Ol+=z;let Y,O=!0;while((Y=Ol.indexOf(`\n`))!==-1){let $=Ol.slice(0,Y);if(Ol=Ol.slice(Y+1),y95($))O=kX6($+`\n`);else process.stderr.write(`${N95} ${$}\n`),N(`streamJsonStdoutGuard diverted non-JSON stdout line: ${$.slice(0,200)}`)}let A=typeof K===\"function\"?K:_;if(A)queueMicrotask(()=>A());return O},Bq(async()=>{if(Ol.length>0){if(kX6&&y95(Ol))kX6(Ol+`\n`);else process.stderr.write(`${N95} ${Ol}\n`);Ol=\"\"}if(kX6)process.stdout.write=kX6,kX6=null;Tj7=!1})}var N95=\"[stdout-guard]\",Tj7=!1,Ol=\"\",kX6=null;var L95=L(()=>{b9();_8()});async function kj7({tools:q,mainLoopModel:K,additionalWorkingDirectories:_,customSystemPrompt:z}){let[Y,O,A]=await Promise.all([z!==void 0?Promise.resolve([]):GW(q,K,_),d$(),z!==void 0?Promise.resolve({}):J2()]);return{defaultSystemPrompt:Y,userContext:O,systemContext:A}}async function h95({tools:q,commands:K,mcpClients:_,messages:z,readFileState:Y,getAppState:O,setAppState:A,customSystemPrompt:$,appendSystemPrompt:w,thinkingConfig:j,agents:H}){let J=D5(),M=O(),{defaultSystemPrompt:X,userContext:P,systemContext:W}=await kj7({tools:q,mainLoop"
+    },
+    "s94": {
+      "idx": 13052965,
+      "snip": "r(\"utf-8\");jP6=process.stdout.write.bind(process.stdout),process.stdout.write=function(K,_,z){let Y=typeof K===\"string\"?K:q.decode(K,{stream:!0});Og+=Y;let O,A=!0;while((O=Og.indexOf(`\n`))!==-1){let w=Og.slice(0,O);if(Og=Og.slice(O+1),Xz5(w))A=jP6(w+`\n`);else process.stderr.write(`${Mz5} ${w}\n`),N(`streamJsonStdoutGuard diverted non-JSON stdout line: ${w.slice(0,200)}`)}let $=typeof _===\"function\"?_:z;if($)queueMicrotask(()=>$());return A},gq(async()=>{if(Og+=q.decode(),Og.length>0){if(jP6&&Xz5(Og))jP6(Og+`\n`);else process.stderr.write(`${Mz5} ${Og}\n`);Og=\"\"}if(jP6)process.stdout.write=jP6,jP6=null;qJ7=!1})}var Mz5=\"[stdout-guard]\",qJ7=!1,Og=\"\",jP6=null;var Wz5=L(()=>{p9();_8()});async function KJ7({tools:q,mainLoopModel:K,additionalWorkingDirectories:_,customSystemPrompt:z}){let[Y,O,A]=await Promise.all([z!==void 0?Promise.resolve([]):FW(q,K,_),s$(),z!==void 0?Promise.resolve({}):T2()]);return{defaultSystemPrompt:Y,userContext:O,systemContext:A}}async function Dz5({tools:q,commands:K,mcpClients:_,messages:z,readFileState:Y,getAppState:O,setAppState:A,customSystemPrompt:$,appendSystemPrompt:w,thinkingConfig:j,agents:H}){let J=eK(),M=O(),{defaultSystemPrompt:X,userContext:P,systemContext:W}=await KJ7({t"
+    }
+  },
+  "decode(K,{stream:!0})": {
+    "c92": 1,
+    "c94": 2,
+    "s92": {
+      "idx": 4518301,
+      "snip": "u\"&&new TextEncoder,sx1=typeof TextDecoder<\"u\"&&new TextDecoder;try{sx1.decode(Pq6,{stream:!0}),$A4=1}catch(q){}wg_=function(){function q(K){if(this.ondata=K,$A4)this.t=new TextDecoder;else this.p=Pq6}return q.prototype.push=function(K,_){if(!this.ondata)iK(5);if(_=!!_,this.t){if(this.ondata(this.t.decode(K,{stream:!0}),_),_){if(this.t.decode().length)iK(8);this.t=null}return}if(!this.p)iK(4);var z=new O_(this.p.length+K.length);z.set(this.p),z.set(K,this.p.length);var Y=wA4(z),O=Y.s,A=Y.r;if(_){if(A.length)iK(8);this.p=null}else this.p=A;this.ondata(O,_)},q}(),jg_=function(){function q(K){this.ondata=K}return q.prototype.push=function(K,_){if(!this.ondata)iK(5);if(this.d)iK(4);this.ondata(Dq6(K),this.d=_||!1)},q}();$o6=function(){function q(K){this.filename=K,this.c=AV6(),this.size=0,this.compression=0}return q.prototype.process=function(K,_){this.ondata(null,K,_)},q.prototype.push=function(K,_){if(!this.ondata)iK(5);if(this.c.p(K),this.size+=K.length,_)this.crc=this.c.d();this.process(K,_||!1)},q}(),Hg_=function(){function q(K,_){var z=this;if(!_)_={};$o6.call(this,K),this.d=new Yb(_,function(Y,O){z.ondata(null,Y,O)}),this.compression=8,this.flag=jA4(_.level)}return q.prototype.process=function(K,_){"
+    },
+    "s94": {
+      "idx": 4514409,
+      "snip": "u\"&&new TextEncoder,Pu1=typeof TextDecoder<\"u\"&&new TextDecoder;try{Pu1.decode(Qq6,{stream:!0}),oA4=1}catch(q){}lg_=function(){function q(K){if(this.ondata=K,oA4)this.t=new TextDecoder;else this.p=Qq6}return q.prototype.push=function(K,_){if(!this.ondata)nK(5);if(_=!!_,this.t){if(this.ondata(this.t.decode(K,{stream:!0}),_),_){if(this.t.decode().length)nK(8);this.t=null}return}if(!this.p)nK(4);var z=new H_(this.p.length+K.length);z.set(this.p),z.set(K,this.p.length);var Y=aA4(z),O=Y.s,A=Y.r;if(_){if(A.length)nK(8);this.p=null}else this.p=A;this.ondata(O,_)},q}(),ng_=function(){function q(K){this.ondata=K}return q.prototype.push=function(K,_){if(!this.ondata)nK(5);if(this.d)nK(4);this.ondata(cq6(K),this.d=_||!1)},q}();wa6=function(){function q(K){this.filename=K,this.c=sV6(),this.size=0,this.compression=0}return q.prototype.process=function(K,_){this.ondata(null,K,_)},q.prototype.push=function(K,_){if(!this.ondata)nK(5);if(this.c.p(K),this.size+=K.length,_)this.crc=this.c.d();this.process(K,_||!1)},q}(),ig_=function(){function q(K,_){var z=this;if(!_)_={};wa6.call(this,K),this.d=new Ib(_,function(Y,O){z.ondata(null,Y,O)}),this.compression=8,this.flag=sA4(_.level)}return q.prototype.process=function(K,_){"
+    }
+  },
+  "decode(q,{stream:!0})": {
+    "c92": 1,
+    "c94": 1,
+    "s92": {
+      "idx": 935172,
+      "snip": "try{return xC7(await y31(q,K))}catch(_){if(_.bufferedData!==void 0)_.bufferedData=xC7(_.bufferedData);throw _}}var xC7=(q)=>globalThis.Buffer.from(q);var IC7=L(()=>{E31()});async function L31(q,K){return sB6(q,Lx5,K)}var Vx5=()=>({contents:\"\",textDecoder:new TextDecoder}),Pw8=(q,{textDecoder:K})=>K.decode(q,{stream:!0}),Nx5=(q,{contents:K})=>K+q,yx5=(q,K)=>q.slice(0,K),Ex5=({textDecoder:q})=>{let K=q.decode();return K===\"\"?void 0:K},Lx5;var uC7=L(()=>{tB6();Lx5={init:Vx5,convertChunk:{string:k31,buffer:Pw8,arrayBuffer:Pw8,dataView:Pw8,typedArray:Pw8,others:Jw8},getSize:Mw8,truncateChunk:yx5,addChunk:Nx5,getFinalChunk:Ex5,finalize:N31}});var mC7=L(()=>{LC7();E31();IC7();uC7();tB6()});var BC7=B((mFO,pC7)=>{var{PassThrough:hx5}=F6(\"stream\");pC7.exports=function(){var q=[],K=new hx5({objectMode:!0});return K.setMaxListeners(0),K.add=_,K.isEmpty=z,K.on(\"unpipe\",Y),Array.prototype.slice.call(arguments).forEach(_),K;function _(O){if(Array.isArray(O))return O.forEach(_),this;return q.push(O),O.once(\"end\",Y.bind(null,O)),O.once(\"error\",K.emit.bind(K,\"error\")),O.pipe(K,{end:!1}),this}function z(){return q.length==0}function Y(O){if(q=q.filter(function(A){return A!==O}),!q.length&&K.readable)K.end()}}});import{cr"
+    },
+    "s94": {
+      "idx": 935422,
+      "snip": "try{return Mx7(await n91(q,K))}catch(_){if(_.bufferedData!==void 0)_.bufferedData=Mx7(_.bufferedData);throw _}}var Mx7=(q)=>globalThis.Buffer.from(q);var Xx7=L(()=>{i91()});async function r91(q,K){return rg6(q,Pu5,K)}var Hu5=()=>({contents:\"\",textDecoder:new TextDecoder}),g28=(q,{textDecoder:K})=>K.decode(q,{stream:!0}),Ju5=(q,{contents:K})=>K+q,Mu5=(q,K)=>q.slice(0,K),Xu5=({textDecoder:q})=>{let K=q.decode();return K===\"\"?void 0:K},Pu5;var Px7=L(()=>{og6();Pu5={init:Hu5,convertChunk:{string:d91,buffer:g28,arrayBuffer:g28,dataView:g28,typedArray:g28,others:m28},getSize:p28,truncateChunk:Mu5,addChunk:Ju5,getFinalChunk:Xu5,finalize:l91}});var Wx7=L(()=>{Ax7();i91();Xx7();Px7();og6()});var fx7=p((_nO,Dx7)=>{var{PassThrough:Wu5}=U6(\"stream\");Dx7.exports=function(){var q=[],K=new Wu5({objectMode:!0});return K.setMaxListeners(0),K.add=_,K.isEmpty=z,K.on(\"unpipe\",Y),Array.prototype.slice.call(arguments).forEach(_),K;function _(O){if(Array.isArray(O))return O.forEach(_),this;return q.push(O),O.once(\"end\",Y.bind(null,O)),O.once(\"error\",K.emit.bind(K,\"error\")),O.pipe(K,{end:!1}),this}function z(){return q.length==0}function Y(O){if(q=q.filter(function(A){return A!==O}),!q.length&&K.readable)K.end()}}});import{cr"
+    }
+  },
+  "decode(_,{stream:!0})": {
+    "c92": 0,
+    "c94": 0,
+    "s92": null,
+    "s94": null
+  },
+  "Auto-resuming interrupted": {
+    "c92": 1,
+    "c94": 1,
+    "s92": {
+      "idx": 12996448,
+      "snip": "ut,error:S6.error,uuid:wX(),session_id:V8()})});let E=(L6)=>{let S6=zpK(L6);if(S6)v.enqueue({type:\"rate_limit_event\",rate_limit_info:S6,uuid:wX(),session_id:V8()})};Z46.add(E);let R=Y,b=eN6(Y,r38(),OQ),I=bm(OQ),m=process.env.CLAUDE_CODE_RESUME_INTERRUPTED_TURN;if(J&&J.kind!==\"none\"&&m)N(`[print.ts] Auto-resuming interrupted turn (kind: ${J.kind})`),q_5(R,J.message),Fj({mode:\"prompt\",value:J.message.message.content,uuid:wX()});let S=Q56().map((L6)=>{let S6=L6.value===null?\"default\":L6.value,r6=S6===\"default\"?vZ():y5(S6),C6=tL(r6),x6=kV8(r6),e=NJ(L6.value),w6=Nv6(r6);return{value:S6,displayName:L6.label,description:L6.description,...C6&&{supportsEffort:!0,supportedEffortLevels:ir6(r6)?[...sL]:sL.filter((k6)=>k6!==\"max\")},...x6&&{supportsAdaptiveThinking:!0},...e&&{supportsFastMode:!0},...w6&&{supportsAutoMode:!0}}}),g=H.userSpecifiedModel;function F(L6,S6){let r6=IkK(L6,ZN(S6));R.push(...r6);for(let C6 of r6)if(typeof C6.message.content===\"string\"&&C6.message.content.includes(`<${OD}>`))v.enqueue({type:\"user\",message:C6.message,session_id:V8(),parent_tool_use_id:null,uuid:C6.uuid,timestamp:C6.timestamp,isReplay:!0})}let U=[],n=[],r=new Set;function o(L6){for(let S6 of L6){if(S6.type!==\"connected\"||r.has(S6.n"
+    },
+    "s94": {
+      "idx": 13081915,
+      "snip": "ut,error:W6.error,uuid:GX(),session_id:N8()})});let y=(i6)=>{let W6=CBK(i6);if(W6)v.enqueue({type:\"rate_limit_event\",rate_limit_info:W6,uuid:GX(),session_id:N8()})};i46.add(y);let S=Y,b=cy6(Y,f_8(),sb),I=mh(sb),B=process.env.CLAUDE_CODE_RESUME_INTERRUPTED_TURN;if(J&&J.kind!==\"none\"&&B)N(`[print.ts] Auto-resuming interrupted turn (kind: ${J.kind})`),cz5(S,J.message),tj({mode:\"prompt\",value:J.message.message.content,uuid:GX()});let R=T36().map((i6)=>{let W6=i6.value===null?\"default\":i6.value,g6=W6===\"default\"?BZ():N5(W6),$6=Ch(g6),q6=cN8(g6),h6=uJ(i6.value),J6=DT6(g6);return{value:W6,displayName:i6.label,description:i6.description,...$6&&{supportsEffort:!0,supportedEffortLevels:ro6(g6)?[...Sh]:Sh.filter((N6)=>N6!==\"max\")},...q6&&{supportsAdaptiveThinking:!0},...h6&&{supportsFastMode:!0},...J6&&{supportsAutoMode:!0}}}),g=H.userSpecifiedModel,F=H.thinkingConfig&&H.thinkingConfig.type!==\"disabled\"?H.thinkingConfig.display:void 0,Q=H.thinkingConfig;function i(i6,W6){let g6=_NK(i6,cN(W6));S.push(...g6);for(let $6 of g6)if(typeof $6.message.content===\"string\"&&$6.message.content.includes(`<${ND}>`))v.enqueue({type:\"user\",message:$6.message,session_id:N8(),parent_tool_use_id:null,uuid:$6.uuid,timestamp:$6.timestamp"
+    }
+  },
+  "interrupted_prompt": {
+    "c92": 2,
+    "c94": 2,
+    "s92": {
+      "idx": 8449450,
+      "snip": "or(let H of _)if(H.type===\"user\"&&H.permissionMode!==void 0&&!z.has(H.permissionMode))H.permissionMode=void 0;let Y=Sm8(_,K),O=p18(Y),A=m18(O),$=K?.size?{kind:\"none\"}:Xoz(A),w;if($.kind===\"interrupted_turn\"){let[H]=tX([i8({content:\"Continue from where you left off.\",isMeta:!0})]);A.push(H),w={kind:\"interrupted_prompt\",message:H}}else w=$;let j=A.findLastIndex((H)=>H.type!==\"system\"&&H.type!==\"progress\");if(j!==-1&&A[j].type===\"user\")A.splice(j+1,0,xv({content:wH6}));return{messages:A,turnInterruptionState:w}}catch(_){throw H6(_),_}}function Xoz(q){if(q.length===0)return{kind:\"none\"};let K=q.findLastIndex((z)=>z.type!==\"system\"&&z.type!==\"progress\"&&!(z.type===\"assistant\"&&z.isApiErrorMessage)),_=K!==-1?q[K]:void 0;if(!_)return{kind:\"none\"};if(_.type===\"assistant\")return{kind:\"none\"};if(_.type===\"user\"){if(_.isMeta||_.isCompactSummary)return{kind:\"none\"};if(u18(_)){if(Poz(_,q,K))return{kind:\"none\"};return{kind:\"interrupted_turn\"}}return{kind:\"interrupted_prompt\",message:_}}if(_.type===\"attachment\")return{kind:\"interrupted_turn\"};return{kind:\"none\"}}function Poz(q,K,_){let z=q.message.content;if(!Array.isArray(z))return!1;let Y=z[0];if(Y?.type!==\"tool_result\")return!1;let O=Y.tool_use_id;for(let A=_-1"
+    },
+    "s94": {
+      "idx": 8474486,
+      "snip": "or(let H of _)if(H.type===\"user\"&&H.permissionMode!==void 0&&!z.has(H.permissionMode))H.permissionMode=void 0;let Y=$B8(_,K),O=s78(Y),A=a78(O),$=K?.size?{kind:\"none\"}:fez(A),w;if($.kind===\"interrupted_turn\"){let[H]=HP([i8({content:\"Continue from where you left off.\",isMeta:!0})]);A.push(H),w={kind:\"interrupted_prompt\",message:H}}else w=$;let j=A.findLastIndex((H)=>H.type!==\"system\"&&H.type!==\"progress\");if(j!==-1&&A[j].type===\"user\")A.splice(j+1,0,KT({content:iH6}));return{messages:A,turnInterruptionState:w}}catch(_){throw j6(_),_}}function fez(q){if(q.length===0)return{kind:\"none\"};let K=q.findLastIndex((z)=>z.type!==\"system\"&&z.type!==\"progress\"&&!(z.type===\"assistant\"&&z.isApiErrorMessage)),_=K!==-1?q[K]:void 0;if(!_)return{kind:\"none\"};if(_.type===\"assistant\")return{kind:\"none\"};if(_.type===\"user\"){if(_.isMeta||_.isCompactSummary)return{kind:\"none\"};if(o78(_)){if(Zez(_,q,K))return{kind:\"none\"};return{kind:\"interrupted_turn\"}}return{kind:\"interrupted_prompt\",message:_}}if(_.type===\"attachment\")return{kind:\"interrupted_turn\"};return{kind:\"none\"}}function Zez(q,K,_){let z=q.message.content;if(!Array.isArray(z))return!1;let Y=z[0];if(Y?.type!==\"tool_result\")return!1;let O=Y.tool_use_id;for(let A=_-1"
+    }
+  },
+  "includePartialMessages": {
+    "c92": 7,
+    "c94": 7,
+    "s92": {
+      "idx": 12970156,
+      "snip": "age=Vf}async*submitMessage(q,K){let{cwd:_,commands:z,tools:Y,mcpClients:O,verbose:A=!1,thinkingConfig:$,maxTurns:w,maxBudgetUsd:j,taskBudget:H,canUseTool:J,customSystemPrompt:M,appendSystemPrompt:X,userSpecifiedModel:P,fallbackModel:W,jsonSchema:D,getAppState:f,setAppState:G,replayUserMessages:Z=!1,includePartialMessages:v=!1,agents:k=[],setSDKStatus:V,orphanedPermission:y,deferredToolUse:E}=this.config;this.discoveredSkillNames.clear(),qw(_);let R=!VV(),b=Date.now(),I=async(C6,x6,e,w6,k6,M6)=>{let V6=await J(C6,x6,e,w6,k6,M6);if(V6.behavior!==\"allow\")this.permissionDenials.push({tool_name:iA7(C6.name),tool_use_id:k6,tool_input:x6});return V6},m=f(),p=P?y5(P):D5(),S=$?$:Jq6()!==!1?{type:\"adaptive\"}:{type:\"disabled\"};EM(\"before_getSystemPrompt\");let g=typeof M===\"string\"?M:void 0,{defaultSystemPrompt:F,userContext:U,systemContext:n}=await kj7({tools:Y,mainLoopModel:p,additionalWorkingDirectories:Array.from(m.toolPermissionContext.additionalWorkingDirectories.keys()),customSystemPrompt:g});EM(\"after_getSystemPrompt\");let r={...U,...c7O(O,Fc()?e36():void 0)},o=g!==void 0&&YG8()?await bl8():null,z6=I5([...g!==void 0?[g]:F,...o?[o]:[],...X?[X]:[]]),_6=Y.some((C6)=>o_(C6,wW));if(D&&_6)gl8(G,V8());let l={messa"
+    },
+    "s94": {
+      "idx": 13055566,
+      "snip": "age=RP}async*submitMessage(q,K){let{cwd:_,commands:z,tools:Y,mcpClients:O,verbose:A=!1,thinkingConfig:$,maxTurns:w,maxBudgetUsd:j,taskBudget:H,canUseTool:J,customSystemPrompt:M,appendSystemPrompt:X,userSpecifiedModel:P,fallbackModel:W,jsonSchema:D,getAppState:f,setAppState:G,replayUserMessages:Z=!1,includePartialMessages:v=!1,agents:k=[],setSDKStatus:V,orphanedPermission:E,deferredToolUse:y}=this.config;this.discoveredSkillNames.clear(),ww(_);let S=!aV(),b=Date.now(),I=async(W6,g6,$6,q6,h6,J6)=>{let N6=await J(W6,g6,$6,q6,h6,J6);if(N6.behavior!==\"allow\")this.permissionDenials.push({tool_name:kw7(W6.name),tool_use_id:h6,tool_input:g6});return N6},B=f(),m=P?N5(P):eK(),R=$?$:gq6()!==!1?{type:\"adaptive\"}:{type:\"disabled\"};BM(\"before_getSystemPrompt\");let g=typeof M===\"string\"?M:void 0,{defaultSystemPrompt:F,userContext:Q,systemContext:i}=await KJ7({tools:Y,mainLoopModel:m,additionalWorkingDirectories:Array.from(B.toolPermissionContext.additionalWorkingDirectories.keys()),customSystemPrompt:g});BM(\"after_getSystemPrompt\");let r={...Q,...j9O(O,Hl()?S96():void 0)},o=g!==void 0&&Nv8()?await tn8():null,_6=W5([...g!==void 0?[g]:F,...o?[o]:[],...X?[X]:[]]),z6=Y.some((W6)=>qz(W6,hW));if(D&&z6)Oi8(G,N8());let l={mes"
+    }
+  },
+  "partial response": {
+    "c92": 2,
+    "c94": 2,
+    "s92": {
+      "idx": 12771484,
+      "snip": " |\n| \\`message_delta\\`       | Message-level updates       | Contains \\`stop_reason\\`, usage     |\n| \\`message_stop\\`        | Message complete            | Once at the end                   |\n\n## Best Practices\n\n1. **Always flush output** — Use \\`flush=True\\` to show tokens immediately\n2. **Handle partial responses** — If the stream is interrupted, you may have incomplete content\n3. **Track token usage** — The \\`message_delta\\` event contains usage information\n4. **Use timeouts** — Set appropriate timeouts for your application\n5. **Default to streaming** — Use \\`.get_final_message()\\` to get the complete response even when streaming, giving you timeout protection without needing to handle individual events\n`;var I55=()=>{};var p55=`# Tool Use — Python\n\nFor conceptual overview (tool definitions, tool choice, tips), see [shared/tool-use-concepts.md](../../shared/tool-use-concepts.md).\n\n## Tool Runner (Recommended)\n\n**Beta:** The tool runner is in beta in the Python SDK.\n\nUse the \\`@beta_tool\\` decorator to define tools as typed functions, then pass them to \\`client.beta.messages.tool_runner()\\`:\n\n\\`\\`\\`python\nimport anthropic\nfrom anthropic import beta_tool\n\nclient = anthropic.Anthropic()\n\n@beta_to"
+    },
+    "s94": {
+      "idx": 12856232,
+      "snip": " |\n| \\`message_delta\\`       | Message-level updates       | Contains \\`stop_reason\\`, usage     |\n| \\`message_stop\\`        | Message complete            | Once at the end                   |\n\n## Best Practices\n\n1. **Always flush output** — Use \\`flush=True\\` to show tokens immediately\n2. **Handle partial responses** — If the stream is interrupted, you may have incomplete content\n3. **Track token usage** — The \\`message_delta\\` event contains usage information\n4. **Use timeouts** — Set appropriate timeouts for your application\n5. **Default to streaming** — Use \\`.get_final_message()\\` to get the complete response even when streaming, giving you timeout protection without needing to handle individual events\n`;var k95=()=>{};var y95=`# Tool Use — Python\n\nFor conceptual overview (tool definitions, tool choice, tips), see [shared/tool-use-concepts.md](../../shared/tool-use-concepts.md).\n\n## Tool Runner (Recommended)\n\n**Beta:** The tool runner is in beta in the Python SDK.\n\nUse the \\`@beta_tool\\` decorator to define tools as typed functions, then pass them to \\`client.beta.messages.tool_runner()\\`:\n\n\\`\\`\\`python\nimport anthropic\nfrom anthropic import beta_tool\n\nclient = anthropic.Anthropic()\n\n@beta_to"
+    }
+  },
+  "Claude Code-doctor-probe": {
+    "c92": 0,
+    "c94": 1,
+    "s92": null,
+    "s94": {
+      "idx": 7886414,
+      "snip": "`Alias exists but points to invalid target: ${z}. Update alias: alias claude=\"~/.claude/local/claude\"`});else K.push({issue:\"Local installation not accessible\",fix:'Create alias: alias claude=\"~/.claude/local/claude\"'})}return K}async function JUz(){if(process.platform!==\"darwin\")return null;let q=\"Claude Code-doctor-probe\",K=ou(),_=Buffer.from(\"probe\",\"utf-8\").toString(\"hex\"),z=`add-generic-password -U -a \"${K}\" -s \"${q}\" -X \"${_}\"\n`,Y=await oT(\"security\",[\"-i\"],{input:z,reject:!1,timeout:5000});if(Y.exitCode===0)return oT(\"security\",[\"delete-generic-password\",\"-a\",K,\"-s\",q],{reject:!1,timeout:5000}),null;let O=(Y.stderr||Y.stdout||\"\").trim().replace(/\\s*\\n\\s*/g,\"; \");return{issue:`macOS Keychain is not writable${O?` (${O})`:\"\"}. Console login will fail to save your API key.`,fix:\"Run: security unlock-keychain ~/Library/Keychains/login.keychain-db — if that doesn't fix it, your login keychain password may be out of sync with your account password: open Keychain Access, select the 'login' keychain, then Edit → Change Password for Keychain 'login'.\"}}function MUz(){if(N1()!==\"linux\")return[];let q=[],K=Z7.getLinuxGlobPatternWarnings();if(K.length>0){let _=K.slice(0,3).join(\", \"),z=K.length-3,Y=z>0?`${_} ($"
+    }
+  },
+  "Keychain is not writable": {
+    "c92": 0,
+    "c94": 1,
+    "s92": null,
+    "s94": {
+      "idx": 7886812,
+      "snip": "sword -U -a \"${K}\" -s \"${q}\" -X \"${_}\"\n`,Y=await oT(\"security\",[\"-i\"],{input:z,reject:!1,timeout:5000});if(Y.exitCode===0)return oT(\"security\",[\"delete-generic-password\",\"-a\",K,\"-s\",q],{reject:!1,timeout:5000}),null;let O=(Y.stderr||Y.stdout||\"\").trim().replace(/\\s*\\n\\s*/g,\"; \");return{issue:`macOS Keychain is not writable${O?` (${O})`:\"\"}. Console login will fail to save your API key.`,fix:\"Run: security unlock-keychain ~/Library/Keychains/login.keychain-db — if that doesn't fix it, your login keychain password may be out of sync with your account password: open Keychain Access, select the 'login' keychain, then Edit → Change Password for Keychain 'login'.\"}}function MUz(){if(N1()!==\"linux\")return[];let q=[],K=Z7.getLinuxGlobPatternWarnings();if(K.length>0){let _=K.slice(0,3).join(\", \"),z=K.length-3,Y=z>0?`${_} (${z} more)`:_;q.push({issue:\"Glob patterns in sandbox permission rules are not fully supported on Linux\",fix:`Found ${K.length} pattern(s): ${Y}. On Linux, glob patterns in Edit/Read rules will be ignored.`})}return q}async function wH6({probeKeychain:q=!1}={}){let K=await zs(),_={ISSUES_EXPLAINER:\"report the issue at https://github.com/anthropics/claude-code/issues\",PACKAGE_URL:\"@anthropic-ai/cl"
+    }
+  },
+  "retryDelay92": [
+    {
+      "idx": 122112,
+      "snip": ";if(q.status>=500)return!0;return!1}async retryRequest(q,K,_,z){let Y,O=z?.get(\"retry-after-ms\");if(O){let $=parseFloat(O);if(!Number.isNaN($))Y=$}let A=z?.get(\"retry-after\");if(A&&!Y){let $=parseFloat(A);if(!Number.isNaN($))Y=$*1000;else Y=Date.parse(A)-Date.now()}if(Y===void 0){let $=q.maxRetries??this.maxRetries;Y=this.calculateDefaultRetryTimeoutMillis(K,$)}return await GX7(Y),this.makeRequest(q,K-1,_)}calculateDefaultRetryTimeoutMillis(q,K){let Y=K-q,O=Math.min(0.5*Math.pow(2,Y),8)"
+    },
+    {
+      "idx": 122193,
+      "snip": "etry-after-ms\");if(O){let $=parseFloat(O);if(!Number.isNaN($))Y=$}let A=z?.get(\"retry-after\");if(A&&!Y){let $=parseFloat(A);if(!Number.isNaN($))Y=$*1000;else Y=Date.parse(A)-Date.now()}if(Y===void 0){let $=q.maxRetries??this.maxRetries;Y=this.calculateDefaultRetryTimeoutMillis(K,$)}return await GX7(Y),this.makeRequest(q,K-1,_)}calculateDefaultRetryTimeoutMillis(q,K){let Y=K-q,O=Math.min(0.5*Math.pow(2,Y),8),A=1-Math.random()*0.25;return O*A*1000}calculateNonstreamingTimeout(q,K){if(3600"
+    },
+    {
+      "idx": 1357394,
+      "snip": "l&&Array.isArray(X)&&!X.includes(Y)){z(q);return}if(D>j){z(q);return}let f=A?.[\"retry-after\"];if(f)f=Number(f),f=Number.isNaN(f)?fd5(f):f*1000;let G=f>0?Math.min(f,J):Math.min(H*M**(D-1),J);setTimeout(()=>z(null),G)}onHeaders(q,K,_,z){let Y=Wd5(K);if(this.retryCount+=1,q>=300)if(this.retryOpts.statusCodes.includes(q)===!1)return this.handler.onHeaders(q,K,_,z);else return this.abort(new qF6(\"Request failed\",q,{headers:Y,data:{count:this.retryCount}})),!1;if(this.resume!=null){if(this.re"
+    },
+    {
+      "idx": 1852231,
+      "snip": ".isInstance(q))return;let K=Object.keys(q.headers).find((O)=>O.toLowerCase()===\"retry-after\");if(!K)return;let _=q.headers[K],z=Number(_);if(!Number.isNaN(z))return z*1000;return new Date(_).getTime()-Date.now()};class de7 extends Sw1{rateLimiter;constructor(q,K){let{rateLimiter:_,...z}=K??{};super(q,z);this.rateLimiter=_??new VH.DefaultRateLimiter,this.mode=VH.RETRY_MODES.ADAPTIVE}async retry(q,K){return super.retry(q,K,{beforeRequest:async()=>{return this.rateLimiter.getSendToken()},a"
+    },
+    {
+      "idx": 1855643,
+      "snip": ".isInstance(q))return;let K=Object.keys(q.headers).find((O)=>O.toLowerCase()===\"retry-after\");if(!K)return;let _=q.headers[K],z=Number(_);if(!Number.isNaN(z))return new Date(z*1000);return new Date(_)};MM3.AdaptiveRetryStrategy=de7;MM3.CONFIG_MAX_ATTEMPTS=Rw1;MM3.CONFIG_RETRY_MODE=le7;MM3.ENV_MAX_ATTEMPTS=hw1;MM3.ENV_RETRY_MODE=ce7;MM3.NODE_MAX_ATTEMPT_CONFIG_OPTIONS=YM3;MM3.NODE_RETRY_MODE_CONFIG_OPTIONS=AM3;MM3.StandardRetryStrategy=Sw1;MM3.defaultDelayDecider=Fe7;MM3.defaultRetryDeci"
+    },
+    {
+      "idx": 5068119,
+      "snip": "ignal,{abortError:Xp1})}}}throw new Im($,Y)}function JW4(q){return(q.headers?.[\"retry-after\"]||q.headers?.get?.(\"retry-after\"))??null}function wQ(q,K,_=32000){if(K){let O=parseInt(K,10);if(!isNaN(O))return O*1000}let z=Math.min(Xs_*Math.pow(2,q-1),_),Y=Math.random()*0.25*z;return z+Y}function MW4(q){if(q.status!==400||!q.message)return;if(!q.message.includes(\"input length and `max_tokens` exceed context limit\"))return;let K=/input length and `max_tokens` exceed context limit: (\\d+) \\+ ("
+    },
+    {
+      "idx": 5068152,
+      "snip": "ew Im($,Y)}function JW4(q){return(q.headers?.[\"retry-after\"]||q.headers?.get?.(\"retry-after\"))??null}function wQ(q,K,_=32000){if(K){let O=parseInt(K,10);if(!isNaN(O))return O*1000}let z=Math.min(Xs_*Math.pow(2,q-1),_),Y=Math.random()*0.25*z;return z+Y}function MW4(q){if(q.status!==400||!q.message)return;if(!q.message.includes(\"input length and `max_tokens` exceed context limit\"))return;let K=/input length and `max_tokens` exceed context limit: (\\d+) \\+ (\\d+) > (\\d+)/,_=q.message.match(K"
+    },
+    {
+      "idx": 11808709,
+      "snip": "t_failed\",{method:q,path:K,status:A.status}),A.status===429){let $=A.headers?.[\"retry-after\"],w=typeof $===\"string\"?parseInt($,10):NaN;if(!isNaN(w)&&w>=0)return{ok:!1,retryAfterMs:w*1000}}return{ok:!1}}catch(A){return N(`CCRClient: ${z} failed: ${g6(A)}`,{level:\"warn\"}),s8(\"warn\",\"cli_worker_request_error\",{method:q,path:K,error_code:n1(A)}),{ok:!1}}}reportState(q,K){if(q===this.currentState&&!K)return;this.currentState=q,this.workerState.enqueue({worker_status:q,requires_action_details"
+    }
+  ],
+  "retryDelay94": [
+    {
+      "idx": 122294,
+      "snip": ";if(q.status>=500)return!0;return!1}async retryRequest(q,K,_,z){let Y,O=z?.get(\"retry-after-ms\");if(O){let $=parseFloat(O);if(!Number.isNaN($))Y=$}let A=z?.get(\"retry-after\");if(A&&!Y){let $=parseFloat(A);if(!Number.isNaN($))Y=$*1000;else Y=Date.parse(A)-Date.now()}if(Y===void 0){let $=q.maxRetries??this.maxRetries;Y=this.calculateDefaultRetryTimeoutMillis(K,$)}return await eP7(Y),this.makeRequest(q,K-1,_)}calculateDefaultRetryTimeoutMillis(q,K){let Y=K-q,O=Math.min(0.5*Math.pow(2,Y),8)"
+    },
+    {
+      "idx": 122375,
+      "snip": "etry-after-ms\");if(O){let $=parseFloat(O);if(!Number.isNaN($))Y=$}let A=z?.get(\"retry-after\");if(A&&!Y){let $=parseFloat(A);if(!Number.isNaN($))Y=$*1000;else Y=Date.parse(A)-Date.now()}if(Y===void 0){let $=q.maxRetries??this.maxRetries;Y=this.calculateDefaultRetryTimeoutMillis(K,$)}return await eP7(Y),this.makeRequest(q,K-1,_)}calculateDefaultRetryTimeoutMillis(q,K){let Y=K-q,O=Math.min(0.5*Math.pow(2,Y),8),A=1-Math.random()*0.25;return O*A*1000}calculateNonstreamingTimeout(q,K){if(3600"
+    },
+    {
+      "idx": 1358859,
+      "snip": "l&&Array.isArray(X)&&!X.includes(Y)){z(q);return}if(D>j){z(q);return}let f=A?.[\"retry-after\"];if(f)f=Number(f),f=Number.isNaN(f)?zl5(f):f*1000;let G=f>0?Math.min(f,J):Math.min(H*M**(D-1),J);setTimeout(()=>z(null),G)}onHeaders(q,K,_,z){let Y=Kl5(K);if(this.retryCount+=1,q>=300)if(this.retryOpts.statusCodes.includes(q)===!1)return this.handler.onHeaders(q,K,_,z);else return this.abort(new tF6(\"Request failed\",q,{headers:Y,data:{count:this.retryCount}})),!1;if(this.resume!=null){if(this.re"
+    },
+    {
+      "idx": 1854969,
+      "snip": ".isInstance(q))return;let K=Object.keys(q.headers).find((O)=>O.toLowerCase()===\"retry-after\");if(!K)return;let _=q.headers[K],z=Number(_);if(!Number.isNaN(z))return z*1000;return new Date(_).getTime()-Date.now()};class W8q extends Yj1{rateLimiter;constructor(q,K){let{rateLimiter:_,...z}=K??{};super(q,z);this.rateLimiter=_??new RH.DefaultRateLimiter,this.mode=RH.RETRY_MODES.ADAPTIVE}async retry(q,K){return super.retry(q,K,{beforeRequest:async()=>{return this.rateLimiter.getSendToken()},a"
+    },
+    {
+      "idx": 1858381,
+      "snip": ".isInstance(q))return;let K=Object.keys(q.headers).find((O)=>O.toLowerCase()===\"retry-after\");if(!K)return;let _=q.headers[K],z=Number(_);if(!Number.isNaN(z))return new Date(z*1000);return new Date(_)};eX3.AdaptiveRetryStrategy=W8q;eX3.CONFIG_MAX_ATTEMPTS=zj1;eX3.CONFIG_RETRY_MODE=f8q;eX3.ENV_MAX_ATTEMPTS=_j1;eX3.ENV_RETRY_MODE=D8q;eX3.NODE_MAX_ATTEMPT_CONFIG_OPTIONS=lX3;eX3.NODE_RETRY_MODE_CONFIG_OPTIONS=iX3;eX3.StandardRetryStrategy=Yj1;eX3.defaultDelayDecider=M8q;eX3.defaultRetryDeci"
+    },
+    {
+      "idx": 5067985,
+      "snip": "ignal,{abortError:BB1})}}}throw new qx($,Y)}function OD4(q){return(q.headers?.[\"retry-after\"]||q.headers?.get?.(\"retry-after\"))??null}function CQ(q,K,_=32000){if(K){let O=parseInt(K,10);if(!isNaN(O))return O*1000}let z=Math.min(Yt_*Math.pow(2,q-1),_),Y=Math.random()*0.25*z;return z+Y}function AD4(q){if(q.status!==400||!q.message)return;if(!q.message.includes(\"input length and `max_tokens` exceed context limit\"))return;let K=/input length and `max_tokens` exceed context limit: (\\d+) \\+ ("
+    },
+    {
+      "idx": 5068018,
+      "snip": "ew qx($,Y)}function OD4(q){return(q.headers?.[\"retry-after\"]||q.headers?.get?.(\"retry-after\"))??null}function CQ(q,K,_=32000){if(K){let O=parseInt(K,10);if(!isNaN(O))return O*1000}let z=Math.min(Yt_*Math.pow(2,q-1),_),Y=Math.random()*0.25*z;return z+Y}function AD4(q){if(q.status!==400||!q.message)return;if(!q.message.includes(\"input length and `max_tokens` exceed context limit\"))return;let K=/input length and `max_tokens` exceed context limit: (\\d+) \\+ (\\d+) > (\\d+)/,_=q.message.match(K"
+    },
+    {
+      "idx": 11884401,
+      "snip": "t_failed\",{method:q,path:K,status:A.status}),A.status===429){let $=A.headers?.[\"retry-after\"],w=typeof $===\"string\"?parseInt($,10):NaN;if(!isNaN(w)&&w>=0)return{ok:!1,retryAfterMs:w*1000}}return{ok:!1}}catch(A){return N(`CCRClient: ${z} failed: ${m6(A)}`,{level:\"warn\"}),s8(\"warn\",\"cli_worker_request_error\",{method:q,path:K,error_code:n1(A)}),{ok:!1}}}reportState(q,K){if(q===this.currentState&&!K)return;this.currentState=q,this.workerState.enqueue({worker_status:q,requires_action_details"
+    }
+  ],
+  "delta:onAbort": {
+    "c92": 13,
+    "c94": 12,
+    "s94": {
+      "idx": 1439778,
+      "snip": "r.abort(P)},J=new ReadableStream({async start(P){q.controller.controller=P},async pull(P){await j(P)},async cancel(P){await H(P)},type:\"bytes\"});Y.body={stream:J,source:null,length:null},q.controller.onAborted=M,q.controller.on(\"terminated\",M),q.controller.resume=async()=>{while(!0){let P,W;try{let{done:f,value:G}=await q.controller.next();if(dd7(q))break;P=f?void 0:G}catch(f){if(q.controller.ended&&!O.encodedBodySize)P=void 0;else P=f,W=!0}if(P===void 0){Xr5(q.controller.controller),Ur5(q,Y);return}if(O.decodedBodySize+=P?.byteLength??0,W){q.controller.terminate(P);return}let D=new Uint8Array(P);if("
+    }
+  },
+  "delta:signal.aborted": {
+    "c92": 80,
+    "c94": 83,
+    "s94": {
+      "idx": 548779,
+      "snip": "et A=qv7(q.params)?q.params.task:void 0,$=this._taskStore?this.requestTaskStore(q,z?.sessionId):void 0,w={signal:O.signal,sessionId:z?.sessionId,_meta:q.params?._meta,sendNotification:async(j)=>{if(O.signal.aborted)return;let H={relatedRequestId:q.id};if(Y)H.relatedTask={taskId:Y};await this.notification(j,H)},sendRequest:async(j,H,J)=>{if(O.signal.aborted)throw new vK(P5.ConnectionClosed,\"Request was cancelled\");let M={...J,relatedRequestId:q.id};if(Y&&!M.relatedTask)M.relatedTask={taskId:Y};let X=M.relatedTask?.taskId??Y;if(X&&$)await $.updateTaskStatus(X,\"input_required\");return await this.request(j,H,M)"
+    }
+  }
+}

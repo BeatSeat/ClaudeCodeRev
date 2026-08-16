@@ -970,8 +970,8 @@ export async function runInProcessTeammate(
   }
 
   // Resolve agent definition - use full system prompt with teammate addendum
-  // IMPORTANT: Set permissionMode to 'default' so teammates always get full tool
-  // access regardless of the leader's permission mode.
+  // Inherit --dangerously-skip-permissions from the leader. Other modes stay
+  // default so teammates still get full tool access (official 2.1.98).
   const resolvedAgentDefinition: CustomAgentDefinition = {
     agentType: identity.agentName,
     whenToUse: `In-process teammate: ${identity.agentName}`,

@@ -7,7 +7,7 @@ import { installOAuthTokens } from '../cli/handlers/auth.js'
 import { useTerminalSize } from '../hooks/useTerminalSize.js'
 import { setClipboard } from '../ink/termio/osc.js'
 import { useTerminalNotification } from '../ink/useTerminalNotification.js'
-import { Box, Link, Text } from '../ink.js'
+import { Box, Link, Text, useApp } from '../ink.js'
 import { useKeybinding } from '../keybindings/useKeybinding.js'
 import { getSSLErrorHint } from '../services/api/errorUtils.js'
 import { sendNotification } from '../services/notifier.js'
@@ -16,8 +16,11 @@ import { getOauthAccountInfo, validateForceLoginOrg } from '../utils/auth.js'
 import { logError } from '../utils/log.js'
 import { getSettings_DEPRECATED } from '../utils/settings/settings.js'
 import { openBrowser } from '../utils/browser.js'
+import { saveGlobalConfig } from '../utils/config.js'
+import { execRelaunch } from '../utils/relaunch.js'
 import { BedrockSetupWizard } from './bedrock-setup/BedrockSetupWizard.js'
 import { Select } from './CustomSelect/select.js'
+import { VertexSetupWizard } from './vertex-setup/VertexSetupWizard.js'
 import { KeyboardShortcutHint } from './design-system/KeyboardShortcutHint.js'
 import { Spinner } from './Spinner.js'
 import TextInput from './TextInput.js'
@@ -31,9 +34,11 @@ type Props = {
 
 type OAuthStatus =
   | { state: 'idle' } // Initial state, waiting to select login method
-  | { state: 'platform_setup' } // 3rd-party platform picker (Bedrock wizard / docs)
+  | { state: 'platform_setup' } // 3rd-party platform picker (Bedrock/Vertex wizards / Foundry docs)
   | { state: 'bedrock_wizard' } // Interactive AWS Bedrock setup wizard
   | { state: 'bedrock_done'; message: string } // Bedrock settings saved
+  | { state: 'vertex_wizard' } // Interactive Google Vertex AI setup wizard
+  | { state: 'vertex_done'; message: string } // Vertex settings saved
   | { state: 'ready_to_start' } // Flow started, waiting for browser to open
   | { state: 'waiting_for_login'; url: string } // Browser opened, waiting for user to login
   | { state: 'creating_api_key' } // Got access token, creating API key
@@ -67,6 +72,7 @@ export function ConsoleOAuthFlow({
         : null
 
   const terminal = useTerminalNotification()
+  const { exit } = useApp()
 
   const [oauthStatus, setOAuthStatus] = useState<OAuthStatus>(() => {
     if (mode === 'setup-token') {
@@ -123,15 +129,23 @@ export function ConsoleOAuthFlow({
     },
   )
 
-  // Handle Enter to continue after Bedrock setup
+  // Handle Enter to restart after Bedrock / Vertex setup
   useKeybinding(
     'confirm:yes',
     () => {
-      onDone()
+      saveGlobalConfig(current => ({
+        ...current,
+        hasCompletedOnboarding: true,
+        lastOnboardingVersion: MACRO.VERSION,
+      }))
+      exit()
+      void Promise.resolve().then(() => execRelaunch())
     },
     {
       context: 'Confirmation',
-      isActive: oauthStatus.state === 'bedrock_done',
+      isActive:
+        oauthStatus.state === 'bedrock_done' ||
+        oauthStatus.state === 'vertex_done',
     },
   )
 
@@ -529,7 +543,8 @@ function OAuthStatusMessage({
               {
                 label: (
                   <Text>
-                    Google Vertex AI · <Text dimColor>opens docs</Text>
+                    Google Vertex AI ·{' '}
+                    <Text dimColor>interactive setup</Text>
                   </Text>
                 ),
                 value: 'vertex',
@@ -553,14 +568,8 @@ function OAuthStatusMessage({
                   setOAuthStatus({ state: 'idle' })
                   break
                 case 'vertex':
-                  logEvent('tengu_oauth_platform_docs_opened', {
-                    platform:
-                      'vertex' as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-                  })
-                  void openBrowser(
-                    'https://code.claude.com/docs/en/google-vertex-ai',
-                  )
-                  setOAuthStatus({ state: 'idle' })
+                  logEvent('tengu_oauth_vertex_wizard_launched', {})
+                  setOAuthStatus({ state: 'vertex_wizard' })
                   break
                 default:
                   setOAuthStatus({ state: 'idle' })
@@ -569,13 +578,9 @@ function OAuthStatusMessage({
             onCancel={() => setOAuthStatus({ state: 'idle' })}
           />
           <Text dimColor>
-            Foundry and Vertex AI:{' '}
+            Foundry:{' '}
             <Link url="https://code.claude.com/docs/en/microsoft-foundry">
               https://code.claude.com/docs/en/microsoft-foundry
-            </Link>
-            {' · '}
-            <Link url="https://code.claude.com/docs/en/google-vertex-ai">
-              https://code.claude.com/docs/en/google-vertex-ai
             </Link>
           </Text>
         </Box>
@@ -591,12 +596,23 @@ function OAuthStatusMessage({
         />
       )
 
+    case 'vertex_wizard':
+      return (
+        <VertexSetupWizard
+          onComplete={message =>
+            setOAuthStatus({ state: 'vertex_done', message })
+          }
+          onCancel={() => setOAuthStatus({ state: 'platform_setup' })}
+        />
+      )
+
     case 'bedrock_done':
+    case 'vertex_done':
       return (
         <Box flexDirection="column" gap={1} marginTop={1}>
           <Text color="success">{oauthStatus.message}</Text>
           <Text dimColor>
-            Press <Text bold>Enter</Text> to close.
+            Press <Text bold>Enter</Text> to restart Claude Code.
           </Text>
         </Box>
       )

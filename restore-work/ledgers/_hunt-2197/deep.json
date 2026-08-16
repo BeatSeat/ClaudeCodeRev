@@ -1,0 +1,387 @@
+{
+  "counts": {
+    "1000": {
+      "c96": 504,
+      "c97": 501,
+      "delta": -3
+    },
+    "\"Focus\"": {
+      "c96": 0,
+      "c97": 1,
+      "delta": 1
+    },
+    "ZELLIJ": {
+      "c96": 0,
+      "c97": 3,
+      "delta": 3
+    },
+    "process.env.ZELLIJ": {
+      "c96": 0,
+      "c97": 2,
+      "delta": 2
+    },
+    "focusMode": {
+      "c96": 2,
+      "c97": 2,
+      "delta": 0
+    },
+    "app:toggleTranscript": {
+      "c96": 18,
+      "c97": 18,
+      "delta": 0
+    },
+    "CLAUDE_CODE_NO_FLICKER": {
+      "c96": 5,
+      "c97": 5,
+      "delta": 0
+    },
+    "noFlicker": {
+      "c96": 1,
+      "c97": 1,
+      "delta": 0
+    },
+    "Context low": {
+      "c96": 2,
+      "c97": 2,
+      "delta": 0
+    },
+    "context remaining": {
+      "c96": 2,
+      "c97": 2,
+      "delta": 0
+    },
+    "addNotification": {
+      "c96": 46,
+      "c97": 45,
+      "delta": -1
+    },
+    "transient": {
+      "c96": 19,
+      "c97": 21,
+      "delta": 2
+    },
+    "wrap:\"wrap\"": {
+      "c96": 20,
+      "c97": 20,
+      "delta": 0
+    },
+    "textWrap": {
+      "c96": 11,
+      "c97": 11,
+      "delta": 0
+    },
+    "▎": {
+      "c96": 2,
+      "c97": 3,
+      "delta": 1
+    },
+    "clipboard.write": {
+      "c96": 3,
+      "c97": 3,
+      "delta": 0
+    },
+    "copyToClipboard": {
+      "c96": 1,
+      "c97": 1,
+      "delta": 0
+    },
+    "utf16le": {
+      "c96": 7,
+      "c97": 7,
+      "delta": 0
+    },
+    "streaming": {
+      "c96": 133,
+      "c97": 132,
+      "delta": -1
+    },
+    "stale": {
+      "c96": 132,
+      "c97": 135,
+      "delta": 3
+    },
+    "retry": {
+      "c96": 645,
+      "c97": 652,
+      "delta": 7
+    },
+    "minHeight": {
+      "c96": 15,
+      "c97": 15,
+      "delta": 0
+    },
+    "custom status": {
+      "c96": 1,
+      "c97": 1,
+      "delta": 0
+    },
+    "wheel": {
+      "c96": 49,
+      "c97": 49,
+      "delta": 0
+    },
+    "SCROLL_SPEED": {
+      "c96": 1,
+      "c97": 1,
+      "delta": 0
+    },
+    "mouseWheel": {
+      "c96": 1,
+      "c97": 1,
+      "delta": 0
+    },
+    "WarpTerminal": {
+      "c96": 3,
+      "c97": 4,
+      "delta": 1
+    },
+    "mcpTool": {
+      "c96": 31,
+      "c97": 31,
+      "delta": 0
+    },
+    "diffStat": {
+      "c96": 8,
+      "c97": 8,
+      "delta": 0
+    },
+    "additions": {
+      "c96": 9,
+      "c97": 9,
+      "delta": 0
+    },
+    "deletions": {
+      "c96": 31,
+      "c97": 31,
+      "delta": 0
+    }
+  },
+  "keySnips": {
+    "\"Focus\"": [
+      {
+        "idx": 12226875,
+        "snip": "isPasting:E,isSearching:I,historyQuery:p,setHistoryQuery:m,historyFailedMatch:S,onOpenTasksDialog:g}),!1),dA.createElement(u,{flexShrink:0,marginLeft:\"auto\",gap:1},A6?null:dA.createElement(Ei8,{apiKeyStatus:q,autoUpdaterResult:A,debug:K,isAutoUpdating:O,verbose:$,messages:x,onAutoUpdaterResult:w,onChangeIsUpdating:j,ideSelection:k,mcpClients:h,isInputWrapped:R}),!1,dA.createElement(GtY,{bridgeSelected:Z}),A6&&O6&&dA.createElement(T,{dimColor:!0},\"Focus\"))),!1)}function GtY({bridgeSelected:q}){let K=H8(($)=>$.replBridgeEnabled),_=H8(($)=>$.replBridgeConnected),z=H8(($)=>$.replBridgeSessionActive),Y=H8(($)=>$.replBridgeReconnecting),A=H8(($)=>$.replBridgeExplicit);if(!yt()||!K)return null;let O=cB8({error:void 0,connected:_,sessionActive:z,reconnecting:Y});if(!A&&O.label!==\"Remote Control reconnecting\")return null;return dA.createElement(T,{color:q?\"background\":O.color,inverse:q,wrap:\"truncate\"},"
+      }
+    ],
+    "ZELLIJ": [
+      {
+        "idx": 4016521,
+        "snip": "ess.env.ZED_TERM)return!0;if(process.env.WT_SESSION)return!0;let _=process.env.VTE_VERSION;if(_){if(parseInt(_,10)>=6800)return!0}return!1}function $q4(q){if(ZS1===void 0)ZS1=q}function Zo(){if(process.env.TERM_PROGRAM===\"vscode\")return!0;return ZS1?.startsWith(\"xterm.js\")??!1}function Vr6(q){return eV_.includes(q??w7.terminal??\"\")}function wq4(){return process.platform===\"win32\"||!!process.env.WT_SESSION}function qk_(){return rT8()&&process.env.ZELLIJ==null}function GS1(q,K,_=!1){if(K.length===0)return;let z=!_,Y=z?o74:\"\";for(let A of K)switch(A.type){case\"stdout\":Y+=A.content;break;case\"clear\":if(A.count>0)Y+=j64(A.count);break;case\"clearTerminal\":Y+=DS1();break;case\"cursorHide\":Y+=vr6;break;case\"cursorShow\":Y+=bm;break;case\"cursorMove\":Y+=iT6(A.x,A.y);break;case\"cursorTo\":Y+=w64(A.col);break;case\"carriageReturn\":Y+=\"\\r\";break;case\"hyperlink\":Y+=lT8(A.uri);break;case\"styleStr\":Y+=A.str;break"
+      },
+      {
+        "idx": 4035829,
+        "snip": "{Promise.all([this.querier.send(Jq4()),this.querier.flush()]).then(async([_])=>{if(_){let z=_.name;if(process.env.TMUX&&z.startsWith(\"tmux \")){let{stdout:Y}=await a8(\"tmux\",[\"display-message\",\"-p\",\"#{client_termtype}\"],{timeout:1000,useCwd:!1}),A=Y.trim();if(A)z=A}$q4(z),N(`XTVERSION: terminal identified as \"${z}\"`)}else N(\"XTVERSION: no reply (terminal ignored query)\");N(`DECSTBM: ${oT8?\"enabled\":\"gated\"} (TMUX=${process.env.TMUX?\"set\":\"unset\"} ZELLIJ=${process.env.ZELLIJ!=null?\"set\":\"unset\"} TERM_PROGRAM=${process.env.TERM_PROGRAM??\"unset\"} TERM=${process.env.TERM??\"unset\"})`)})})}this.rawModeEnabledCount++;return}if(--this.rawModeEnabledCount===0)this.props.stdout.write(E$6),this.props.stdout.write(wo),this.props.stdout.write(u$6),this.props.stdout.write(MV6),this.props.stdout.write(JV6),K.setRawMode(!1),K.removeListener(\"readable\",this.handleReadable),K.unref()};flushIncomplete=()=>{if(thi"
+      },
+      {
+        "idx": 4035850,
+        "snip": "erier.send(Jq4()),this.querier.flush()]).then(async([_])=>{if(_){let z=_.name;if(process.env.TMUX&&z.startsWith(\"tmux \")){let{stdout:Y}=await a8(\"tmux\",[\"display-message\",\"-p\",\"#{client_termtype}\"],{timeout:1000,useCwd:!1}),A=Y.trim();if(A)z=A}$q4(z),N(`XTVERSION: terminal identified as \"${z}\"`)}else N(\"XTVERSION: no reply (terminal ignored query)\");N(`DECSTBM: ${oT8?\"enabled\":\"gated\"} (TMUX=${process.env.TMUX?\"set\":\"unset\"} ZELLIJ=${process.env.ZELLIJ!=null?\"set\":\"unset\"} TERM_PROGRAM=${process.env.TERM_PROGRAM??\"unset\"} TERM=${process.env.TERM??\"unset\"})`)})})}this.rawModeEnabledCount++;return}if(--this.rawModeEnabledCount===0)this.props.stdout.write(E$6),this.props.stdout.write(wo),this.props.stdout.write(u$6),this.props.stdout.write(MV6),this.props.stdout.write(JV6),K.setRawMode(!1),K.removeListener(\"readable\",this.handleReadable),K.unref()};flushIncomplete=()=>{if(this.incompleteEscapeTim"
+      }
+    ],
+    "Context low": [
+      {
+        "idx": 12125102,
+        "snip": "rning\"),K[5]=M;else M=K[5];let X=M,P=O,D=!1,W=!1;if(D||W){let Z=Ec(z,Y),v;if(K[6]!==Z||K[7]!==_)v=Math.round((Z-_)/Z*100),K[6]=Z,K[7]=_,K[8]=v;else v=K[8];P=Math.max(0,v)}let f=D?`${100-P}% context used`:`${P}% until auto-compact`,G;if(K[10]!==f||K[11]!==w||K[12]!==O)G=DX6.createElement(u,{flexDirection:\"row\"},J?DX6.createElement(T,{dimColor:!0,wrap:\"truncate\"},X?`${f} · ${X}`:f):DX6.createElement(T,{color:w?\"error\":\"warning\",wrap:\"truncate\"},X?`Context low (${O}% remaining) · ${X}`:`Context low (${O}% remaining) · Run /compact to compact & continue`)),K[10]=f,K[11]=w,K[12]=O,K[13]=G;else G=K[13];return G}function _aY(q){return q.autoCompactWindow}var DX6,KaY;var TtK=L(()=>{a6();l6();c1();Ix();cw7();k7();OI8();DX6=Y6(f6(),1),KaY=Y6(f6(),1)});function VtK(){let q=_6(6),[K,_]=ix6.useState(0),z=ix6.useRef(null),Y=n5(\"app:toggleTranscript\",\"Global\",\"ctrl+o\"),A,O;if(q[0]===Symbol.for(\"react.memo_cache_s"
+      },
+      {
+        "idx": 12125141,
+        "snip": "D=!1,W=!1;if(D||W){let Z=Ec(z,Y),v;if(K[6]!==Z||K[7]!==_)v=Math.round((Z-_)/Z*100),K[6]=Z,K[7]=_,K[8]=v;else v=K[8];P=Math.max(0,v)}let f=D?`${100-P}% context used`:`${P}% until auto-compact`,G;if(K[10]!==f||K[11]!==w||K[12]!==O)G=DX6.createElement(u,{flexDirection:\"row\"},J?DX6.createElement(T,{dimColor:!0,wrap:\"truncate\"},X?`${f} · ${X}`:f):DX6.createElement(T,{color:w?\"error\":\"warning\",wrap:\"truncate\"},X?`Context low (${O}% remaining) · ${X}`:`Context low (${O}% remaining) · Run /compact to compact & continue`)),K[10]=f,K[11]=w,K[12]=O,K[13]=G;else G=K[13];return G}function _aY(q){return q.autoCompactWindow}var DX6,KaY;var TtK=L(()=>{a6();l6();c1();Ix();cw7();k7();OI8();DX6=Y6(f6(),1),KaY=Y6(f6(),1)});function VtK(){let q=_6(6),[K,_]=ix6.useState(0),z=ix6.useRef(null),Y=n5(\"app:toggleTranscript\",\"Global\",\"ctrl+o\"),A,O;if(q[0]===Symbol.for(\"react.memo_cache_sentinel\"))A=()=>{if(!W7.isSandboxingEna"
+      }
+    ],
+    "▎": [
+      {
+        "idx": 1000819,
+        "snip": "I:B6(!1),platform:[\"win32\",\"darwin\"].includes(process.platform)?process.platform:\"linux\",arch:process.arch,nodeVersion:process.version,terminal:Sm5(),isSSH:JI7,getPackageManagers:Em5,getRuntimes:Lm5,isRunningWithBun:A1(C06),isWslEnvironment:HI7,isNpmFromWindowsPath:hm5,isConductor:Rm5,detectDeploymentEnvironment:Cm5}});var i3,MI7=\"∙\",Du=\"✻\",zF6=\"↑\",YF6=\"↓\",H86=\"↯\",XI7=\"○\",c28=\"◐\",n91=\"●\",PI7=\"◉\",AF6=\"⏸\",DI7=\"↻\",WI7=\"←\",CX=\"◇\",rT=\"◆\",fI7=\"※\",ZI7=\"▎\",OF6,l28=\"·✔︎·\",n28=\"×\";var S_=L(()=>{R_();i3=w7.platform===\"darwin\"?\"⏺\":\"●\",OF6=[\"·|·\",\"·/·\",\"·—·\",\"·\\\\·\"]});var i91={};f8(i91,{PERMISSION_MODES:()=>nG,INTERNAL_PERMISSION_MODES:()=>GI7,EXTERNAL_PERMISSION_MODES:()=>i28});var i28,GI7,nG;var $F6=L(()=>{i28=[\"acceptEdits\",\"auto\",\"bypassPermissions\",\"default\",\"dontAsk\",\"plan\"],GI7=[...i28],nG=GI7});function kI7(q){return q!==\"bubble\"}function r28(q){return vI7[q]??vI7.default}function Wu(q){return"
+      },
+      {
+        "idx": 4070095,
+        "snip": "\"bottom\"){let[p,m,S]=O44(R,_.style.borderText.content,_.style.borderText.align,_.style.borderText.offset,O.bottom);x=TV6(p,w,M)+m+TV6(S,w,M)}else if(W)x=TV6(R,w,M);let I=D?1:0;if(V)z.write(q,K,V);if(f)z.write(q,K+I,h);if(G)z.write(q+Y-1,K+I,E);if(x)z.write(q,K+A-1,x)}},w44;var j44=L(()=>{k3();N$6();t5();$44=Y6(A44(),1),gk_={dashed:{top:\"╌\",left:\"╎\",right:\"╎\",bottom:\"╌\",topLeft:\" \",topRight:\" \",bottomLeft:\" \",bottomRight:\" \"},quote:{top:\" \",left:\"▎\",right:\" \",bottom:\" \",topLeft:\" \",topRight:\" \",bottomLeft:\" \",bottomRight:\" \"}};w44=Fk_});function Uk_(){return process.env.TERM_PROGRAM===\"vscode\"||Zo()}function rS1(){VV6=!1}function P44(){return VV6}function D44(){OV8=null,nS1=Lr6,Lr6=[]}function W44(){return OV8}function f44(){oS1=null}function Z44(){return oS1}function G44(){let q=iS1;return iS1=null,q}function ik_(q,K,_){let z=K>0?1:-1,Y=Math.abs(K),A=0;if(Y>cS1)A+=z*(Y-cS1),Y=cS1;let O=Y<"
+      },
+      {
+        "idx": 6660129,
+        "snip": "5]!==z){if(j=[w],$<z){let M=O*z-$,X=Math.floor(M*at6.length);j.push(at6[X]);let P=z-$-1;if(P>0){let D;if(K[7]!==P)D=at6[0].repeat(P),K[7]=P,K[8]=D;else D=K[8];j.push(D)}}K[2]=O,K[3]=w,K[4]=$,K[5]=z,K[6]=j}else j=K[6];let H=j.join(\"\"),J;if(K[9]!==A||K[10]!==Y||K[11]!==H)J=xC4.default.createElement(T,{color:Y,backgroundColor:A},H),K[9]=A,K[10]=Y,K[11]=H,K[12]=J;else J=K[12];return J}var xC4,at6;var bR8=L(()=>{a6();l6();xC4=Y6(f6(),1),at6=[\" \",\"▏\",\"▎\",\"▍\",\"▌\",\"▋\",\"▊\",\"▉\",\"█\"]});function xR8(){let q=process.env.MAX_MCP_OUTPUT_TOKENS;if(q){let z=parseInt(q,10);if(Number.isFinite(z)&&z>0)return z}let _=R8(\"tengu_satin_quoll\",{})?.mcp_tool;if(typeof _===\"number\"&&Number.isFinite(_)&&_>0)return _;return gJz}function uC4(q){return q.type===\"text\"}function mC4(q){return q.type===\"image\"}function st6(q){if(!q)return 0;if(typeof q===\"string\")return N3(q);return q.reduce((K,_)=>{if(uC4(_))return K+N3("
+      }
+    ],
+    "CLAUDE_CODE_NO_FLICKER": [
+      {
+        "idx": 7055878,
+        "snip": "rm.app\")return!1;let q=process.env.TERM??\"\";return!q.startsWith(\"screen\")&&!q.startsWith(\"tmux\")}function Xvz(){if(Y68=Mvz(),Y68)return;if(!process.env.TMUX)return;if(process.env.TERM_PROGRAM)return;let q;try{q=Jvz(\"tmux\",[\"display-message\",\"-p\",\"#{client_control_mode}\"],{encoding:\"utf8\",timeout:2000})}catch{return}if(q.status!==0)return;Y68=q.stdout.trim()===\"1\"}function Sg4(){if(Y68===void 0)Xvz();return Y68??!1}function T4(){if(a9(process.env.CLAUDE_CODE_NO_FLICKER))return!1;if(B6(process.env.CLAUDE_CODE_NO_FLICKER))return!0;if(Sg4()){if(!hg4)hg4=!0,N(\"fullscreen disabled: tmux -CC (iTerm2 integration mode) detected · set CLAUDE_CODE_NO_FLICKER=1 to override\");return!1}return!1}function Cg4(){if(B6(process.env.CLAUDE_CODE_NO_FLICKER))return\"on\";if(a9(process.env.CLAUDE_CODE_NO_FLICKER))return\"off\";return}function rc1(){return!B6(process.env.CLAUDE_CODE_DISABLE_MOUSE)}function Pvz(){return CT()&&T4()}async "
+      },
+      {
+        "idx": 7055929,
+        "snip": "q.startsWith(\"screen\")&&!q.startsWith(\"tmux\")}function Xvz(){if(Y68=Mvz(),Y68)return;if(!process.env.TMUX)return;if(process.env.TERM_PROGRAM)return;let q;try{q=Jvz(\"tmux\",[\"display-message\",\"-p\",\"#{client_control_mode}\"],{encoding:\"utf8\",timeout:2000})}catch{return}if(q.status!==0)return;Y68=q.stdout.trim()===\"1\"}function Sg4(){if(Y68===void 0)Xvz();return Y68??!1}function T4(){if(a9(process.env.CLAUDE_CODE_NO_FLICKER))return!1;if(B6(process.env.CLAUDE_CODE_NO_FLICKER))return!0;if(Sg4()){if(!hg4)hg4=!0,N(\"fullscreen disabled: tmux -CC (iTerm2 integration mode) detected · set CLAUDE_CODE_NO_FLICKER=1 to override\");return!1}return!1}function Cg4(){if(B6(process.env.CLAUDE_CODE_NO_FLICKER))return\"on\";if(a9(process.env.CLAUDE_CODE_NO_FLICKER))return\"off\";return}function rc1(){return!B6(process.env.CLAUDE_CODE_DISABLE_MOUSE)}function Pvz(){return CT()&&T4()}async function bg4(){if(!process.env.TMUX)return null;if("
+      },
+      {
+        "idx": 7056061,
+        "snip": "_PROGRAM)return;let q;try{q=Jvz(\"tmux\",[\"display-message\",\"-p\",\"#{client_control_mode}\"],{encoding:\"utf8\",timeout:2000})}catch{return}if(q.status!==0)return;Y68=q.stdout.trim()===\"1\"}function Sg4(){if(Y68===void 0)Xvz();return Y68??!1}function T4(){if(a9(process.env.CLAUDE_CODE_NO_FLICKER))return!1;if(B6(process.env.CLAUDE_CODE_NO_FLICKER))return!0;if(Sg4()){if(!hg4)hg4=!0,N(\"fullscreen disabled: tmux -CC (iTerm2 integration mode) detected · set CLAUDE_CODE_NO_FLICKER=1 to override\");return!1}return!1}function Cg4(){if(B6(process.env.CLAUDE_CODE_NO_FLICKER))return\"on\";if(a9(process.env.CLAUDE_CODE_NO_FLICKER))return\"off\";return}function rc1(){return!B6(process.env.CLAUDE_CODE_DISABLE_MOUSE)}function Pvz(){return CT()&&T4()}async function bg4(){if(!process.env.TMUX)return null;if(!Pvz()||Sg4())return null;if(Rg4)return null;Rg4=!0;let{stdout:q,code:K}=await a8(\"tmux\",[\"show\",\"-Av\",\"mouse\"],{useCwd:!1,timeout:2"
+      },
+      {
+        "idx": 7056151,
+        "snip": "encoding:\"utf8\",timeout:2000})}catch{return}if(q.status!==0)return;Y68=q.stdout.trim()===\"1\"}function Sg4(){if(Y68===void 0)Xvz();return Y68??!1}function T4(){if(a9(process.env.CLAUDE_CODE_NO_FLICKER))return!1;if(B6(process.env.CLAUDE_CODE_NO_FLICKER))return!0;if(Sg4()){if(!hg4)hg4=!0,N(\"fullscreen disabled: tmux -CC (iTerm2 integration mode) detected · set CLAUDE_CODE_NO_FLICKER=1 to override\");return!1}return!1}function Cg4(){if(B6(process.env.CLAUDE_CODE_NO_FLICKER))return\"on\";if(a9(process.env.CLAUDE_CODE_NO_FLICKER))return\"off\";return}function rc1(){return!B6(process.env.CLAUDE_CODE_DISABLE_MOUSE)}function Pvz(){return CT()&&T4()}async function bg4(){if(!process.env.TMUX)return null;if(!Pvz()||Sg4())return null;if(Rg4)return null;Rg4=!0;let{stdout:q,code:K}=await a8(\"tmux\",[\"show\",\"-Av\",\"mouse\"],{useCwd:!1,timeout:2000});if(K!==0||q.trim()===\"on\")return null;return\"tmux detected · scroll with PgUp/PgDn ·"
+      },
+      {
+        "idx": 7056204,
+        "snip": "us!==0)return;Y68=q.stdout.trim()===\"1\"}function Sg4(){if(Y68===void 0)Xvz();return Y68??!1}function T4(){if(a9(process.env.CLAUDE_CODE_NO_FLICKER))return!1;if(B6(process.env.CLAUDE_CODE_NO_FLICKER))return!0;if(Sg4()){if(!hg4)hg4=!0,N(\"fullscreen disabled: tmux -CC (iTerm2 integration mode) detected · set CLAUDE_CODE_NO_FLICKER=1 to override\");return!1}return!1}function Cg4(){if(B6(process.env.CLAUDE_CODE_NO_FLICKER))return\"on\";if(a9(process.env.CLAUDE_CODE_NO_FLICKER))return\"off\";return}function rc1(){return!B6(process.env.CLAUDE_CODE_DISABLE_MOUSE)}function Pvz(){return CT()&&T4()}async function bg4(){if(!process.env.TMUX)return null;if(!Pvz()||Sg4())return null;if(Rg4)return null;Rg4=!0;let{stdout:q,code:K}=await a8(\"tmux\",[\"show\",\"-Av\",\"mouse\"],{useCwd:!1,timeout:2000});if(K!==0||q.trim()===\"on\")return null;return\"tmux detected · scroll with PgUp/PgDn · or add 'set -g mouse on' to ~/.tmux.conf for wheel s"
+      }
+    ],
+    "noFlicker": [
+      {
+        "idx": 13304626,
+        "snip": ",print:A,outputFormat:O,inputFormat:$,numAllowedTools:w,numDisallowedTools:j,mcpClientCount:H,worktree:J,skipWebFetchPreflight:M,...X&&{githubActionInputs:X},dangerouslySkipPermissionsPassed:P,permissionMode:D,modeIsBypass:W,inProtectedNamespace:AS(),...Zx6(),apiKeySource:_$({skipRetrievingKeyFromApiKeyHelper:!0}).source,allowDangerouslySkipPermissionsPassed:f,thinkingType:v.type,...G&&{systemPromptFlag:G},...Z&&{appendSystemPromptFlag:Z},...k&&{noFlickerEnvVar:k},is_simple:D9()||void 0,is_coordinator:void 0,...V&&{assistantActivationPath:V},autoUpdatesChannel:P7().autoUpdatesChannel??\"latest\",...{}})}catch(k){w6(k)}}function ko8(q){}function RH7(q){}function No8(q){let K=q.brief,_=B6(process.env.CLAUDE_CODE_BRIEF);if(!K&&!_)return;let{isBriefEntitled:z}=(Nc(),fq(P36)),Y=z();if(Y)Vg(!0);d(\"tengu_brief_mode_enabled\",{enabled:Y,gated:!Y,source:_?\"env\":\"flag\"})}function t9A(){(process.stderr.isTTY?p"
+      }
+    ],
+    "WarpTerminal": [
+      {
+        "idx": 3672733,
+        "snip": "ion csq(q){return Qsq?.has(q)??!1}var Qsq=void 0;var EL1=L(()=>{TK();K8();y8()});function lsq(){let q=process.env.__CFBundleIdentifier;if(q)return q;return GD_[w7.terminal??\"\"]??null}function H$6(q){return k2(q)===zy}var zy=\"computer-use\",LL1=\"com.anthropic.claude-code.cli-no-window\",GD_,nG8;var nr=L(()=>{R_();GD_={\"iTerm.app\":\"com.googlecode.iterm2\",Apple_Terminal:\"com.apple.Terminal\",ghostty:\"com.mitchellh.ghostty\",kitty:\"net.kovidgoyal.kitty\",WarpTerminal:\"dev.warp.Warp-Stable\",vscode:\"com.microsoft.VSCode\"};nG8={screenshotFiltering:\"native\",platform:\"darwin\"}});function vD_(){return process.argv.includes(\"--agent-teams\")}function nq(){if(!B6(process.env.CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS)&&!vD_())return!1;if(!R8(\"tengu_amber_flint\",!0))return!1;return!0}var eA=L(()=>{c1();B8()});import{AsyncLocalStorage as TD_}from\"async_hooks\";function Gm(){return nsq.getStore()}function LU(q,K){return nsq.ru"
+      },
+      {
+        "idx": 4015815,
+        "snip": "T_SESSION)return!1;if(process.env.ConEmuANSI||process.env.ConEmuPID||process.env.ConEmuTask)return!0;let q=Aq4.coerce(process.env.TERM_PROGRAM_VERSION);if(!q)return!1;if(process.env.TERM_PROGRAM===\"ghostty\")return wD(q.version,\"1.2.0\");if(process.env.TERM_PROGRAM===\"iTerm.app\")return wD(q.version,\"3.6.6\");return!1}function rT8(){if(process.env.TMUX)return!1;let q=process.env.TERM_PROGRAM,K=process.env.TERM;if(q===\"iTerm.app\"||q===\"WezTerm\"||q===\"WarpTerminal\"||q===\"ghostty\"||q===\"contour\"||q===\"vscode\"||q===\"alacritty\")return!0;if(K?.includes(\"kitty\")||process.env.KITTY_WINDOW_ID)return!0;if(K===\"xterm-ghostty\")return!0;if(K?.startsWith(\"foot\"))return!0;if(K?.includes(\"alacritty\"))return!0;if(process.env.ZED_TERM)return!0;if(process.env.WT_SESSION)return!0;let _=process.env.VTE_VERSION;if(_){if(parseInt(_,10)>=6800)return!0}return!1}function $q4(q){if(ZS1===void 0)ZS1=q}function Zo(){if(process.env."
+      },
+      {
+        "idx": 4017161,
+        "snip": "se\"clearTerminal\":Y+=DS1();break;case\"cursorHide\":Y+=vr6;break;case\"cursorShow\":Y+=bm;break;case\"cursorMove\":Y+=iT6(A.x,A.y);break;case\"cursorTo\":Y+=w64(A.col);break;case\"carriageReturn\":Y+=\"\\r\";break;case\"hyperlink\":Y+=lT8(A.uri);break;case\"styleStr\":Y+=A.str;break}if(z)Y+=a74;q.stdout.write(Y)}var Aq4,ZS1,eV_,jq4,oT8;var Go=L(()=>{R_();r74();qb();zq6();SM();Aq4=Y6(HV6(),1);eV_=[\"iTerm.app\",\"kitty\",\"WezTerm\",\"ghostty\",\"tmux\",\"windows-terminal\",\"WarpTerminal\"];jq4=rT8();oT8=qk_()});function VS1(q){TS1=q?\"focused\":\"blurred\";for(let K of vS1)K();if(!q){for(let K of Hq4)K();Hq4.clear()}}function DV6(){return TS1!==\"blurred\"}function kS1(){return TS1}function aT8(q){return vS1.add(q),()=>{vS1.delete(q)}}var TS1=\"unknown\",Hq4,vS1;var WV6=L(()=>{Hq4=new Set,vS1=new Set});function Jq4(){return{request:$A(\">0q\"),match:(q)=>q.type===\"xtversion\"}}class NS1{stdout;queue=[];constructor(q){this.stdout=q}send(q){"
+      },
+      {
+        "idx": 9981964,
+        "snip": "shift-enter\":[\"terminal::SendText\",\"\\x1B\\r\"]}}),await A37(_,b6(A,null,2)+`\n`,{encoding:\"utf-8\"}),`${h7(\"success\",q)(\"Installed Zed Shift+Enter key binding\")}${pz}${Y8.dim(`See ${qI(_)}`)}${pz}`}catch(z){throw w6(z),Error(\"Failed to install Zed Shift+Enter key binding\")}}var pz=`\n`,uQ8;var wM6=L(()=>{k3();rU();l6();NK8();s57();e57();I1();R_();y8();KK();N$();h8();VK();l8();uQ8={ghostty:\"Ghostty\",kitty:\"Kitty\",\"iTerm.app\":\"iTerm2\",WezTerm:\"WezTerm\",WarpTerminal:\"Warp\"}});import{createHash as YWY}from\"crypto\";import{mkdir as AWY,readdir as OWY,readFile as $WY,stat as wWY,unlink as jWY,writeFile as HWY}from\"fs/promises\";import{join as J37}from\"path\";function M37(){return J37(O7(),JWY)}function rNK(q){return YWY(\"sha256\").update(q).digest(\"hex\").slice(0,16)}function oNK(q){return J37(M37(),`${q}.txt`)}async function aNK(q,K){try{let _=M37();await AWY(_,{recursive:!0});let z=oNK(q);await HWY(z,K,{encoding:"
+      }
+    ],
+    "WT_SESSION": [
+      {
+        "idx": 996539,
+        "snip": "ss.env.TMUX)return\"tmux\";if(process.env.STY)return\"screen\";if(process.env.KONSOLE_VERSION)return\"konsole\";if(process.env.GNOME_TERMINAL_SERVICE)return\"gnome-terminal\";if(process.env.XTERM_VERSION)return\"xterm\";if(process.env.VTE_VERSION)return\"vte-based\";if(process.env.TERMINATOR_UUID)return\"terminator\";if(process.env.KITTY_WINDOW_ID)return\"kitty\";if(process.env.ALACRITTY_LOG)return\"alacritty\";if(process.env.TILIX_ID)return\"tilix\";if(process.env.WT_SESSION)return\"windows-terminal\";if(process.env.SESSIONNAME&&process.env.TERM===\"cygwin\")return\"cygwin\";if(process.env.MSYSTEM)return process.env.MSYSTEM.toLowerCase();if(process.env.ConEmuANSI||process.env.ConEmuPID||process.env.ConEmuTask)return\"conemu\";if(process.env.WSL_DISTRO_NAME)return`wsl-${process.env.WSL_DISTRO_NAME}`;if(JI7())return\"ssh-session\";if(process.env.TERM){let K=process.env.TERM;if(K.includes(\"alacritty\"))return\"alacritty\";if(K.incl"
+      },
+      {
+        "idx": 3739634,
+        "snip": "ore=function(q,K,_){return I2.H.useSyncExternalStore(q,K,_)};R0_.useTransition=function(){return I2.H.useTransition()};R0_.version=\"19.2.0\"});var veq,Zf_,_6=function(q){return Zf_.H.useMemoCache(q)};var a6=L(()=>{veq=Y6(f6(),1),Zf_=veq.__CLIENT_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE});import Teq from\"node:process\";function Wh1(){let{env:q}=Teq,{TERM:K,TERM_PROGRAM:_}=q;if(Teq.platform!==\"win32\")return K!==\"linux\";return Boolean(q.WT_SESSION)||Boolean(q.TERMINUS_SUBLIME)||q.ConEmuTask===\"{cmd::Cmder}\"||_===\"Terminus-Sublime\"||_===\"vscode\"||K===\"xterm-256color\"||K===\"alacritty\"||K===\"rxvt-unicode\"||K===\"rxvt-unicode-256color\"||q.TERMINAL_EMULATOR===\"JetBrains-JediTerm\"}var Veq=()=>{};var keq,Neq,Gf_,vf_,Tf_,Vf_,kf_,i6,YgO;var Cq=L(()=>{Veq();keq={circleQuestionMark:\"(?)\",questionMarkPrefix:\"(?)\",square:\"█\",squareDarkShade:\"▓\",squareMediumShade:\"▒\",squareLightShade:\"░\",squareTop:\"▀\",s"
+      },
+      {
+        "idx": 4009390,
+        "snip": "\"u\")return Bun.semver.order(q,K)===1;return cT8().gt(q,K,{loose:!0})}function wD(q,K){if(typeof Bun<\"u\")return Bun.semver.order(q,K)>=0;return cT8().gte(q,K,{loose:!0})}function Do(q,K){if(typeof Bun<\"u\")return Bun.semver.order(q,K)===-1;return cT8().lt(q,K,{loose:!0})}function PS1(q,K){if(typeof Bun<\"u\")return Bun.semver.satisfies(q,K);return cT8().satisfies(q,K,{loose:!0})}var XS1;function QV_(){return process.platform===\"win32\"&&!!process.env.WT_SESSION}function dV_(){if(process.env.TERM_PROGRAM===\"mintty\")return!0;if(process.platform===\"win32\"&&process.env.MSYSTEM)return!0;return!1}function cV_(){if(QV_())return!0;if(process.platform===\"win32\"&&process.env.TERM_PROGRAM===\"vscode\"&&process.env.TERM_PROGRAM_VERSION)return!0;if(dV_())return!0;return!1}function DS1(){if(process.platform===\"win32\")if(cV_())return r76+Fh1+BU;else return r76+UV_;return r76+Fh1+BU}var UV_,qdO;var r74=L(()=>{qb();UV_=$"
+      },
+      {
+        "idx": 4015364,
+        "snip": "LOR:104,RESET_FG_COLOR:110,RESET_BG_COLOR:111,RESET_CURSOR_COLOR:112,SEMANTIC_PROMPT:133,GHOSTTY:777,TAB_STATUS:21337};nT8=jD(m2.HYPERLINK,\"\",\"\"),p$6={NOTIFY:0,BADGE:2,PROGRESS:4},g$6={CLEAR:0,SET:1,ERROR:2,INDETERMINATE:3},iT8=`${fS1}${m2.ITERM2};${p$6.PROGRESS};${g$6.CLEAR};${mU}`,zq4=`${fS1}${m2.SET_TITLE_AND_ICON};${mU}`,PV6=jD(m2.TAB_STATUS,\"indicator=;status=;status-color=\")});function Oq4(){if(!process.stdout.isTTY)return!1;if(process.env.WT_SESSION)return!1;if(process.env.ConEmuANSI||process.env.ConEmuPID||process.env.ConEmuTask)return!0;let q=Aq4.coerce(process.env.TERM_PROGRAM_VERSION);if(!q)return!1;if(process.env.TERM_PROGRAM===\"ghostty\")return wD(q.version,\"1.2.0\");if(process.env.TERM_PROGRAM===\"iTerm.app\")return wD(q.version,\"3.6.6\");return!1}function rT8(){if(process.env.TMUX)return!1;let q=process.env.TERM_PROGRAM,K=process.env.TERM;if(q===\"iTerm.app\"||q===\"WezTerm\"||q===\"WarpTermi"
+      },
+      {
+        "idx": 4016112,
+        "snip": ",\"3.6.6\");return!1}function rT8(){if(process.env.TMUX)return!1;let q=process.env.TERM_PROGRAM,K=process.env.TERM;if(q===\"iTerm.app\"||q===\"WezTerm\"||q===\"WarpTerminal\"||q===\"ghostty\"||q===\"contour\"||q===\"vscode\"||q===\"alacritty\")return!0;if(K?.includes(\"kitty\")||process.env.KITTY_WINDOW_ID)return!0;if(K===\"xterm-ghostty\")return!0;if(K?.startsWith(\"foot\"))return!0;if(K?.includes(\"alacritty\"))return!0;if(process.env.ZED_TERM)return!0;if(process.env.WT_SESSION)return!0;let _=process.env.VTE_VERSION;if(_){if(parseInt(_,10)>=6800)return!0}return!1}function $q4(q){if(ZS1===void 0)ZS1=q}function Zo(){if(process.env.TERM_PROGRAM===\"vscode\")return!0;return ZS1?.startsWith(\"xterm.js\")??!1}function Vr6(q){return eV_.includes(q??w7.terminal??\"\")}function wq4(){return process.platform===\"win32\"||!!process.env.WT_SESSION}function qk_(){return rT8()&&process.env.ZELLIJ==null}function GS1(q,K,_=!1){if(K.length===0"
+      },
+      {
+        "idx": 4016469,
+        "snip": "eturn!0;if(K?.includes(\"alacritty\"))return!0;if(process.env.ZED_TERM)return!0;if(process.env.WT_SESSION)return!0;let _=process.env.VTE_VERSION;if(_){if(parseInt(_,10)>=6800)return!0}return!1}function $q4(q){if(ZS1===void 0)ZS1=q}function Zo(){if(process.env.TERM_PROGRAM===\"vscode\")return!0;return ZS1?.startsWith(\"xterm.js\")??!1}function Vr6(q){return eV_.includes(q??w7.terminal??\"\")}function wq4(){return process.platform===\"win32\"||!!process.env.WT_SESSION}function qk_(){return rT8()&&process.env.ZELLIJ==null}function GS1(q,K,_=!1){if(K.length===0)return;let z=!_,Y=z?o74:\"\";for(let A of K)switch(A.type){case\"stdout\":Y+=A.content;break;case\"clear\":if(A.count>0)Y+=j64(A.count);break;case\"clearTerminal\":Y+=DS1();break;case\"cursorHide\":Y+=vr6;break;case\"cursorShow\":Y+=bm;break;case\"cursorMove\":Y+=iT6(A.x,A.y);break;case\"cursorTo\":Y+=w64(A.col);break;case\"carriageReturn\":Y+=\"\\r\";break;case\"hyperlink\":Y"
+      }
+    ],
+    "softWrap": [
+      {
+        "idx": 3966873,
+        "snip": "on gG_(q,K){return q.hyperlinkPool.intern(K)}function Mo(q,K,_,z,Y){if(pH(q,\"createScreen width\"),pH(K,\"createScreen height\"),!Number.isInteger(q)||q<0)q=Math.max(0,Math.floor(q)||0);if(!Number.isInteger(K)||K<0)K=Math.max(0,Math.floor(K)||0);let A=q*K,O=new ArrayBuffer(A<<3),$=new Int32Array(O),w=new BigInt64Array(O);return{width:q,height:K,cells:$,cells64:w,charPool:z,hyperlinkPool:Y,emptyStyleId:_.none,damage:void 0,noSelect:new Uint8Array(A),softWrap:new Int32Array(K)}}function nR1(q,K,_){if(pH(K,\"resetScreen width\"),pH(_,\"resetScreen height\"),!Number.isInteger(K)||K<0)K=Math.max(0,Math.floor(K)||0);if(!Number.isInteger(_)||_<0)_=Math.max(0,Math.floor(_)||0);let z=K*_;if(q.cells64.length<z){let Y=new ArrayBuffer(z<<3);q.cells=new Int32Array(Y),q.cells64=new BigInt64Array(Y),q.noSelect=new Uint8Array(z)}if(q.softWrap.length<_)q.softWrap=new Int32Array(_);q.cells64.fill(VT8,0,z),q.noSelect.fil"
+      },
+      {
+        "idx": 3967246,
+        "snip": "hyperlinkPool:Y,emptyStyleId:_.none,damage:void 0,noSelect:new Uint8Array(A),softWrap:new Int32Array(K)}}function nR1(q,K,_){if(pH(K,\"resetScreen width\"),pH(_,\"resetScreen height\"),!Number.isInteger(K)||K<0)K=Math.max(0,Math.floor(K)||0);if(!Number.isInteger(_)||_<0)_=Math.max(0,Math.floor(_)||0);let z=K*_;if(q.cells64.length<z){let Y=new ArrayBuffer(z<<3);q.cells=new Int32Array(Y),q.cells64=new BigInt64Array(Y),q.noSelect=new Uint8Array(z)}if(q.softWrap.length<_)q.softWrap=new Int32Array(_);q.cells64.fill(VT8,0,z),q.noSelect.fill(0,0,z),q.softWrap.fill(0,0,_),q.width=K,q.height=_,q.damage=void 0}function g84(q,K,_){let{charPool:z,hyperlinkPool:Y}=q;if(z===K&&Y===_)return;let A=q.width*q.height,O=q.cells;for(let $=0;$<A<<1;$+=2){let w=O[$];O[$]=K.intern(z.get(w));let j=O[$+1],H=j>>>AV6&$r6;if(H!==0){let J=Y.get(H),M=_.intern(J),X=j>>>YV6,P=j&Sm;O[$+1]=Kq6(X,M,P)}}q.charPool=K,q.hyperlinkPool=_}f"
+      },
+      {
+        "idx": 3967266,
+        "snip": "yStyleId:_.none,damage:void 0,noSelect:new Uint8Array(A),softWrap:new Int32Array(K)}}function nR1(q,K,_){if(pH(K,\"resetScreen width\"),pH(_,\"resetScreen height\"),!Number.isInteger(K)||K<0)K=Math.max(0,Math.floor(K)||0);if(!Number.isInteger(_)||_<0)_=Math.max(0,Math.floor(_)||0);let z=K*_;if(q.cells64.length<z){let Y=new ArrayBuffer(z<<3);q.cells=new Int32Array(Y),q.cells64=new BigInt64Array(Y),q.noSelect=new Uint8Array(z)}if(q.softWrap.length<_)q.softWrap=new Int32Array(_);q.cells64.fill(VT8,0,z),q.noSelect.fill(0,0,z),q.softWrap.fill(0,0,_),q.width=K,q.height=_,q.damage=void 0}function g84(q,K,_){let{charPool:z,hyperlinkPool:Y}=q;if(z===K&&Y===_)return;let A=q.width*q.height,O=q.cells;for(let $=0;$<A<<1;$+=2){let w=O[$];O[$]=K.intern(z.get(w));let j=O[$+1],H=j>>>AV6&$r6;if(H!==0){let J=Y.get(H),M=_.intern(J),X=j>>>YV6,P=j&Sm;O[$+1]=Kq6(X,M,P)}}q.charPool=K,q.hyperlinkPool=_}function sf(q,K,_){if"
+      },
+      {
+        "idx": 3967342,
+        "snip": "rray(K)}}function nR1(q,K,_){if(pH(K,\"resetScreen width\"),pH(_,\"resetScreen height\"),!Number.isInteger(K)||K<0)K=Math.max(0,Math.floor(K)||0);if(!Number.isInteger(_)||_<0)_=Math.max(0,Math.floor(_)||0);let z=K*_;if(q.cells64.length<z){let Y=new ArrayBuffer(z<<3);q.cells=new Int32Array(Y),q.cells64=new BigInt64Array(Y),q.noSelect=new Uint8Array(z)}if(q.softWrap.length<_)q.softWrap=new Int32Array(_);q.cells64.fill(VT8,0,z),q.noSelect.fill(0,0,z),q.softWrap.fill(0,0,_),q.width=K,q.height=_,q.damage=void 0}function g84(q,K,_){let{charPool:z,hyperlinkPool:Y}=q;if(z===K&&Y===_)return;let A=q.width*q.height,O=q.cells;for(let $=0;$<A<<1;$+=2){let w=O[$];O[$]=K.intern(z.get(w));let j=O[$+1],H=j>>>AV6&$r6;if(H!==0){let J=Y.get(H),M=_.intern(J),X=j>>>YV6,P=j&Sm;O[$+1]=Kq6(X,M,P)}}q.charPool=K,q.hyperlinkPool=_}function sf(q,K,_){if(K<0||_<0||K>=q.width||_>=q.height)return;return Xo(q,_*q.width+K)}function "
+      },
+      {
+        "idx": 3969872,
+        "snip": "||_>=q.height)return;let Y=_*q.width+K<<1,A=q.cells,O=A[Y+1],$=O&Sm;if($===2||$===3)return;let w=O>>>AV6&$r6;A[Y+1]=Kq6(z,w,$);let j=q.damage;if(j)q.damage=e76(j,{x:K,y:_,width:1,height:1});else q.damage={x:K,y:_,width:1,height:1}}function FG_(q,K){return q.charPool.intern(K)}function iR1(q,K,_,z,Y,A){if(_=Math.max(0,_),z=Math.max(0,z),_>=Y||z>=A)return;let O=Y-_,$=K.width<<1,w=q.width<<1,j=O<<1,H=K.cells,J=q.cells,M=K.noSelect,X=q.noSelect;if(q.softWrap.set(K.softWrap.subarray(z,A),z),_===0&&Y===K.width&&K.width===q.width){let D=z*$,W=(A-z)*$;J.set(H.subarray(D,D+W),D);let f=z*K.width,G=(A-z)*K.width;X.set(M.subarray(f,f+G),f)}else{let D=z*$+(_<<1),W=z*w+(_<<1),f=z*K.width+_,G=z*q.width+_;for(let Z=z;Z<A;Z++)J.set(H.subarray(D,D+j),W),X.set(M.subarray(f,f+O),G),D+=$,W+=w,f+=K.width,G+=q.width}let P={x:_,y:z,width:O,height:A-z};if(q.damage)q.damage=e76(q.damage,P);else q.damage=P;if(Y<q.width){l"
+      },
+      {
+        "idx": 3969887,
+        "snip": "eturn;let Y=_*q.width+K<<1,A=q.cells,O=A[Y+1],$=O&Sm;if($===2||$===3)return;let w=O>>>AV6&$r6;A[Y+1]=Kq6(z,w,$);let j=q.damage;if(j)q.damage=e76(j,{x:K,y:_,width:1,height:1});else q.damage={x:K,y:_,width:1,height:1}}function FG_(q,K){return q.charPool.intern(K)}function iR1(q,K,_,z,Y,A){if(_=Math.max(0,_),z=Math.max(0,z),_>=Y||z>=A)return;let O=Y-_,$=K.width<<1,w=q.width<<1,j=O<<1,H=K.cells,J=q.cells,M=K.noSelect,X=q.noSelect;if(q.softWrap.set(K.softWrap.subarray(z,A),z),_===0&&Y===K.width&&K.width===q.width){let D=z*$,W=(A-z)*$;J.set(H.subarray(D,D+W),D);let f=z*K.width,G=(A-z)*K.width;X.set(M.subarray(f,f+G),f)}else{let D=z*$+(_<<1),W=z*w+(_<<1),f=z*K.width+_,G=z*q.width+_;for(let Z=z;Z<A;Z++)J.set(H.subarray(D,D+j),W),X.set(M.subarray(f,f+O),G),D+=$,W+=w,f+=K.width,G+=q.width}let P={x:_,y:z,width:O,height:A-z};if(q.damage)q.damage=e76(q.damage,P);else q.damage=P;if(Y<q.width){let D=z*K.width+"
+      }
+    ],
+    "diffStat": [
+      {
+        "idx": 7206977,
+        "snip": "0;if(q===null||K===null)return!1;if(q.mode!==K.mode||q.size!==K.size)return!0;if(q.mtimeMs<K.mtimeMs)return!1;return _()}async function fkz(q,K){let _=[],z=0,Y=0;try{let A=K?Vj6(K):void 0,[O,$]=await Promise.all([Lb8(q),A?Lb8(A):null]);if(O===null&&$===null)return{filesChanged:_,insertions:z,deletions:Y};_.push(q),W46(O??\"\",$??\"\").forEach((j)=>{if(j.added)z+=j.count||0;if(j.removed)Y+=j.count||0})}catch(A){w6(Error(`FileHistory: Error generating diffStats: ${A}`))}return{filesChanged:_,insertions:z,deletions:Y}}function Zkz(q,K){return`${jkz(\"sha256\").update(q).digest(\"hex\").slice(0,16)}@v${K}`}function Vj6(q,K){let _=O7();return Eb8(_,\"file-history\",K||N8(),q)}async function NU4(q,K){if(q===null)return{backupFileName:null,version:K,backupTime:new Date};let _=Zkz(q,K),z=Vj6(_),Y;try{Y=await k68(q)}catch(A){if(t1(A))return{backupFileName:null,version:K,backupTime:new Date};throw A}try{await V68(q"
+      },
+      {
+        "idx": 11934026,
+        "snip": " want to restore\",\" \",!Z&&\"the conversation \",\"to the point before you sent this message:\"),m1.createElement(u,{flexDirection:\"column\",paddingLeft:1,borderStyle:\"single\",borderRight:!1,borderTop:!1,borderBottom:!1,borderLeft:!0,borderLeftDimColor:!0},m1.createElement(toK,{userMessage:f,color:\"text\",isCurrent:!1}),m1.createElement(T,{dimColor:!0},\"(\",MS(new Date(f.timestamp)),\")\")),m1.createElement(JiY,{selectedRestoreOption:R,canRestoreCode:!!v6,diffStatsForRestore:Z}),V&&vw7(h)?m1.createElement(u,{flexDirection:\"row\",gap:1},m1.createElement(EK,null),m1.createElement(T,null,\"Summarizing…\")):m1.createElement(q1,{isDisabled:V,options:g(!!v6),defaultFocusValue:v6?\"both\":\"conversation\",onFocus:(r)=>x(r),onChange:(r)=>c(r),onCancel:()=>O?A():G(void 0)}),v6&&m1.createElement(u,{marginBottom:1},m1.createElement(T,{dimColor:!0},i6.warning,\" Rewinding does not affect files edited manually or via bash.\"))"
+      },
+      {
+        "idx": 11935610,
+        "snip": ",m1.createElement(u,{flexShrink:1,height:1,overflow:\"hidden\"},m1.createElement(toK,{userMessage:r,color:n?\"suggestion\":void 0,isCurrent:j6,paddingRight:10})),H&&P6&&m1.createElement(u,{height:1,flexDirection:\"row\"},X6?m1.createElement(m1.Fragment,null,m1.createElement(T,{dimColor:!n,color:\"inactive\"},y6?m1.createElement(m1.Fragment,null,y6===1&&X6.filesChanged[0]?`${xx6.basename(X6.filesChanged[0])} `:`${y6} files changed `,m1.createElement(qaK,{diffStats:X6})):m1.createElement(m1.Fragment,null,\"No code changes\"))):m1.createElement(T,{dimColor:!0,color:\"warning\"},i6.warning,\" No code restore\"))))}))),!f&&m1.createElement(T,{dimColor:!0,italic:!0},o.pending?m1.createElement(m1.Fragment,null,\"Press \",o.keyName,\" again to exit\"):m1.createElement(m1.Fragment,null,!w&&W&&\"Enter to continue · \",\"Esc to exit\"))))}function HiY(q){switch(q){case\"summarize\":return\"Messages after this point will be summari"
+      },
+      {
+        "idx": 11936456,
+        "snip": "se\"summarize\":return\"Messages after this point will be summarized.\";case\"summarize_up_to\":return\"Preceding messages will be summarized. This and subsequent messages will remain unchanged — you will stay at the end of the conversation.\";case\"both\":case\"conversation\":return\"The conversation will be forked.\";case\"code\":case\"nevermind\":return\"The conversation will be unchanged.\"}}function JiY(q){let K=_6(11),{selectedRestoreOption:_,canRestoreCode:z,diffStatsForRestore:Y}=q,A=z&&(_===\"both\"||_===\"code\"),O;if(K[0]!==_)O=HiY(_),K[0]=_,K[1]=O;else O=K[1];let $;if(K[2]!==O)$=m1.createElement(T,{dimColor:!0},O),K[2]=O,K[3]=$;else $=K[3];let w;if(K[4]!==Y||K[5]!==_||K[6]!==A)w=!vw7(_)&&(A?m1.createElement(MiY,{diffStatsForRestore:Y}):m1.createElement(T,{dimColor:!0},\"The code will be unchanged.\")),K[4]=Y,K[5]=_,K[6]=A,K[7]=w;else w=K[7];let j;if(K[8]!==$||K[9]!==w)j=m1.createElement(u,{flexDirection:\"colu"
+      },
+      {
+        "idx": 11936716,
+        "snip": "tion\":return\"The conversation will be forked.\";case\"code\":case\"nevermind\":return\"The conversation will be unchanged.\"}}function JiY(q){let K=_6(11),{selectedRestoreOption:_,canRestoreCode:z,diffStatsForRestore:Y}=q,A=z&&(_===\"both\"||_===\"code\"),O;if(K[0]!==_)O=HiY(_),K[0]=_,K[1]=O;else O=K[1];let $;if(K[2]!==O)$=m1.createElement(T,{dimColor:!0},O),K[2]=O,K[3]=$;else $=K[3];let w;if(K[4]!==Y||K[5]!==_||K[6]!==A)w=!vw7(_)&&(A?m1.createElement(MiY,{diffStatsForRestore:Y}):m1.createElement(T,{dimColor:!0},\"The code will be unchanged.\")),K[4]=Y,K[5]=_,K[6]=A,K[7]=w;else w=K[7];let j;if(K[8]!==$||K[9]!==w)j=m1.createElement(u,{flexDirection:\"column\"},$,w),K[8]=$,K[9]=w,K[10]=j;else j=K[10];return j}function MiY(q){let K=_6(14),{diffStatsForRestore:_}=q;if(_===void 0)return;if(!_.filesChanged||!_.filesChanged[0]){let $;if(K[0]===Symbol.for(\"react.memo_cache_sentinel\"))$=m1.createElement(T,{dimColor:!0}"
+      },
+      {
+        "idx": 11936998,
+        "snip": "else O=K[1];let $;if(K[2]!==O)$=m1.createElement(T,{dimColor:!0},O),K[2]=O,K[3]=$;else $=K[3];let w;if(K[4]!==Y||K[5]!==_||K[6]!==A)w=!vw7(_)&&(A?m1.createElement(MiY,{diffStatsForRestore:Y}):m1.createElement(T,{dimColor:!0},\"The code will be unchanged.\")),K[4]=Y,K[5]=_,K[6]=A,K[7]=w;else w=K[7];let j;if(K[8]!==$||K[9]!==w)j=m1.createElement(u,{flexDirection:\"column\"},$,w),K[8]=$,K[9]=w,K[10]=j;else j=K[10];return j}function MiY(q){let K=_6(14),{diffStatsForRestore:_}=q;if(_===void 0)return;if(!_.filesChanged||!_.filesChanged[0]){let $;if(K[0]===Symbol.for(\"react.memo_cache_sentinel\"))$=m1.createElement(T,{dimColor:!0},\"The code has not changed (nothing will be restored).\"),K[0]=$;else $=K[0];return $}let z=_.filesChanged.length,Y;if(z===1){let $;if(K[1]!==_.filesChanged[0])$=xx6.basename(_.filesChanged[0]||\"\"),K[1]=_.filesChanged[0],K[2]=$;else $=K[2];Y=$}else if(z===2){let $;if(K[3]!==_.filesC"
+      }
+    ],
+    "app:toggleTranscript": [
+      {
+        "idx": 6617871,
+        "snip": "patSessionId:_}=fq(lS4),z=_(q);return`${gU1(z,K)}/code/${z}`}var B26=\"https://claude.com/claude-code\";var gHz,FHz,nS4,ly6;var JR8=L(()=>{VK();gHz=y1()===\"windows\"?\"alt+v\":\"ctrl+v\",FHz=y1()!==\"windows\"||(C06()?PS1(process.versions.bun,\">=1.2.23\"):PS1(process.versions.node,\">=22.17.0 <23.0.0 || >=24.2.0\")),nS4=FHz?\"shift+tab\":\"meta+m\",ly6=[{context:\"Global\",bindings:{\"ctrl+c\":\"app:interrupt\",\"ctrl+d\":\"app:exit\",\"ctrl+t\":\"app:toggleTodos\",\"ctrl+o\":\"app:toggleTranscript\",...{\"ctrl+shift+b\":\"app:toggleBrief\"},\"ctrl+shift+o\":\"app:toggleTeammatePreview\",\"ctrl+r\":\"history:search\",...{},...{}}},{context:\"Chat\",bindings:{escape:\"chat:cancel\",\"ctrl+l\":\"chat:clearInput\",\"ctrl+x ctrl+k\":\"chat:killAgents\",[nS4]:\"chat:cycleMode\",\"meta+p\":\"chat:modelPicker\",\"meta+o\":\"chat:fastMode\",\"meta+t\":\"chat:thinkingToggle\",enter:\"chat:submit\",up:\"history:previous\",down:\"history:next\",\"ctrl+_\":\"chat:undo\",\"ctrl+shift+-\":\"chat:undo\",\"c"
+      },
+      {
+        "idx": 6625970,
+        "snip": "indicators are focused\",MessageSelector:\"When the message selector (rewind) is open\",DiffDialog:\"When the diff dialog is open\",ModelPicker:\"When the model picker is open\",Select:\"When a select/list component is focused\",Plugin:\"When the plugin dialog is open\",Scroll:\"When a scrollable view is focused (fullscreen layout)\",MessageActions:\"When the message actions menu is open (fullscreen layout)\"},dU1=[\"app:interrupt\",\"app:exit\",\"app:toggleTodos\",\"app:toggleTranscript\",\"app:toggleBrief\",\"app:toggleTeammatePreview\",\"app:toggleTerminal\",\"app:redraw\",\"app:globalSearch\",\"app:quickOpen\",\"history:search\",\"history:previous\",\"history:next\",\"chat:cancel\",\"chat:killAgents\",\"chat:cycleMode\",\"chat:modelPicker\",\"chat:fastMode\",\"chat:thinkingToggle\",\"chat:submit\",\"chat:newline\",\"chat:undo\",\"chat:externalEditor\",\"chat:stash\",\"chat:imagePaste\",\"chat:messageActions\",\"chat:clearInput\",\"autocomplete:accept\",\"autocomplete:dismis"
+      },
+      {
+        "idx": 6653819,
+        "snip": "\",\"assistant\"],applies:(q)=>q.toolName!=null&&(q.toolName in nt6),run:(q,K)=>{let _=LR8(q);if(!_)return;let z=nt6[_.name]?.extract(_.input);if(z)K.copy(z)}})];Ga=sj.default.createContext(!1),a46=sj.default.createContext(!1)});function it6(q){let K=_6(2),{children:_}=q,z;if(K[0]!==_)z=s46.default.createElement(WC4.Provider,{value:!0},_),K[0]=_,K[1]=z;else z=K[1];return z}function Gw(){let q=_6(3),K=s46.useContext(WC4),_=s46.useContext(a46),z=VR8(\"app:toggleTranscript\",\"Global\",\"ctrl+o\");if(K||_)return null;let Y;if(q[0]===Symbol.for(\"react.memo_cache_sentinel\"))Y={keyCase:\"lower\"},q[0]=Y;else Y=q[0];let A;if(q[1]!==z)A=s46.default.createElement(T,{dimColor:!0},s46.default.createElement(x8,{chord:z,action:\"expand\",parens:!0,format:Y})),q[1]=z,q[2]=A;else A=q[2];return A}function fC4(){let q=iH(\"app:toggleTranscript\",\"Global\",\"ctrl+o\");return Y8.dim(`(${q} to expand)`)}var s46,WC4;var eV=L(()=>{a6();k3();l6();"
+      },
+      {
+        "idx": 6654173,
+        "snip": "se z=K[1];return z}function Gw(){let q=_6(3),K=s46.useContext(WC4),_=s46.useContext(a46),z=VR8(\"app:toggleTranscript\",\"Global\",\"ctrl+o\");if(K||_)return null;let Y;if(q[0]===Symbol.for(\"react.memo_cache_sentinel\"))Y={keyCase:\"lower\"},q[0]=Y;else Y=q[0];let A;if(q[1]!==z)A=s46.default.createElement(T,{dimColor:!0},s46.default.createElement(x8,{chord:z,action:\"expand\",parens:!0,format:Y})),q[1]=z,q[2]=A;else A=q[2];return A}function fC4(){let q=iH(\"app:toggleTranscript\",\"Global\",\"ctrl+o\");return Y8.dim(`(${q} to expand)`)}var s46,WC4;var eV=L(()=>{a6();k3();l6();fB();rU1();F4();By();s46=Y6(f6(),1),WC4=s46.default.createContext(!1)});function CJz(q,K){let _=q.split(`\n`),z=[];for(let A of _){let O=Z1(A);if(O<=K)z.push(A.trimEnd());else{let $=0;while($<O){let w=af(A,$,$+K);z.push(w.trimEnd()),$+=K}}}let Y=z.length-ry6;if(Y===1)return{aboveTheFold:z.slice(0,ry6+1).join(`\n`).trimEnd(),remainingLines:0};return{above"
+      },
+      {
+        "idx": 7051180,
+        "snip": "n q.replace(/<sandbox_violations>[\\s\\S]*?<\\/sandbox_violations>/g,\"\")}function n5(q,K,_){let z=pv(),Y=z?.getDisplayText(q,K),A=Y===void 0,O=z?\"action_not_found\":\"no_context\",$=uC8.useRef(!1);return uC8.useEffect(()=>{if(A&&!$.current)$.current=!0,d(\"tengu_keybinding_fallback_used\",{action:q,context:K,fallback:_,reason:O})},[A,q,K,_,O]),A?_:Y}var uC8;var ED=L(()=>{T8();ZB();uC8=Y6(f6(),1)});function H2(q){let K=_6(25),{result:_,verbose:z}=q,Y=n5(\"app:toggleTranscript\",\"Global\",\"ctrl+o\"),A,O,$,w,j,H,J;if(K[0]!==_||K[1]!==z){let W;if(typeof _!==\"string\")W=\"Tool execution failed\";else{let f=YK(_,\"tool_use_error\")??_,v=IC8(f).replace(/<\\/?error>/g,\"\").trim();if(!z&&v.includes(\"InputValidationError: \"))W=\"Invalid tool parameters\";else if(v.startsWith(\"Error: \")||v.startsWith(\"Cancelled: \"))W=v;else W=`Error: ${v}`}w=mY(W,`\n`)+1-Lg4,$=O1,O=u,J=\"column\",A=T,j=\"error\",H=SR8(z?W:W.split(`\n`).slice(0,Lg4).join(`\n`)),K"
+      },
+      {
+        "idx": 7522377,
+        "snip": "T,{bold:!0},\"Summarized conversation\"),K[3]=P;else P=K[3];let D;if(K[4]!==Y||K[5]!==$)D=!Y&&W3.createElement(O1,null,W3.createElement(u,{flexDirection:\"column\"},W3.createElement(T,{dimColor:!0},\"Summarized \",$.messagesSummarized,\" messages\",\" \",$.direction===\"up_to\"?\"up to this point\":\"from this point\"),$.userContext&&W3.createElement(T,{dimColor:!0},\"Context: \",\"“\",$.userContext,\"”\"),W3.createElement(T,{dimColor:!0},W3.createElement(J1,{action:\"app:toggleTranscript\",context:\"Global\",fallback:\"ctrl+o\",description:\"expand history\",parens:!0})))),K[4]=Y,K[5]=$,K[6]=D;else D=K[6];let W;if(K[7]!==Y||K[8]!==O)W=Y&&W3.createElement(O1,null,W3.createElement(T,null,O)),K[7]=Y,K[8]=O,K[9]=W;else W=K[9];let f;if(K[10]!==D||K[11]!==W)f=W3.createElement(u,{flexDirection:\"column\",marginTop:1},W3.createElement(u,{flexDirection:\"row\"},X,W3.createElement(u,{flexDirection:\"column\"},P,D,W))),K[10]=D,K[11]=W,K[12]=f;else f=K["
+      }
+    ],
+    "utf16le": [
+      {
+        "idx": 878195,
+        "snip": "void 0,O=Y>2?_[2]:void 0;if(A=q.length>3&&typeof A==\"function\"?(Y--,A):void 0,O&&SS7(_[0],_[1],O))A=Y<3?void 0:A,Y=1;K=Object(K);while(++z<Y){var $=_[z];if($)q(K,$,z,A)}return K})}var bS7;var xS7=L(()=>{RS7();CS7();bS7=Lb5});var hb5,Qn;var IS7=L(()=>{ZS7();xS7();hb5=bS7(function(q,K,_,z){fS7(q,K,_,z)}),Qn=hb5});function Cg6(q){let{buffer:K,bytesRead:_}=X8().readSync(q,{length:4096});if(_===0)return\"utf8\";if(_>=2){if(K[0]===255&&K[1]===254)return\"utf16le\"}if(_>=3&&K[0]===239&&K[1]===187&&K[2]===191)return\"utf8\";return\"utf8\"}function N31(q){let K=0,_=0;for(let z=0;z<q.length;z++)if(q[z]===`\n`)if(z>0&&q[z-1]===\"\\r\")K++;else _++;return K>_?\"CRLF\":\"LF\"}function hS(q){let K=X8(),{resolvedPath:_,isSymlink:z}=KA(K,q);if(z)N(`Reading through symlink: ${q} -> ${_}`);let Y=Cg6(_),A=K.readFileSync(_,{encoding:Y}),O=N31(A.slice(0,4096));return{content:A.replaceAll(`\\r\n`,`\n`),encoding:Y,lineEndings:O}}functi"
+      },
+      {
+        "idx": 2924757,
+        "snip": "port DV1 from\"node:process\";import{Buffer as TLq}from\"node:buffer\";import VLq from\"node:path\";import{fileURLToPath as Hr9}from\"node:url\";import{promisify as Jr9}from\"node:util\";import kLq from\"node:child_process\";import Mr9,{constants as Xr9}from\"node:fs/promises\";async function Dr9(){let q=await wV1(),K=String.raw`(Get-ItemProperty -Path \"HKCU:\\Software\\Microsoft\\Windows\\Shell\\Associations\\UrlAssociations\\http\\UserChoice\").ProgId`,_=TLq.from(K,\"utf16le\").toString(\"base64\"),{stdout:z}=await Pr9(q,[\"-NoProfile\",\"-NonInteractive\",\"-ExecutionPolicy\",\"Bypass\",\"-EncodedCommand\",_],{encoding:\"utf8\"}),Y=z.trim(),A={ChromeHTML:\"com.google.chrome\",BraveHTML:\"com.brave.Browser\",MSEdgeHTM:\"com.microsoft.edge\",FirefoxURL:\"org.mozilla.firefox\"};return A[Y]?{id:A[Y]}:{}}function vLq(q){if(typeof q===\"string\"||Array.isArray(q))return q;let{[ZLq]:K}=q;if(!K)throw Error(`${ZLq} is not supported`);return K}funct"
+      },
+      {
+        "idx": 2926915,
+        "snip": ");if(K)Y.push(\"-a\",K)}else if(Tv6===\"win32\"||Y76&&!vv6()&&!K){if(z=await wV1(),Y.push(\"-NoProfile\",\"-NonInteractive\",\"-ExecutionPolicy\",\"Bypass\",\"-EncodedCommand\"),!Y76)A.windowsVerbatimArguments=!0;let $=[\"Start\"];if(q.wait)$.push(\"-Wait\");if(K){if($.push(`\"\\`\"${K}\\`\"\"`),q.target)_.push(q.target)}else if(q.target)$.push(`\"${q.target}\"`);if(_.length>0)_=_.map((w)=>`\"\\`\"${w}\\`\"\"`),$.push(\"-ArgumentList\",_.join(\",\"));q.target=TLq.from($.join(\" \"),\"utf16le\").toString(\"base64\")}else{if(K)z=K;else{let $=!WV1||WV1===\"/\",w=!1;try{await Mr9.access(fLq,Xr9.X_OK),w=!0}catch{}z=DV1.versions.electron??(Tv6===\"android\"||$||!w)?\"xdg-open\":fLq}if(_.length>0)Y.push(..._);if(!q.wait)A.stdio=\"ignore\",A.detached=!0}if(Tv6===\"darwin\"&&_.length>0)Y.push(\"--args\",..._);if(q.target)Y.push(q.target);let O=kLq.spawn(z,Y,A);if(q.wait)return new Promise(($,w)=>{O.once(\"error\",w),O.once(\"close\",(j)=>{if(!q.allowNonzeroExi"
+      },
+      {
+        "idx": 6150654,
+        "snip": "earch %depend %use %arg %stacksize %local %line %comment %endcomment .nolist __FILE__ __LINE__ __SECT__  __BITS__ __OUTPUT_FORMAT__ __DATE__ __TIME__ __DATE_NUM__ __TIME_NUM__ __UTC_DATE__ __UTC_TIME__ __UTC_DATE_NUM__ __UTC_TIME_NUM__  __PASS__ struc endstruc istruc at iend align alignb sectalign daz nodaz up down zero default option assume public bits use16 use32 use64 default section segment absolute extern global common cpu float __utf16__ __utf16le__ __utf16be__ __utf32__ __utf32le__ __utf32be__ __float8__ __float16__ __float32__ __float64__ __float80m__ __float80e__ __float128l__ __float128h__ __Infinity__ __QNaN__ __SNaN__ Inf NaN QNaN SNaN float8 float16 float32 float64 float80m float80e float128l float128h __FLOAT_DAZ__ __FLOAT_ROUND__ __FLOAT__\"},contains:[q.COMMENT(\";\",\"$\",{relevance:0}),{className:\"number\",variants:[{begin:\"\\\\b(?:([0-9][0-9_]*)?\\\\.[0-9_]*(?:[eE][+-]?[0-9_]+)?|(0[Xx]"
+      },
+      {
+        "idx": 7027309,
+        "snip": "wait k$(\"powershell\");if(K)return K;return null}function pa(){if(!Rc1)Rc1=CGz();return Rc1}async function yC8(){let q=await pa();if(!q)return null;return q.split(/[/\\\\]/).pop().toLowerCase().replace(/\\.exe$/,\"\")===\"pwsh\"?\"core\":\"desktop\"}var Rc1=null;var dE6=L(()=>{VK();wN()});import{join as bGz}from\"path\";import{join as xGz}from\"path/posix\";function Sc1(q){return[\"-NoProfile\",\"-NonInteractive\",\"-Command\",q]}function IGz(q){return Buffer.from(q,\"utf16le\").toString(\"base64\")}function ip4(q){let K;return{type:\"powershell\",shellPath:q,detached:!1,async buildExecCommand(_,z){K=z.useSandbox?z.sandboxTmpDir:void 0;let Y=z.useSandbox&&z.sandboxTmpDir?xGz(z.sandboxTmpDir,`claude-pwd-ps-${z.id}`):bGz(O2(),`claude-pwd-ps-${z.id}`),O=`\n; $_ec = if ($null -ne $LASTEXITCODE) { $LASTEXITCODE } elseif ($?) { 0 } else { 1 }\n; (Get-Location).Path | Out-File -FilePath '${Y.replaceAll(\"'\",\"''\")}' -Encoding utf8 -"
+      },
+      {
+        "idx": 7069606,
+        "snip": "[\"robocopy\",(q,K,_)=>({isError:q>=8,message:q===0?\"No files copied (already in sync)\":q>=1&&q<8?q&1?\"Files copied successfully\":\"Robocopy completed (no errors)\":void 0})]])});function gvz(){let q=process.env.CLAUDE_CODE_PWSH_PARSE_TIMEOUT_MS;if(q){let K=parseInt(q,10);if(!isNaN(K)&&K>0)return K}return pvz}function Pj6(q,K,_){return{...rvz,errors:[{message:K,errorId:_}],originalCommand:q}}function ovz(q){if(typeof Buffer<\"u\")return Buffer.from(q,\"utf16le\").toString(\"base64\");let K=[];for(let _=0;_<q.length;_++){let z=q.charCodeAt(_);K.push(z&255,z>>8&255)}return btoa(K.map((_)=>String.fromCharCode(_)).join(\"\"))}function avz(q){return`$EncodedCommand = '${typeof Buffer<\"u\"?Buffer.from(q,\"utf8\").toString(\"base64\"):btoa(new TextEncoder().encode(q).reduce((_,z)=>_+String.fromCharCode(z),\"\"))}'\n${OF4}`}function dh(q){if(q===void 0||q===null)return[];return Array.isArray(q)?q:[q]}function svz(q){switc"
+      }
+    ],
+    "copyToClipboard": [
+      {
+        "idx": 6011440,
+        "snip": "re commandChat commander commandFire commandFollow commandFSM commandGetOut commandingMenu commandMove commandRadio commandStop commandSuppressiveFire commandTarget commandWatch comment commitOverlay compile compileFinal completedFSM composeText configClasses configFile configHierarchy configName configProperties configSourceAddonList configSourceMod configSourceModList confirmSensorTarget connectTerminalToUAV controlsGroupCtrl copyFromClipboard copyToClipboard copyWaypoints cos count countEnemy countFriendly countSide countType countUnknown create3DENComposition create3DENEntity createAgent createCenter createDialog createDiaryLink createDiaryRecord createDiarySubject createDisplay createGearDialog createGroup createGuardedPoint createLocation createMarker createMarkerLocal createMenu createMine createMissionDisplay createMPCampaignDisplay createSimpleObject createSimpleTask createSite createSoundSour"
+      }
+    ]
+  }
+}

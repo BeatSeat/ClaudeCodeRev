@@ -162,6 +162,7 @@ export type QueryEngineConfig = {
   /** Handler for URL elicitations triggered by MCP tool -32042 errors. */
   handleElicitation?: ToolUseContext['handleElicitation']
   includePartialMessages?: boolean
+  excludeDynamicSections?: boolean
   setSDKStatus?: (status: SDKStatus) => void
   abortController?: AbortController
   orphanedPermission?: OrphanedPermission
@@ -324,6 +325,7 @@ export class QueryEngine {
       ),
       mcpClients,
       customSystemPrompt: customPrompt,
+      excludeDynamicSections: this.config.excludeDynamicSections,
     })
     headlessProfilerCheckpoint('after_getSystemPrompt')
     const userContext = {
@@ -1360,6 +1362,7 @@ export async function* ask({
   abortController,
   replayUserMessages = false,
   includePartialMessages = false,
+  excludeDynamicSections = false,
   handleElicitation,
   agents = [],
   setSDKStatus,
@@ -1392,6 +1395,7 @@ export async function* ask({
   abortController?: AbortController
   replayUserMessages?: boolean
   includePartialMessages?: boolean
+  excludeDynamicSections?: boolean
   handleElicitation?: ToolUseContext['handleElicitation']
   agents?: AgentDefinition[]
   setSDKStatus?: (status: SDKStatus) => void
@@ -1422,6 +1426,7 @@ export async function* ask({
     handleElicitation,
     replayUserMessages,
     includePartialMessages,
+    excludeDynamicSections,
     setSDKStatus,
     abortController,
     orphanedPermission,

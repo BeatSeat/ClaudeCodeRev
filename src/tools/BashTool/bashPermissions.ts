@@ -354,7 +354,7 @@ export function matchWildcardPattern(
   pattern: string,
   command: string,
 ): boolean {
-  return sharedMatchWildcardPattern(pattern, command)
+  return sharedMatchWildcardPattern(pattern, command, false, true)
 }
 
 /**

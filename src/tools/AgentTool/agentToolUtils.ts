@@ -677,6 +677,7 @@ export async function runAsyncAgentLifecycle({
       error: msg,
       setAppState: rootSetAppState,
       toolUseId: toolUseContext.toolUseId,
+      finalMessage: extractPartialResult(agentMessages),
       ...worktreeResult,
     })
   } finally {
