@@ -39,9 +39,10 @@ import {
  * can check the same condition consistently.
  */
 export function isKeybindingCustomizationEnabled(): boolean {
+  // Official 2.1.101 GS: default true so Bedrock/Vertex/3P load ~/.claude/keybindings.json
   return getFeatureValue_CACHED_MAY_BE_STALE(
     'tengu_keybinding_customization_release',
-    false,
+    true,
   )
 }
 

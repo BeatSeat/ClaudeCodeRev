@@ -29,6 +29,8 @@ import {
 } from '../../../bootstrap/state.js'
 import { generateSessionName } from '../../../commands/rename/generateSessionName.js'
 import { launchUltraplan } from '../../../commands/ultraplan.js'
+import { isPolicyAllowed } from '../../../services/policyLimits/index.js'
+import { isClaudeAISubscriber } from '../../../utils/auth.js'
 import type { KeyboardEvent } from '../../../ink/events/keyboard-event.js'
 import { Box, Text } from '../../../ink.js'
 import type { AppState } from '../../../state/AppStateStore.js'
@@ -225,7 +227,10 @@ export function ExitPlanModePermissionRequest({
   // launchUltraplan can notice the session exists and return "already polling".
   // feature() must sit directly in an if/ternary (bun:bundle DCE constraint).
   const showUltraplan = feature('ULTRAPLAN')
-    ? !ultraplanSessionUrl && !ultraplanLaunching
+    ? !ultraplanSessionUrl &&
+      !ultraplanLaunching &&
+      isClaudeAISubscriber() &&
+      isPolicyAllowed('allow_remote_sessions')
     : false
   const usage = toolUseConfirm.assistantMessage.message.usage
   const { mode, isAutoModeAvailable, isBypassPermissionsModeAvailable } =

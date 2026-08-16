@@ -1,5 +1,6 @@
 import type { ChildProcess, ExecFileException } from 'child_process'
 import { execFile, spawn } from 'child_process'
+import { existsSync } from 'fs'
 import memoize from 'lodash-es/memoize.js'
 import { homedir } from 'os'
 import * as path from 'path'
@@ -46,13 +47,23 @@ const getRipgrepConfig = memoize((): RipgrepConfig => {
 
   // In bundled (native) mode, ripgrep is statically compiled into bun-internal
   // and dispatches based on argv[0]. We spawn ourselves with argv0='rg'.
+  // Official 2.1.101: if execPath is gone (VS Code update, macOS translocation),
+  // fall back to system `rg` instead of spawning a stale path.
   if (isInBundledMode()) {
-    return {
+    const embedded: RipgrepConfig = {
       mode: 'embedded',
       command: process.execPath,
       args: ['--no-config'],
       argv0: 'rg',
     }
+    if (existsSync(process.execPath)) {
+      return embedded
+    }
+    const { cmd: systemPath } = findExecutable('rg', [])
+    if (systemPath !== 'rg') {
+      return { mode: 'system', command: 'rg', args: [] }
+    }
+    return embedded
   }
 
   const rgRoot = path.resolve(__dirname, 'vendor', 'ripgrep')
@@ -207,6 +218,9 @@ function ripGrepRaw(
       settled = true
       clearTimeout(timeoutId)
       clearTimeout(killTimeoutId)
+      if (err.code === 'ENOENT') {
+        clearRipgrepCaches()
+      }
       const error: ExecFileException = err
       callback(error, stdout, stderr)
     })
@@ -272,9 +286,12 @@ async function ripGrepFileCount(
       if (code === 0 || code === 1) resolve(lines)
       else reject(new Error(`rg --files exited ${code}`))
     })
-    child.on('error', err => {
+    child.on('error', (err: NodeJS.ErrnoException) => {
       if (settled) return
       settled = true
+      if (err.code === 'ENOENT' && argv0) {
+        clearRipgrepCaches()
+      }
       reject(err)
     })
   })
@@ -532,6 +549,18 @@ let ripgrepStatus: {
  * Get ripgrep status and configuration info
  * Returns current configuration immediately, with working status if available
  */
+/**
+ * Official 2.1.101 jA4: drop the memoized config so the next call can pick
+ * system `rg` after a stale embedded/builtin path ENOENT.
+ */
+function clearRipgrepCaches(): void {
+  getRipgrepConfig.cache?.clear?.()
+  if (ripgrepStatus?.working !== false) {
+    testRipgrepOnFirstUse.cache?.clear?.()
+    ripgrepStatus = null
+  }
+}
+
 export function getRipgrepStatus(): {
   mode: 'system' | 'builtin' | 'embedded'
   path: string

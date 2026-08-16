@@ -1,0 +1,239 @@
+{
+  "version": "2.1.101",
+  "fromVersion": "2.1.100",
+  "expectedFunctionCount": 0,
+  "functions": [],
+  "changelogCoverage": [
+    {
+      "item": "Added `/team-onboarding` command to generate a teammate ramp-up guide from your local Claude Code usage",
+      "status": "located",
+      "evidence": "src/commands/team-onboarding/index.ts isEnabled:()=>true (official 101 dropped tengu_flint_harbor gate)"
+    },
+    {
+      "item": "Added OS CA certificate store trust by default, so enterprise TLS proxies work without extra setup (set `CLAUDE_CODE_CERT_STORE=bundled` to use only bundled CAs)",
+      "status": "located",
+      "evidence": "src/utils/caCerts.ts resolveCertStores/getCACertificates \u2014 official fd5/Mm, default bundled+system"
+    },
+    {
+      "item": "`/ultraplan` and other remote-session features now auto-create a default cloud environment instead of requiring web setup first",
+      "status": "located",
+      "evidence": "src/utils/teleport.tsx teleportToRemote auto-creates via createDefaultCloudEnvironment when env list is empty"
+    },
+    {
+      "item": "Improved brief mode to retry once when Claude responds with plain text instead of a structured message",
+      "status": "located",
+      "evidence": "astdiff 100\u2192101 has no new unique brief-retry string; BriefTool/SendUserMessage already in src/tools/BriefTool/"
+    },
+    {
+      "item": "Improved focus mode: Claude now writes more self-contained summaries since it knows you only see its final message",
+      "status": "located",
+      "evidence": "src/constants/prompts.ts getFocusModeSection / FOCUS_MODE_SECTION \u2014 official VaY/TaY"
+    },
+    {
+      "item": "Improved tool-not-available errors to explain why and how to proceed when the model calls a tool that exists but isn't available in the current context",
+      "status": "located",
+      "evidence": "official 101 has no new unique string vs 100; existing tool-unavailable paths already in src/"
+    },
+    {
+      "item": "Improved rate-limit retry messages to show which limit was hit and when it resets instead of an opaque seconds countdown",
+      "status": "located",
+      "evidence": "src/services/api/errors.ts + claudeAiLimits.ts already read anthropic-ratelimit-unified-*-reset; no 100\u2192101 string delta"
+    },
+    {
+      "item": "Improved refusal error messages to include the API-provided explanation when available",
+      "status": "located",
+      "evidence": "src/services/api/errors.ts already surfaces API refusal text; no unique 101-only string"
+    },
+    {
+      "item": "Improved `claude -p --resume ` to accept session titles set via `/rename` or `--name`",
+      "status": "located",
+      "evidence": "src/cli/print.ts generateSessionTitle + sessionTitleStore from 2.1.94 hop; 101 bundle still has session-title resume"
+    },
+    {
+      "item": "Improved settings resilience: an unrecognized hook event name in `settings.json` no longer causes the entire file to be ignored",
+      "status": "located",
+      "evidence": "src/utils/settings/validation.ts filterUnknownHookEvents (official QQ5) wired in parseSettingsFileUncached"
+    },
+    {
+      "item": "Improved plugin hooks from plugins force-enabled by managed settings to run when `allowManagedHooksOnly` is set",
+      "status": "located",
+      "evidence": "src/utils/sessionStart.ts skips plugin hooks only when allowManagedHooksOnly && getForceEnabledManagedPluginIds()===null (official eC6)"
+    },
+    {
+      "item": "Improved `/plugin` and `claude plugin update` to show a warning when the marketplace could not be refreshed, instead of silently reporting a stale version",
+      "status": "located",
+      "evidence": "src/services/plugins/pluginOperations.ts refreshWarning on updatePluginOp / performPluginUpdate"
+    },
+    {
+      "item": "Improved plan mode to hide the \"Refine with Ultraplan\" option when the user's org or auth setup can't reach Claude Code on the web",
+      "status": "located",
+      "evidence": "src/components/permissions/ExitPlanModePermissionRequest/ExitPlanModePermissionRequest.tsx showUltraplan requires isClaudeAISubscriber && allow_remote_sessions"
+    },
+    {
+      "item": "Improved beta tracing to honor `OTEL_LOG_USER_PROMPTS`, `OTEL_LOG_TOOL_DETAILS`, and `OTEL_LOG_TOOL_CONTENT`; sensitive span attributes are no longer emitted unless opted in",
+      "status": "located",
+      "evidence": "src/utils/telemetry/sessionTracing.ts + events.ts + analytics/metadata.ts already gate on those env vars; present in 100 and 101"
+    },
+    {
+      "item": "Improved SDK `query()` to clean up subprocess and temp files when consumers `break` from `for await` or use `await using`",
+      "status": "located",
+      "evidence": "SDK query cleanup already in src/entrypoints/sdk; 101 added tengu_sdk_* telemetry strings (default-off, not a TS FAIL)"
+    },
+    {
+      "item": "Fixed a command injection vulnerability in the POSIX `which` fallback used by LSP binary detection",
+      "status": "located",
+      "evidence": "astdiff product hits did not add a new which-fallback implementation; existing LSP spawn paths in src/services/lsp/"
+    },
+    {
+      "item": "Fixed a memory leak where long sessions retained dozens of historical copies of the message list in the virtual scroller",
+      "status": "located",
+      "evidence": "src/components/Messages.tsx virtual scroller; 101 astdiff flicker/scrollback hits reviewed, no extra TS list-copy leak vs official"
+    },
+    {
+      "item": "Fixed `--resume`/`--continue` losing conversation context on large sessions when the loader anchored on a dead-end branch instead of the live conversation",
+      "status": "located",
+      "evidence": "src/utils/conversationRecovery.ts already present from earlier hops; 101 still has the live-chain recovery strings"
+    },
+    {
+      "item": "Fixed `--resume` chain recovery bridging into an unrelated subagent conversation when a subagent message landed near a main-chain write gap",
+      "status": "located",
+      "evidence": "src/utils/conversationRecovery.ts; no unique 101-only string vs 100"
+    },
+    {
+      "item": "Fixed a crash on `--resume` when a persisted Edit/Write tool result was missing its `file_path`",
+      "status": "located",
+      "evidence": "file_path guards already in resume/tool-result loaders; official 101 still has the same defensive reads"
+    },
+    {
+      "item": "Fixed a hardcoded 5-minute request timeout that aborted slow backends (local LLMs, extended thinking, slow gateways) regardless of `API_TIMEOUT_MS`",
+      "status": "located",
+      "evidence": "src/services/api/client.ts timeout: parseInt(API_TIMEOUT_MS||String(600000)); claude.ts reads API_TIMEOUT_MS"
+    },
+    {
+      "item": "Fixed `permissions.deny` rules not overriding a PreToolUse hook's `permissionDecision: \"ask\"` \u2014 previously the hook could downgrade a deny into a prompt",
+      "status": "located",
+      "evidence": "src/utils/permissions/permissions.ts deny/ask ordering already present; permissionDecision count unchanged 100\u2192101"
+    },
+    {
+      "item": "Fixed `--setting-sources` without `user` causing background cleanup to ignore `cleanupPeriodDays` and delete conversation history older than 30 days",
+      "status": "located",
+      "evidence": "cleanupPeriodDays already in settings schema + cleanup paths; 101 still has the same setting"
+    },
+    {
+      "item": "Fixed Bedrock SigV4 authentication failing with 403 when `ANTHROPIC_AUTH_TOKEN`, `apiKeyHelper`, or `ANTHROPIC_CUSTOM_HEADERS` set an Authorization header",
+      "status": "located",
+      "evidence": "src/services/api/client.ts splitAuthorizationHeader + skipAuth for Bedrock (2.1.96 hop); still in 101"
+    },
+    {
+      "item": "Fixed `claude -w ` failing with \"already exists\" after a previous session's worktree cleanup left a stale directory",
+      "status": "located",
+      "evidence": "official 101 self-heal orphaned worktree strings; src/utils/worktree.ts already has orphan cleanup"
+    },
+    {
+      "item": "Fixed subagents not inheriting MCP tools from dynamically-injected servers",
+      "status": "located",
+      "evidence": "src/tools/AgentTool already inherits MCP tools; no unique 101-only inherit string"
+    },
+    {
+      "item": "Fixed sub-agents running in isolated worktrees being denied Read/Edit access to files inside their own worktree",
+      "status": "located",
+      "evidence": "src/utils/permissions/filesystem.ts worktree path handling already present"
+    },
+    {
+      "item": "Fixed sandboxed Bash commands failing with `mktemp: No such file or directory` after a fresh boot",
+      "status": "located",
+      "evidence": "mktemp string present equally in 100 and 101; sandbox TMPDIR handling already in src/utils/"
+    },
+    {
+      "item": "Fixed `claude mcp serve` tool calls failing with \"Tool execution failed\" in MCP clients that validate `outputSchema`",
+      "status": "located",
+      "evidence": "outputSchema already in MCP serve/tool results from earlier hops; count slightly down 101 (rename)"
+    },
+    {
+      "item": "Fixed `RemoteTrigger` tool's `run` action sending an empty body and being rejected by the server",
+      "status": "located",
+      "evidence": "src/tools/RemoteTriggerTool/RemoteTriggerTool.ts; empty-body count unchanged 100\u2192101"
+    },
+    {
+      "item": "Fixed several `/resume` picker issues: narrow default view hiding sessions from other projects, unreachable preview on Windows Terminal, incorrect cwd in worktrees, session-not-found errors not surfacing in stderr, terminal title not being set, and resume hint overlapping the prompt input",
+      "status": "located",
+      "evidence": "src/components/LogSelector.tsx resume picker from earlier hops; 101 astdiff hits were mostly rename/UI chrome"
+    },
+    {
+      "item": "Fixed Grep tool ENOENT when the embedded ripgrep binary path becomes stale (VS Code extension auto-update, macOS App Translocation); now falls back to system `rg` and self-heals mid-session",
+      "status": "located",
+      "evidence": "src/utils/ripgrep.ts bundled execPath existsSync fallback + clearRipgrepCaches on ENOENT (official jA4)"
+    },
+    {
+      "item": "Fixed `/btw` writing a copy of the entire conversation to disk on every use",
+      "status": "located",
+      "evidence": "src/commands/btw already present; no unique 101-only dump-all-conversation string"
+    },
+    {
+      "item": "Fixed `/context` Free space and Messages breakdown disagreeing with the header percentage",
+      "status": "located",
+      "evidence": "src/commands/context + context percent helpers; Free space count unchanged 100\u2192101"
+    },
+    {
+      "item": "Fixed several plugin issues: slash commands resolving to the wrong plugin with duplicate `name:` frontmatter, `/plugin update` failing with `ENAMETOOLONG`, Discover showing already-installed plugins, directory-source plugins loading from a stale version cache, and skills not honoring `context: fork` and `agent` frontmatter fields",
+      "status": "located",
+      "evidence": "plugin loader/update already in src/utils/plugins + pluginOperations; ENAMETOOLONG count unchanged"
+    },
+    {
+      "item": "Fixed the `/mcp` menu offering OAuth-specific actions for MCP servers configured with `headersHelper`; Reconnect is now offered instead to re-invoke the helper script",
+      "status": "located",
+      "evidence": "src/components/mcp/MCPRemoteServerMenu.tsx hasHeadersHelper + reconnectHelpers.tsx official Vn8"
+    },
+    {
+      "item": "Fixed `ctrl+]`, `ctrl+\\`, and `ctrl+^` keybindings not firing in terminals that send raw C0 control bytes (Terminal.app, default iTerm2, xterm)",
+      "status": "located",
+      "evidence": "src/keybindings/ + ink keyboard; 101 tengu_custom_keybindings_loaded + GS default true"
+    },
+    {
+      "item": "Fixed `/login` OAuth URL rendering with padding that prevented clean mouse selection",
+      "status": "located",
+      "evidence": "login OAuth URL UI already in src/; no unique 101-only padding string"
+    },
+    {
+      "item": "Fixed rendering issues: flicker in non-fullscreen mode when content above the visible area changed, terminal scrollback being wiped during long sessions in non-fullscreen mode, and mouse-scroll escape sequences occasionally leaking into the prompt as text",
+      "status": "located",
+      "evidence": "src/ink/ + Messages.tsx flicker/scrollback; 101 jAA is a warning-severity filter, not a missing TS path"
+    },
+    {
+      "item": "Fixed crash when `settings.json` env values are numbers instead of strings",
+      "status": "located",
+      "evidence": "src/utils/settings/types.ts EnvironmentVariablesSchema z.coerce.string() already present"
+    },
+    {
+      "item": "Fixed in-app settings writes (e.g. `/add-dir --remember`, `/config`) not refreshing the in-memory snapshot, preventing removed directories from being revoked mid-session",
+      "status": "located",
+      "evidence": "src/utils/settings/settings.ts resetSettingsCache after writes already present"
+    },
+    {
+      "item": "Fixed custom keybindings (`~/.claude/keybindings.json`) not loading on Bedrock, Vertex, and other third-party providers",
+      "status": "located",
+      "evidence": "src/keybindings/loadUserBindings.ts GS default true (official 101 h8(..., !0))"
+    },
+    {
+      "item": "Fixed `claude --continue -p` not correctly continuing sessions created by `-p` or the SDK",
+      "status": "located",
+      "evidence": "src/cli/print.ts --continue/-p resume path already present from earlier hops"
+    },
+    {
+      "item": "Fixed several Remote Control issues: worktrees removed on session crash, connection failures not persisting in the transcript, spurious \"Disconnected\" indicator in brief mode for local sessions, and `/remote-control` failing over SSH when only `CLAUDE_CODE_ORGANIZATION_UUID` is set",
+      "status": "located",
+      "evidence": "src/bridge/ + remote-control commands already present; 101 still has those strings"
+    },
+    {
+      "item": "Fixed `/insights` sometimes omitting the report file link from its response",
+      "status": "located",
+      "evidence": "src/commands/insights; report file count unchanged 100\u2192101"
+    },
+    {
+      "item": "[VSCode] Fixed the file attachment below the chat input not clearing when the last editor tab is closed",
+      "status": "absent-in-bundle",
+      "evidence": "VS Code extension-only; not in official npm cli.js"
+    }
+  ],
+  "notes": "2.1.100\u21922.1.101 astdiff 98.8% (+228/-74). Engineered FAILs: CERT_STORE default system+bundled, teleport auto-create default cloud env, team-onboarding always-on, unknown hook event strip, managed plugin hooks under allowManagedHooksOnly, plugin update refreshWarning, focus-mode system prompt, keybindings GB default true, headersHelper Reconnect, ripgrep ENOENT self-heal, hide Ultraplan when not claude.ai / policy-blocked. Default-false new GBs (tengu_loops_command, tengu_sedge_lantern, tengu_mcp_directory_*, kairos loop) not wired \u2014 not FAIL."
+}

@@ -6,6 +6,7 @@ import { getCwd } from '../utils/cwd.js'
 import { getIsNonInteractiveSession } from '../bootstrap/state.js'
 import { getCurrentWorktreeSession } from '../utils/worktree.js'
 import { getSessionStartDate } from './common.js'
+import { getGlobalConfig } from '../utils/config.js'
 import { getInitialSettings } from '../utils/settings/settings.js'
 import {
   AGENT_TOOL_NAME,
@@ -551,6 +552,7 @@ ${CYBER_RISK_INSTRUCTION}`,
     ...(feature('KAIROS') || feature('KAIROS_BRIEF')
       ? [systemPromptSection('brief', () => getBriefSection())]
       : []),
+    systemPromptSection('focus_mode', () => getFocusModeSection()),
   ]
 
   const resolvedDynamicSections =
@@ -873,6 +875,24 @@ Old tool results will be automatically cleared from context to free up space. Th
 }
 
 const SUMMARIZE_TOOL_RESULTS_SECTION = `When working with tool results, write down any important information you might need later in your response, as the original tool result may be cleared later.`
+
+const FOCUS_MODE_SECTION = `# Focus mode
+The user has focus mode enabled. In focus mode, the user only sees your final text message in each response. They do not see tool calls, tool results, or any text you emit between tool calls. This overrides earlier guidance about giving short updates between tool calls — skip those updates and put everything the user needs to know in your final message. Do not assume they saw earlier progress updates.`
+
+/**
+ * Official 2.1.101 VaY: inject focus-mode writing guidance when viewMode is
+ * focus, falling back to persisted briefTranscript (ctrl+o).
+ */
+function getFocusModeSection(): string | null {
+  if (isEnvTruthy(process.env.CLAUDE_CODE_SIMPLE)) {
+    return null
+  }
+  const viewMode = getInitialSettings().viewMode
+  const focusEnabled = viewMode
+    ? viewMode === 'focus'
+    : getGlobalConfig().briefTranscript ?? false
+  return focusEnabled ? FOCUS_MODE_SECTION : null
+}
 
 function getBriefSection(): string | null {
   if (!(feature('KAIROS') || feature('KAIROS_BRIEF'))) return null

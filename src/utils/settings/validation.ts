@@ -1,5 +1,6 @@
 import type { ConfigScope } from 'src/services/mcp/types.js'
 import type { ZodError, ZodIssue } from 'zod/v4'
+import { HOOK_EVENTS } from '../../entrypoints/sdk/coreTypes.js'
 import { jsonParse } from '../slowOperations.js'
 import { plural } from '../stringUtils.js'
 import { validatePermissionRule } from './permissionValidation.js'
@@ -7,6 +8,8 @@ import { generateSettingsJSONSchema } from './schemaOutput.js'
 import type { SettingsJson } from './types.js'
 import { SettingsSchema } from './types.js'
 import { getValidationTip } from './validationTips.js'
+
+const KNOWN_HOOK_EVENTS = new Set<string>(HOOK_EVENTS)
 
 /**
  * Helper type guards for specific Zod v4 issue types
@@ -262,4 +265,47 @@ export function filterInvalidPermissionRules(
     })
   }
   return warnings
+}
+
+/**
+ * Official 2.1.101 QQ5: drop unknown hook event names so one typo does not
+ * fail the entire settings.json parse (HooksSchema is a partialRecord enum).
+ */
+export function filterUnknownHookEvents(
+  data: unknown,
+  filePath: string,
+): ValidationError[] {
+  if (!data || typeof data !== 'object') return []
+  const obj = data as Record<string, unknown>
+  if (!obj.hooks || typeof obj.hooks !== 'object' || Array.isArray(obj.hooks)) {
+    return []
+  }
+  const hooks = obj.hooks as Record<string, unknown>
+  const warnings: ValidationError[] = []
+  for (const eventName of Object.keys(hooks)) {
+    if (KNOWN_HOOK_EVENTS.has(eventName)) continue
+    delete hooks[eventName]
+    warnings.push({
+      file: filePath,
+      path: `hooks.${eventName}`,
+      message: `Unknown hook event "${eventName}" was ignored. Valid events: ${HOOK_EVENTS.join(', ')}`,
+      invalidValue: eventName,
+      docLink: 'https://code.claude.com/docs/en/hooks',
+    })
+  }
+  if (warnings.length > 0 && Object.keys(hooks).length === 0) {
+    delete obj.hooks
+  }
+  return warnings
+}
+
+/** Official 2.1.101 GC: permission-rule + unknown-hook prefilters. */
+export function filterSettingsWarnings(
+  data: unknown,
+  filePath: string,
+): ValidationError[] {
+  return [
+    ...filterInvalidPermissionRules(data, filePath),
+    ...filterUnknownHookEvents(data, filePath),
+  ]
 }
