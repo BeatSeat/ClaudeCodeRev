@@ -153,6 +153,34 @@ for (const file of allFiles) {
       missingTargets.set(key, [])
     }
   }
+
+  // Bun still resolves require('./x.js') at bundle time even inside feature()
+  // ternaries, so DCE-gated modules must exist as stubs.
+  const reqRe = /require\(\s*['"]([^'"]+\.js)['"]\s*\)(?:\s*\.\s*(\w+))?/g
+  while ((m = reqRe.exec(content)) !== null) {
+    const specifier = m[1]
+    const member = m[2]
+    let resolved: string
+    if (specifier.startsWith('src/')) {
+      resolved = join(ROOT, specifier.replace(/^src\//, ''))
+    } else if (specifier.startsWith('.')) {
+      resolved = normalize(join(dir, specifier))
+    } else continue
+
+    const tsPath = resolved.replace(/\.js$/, '.ts')
+    const tsxPath = resolved.replace(/\.js$/, '.tsx')
+    if (existsSync(tsPath) || existsSync(tsxPath)) continue
+
+    const key = tsPath
+    const existing = missingTargets.get(key) ?? []
+    if (member) {
+      existing.push({
+        symbol: member === 'default' ? 'default' : member,
+        isType: false,
+      })
+    }
+    missingTargets.set(key, existing)
+  }
 }
 
 // ---------------------------------------------------------------------------
