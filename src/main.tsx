@@ -190,6 +190,7 @@ import { checkQuotaStatus } from './services/claudeAiLimits.js'
 import {
   getMcpToolsCommandsAndResources,
   prefetchAllMcpResources,
+  retryFailedRemoteMcpServers,
 } from './services/mcp/client.js'
 import {
   VALID_INSTALLABLE_SCOPES,
@@ -409,6 +410,7 @@ import {
   DirectConnectError,
 } from './server/createDirectConnectSession.js'
 import { initializeLspServerManager } from './services/lsp/manager.js'
+import { isAwaySummaryEnabled } from './services/awaySummary.js'
 import { shouldEnablePromptSuggestion } from './services/PromptSuggestion/promptSuggestion.js'
 import {
   type AppState,
@@ -3859,6 +3861,24 @@ async function run(): Promise<CommanderCommand> {
             )
             .finally(() => {
               for (const resolve of settle.values()) resolve()
+              if (
+                getFeatureValue_CACHED_MAY_BE_STALE(
+                  'tengu_mcp_retry_failed_remote',
+                  true,
+                )
+              ) {
+                void retryFailedRemoteMcpServers(configs, {
+                  getClients: () => headlessStore.getState().mcp.clients,
+                  applyMcpUpdate: updater => {
+                    headlessStore.setState(prev => ({
+                      ...prev,
+                      mcp: { ...prev.mcp, ...updater(prev.mcp) },
+                    }))
+                  },
+                }).catch(err =>
+                  logForDebugging(`[MCP] ${label} retry error: ${err}`),
+                )
+              }
             })
           return perServer
         }
@@ -4255,6 +4275,7 @@ async function run(): Promise<CommanderCommand> {
         attribution: createEmptyAttributionState(),
         thinkingEnabled,
         promptSuggestionEnabled: shouldEnablePromptSuggestion(),
+        awaySummaryEnabled: isAwaySummaryEnabled(),
         sessionHooks: new Map(),
         inbox: {
           messages: [],

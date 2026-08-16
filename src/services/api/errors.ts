@@ -29,7 +29,7 @@ import {
   isNonCustomOpusModel,
 } from 'src/utils/model/model.js'
 import { getModelStrings } from 'src/utils/model/modelStrings.js'
-import { getAPIProvider } from 'src/utils/model/providers.js'
+import { getAPIProvider, isFirstPartyApiFamily } from 'src/utils/model/providers.js'
 import { getIsNonInteractiveSession } from '../../bootstrap/state.js'
 import {
   API_PDF_MAX_PAGES,
@@ -52,6 +52,7 @@ import { shouldProcessRateLimits } from '../rateLimitMocking.js' // Used for /mo
 import { extractConnectionErrorDetails, formatAPIError } from './errorUtils.js'
 
 export const API_ERROR_MESSAGE_PREFIX = 'API Error'
+const STATUS_CLAUDE_COM = 'status.claude.com'
 
 export function startsWithApiErrorPrefix(text: string): boolean {
   return (
@@ -462,11 +463,10 @@ export function getAssistantMessageFromError(
     })
   }
 
-  if (
-    error instanceof APIError &&
-    error.status === 429 &&
-    shouldProcessRateLimits(isClaudeAISubscriber())
-  ) {
+  if (error instanceof APIError && error.status === 429) {
+    const isSubscriberRateLimit = shouldProcessRateLimits(
+      isClaudeAISubscriber(),
+    )
     // Check if this is the new API with multiple rate limit headers
     const rateLimitType = error.headers?.get?.(
       'anthropic-ratelimit-unified-representative-claim',
@@ -477,7 +477,7 @@ export function getAssistantMessageFromError(
     ) as 'allowed' | 'allowed_warning' | 'rejected' | null
 
     // If we have the new headers, use the new message generation
-    if (rateLimitType || overageStatus) {
+    if (isSubscriberRateLimit && (rateLimitType || overageStatus)) {
       // Build limits object from error headers to determine the appropriate message
       const limits: ClaudeAILimits = {
         status: 'rejected',
@@ -537,7 +537,10 @@ export function getAssistantMessageFromError(
     // No quota headers — this is NOT a quota limit. Surface what the API actually
     // said instead of a generic "Rate limit reached". Entitlement rejections
     // (e.g. 1M context without Extra Usage) and infra capacity 429s land here.
-    if (error.message.includes('Extra usage is required for long context')) {
+    if (
+      isSubscriberRateLimit &&
+      error.message.includes('Extra usage is required for long context')
+    ) {
       const hint = getIsNonInteractiveSession()
         ? 'enable extra usage at claude.ai/settings/usage, or use --model to switch to standard context'
         : 'run /extra-usage to enable, or /model to switch to standard context'
@@ -565,7 +568,7 @@ export function getAssistantMessageFromError(
     }
     const detail = innerMessage || stripped
     return createAssistantAPIErrorMessage({
-      content: `${API_ERROR_MESSAGE_PREFIX}: Request rejected (429) · ${detail || 'this may be a temporary capacity issue — check status.anthropic.com'}`,
+      content: `${API_ERROR_MESSAGE_PREFIX}: ${isSubscriberRateLimit ? 'Server is temporarily limiting requests (not your usage limit)' : 'Request rejected (429)'} · ${detail || `this may be a temporary capacity issue — check ${STATUS_CLAUDE_COM}`}`,
       error: 'rate_limit',
     })
   }
@@ -923,6 +926,28 @@ export function getAssistantMessageFromError(
         ? `The model ${model} is not available on your ${getAPIProvider()} deployment. Try ${switchCmd} to switch to ${fallbackSuggestion}, or ask your admin to enable this model.`
         : `There's an issue with the selected model (${model}). It may not exist or you may not have access to it. Run ${switchCmd} to pick a different model.`,
       error: 'invalid_request',
+    })
+  }
+
+  // Official 2.1.108: 5xx/529 point first-party users at status.claude.com
+  const statusLink = isFirstPartyApiFamily() ? ` · check ${STATUS_CLAUDE_COM}` : ''
+  if (
+    error instanceof Error &&
+    error.message.includes(REPEATED_529_ERROR_MESSAGE)
+  ) {
+    return createAssistantAPIErrorMessage({
+      content: `${API_ERROR_MESSAGE_PREFIX}: ${REPEATED_529_ERROR_MESSAGE}${statusLink}`,
+      error: 'server_error',
+    })
+  }
+  if (
+    error instanceof APIError &&
+    typeof error.status === 'number' &&
+    error.status >= 500
+  ) {
+    return createAssistantAPIErrorMessage({
+      content: `${API_ERROR_MESSAGE_PREFIX}: ${formatAPIError(error)}${statusLink}`,
+      error: 'server_error',
     })
   }
 

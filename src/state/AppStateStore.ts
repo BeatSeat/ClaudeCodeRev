@@ -9,6 +9,7 @@ import type {
   ServerResource,
   ServerResourceTemplate,
 } from '../services/mcp/types.js'
+import { isAwaySummaryEnabled } from '../services/awaySummary.js'
 import { shouldEnablePromptSuggestion } from '../services/PromptSuggestion/promptSuggestion.js'
 import {
   getEmptyToolPermissionContext,
@@ -234,6 +235,7 @@ export type AppState = DeepImmutable<{
   }
   thinkingEnabled: boolean | undefined
   promptSuggestionEnabled: boolean
+  awaySummaryEnabled: boolean
   sessionHooks: SessionHooksState
   tungstenActiveSession?: {
     sessionName: string
@@ -549,6 +551,7 @@ export function getDefaultAppState(): AppState {
     },
     thinkingEnabled: shouldEnableThinkingByDefault(),
     promptSuggestionEnabled: shouldEnablePromptSuggestion(),
+    awaySummaryEnabled: isAwaySummaryEnabled(),
     sessionHooks: new Map(),
     inbox: {
       messages: [],

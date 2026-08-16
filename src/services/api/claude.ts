@@ -119,7 +119,6 @@ import {
   getFastModeHeaderLatched,
   getLastApiCompletionTimestamp,
   getPromptCache1hAllowlist,
-  getPromptCache1hEligible,
   getSessionId,
   getThinkingClearLatched,
   setAfkModeHeaderLatched,
@@ -127,7 +126,6 @@ import {
   setFastModeHeaderLatched,
   setLastMainRequestId,
   setPromptCache1hAllowlist,
-  setPromptCache1hEligible,
   setThinkingClearLatched,
 } from 'src/bootstrap/state.js'
 import {
@@ -395,34 +393,36 @@ export function getCacheControl({
  * TTLs when GrowthBook's disk cache updates mid-request.
  */
 function should1hCacheTTL(querySource?: QuerySource): boolean {
-  // 3P Bedrock users get 1h TTL when opted in via env var — they manage their own billing
-  // No GrowthBook gating needed since 3P users don't have GrowthBook configured
+  // Official 2.1.108 MoY
+  if (isEnvTruthy(process.env.FORCE_PROMPT_CACHING_5M)) {
+    return false
+  }
+  // ENABLE_PROMPT_CACHING_1H opts in on any provider (API key / Bedrock /
+  // Vertex / Foundry). ENABLE_PROMPT_CACHING_1H_BEDROCK is deprecated but
+  // still honored for Bedrock-only.
   if (
-    getAPIProvider() === 'bedrock' &&
-    isEnvTruthy(process.env.ENABLE_PROMPT_CACHING_1H_BEDROCK)
+    isEnvTruthy(process.env.ENABLE_PROMPT_CACHING_1H) ||
+    (getAPIProvider() === 'bedrock' &&
+      isEnvTruthy(process.env.ENABLE_PROMPT_CACHING_1H_BEDROCK))
   ) {
     return true
   }
 
-  // Latch eligibility in bootstrap state for session stability — prevents
-  // mid-session overage flips from changing the cache_control TTL, which
-  // would bust the server-side prompt cache (~20K tokens per flip).
-  let userEligible = getPromptCache1hEligible()
-  if (userEligible === null) {
-    userEligible =
-      process.env.USER_TYPE === 'ant' ||
-      (isClaudeAISubscriber() && !currentLimits.isUsingOverage)
-    setPromptCache1hEligible(userEligible)
+  if (!isClaudeAISubscriber() || currentLimits.isUsingOverage) {
+    return false
   }
-  if (!userEligible) return false
 
   // Cache allowlist in bootstrap state for session stability — prevents mixed
-  // TTLs when GrowthBook's disk cache updates mid-request
+  // TTLs when GrowthBook's disk cache updates mid-request. Default allowlist
+  // is the 108 DISABLE_TELEMETRY fix: GB falling back to {} used to empty the
+  // list and drop subscribers onto 5-minute TTL.
   let allowlist = getPromptCache1hAllowlist()
   if (allowlist === null) {
     const config = getFeatureValue_CACHED_MAY_BE_STALE<{
       allowlist?: string[]
-    }>('tengu_prompt_cache_1h_config', {})
+    }>('tengu_prompt_cache_1h_config', {
+      allowlist: ['repl_main_thread*', 'sdk', 'auto_mode'],
+    })
     allowlist = config.allowlist ?? []
     setPromptCache1hAllowlist(allowlist)
   }

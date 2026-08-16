@@ -396,7 +396,12 @@ export function Feedback({
               }
             }}
             columns={textInputColumns}
-            onSubmit={() => setStep('consent')}
+            onSubmit={() => {
+              // Official 2.1.108: clear the previous error so Enter retries
+              // without requiring the description to be edited first.
+              setError(null)
+              setStep('consent')
+            }}
             onExitMessage={() =>
               onDone('Feedback cancelled', { display: 'system' })
             }

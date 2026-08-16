@@ -18,31 +18,11 @@
  */
 
 import { diffArrays } from 'diff'
-import type * as hljsNamespace from 'highlight.js'
 import { basename, extname } from 'path'
-import { registerExtraLanguages } from '../../utils/highlighter/extraLanguages.js'
-
-// Lazy: defers loading highlight.js until first render. The full bundle
-// registers 190+ language grammars at require time (~50MB, 100-200ms on
-// macOS, several× that on Windows). With a top-level import, any caller
-// chunk that reaches this module — including test/preload.ts via
-// StructuredDiff.tsx → colorDiff.ts — pays that cost at module-eval time
-// and carries the heap for the rest of the process. On Windows CI this
-// pushed later tests in the same shard into GC-pause territory and a
-// beforeEach/afterEach hook timeout (officialRegistry.test.ts, PR #24150).
-// Same lazy pattern the NAPI wrapper used for dlopen.
-type HLJSApi = typeof hljsNamespace
-let cachedHljs: HLJSApi | null = null
-function hljs(): HLJSApi {
-  if (cachedHljs) return cachedHljs
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const mod = require('highlight.js')
-  // highlight.js uses `export =` (CJS). Under bun/ESM the interop wraps it
-  // in .default; under node CJS the module IS the API. Check at runtime.
-  cachedHljs = 'default' in mod && mod.default ? mod.default : mod
-  registerExtraLanguages(cachedHljs)
-  return cachedHljs!
-}
+import {
+  ensureLanguage,
+  getHljs,
+} from '../../utils/highlighter/lazyHighlight.js'
 
 import { stringWidth } from '../../ink/stringWidth.js'
 import { logError } from '../../utils/log.js'
@@ -431,23 +411,28 @@ function detectLanguage(
   // Filename-based lookup (handles Dockerfile, Makefile, CMakeLists.txt, etc.)
   const stem = base.split('.')[0] ?? ''
   const byName = FILENAME_LANGS[base] ?? FILENAME_LANGS[stem]
-  if (byName && hljs().getLanguage(byName)) return byName
+  if (byName) {
+    const resolved = ensureLanguage(byName)
+    if (resolved) return resolved
+  }
   if (ext) {
-    const lang = hljs().getLanguage(ext)
-    if (lang) return ext
+    const resolved = ensureLanguage(ext)
+    if (resolved) return resolved
   }
   // Shebang / first-line detection (strip UTF-8 BOM)
   if (firstLine) {
     const line = firstLine.startsWith('\ufeff') ? firstLine.slice(1) : firstLine
     if (line.startsWith('#!')) {
-      if (line.includes('bash') || line.includes('/sh')) return 'bash'
-      if (line.includes('python')) return 'python'
-      if (line.includes('node')) return 'javascript'
-      if (line.includes('ruby')) return 'ruby'
-      if (line.includes('perl')) return 'perl'
+      if (line.includes('bash') || line.includes('/sh')) {
+        return ensureLanguage('bash')
+      }
+      if (line.includes('python')) return ensureLanguage('python')
+      if (line.includes('node')) return ensureLanguage('javascript')
+      if (line.includes('ruby')) return ensureLanguage('ruby')
+      if (line.includes('perl')) return ensureLanguage('perl')
     }
-    if (line.startsWith('<?php')) return 'php'
-    if (line.startsWith('<?xml')) return 'xml'
+    if (line.startsWith('<?php')) return ensureLanguage('php')
+    if (line.startsWith('<?xml')) return ensureLanguage('xml')
   }
   return null
 }
@@ -515,7 +500,7 @@ function highlightLine(
   }
   let result
   try {
-    result = hljs().highlight(code, {
+    result = getHljs().highlight(code, {
       language: state.lang,
       ignoreIllegals: true,
     })

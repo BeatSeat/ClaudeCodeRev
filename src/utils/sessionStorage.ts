@@ -695,31 +695,42 @@ class Project {
         continue
       }
       const batch = queue.splice(0)
+      let flushed = 0
 
-      let content = ''
-      const resolvers: Array<() => void> = []
+      try {
+        let content = ''
+        const resolvers: Array<() => void> = []
 
-      for (const { entry, resolve } of batch) {
-        const line = jsonStringify(entry) + '\n'
+        for (const { entry, resolve } of batch) {
+          const line = jsonStringify(entry) + '\n'
 
-        if (content.length + line.length >= this.MAX_CHUNK_BYTES) {
-          // Flush chunk and resolve its entries before starting a new one
+          if (content.length + line.length >= this.MAX_CHUNK_BYTES) {
+            // Flush chunk and resolve its entries before starting a new one
+            await this.appendToFile(filePath, content)
+            for (const r of resolvers) {
+              r()
+            }
+            flushed += resolvers.length
+            resolvers.length = 0
+            content = ''
+          }
+
+          content += line
+          resolvers.push(resolve)
+        }
+
+        if (content.length > 0) {
           await this.appendToFile(filePath, content)
           for (const r of resolvers) {
             r()
           }
-          resolvers.length = 0
-          content = ''
+          flushed += resolvers.length
         }
-
-        content += line
-        resolvers.push(resolve)
-      }
-
-      if (content.length > 0) {
-        await this.appendToFile(filePath, content)
-        for (const r of resolvers) {
-          r()
+      } catch (err) {
+        // Official 2.1.108: disk-full / write errors used to drop silently.
+        logError(err)
+        for (let i = flushed; i < batch.length; i++) {
+          batch[i]!.resolve()
         }
       }
     }
@@ -1081,6 +1092,9 @@ class Project {
           message.sourceToolAssistantUUID
         ) {
           effectiveParentUuid = message.sourceToolAssistantUUID
+        }
+        if (effectiveParentUuid === message.uuid) {
+          logEvent('tengu_chain_self_reference_write', {})
         }
 
         const transcriptMessage: TranscriptMessage = {
@@ -2173,7 +2187,7 @@ export function buildConversationChain(
     seen.add(currentMsg.uuid)
     transcript.push(currentMsg)
     const parentUuid = currentMsg.parentUuid
-    if (!parentUuid) break
+    if (!parentUuid || parentUuid === currentMsg.uuid) break
     let parent = messages.get(parentUuid)
     if (!parent) {
       parent = findTimestampFallbackParent(messages, currentMsg, seen)

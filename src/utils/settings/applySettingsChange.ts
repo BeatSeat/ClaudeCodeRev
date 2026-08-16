@@ -12,6 +12,7 @@ import {
 import { syncPermissionRulesFromDisk } from '../permissions/permissions.js'
 import { loadAllPermissionRulesFromDisk } from '../permissions/permissionsLoader.js'
 import type { SettingSource } from './constants.js'
+import { isAwaySummaryEnabled } from '../../services/awaySummary.js'
 import { getInitialSettings } from './settings.js'
 
 /**
@@ -81,11 +82,15 @@ export function applySettingsChange(
     const prevEffort = prev.settings.effortLevel
     const newEffort = newSettings.effortLevel
     const effortChanged = prevEffort !== newEffort
+    const awaySummaryEnabled = isAwaySummaryEnabled()
 
     return {
       ...prev,
       settings: newSettings,
       toolPermissionContext: newContext,
+      ...(prev.awaySummaryEnabled !== awaySummaryEnabled
+        ? { awaySummaryEnabled }
+        : {}),
       // Only propagate a defined new value — when the disk key is absent
       // (e.g. /effort max for non-ants writes undefined; --effort CLI flag),
       // prev.settings.effortLevel can be stale (internal writes suppress the

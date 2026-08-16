@@ -169,7 +169,9 @@ export async function createBashShellProvider(
       // Source session environment variables captured from session start hooks
       const sessionEnvScript = await getSessionEnvironmentScript()
       if (sessionEnvScript) {
-        commandParts.push(sessionEnvScript)
+        // Official 2.1.108: a trailing `# comment` would comment out the
+        // rest of the `&&` chain (eval + pwd) and produce no output.
+        commandParts.push(`${sessionEnvScript}\n:`)
       }
 
       // Disable extended glob patterns for security (after sourcing user config to override)

@@ -209,6 +209,7 @@ export function Config({
     isFastModeEnabled() ? s.fastMode : false,
   )
   const promptSuggestionEnabled = useAppState(s => s.promptSuggestionEnabled)
+  const awaySummaryEnabled = useAppState(s => s.awaySummaryEnabled)
   // Show auto in the default-mode dropdown when the user has opted in OR the
   // config is fully 'enabled' — even if currently circuit-broken ('disabled'),
   // an opted-in user should still see it in settings (it's a temporary state).
@@ -254,6 +255,7 @@ export function Config({
       thinkingEnabled: s.thinkingEnabled,
       fastMode: s.fastMode,
       promptSuggestionEnabled: s.promptSuggestionEnabled,
+      awaySummaryEnabled: s.awaySummaryEnabled,
       isBriefOnly: s.isBriefOnly,
       replBridgeEnabled: s.replBridgeEnabled,
       replBridgeOutboundOnly: s.replBridgeOutboundOnly,
@@ -473,6 +475,25 @@ export function Config({
               }))
               updateSettingsForSource('userSettings', {
                 promptSuggestionEnabled: enabled ? undefined : false,
+              })
+            },
+          },
+        ]
+      : []),
+    ...(getFeatureValue_CACHED_MAY_BE_STALE('tengu_sedge_lantern', false)
+      ? [
+          {
+            id: 'awaySummaryEnabled',
+            label: 'Session recap',
+            value: awaySummaryEnabled,
+            type: 'boolean' as const,
+            onChange(enabled: boolean) {
+              setAppState(prev => ({
+                ...prev,
+                awaySummaryEnabled: enabled,
+              }))
+              updateSettingsForSource('userSettings', {
+                awaySummaryEnabled: enabled ? undefined : false,
               })
             },
           },
@@ -1495,6 +1516,7 @@ export function Config({
       alwaysThinkingEnabled: iu?.alwaysThinkingEnabled,
       fastMode: iu?.fastMode,
       promptSuggestionEnabled: iu?.promptSuggestionEnabled,
+      awaySummaryEnabled: iu?.awaySummaryEnabled,
       autoUpdatesChannel: iu?.autoUpdatesChannel,
       minimumVersion: iu?.minimumVersion,
       language: iu?.language,
@@ -1529,6 +1551,7 @@ export function Config({
       thinkingEnabled: ia.thinkingEnabled,
       fastMode: ia.fastMode,
       promptSuggestionEnabled: ia.promptSuggestionEnabled,
+      awaySummaryEnabled: ia.awaySummaryEnabled,
       isBriefOnly: ia.isBriefOnly,
       replBridgeEnabled: ia.replBridgeEnabled,
       replBridgeOutboundOnly: ia.replBridgeOutboundOnly,
