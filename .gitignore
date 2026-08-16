@@ -2,3 +2,5 @@ node_modules/
 dist/
 .DS_Store
 *.log
+restore-work/artifacts/
+.cursor/skills/incremental-ts-restore/node_modules/
