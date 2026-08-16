@@ -228,7 +228,11 @@ import {
 import { getInitializationStatus } from '../lsp/manager.js'
 import { isToolFromMcpServer } from '../mcp/utils.js'
 import { withStreamingVCR, withVCR } from '../vcr.js'
-import { CLIENT_REQUEST_ID_HEADER, getAnthropicClient } from './client.js'
+import {
+  CLIENT_REQUEST_ID_HEADER,
+  getAnthropicClient,
+  StreamIdleTimeoutError,
+} from './client.js'
 import {
   API_ERROR_MESSAGE_PREFIX,
   CUSTOM_OFF_SWITCH_MESSAGE,
@@ -1922,6 +1926,7 @@ async function* queryModel(
           request_id: (streamRequestId ??
             'unknown') as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
           timeout_ms: STREAM_IDLE_TIMEOUT_MS,
+          tier: 'event' as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
         })
         releaseStreamResources()
       }, STREAM_IDLE_TIMEOUT_MS)
@@ -2405,6 +2410,29 @@ async function* queryModel(
       // Clear the idle timeout watchdog on error path too
       clearStreamIdleTimers()
 
+      // Byte-level SSE idle abort (official 2.1.104 `OV8` / `u9_`) — treat as
+      // watchdog so we share the same fallback / partial-yield path.
+      if (
+        !streamIdleAborted &&
+        streamingError instanceof StreamIdleTimeoutError
+      ) {
+        streamIdleAborted = true
+        streamWatchdogFiredAt = performance.now()
+        logForDebugging(
+          `Streaming idle timeout (byte-level): ${streamingError.message}, aborting stream`,
+          { level: 'error' },
+        )
+        logForDiagnosticsNoPII('error', 'cli_streaming_idle_timeout')
+        logEvent('tengu_streaming_idle_timeout', {
+          model:
+            options.model as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
+          request_id: (streamRequestId ??
+            'unknown') as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
+          timeout_ms: streamingError.idleMs,
+          tier: 'byte' as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
+        })
+      }
+
       // Instrumentation: if the watchdog had already fired and the for-await
       // threw (rather than exiting cleanly), record that the loop DID exit and
       // how long after the watchdog. Distinguishes true hangs from error exits.
@@ -2495,21 +2523,51 @@ async function* queryModel(
           'tengu_disable_streaming_to_non_streaming_fallback',
           false,
         )
+      const fallbackCause = (streamIdleAborted
+        ? 'watchdog'
+        : 'other') as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS
+      const fallbackError = streamIdleAborted
+        ? new Error(
+            newMessages.length > 0
+              ? 'Stream idle timeout - partial response received'
+              : 'Stream idle timeout - no chunks received',
+          )
+        : streamingError
+      const fallbackErrorName = (
+        fallbackError instanceof Error
+          ? fallbackError.name
+          : String(fallbackError)
+      ) as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS
+
+      // Already yielded assistant messages — do not non-stream-retry (would
+      // double-emit). Official 2.1.104 `fallback_cause: "partial_yield"`.
+      if (newMessages.length > 0) {
+        logEvent('tengu_streaming_fallback_to_non_streaming', {
+          model:
+            options.model as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
+          error: fallbackErrorName,
+          attemptNumber,
+          maxOutputTokens,
+          thinkingType:
+            thinkingConfig.type as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
+          fallback_disabled: disableFallback,
+          request_id: (streamRequestId ??
+            'unknown') as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
+          fallback_cause:
+            'partial_yield' as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
+        })
+        throw fallbackError
+      }
 
       if (disableFallback) {
         logForDebugging(
-          `Error streaming (non-streaming fallback disabled): ${errorMessage(streamingError)}`,
+          `Error streaming (non-streaming fallback disabled): ${errorMessage(fallbackError)}`,
           { level: 'error' },
         )
         logEvent('tengu_streaming_fallback_to_non_streaming', {
           model:
             options.model as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-          error:
-            streamingError instanceof Error
-              ? (streamingError.name as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS)
-              : (String(
-                  streamingError,
-                ) as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS),
+          error: fallbackErrorName,
           attemptNumber,
           maxOutputTokens,
           thinkingType:
@@ -2517,15 +2575,13 @@ async function* queryModel(
           fallback_disabled: true,
           request_id: (streamRequestId ??
             'unknown') as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-          fallback_cause: (streamIdleAborted
-            ? 'watchdog'
-            : 'other') as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
+          fallback_cause: fallbackCause,
         })
-        throw streamingError
+        throw fallbackError
       }
 
       logForDebugging(
-        `Error streaming, falling back to non-streaming mode: ${errorMessage(streamingError)}`,
+        `Error streaming, falling back to non-streaming mode: ${errorMessage(fallbackError)}`,
         { level: 'error' },
       )
       didFallBackToNonStreaming = true
@@ -2536,12 +2592,7 @@ async function* queryModel(
       logEvent('tengu_streaming_fallback_to_non_streaming', {
         model:
           options.model as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-        error:
-          streamingError instanceof Error
-            ? (streamingError.name as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS)
-            : (String(
-                streamingError,
-              ) as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS),
+        error: fallbackErrorName,
         attemptNumber,
         maxOutputTokens,
         thinkingType:
@@ -2549,9 +2600,7 @@ async function* queryModel(
         fallback_disabled: false,
         request_id: (streamRequestId ??
           'unknown') as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-        fallback_cause: (streamIdleAborted
-          ? 'watchdog'
-          : 'other') as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
+        fallback_cause: fallbackCause,
       })
 
       // Fall back to non-streaming mode with retries.
@@ -2567,9 +2616,7 @@ async function* queryModel(
           'unknown') as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
         model:
           options.model as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-        fallback_cause: (streamIdleAborted
-          ? 'watchdog'
-          : 'other') as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
+        fallback_cause: fallbackCause,
       })
       const result = yield* executeNonStreamingRequest(
         { model: options.model, source: options.querySource },
