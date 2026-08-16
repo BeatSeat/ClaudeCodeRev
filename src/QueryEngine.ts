@@ -78,6 +78,8 @@ import {
 } from './utils/processUserInput/processUserInput.js'
 import { fetchSystemPromptParts } from './utils/queryContext.js'
 import { setCwd } from './utils/Shell.js'
+import { createBashRerunAliases } from './utils/bash/rerunAliases.js'
+import { createToolResultDedupState } from './utils/toolResultDedup.js'
 import {
   flushSessionStorage,
   recordTranscript,
@@ -206,6 +208,8 @@ export class QueryEngine {
   // many turns in SDK mode.
   private discoveredSkillNames = new Set<string>()
   private loadedNestedMemoryPaths = new Set<string>()
+  private bashRerunAliases = createBashRerunAliases()
+  private resultDedupState = createToolResultDedupState()
   private transcriptCursor = 0
 
   private recordTranscriptDelta(messages: Message[]): ReturnType<
@@ -394,6 +398,8 @@ export class QueryEngine {
       loadedNestedMemoryPaths: this.loadedNestedMemoryPaths,
       dynamicSkillDirTriggers: new Set<string>(),
       discoveredSkillNames: this.discoveredSkillNames,
+      bashRerunAliases: this.bashRerunAliases,
+      resultDedupState: this.resultDedupState,
       setInProgressToolUseIDs: () => {},
       setResponseLength: () => {},
       updateFileHistoryState: (
@@ -623,6 +629,8 @@ export class QueryEngine {
       loadedNestedMemoryPaths: this.loadedNestedMemoryPaths,
       dynamicSkillDirTriggers: new Set<string>(),
       discoveredSkillNames: this.discoveredSkillNames,
+      bashRerunAliases: this.bashRerunAliases,
+      resultDedupState: this.resultDedupState,
       setInProgressToolUseIDs: () => {},
       setResponseLength: () => {},
       updateFileHistoryState: processUserInputContext.updateFileHistoryState,

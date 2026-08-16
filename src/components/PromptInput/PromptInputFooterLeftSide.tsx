@@ -452,6 +452,7 @@ function ModeIndicator({
         hasAnyInProcessTeammates,
         hasRunningAgentTasks,
         isKillAgentsConfirmShowing,
+        hasSelection,
       )
     : []
 
@@ -645,6 +646,7 @@ function getSpinnerHintParts(
   hasTeammates: boolean,
   hasRunningAgentTasks: boolean,
   isKillAgentsConfirmShowing: boolean,
+  hasSelection: boolean,
 ): React.ReactElement[] {
   let toggleAction: string
   if (hasTeammates) {
@@ -669,7 +671,7 @@ function getSpinnerHintParts(
   const showToggleHint = hasTaskItems || hasTeammates
 
   return [
-    ...(isLoading
+    ...(isLoading && !hasSelection
       ? [
           <Text dimColor key="esc">
             <KeyboardShortcutHint shortcut={escShortcut} action="interrupt" />

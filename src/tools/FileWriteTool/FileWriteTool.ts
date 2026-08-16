@@ -16,7 +16,7 @@ import type { ToolUseContext } from '../../Tool.js'
 import { buildTool, type ToolDef } from '../../Tool.js'
 import { getCwd } from '../../utils/cwd.js'
 import { logForDebugging } from '../../utils/debug.js'
-import { countLinesChanged, getPatchForDisplay } from '../../utils/diff.js'
+import { countLinesChanged, getPatchFromContents } from '../../utils/diff.js'
 import { isEnvTruthy } from '../../utils/envUtils.js'
 import { isENOENT } from '../../utils/errors.js'
 import { getFileModificationTime, writeTextContent } from '../../utils/file.js'
@@ -375,16 +375,11 @@ export const FileWriteTool = buildTool({
     }
 
     if (oldContent) {
-      const patch = getPatchForDisplay({
+      const patch = getPatchFromContents({
         filePath: file_path,
-        fileContents: oldContent,
-        edits: [
-          {
-            old_string: oldContent,
-            new_string: content,
-            replace_all: false,
-          },
-        ],
+        oldContent,
+        newContent: content,
+        convertTabs: true,
       })
 
       const data = {
