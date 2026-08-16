@@ -2636,6 +2636,12 @@ async function* executeHooks({
           return
         }
 
+        if (result.status === 2 && !processed.blockingError) {
+          processed.blockingError = {
+            blockingError: `[${hookCommand}]: ${result.stderr || 'No stderr output'}`,
+            command: hookCommand,
+          }
+        }
         emitHookResponse({
           hookId,
           hookName,
@@ -2648,7 +2654,7 @@ async function* executeHooks({
         })
         yield {
           ...processed,
-          outcome: 'success' as const,
+          outcome: processed.blockingError ? 'blocking' : 'success',
           hook,
         }
         return

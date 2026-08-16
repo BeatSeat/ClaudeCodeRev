@@ -43,6 +43,9 @@ import {
 } from './toolResultStorage.js'
 import { createAgentId } from './uuid.js'
 
+/** Official 2.1.90 CfK — default fork turn cap when the caller omits maxTurns. */
+const DEFAULT_FORK_MAX_TURNS = 50
+
 /**
  * Parameters that must be identical between the fork and parent API requests
  * to share the parent's prompt cache. The Anthropic API cache key is composed of:
@@ -101,7 +104,7 @@ export type ForkedAgentParams = {
    * sharing is not a goal (e.g., compact summaries).
    */
   maxOutputTokens?: number
-  /** Optional cap on number of turns (API round-trips) */
+  /** Optional cap on number of turns (API round-trips). Official 2.1.90 CfK defaults this to 50. */
   maxTurns?: number
   /** Optional callback invoked for each message as it arrives (for streaming UI) */
   onMessage?: (message: Message) => void
@@ -502,6 +505,8 @@ export async function runForkedAgent({
   const startTime = Date.now()
   const outputMessages: Message[] = []
   let totalUsage: NonNullableUsage = { ...EMPTY_USAGE }
+  const effectiveMaxTurns = maxTurns ?? DEFAULT_FORK_MAX_TURNS
+  let assistantTurnCount = 0
 
   const {
     systemPrompt,
@@ -551,7 +556,7 @@ export async function runForkedAgent({
       toolUseContext: isolatedToolUseContext,
       querySource,
       maxOutputTokensOverride: maxOutputTokens,
-      maxTurns,
+      maxTurns: effectiveMaxTurns,
       skipCacheWrite,
     })) {
       // Extract real usage from message_delta stream events (final usage per API call)
@@ -568,6 +573,9 @@ export async function runForkedAgent({
       }
       if (message.type === 'stream_request_start') {
         continue
+      }
+      if (message.type === 'assistant') {
+        assistantTurnCount++
       }
 
       logForDebugging(
@@ -608,6 +616,19 @@ export async function runForkedAgent({
   )
 
   const durationMs = Date.now() - startTime
+
+  if (
+    maxTurns === undefined &&
+    assistantTurnCount >= DEFAULT_FORK_MAX_TURNS
+  ) {
+    logEvent('tengu_forked_agent_default_turns_exceeded', {
+      forkLabel:
+        forkLabel as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
+      querySource:
+        querySource as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
+      turnCount: assistantTurnCount,
+    })
+  }
 
   // Log the fork query metrics with full NonNullableUsage
   logForkAgentQueryEvent({

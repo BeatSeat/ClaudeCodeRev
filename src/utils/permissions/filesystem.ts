@@ -12,7 +12,11 @@ import {
   GLOBAL_CLAUDE_FOLDER_PERMISSION_PATTERN,
 } from 'src/tools/FileEditTool/constants.js'
 import type { z } from 'zod/v4'
-import { getOriginalCwd, getSessionId } from '../../bootstrap/state.js'
+import {
+  getMemoryToggledOff,
+  getOriginalCwd,
+  getSessionId,
+} from '../../bootstrap/state.js'
 import { checkStatsigFeatureGate_CACHED_MAY_BE_STALE } from '../../services/analytics/growthbook.js'
 import type { AnyObject, Tool, ToolPermissionContext } from '../../Tool.js'
 import { FILE_READ_TOOL_NAME } from '../../tools/FileReadTool/prompt.js'
@@ -76,6 +80,7 @@ export const DANGEROUS_DIRECTORIES = [
   '.vscode',
   '.idea',
   '.claude',
+  '.husky',
 ] as const
 
 /**
@@ -1570,6 +1575,17 @@ export function checkEditableInternalPath(
   // permission flow (step 5 → ask). SDK callers who want silent memory should
   // pass an allow rule for the override path.
   if (!hasAutoMemPathOverride() && isAutoMemPath(normalizedPath)) {
+    if (getMemoryToggledOff()) {
+      return {
+        behavior: 'deny',
+        message:
+          'Cannot write to memory while it is toggled off. Run /toggle-memory to re-enable automemory.',
+        decisionReason: {
+          type: 'other',
+          reason: 'memory access blocked by /toggle-memory',
+        },
+      }
+    }
     return {
       behavior: 'allow',
       updatedInput: input,
@@ -1714,6 +1730,17 @@ export function checkReadableInternalPath(
 
   // Memdir directory (persistent memory for cross-session learning)
   if (isAutoMemPath(normalizedPath)) {
+    if (getMemoryToggledOff()) {
+      return {
+        behavior: 'deny',
+        message:
+          'Cannot read memory while it is toggled off. Run /toggle-memory to re-enable automemory.',
+        decisionReason: {
+          type: 'other',
+          reason: 'memory access blocked by /toggle-memory',
+        },
+      }
+    }
     return {
       behavior: 'allow',
       updatedInput: input,
