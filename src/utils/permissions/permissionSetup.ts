@@ -34,6 +34,7 @@ const autoModeStateModule = feature('TRANSCRIPT_CLASSIFIER')
   : null
 
 import { resolve } from 'path'
+import { expandPath } from '../path.js'
 import {
   checkSecurityRestrictionGate,
   checkStatsigFeatureGate_CACHED_MAY_BE_STALE,
@@ -990,10 +991,17 @@ export async function initializeToolPermissionContext({
     rulesFromDisk,
   )
 
-  // Add directories from settings and --add-dir
+  // Settings dirs are localSettings so mid-session settings edits can
+  // add/remove them without touching --add-dir (cliArg) isolation.
   const allAdditionalDirectories = [
-    ...(settings.permissions?.additionalDirectories || []),
-    ...addDirs,
+    ...(settings.permissions?.additionalDirectories || []).map(dir => ({
+      dir,
+      destination: 'localSettings' as const,
+    })),
+    ...addDirs.map(dir => ({
+      dir,
+      destination: 'cliArg' as const,
+    })),
   ]
   // Parallelize fs validation; apply updates serially (cumulative context).
   // validateDirectoryForWorkspace only reads permissionContext to check if the
@@ -1001,16 +1009,17 @@ export async function initializeToolPermissionContext({
   // (two overlapping --add-dirs both succeed instead of one being flagged
   // alreadyInWorkingDirectory, which was silently skipped anyway).
   const validationResults = await Promise.all(
-    allAdditionalDirectories.map(dir =>
-      validateDirectoryForWorkspace(dir, toolPermissionContext),
-    ),
+    allAdditionalDirectories.map(async ({ dir, destination }) => ({
+      destination,
+      result: await validateDirectoryForWorkspace(dir, toolPermissionContext),
+    })),
   )
-  for (const result of validationResults) {
+  for (const { result, destination } of validationResults) {
     if (result.resultType === 'success') {
       toolPermissionContext = applyPermissionUpdate(toolPermissionContext, {
         type: 'addDirectories',
         directories: [result.absolutePath],
-        destination: 'cliArg',
+        destination,
       })
     } else if (
       result.resultType !== 'alreadyInWorkingDirectory' &&
@@ -1428,6 +1437,61 @@ export async function checkAndDisableBypassPermissions(
   )
 
   void gracefulShutdown(1, 'bypass_permissions_disabled')
+}
+
+function isIsolatedDirectorySource(
+  source: string | undefined,
+): boolean {
+  return source === 'cliArg' || source === 'command' || source === 'session'
+}
+
+function normalizeAdditionalDirectory(dir: string): string {
+  return resolve(expandPath(dir))
+}
+
+/**
+ * Apply a settings additionalDirectories set-diff without revoking
+ * --add-dir / command / session directories.
+ */
+export function syncAdditionalDirectoriesFromSettings(
+  context: ToolPermissionContext,
+  previousDirs: string[] | undefined,
+  nextDirs: string[] | undefined,
+): ToolPermissionContext {
+  const previous = new Set(
+    (previousDirs ?? []).map(normalizeAdditionalDirectory),
+  )
+  const next = new Set((nextDirs ?? []).map(normalizeAdditionalDirectory))
+  const current = context.additionalWorkingDirectories
+  const toRemove = [...previous].filter(
+    dir =>
+      !next.has(dir) && !isIsolatedDirectorySource(current.get(dir)?.source),
+  )
+  const toAdd = [...next].filter(
+    dir =>
+      !previous.has(dir) &&
+      !isIsolatedDirectorySource(current.get(dir)?.source),
+  )
+  if (toRemove.length === 0 && toAdd.length === 0) {
+    return context
+  }
+
+  let updated = context
+  if (toRemove.length > 0) {
+    updated = applyPermissionUpdate(updated, {
+      type: 'removeDirectories',
+      directories: toRemove,
+      destination: 'localSettings',
+    })
+  }
+  if (toAdd.length > 0) {
+    updated = applyPermissionUpdate(updated, {
+      type: 'addDirectories',
+      directories: toAdd,
+      destination: 'localSettings',
+    })
+  }
+  return updated
 }
 
 export function isDefaultPermissionModeAuto(): boolean {

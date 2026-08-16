@@ -50,6 +50,9 @@ export type LogSelectorProps = {
   onLogsChanged?: () => void
   onLoadMore?: (count: number) => void
   initialSearchQuery?: string
+  isLoading?: boolean
+  /** Increments on Ctrl+A reload so this instance stays mounted (search/focus survive). */
+  reloadGeneration?: number
   showAllProjects?: boolean
   onToggleAllProjects?: () => void
   onAgenticSearch?: (
@@ -182,6 +185,8 @@ export function LogSelector({
   onLogsChanged,
   onLoadMore,
   initialSearchQuery,
+  isLoading = false,
+  reloadGeneration = 0,
   showAllProjects = false,
   onToggleAllProjects,
   onAgenticSearch,
@@ -247,6 +252,12 @@ export function LogSelector({
     passthroughCtrlKeys: ['n'],
     initialQuery: initialSearchQuery || '',
   })
+
+  React.useEffect(() => {
+    if (reloadGeneration === 0) return
+    agenticSearchAbortRef.current?.abort()
+    setAgenticSearchState({ status: 'idle' })
+  }, [reloadGeneration])
 
   // Debounce transcript search for performance (title search is instant)
   const deferredSearchQuery = React.useDeferredValue(searchQuery)
@@ -1063,6 +1074,7 @@ export function LogSelector({
                 ({focusedIndex} of {displayedLogs.length})
               </Text>
             )}
+            {isLoading && <Text dimColor> · Refreshing…</Text>}
           </Text>
         </Box>
       )}

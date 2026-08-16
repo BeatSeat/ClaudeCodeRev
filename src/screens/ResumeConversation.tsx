@@ -111,6 +111,7 @@ export function ResumeConversation({
   const setAppState = useSetAppState()
   const [logs, setLogs] = React.useState<LogOption[]>([])
   const [loading, setLoading] = React.useState(true)
+  const [reloadGeneration, setReloadGeneration] = React.useState(0)
   const [resuming, setResuming] = React.useState(false)
   const [showAllProjects, setShowAllProjects] = React.useState(false)
   const [resumeData, setResumeData] = React.useState<{
@@ -185,6 +186,7 @@ export function ResumeConversation({
   const loadLogs = React.useCallback(
     (allProjects: boolean) => {
       setLoading(true)
+      setReloadGeneration(n => n + 1)
       const promise = allProjects
         ? loadAllProjectsMessageLogsProgressive()
         : loadSameRepoMessageLogsProgressive(worktreePaths)
@@ -384,7 +386,7 @@ export function ResumeConversation({
     )
   }
 
-  if (loading) {
+  if (loading && (logs.length === 0 || filteredLogs.length === 0)) {
     return (
       <Box>
         <Spinner />
@@ -402,7 +404,7 @@ export function ResumeConversation({
     )
   }
 
-  if (filteredLogs.length === 0) {
+  if (filteredLogs.length === 0 && !loading) {
     return <NoConversationsMessage />
   }
 
@@ -417,6 +419,8 @@ export function ResumeConversation({
       }
       onLoadMore={loadMoreLogs}
       initialSearchQuery={initialSearchQuery}
+      isLoading={loading}
+      reloadGeneration={reloadGeneration}
       showAllProjects={showAllProjects}
       onToggleAllProjects={handleToggleAllProjects}
       onAgenticSearch={agenticSessionSearch}

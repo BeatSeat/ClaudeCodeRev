@@ -15,7 +15,8 @@ import { dirname, join } from 'path'
 import { getOriginalCwd } from '../../bootstrap/state.js'
 import { isBuiltinPluginId } from '../../plugins/builtinPlugins.js'
 import type { LoadedPlugin, PluginManifest } from '../../types/plugin.js'
-import { isENOENT, toError } from '../../utils/errors.js'
+import { logForDebugging } from '../../utils/debug.js'
+import { errorMessage, isENOENT, toError } from '../../utils/errors.js'
 import { getFsImplementation } from '../../utils/fsOperations.js'
 import { logError } from '../../utils/log.js'
 import {
@@ -36,6 +37,7 @@ import {
   getMarketplace,
   getPluginById,
   loadKnownMarketplacesConfig,
+  refreshMarketplace,
 } from '../../utils/plugins/marketplaceManager.js'
 import { deletePluginDataDir } from '../../utils/plugins/pluginDirectories.js'
 import {
@@ -834,6 +836,29 @@ export async function updatePluginOp(
   const { name: pluginName, marketplace: marketplaceName } =
     parsePluginIdentifier(plugin)
   const pluginId = marketplaceName ? `${pluginName}@${marketplaceName}` : plugin
+
+  if (marketplaceName) {
+    const marketplaceSource = (await loadKnownMarketplacesConfig())[
+      marketplaceName
+    ]?.source
+    if (
+      marketplaceSource &&
+      (marketplaceSource.source === 'github' ||
+        marketplaceSource.source === 'git' ||
+        marketplaceSource.source === 'url')
+    ) {
+      try {
+        await refreshMarketplace(marketplaceName, undefined, {
+          skipIfRecent: true,
+        })
+      } catch (error) {
+        logForDebugging(
+          `Failed to refresh marketplace '${marketplaceName}' before update; using cached data: ${errorMessage(error)}`,
+          { level: 'warn' },
+        )
+      }
+    }
+  }
 
   // Get plugin info from marketplace
   const pluginInfo = await getPluginById(plugin)

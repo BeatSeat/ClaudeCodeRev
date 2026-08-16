@@ -2374,7 +2374,7 @@ export async function refreshAllMarketplaces(): Promise<void> {
 export async function refreshMarketplace(
   name: string,
   onProgress?: MarketplaceProgressCallback,
-  options?: { disableCredentialHelper?: boolean },
+  options?: { disableCredentialHelper?: boolean; skipIfRecent?: boolean },
 ): Promise<void> {
   const config = await loadKnownMarketplacesConfig()
   const entry = config[name]
@@ -2383,6 +2383,16 @@ export async function refreshMarketplace(
     throw new Error(
       `Marketplace '${name}' not found. Available marketplaces: ${Object.keys(config).join(', ')}`,
     )
+  }
+
+  if (options?.skipIfRecent && entry.lastUpdated) {
+    const elapsed = Date.now() - new Date(entry.lastUpdated).getTime()
+    if (elapsed >= 0 && elapsed < 30_000) {
+      logForDebugging(
+        `Skipping refresh for marketplace '${name}' — refreshed ${Math.round(elapsed / 1000)}s ago`,
+      )
+      return
+    }
   }
 
   // Clear the memoization cache for this specific marketplace

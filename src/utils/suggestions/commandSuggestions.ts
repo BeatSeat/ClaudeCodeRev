@@ -104,7 +104,7 @@ export type MidInputSlashCommand = {
 
 /**
  * Finds a slash command token that appears mid-input (not at position 0).
- * A mid-input slash command is a "/" preceded by whitespace, where the cursor
+ * A mid-input slash command is a "/" preceded by whitespace or CJK punctuation, where the cursor
  * is at or after the "/".
  *
  * @param input The full input string
@@ -120,15 +120,15 @@ export function findMidInputSlashCommand(
     return null
   }
 
-  // Look backwards from cursor to find a "/" preceded by whitespace
+  // Look backwards from cursor to find a "/" preceded by whitespace or CJK punctuation
   const beforeCursor = input.slice(0, cursorOffset)
 
   // Find the last "/" in the text before cursor
-  // Pattern: whitespace followed by "/" then optional alphanumeric/dash characters.
+  // Pattern: whitespace/CJK punctuation followed by "/" then optional alphanumeric/dash characters.
   // Lookbehind (?<=\s) is avoided — it defeats YARR JIT in JSC, and the
   // interpreter scans O(n) even with the $ anchor. Capture the whitespace
   // instead and offset match.index by 1.
-  const match = beforeCursor.match(/\s\/([a-zA-Z0-9_:-]*)$/)
+  const match = beforeCursor.match(/[\s。、？！]\/([a-zA-Z0-9_:-]*)$/)
   if (!match || match.index === undefined) {
     return null
   }
@@ -546,15 +546,15 @@ function cleanWord(word: string) {
 /**
  * Find all /command patterns in text for highlighting.
  * Returns array of {start, end} positions.
- * Requires whitespace or start-of-string before the slash to avoid
- * matching paths like /usr/bin.
+ * Requires whitespace, CJK punctuation, or start-of-string before the slash
+ * to avoid matching paths like /usr/bin.
  */
 export function findSlashCommandPositions(
   text: string,
 ): Array<{ start: number; end: number }> {
   const positions: Array<{ start: number; end: number }> = []
-  // Match /command patterns preceded by whitespace or start-of-string
-  const regex = /(^|[\s])(\/[a-zA-Z][a-zA-Z0-9:\-_]*)/g
+  // Match /command patterns preceded by whitespace, CJK punctuation, or start-of-string
+  const regex = /(^|[\s。、？！])(\/[a-zA-Z][a-zA-Z0-9:\-_]*)/g
   let match: RegExpExecArray | null = null
   while ((match = regex.exec(text)) !== null) {
     const precedingChar = match[1] ?? ''

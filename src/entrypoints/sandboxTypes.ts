@@ -35,6 +35,20 @@ export const SandboxNetworkConfigSchema = lazySchema(() =>
           'If true, allow all Unix sockets (disables blocking on both platforms).',
         ),
       allowLocalBinding: z.boolean().optional(),
+      allowMachLookup: z
+        .array(
+          z.string().refine(
+            value => {
+              const prefix = value.endsWith('*') ? value.slice(0, -1) : value
+              return !prefix.includes('*')
+            },
+            {
+              message:
+                'Wildcards are only allowed as a single trailing "*" (e.g. "com.example.*")',
+            },
+          ),
+        )
+        .optional(),
       httpProxyPort: z.number().optional(),
       socksProxyPort: z.number().optional(),
     })

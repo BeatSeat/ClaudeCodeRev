@@ -132,10 +132,33 @@ export type NormalizedMessage = Message
 // --- Rendering ---
 export type CollapsedReadSearchGroup = {
   type: 'collapsed_read_search'; messages: Message[]; uuid: string
+  timestamp?: string
+  displayMessage?: Message | CollapsedReadSearchGroup | GroupedToolUseMessage
   searchCount: number; readCount: number; listCount: number
   replCount?: number; memorySearchCount?: number; memoryReadCount?: number; memoryWriteCount?: number
   relevantMemories?: Array<{ path: string; content?: string }>
   hookInfos?: StopHookInfo[]
+  hookCount?: number
+  hookTotalMs?: number
+  mcpCallCount?: number
+  mcpServerNames?: string[]
+  bashCount?: number
+  gitOpBashCount?: number
+  otherToolCount?: number
+  editFileCount?: number
+  linesAdded?: number
+  linesRemoved?: number
+  pendingText?: string
+  latestDisplayHint?: string
+  readFilePaths?: string[]
+  searchArgs?: string[]
+  commits?: Array<{ sha: string; kind: string }>
+  pushes?: Array<{ branch: string }>
+  branches?: Array<{ ref: string; action: string }>
+  prs?: Array<{ number: number; url?: string; action: string }>
+  teamMemorySearchCount?: number
+  teamMemoryReadCount?: number
+  teamMemoryWriteCount?: number
 }
 export type GroupedToolUseMessage = {
   type: 'grouped_tool_use'; messages: Message[]; uuid: string

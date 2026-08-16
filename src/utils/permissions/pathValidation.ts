@@ -422,7 +422,7 @@ export function validatePath(
   // by the shell during execution, creating a TOCTOU vulnerability
   if (
     cleanPath.includes('$') ||
-    cleanPath.includes('%') ||
+    (getPlatform() === 'windows' && cleanPath.includes('%')) ||
     cleanPath.startsWith('=')
   ) {
     return {

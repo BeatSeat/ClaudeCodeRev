@@ -65,7 +65,18 @@ export const MCPTool = buildTool({
   renderToolUseProgressMessage,
   renderToolResultMessage,
   isResultTruncated(output: Output): boolean {
-    return isOutputLineTruncated(output)
+    if (typeof output === 'string') return isOutputLineTruncated(output)
+    if (Array.isArray(output)) {
+      return output.some(
+        block =>
+          typeof block === 'object' &&
+          block !== null &&
+          (block as { type?: string }).type === 'text' &&
+          typeof (block as { text?: unknown }).text === 'string' &&
+          isOutputLineTruncated((block as { text: string }).text),
+      )
+    }
+    return false
   },
   mapToolResultToToolResultBlockParam(content, toolUseID) {
     return {

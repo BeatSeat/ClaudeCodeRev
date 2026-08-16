@@ -6,6 +6,7 @@
 /// <reference lib="dom" />
 
 import { extname } from 'path'
+import { registerExtraLanguages } from './highlighter/extraLanguages.js'
 
 export type CliHighlight = {
   highlight: typeof import('cli-highlight').highlight
@@ -24,7 +25,12 @@ async function loadCliHighlight(): Promise<CliHighlight | null> {
   try {
     const cliHighlight = await import('cli-highlight')
     // cache hit — cli-highlight already loaded highlight.js
-    const highlightJs = await import('highlight.js')
+    const highlightJsMod = await import('highlight.js')
+    const highlightJs =
+      'default' in highlightJsMod && highlightJsMod.default
+        ? highlightJsMod.default
+        : highlightJsMod
+    registerExtraLanguages(highlightJs)
     loadedGetLanguage = highlightJs.getLanguage
     return {
       highlight: cliHighlight.highlight,

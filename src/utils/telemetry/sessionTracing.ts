@@ -11,7 +11,12 @@
  */
 
 import { feature } from 'bun:bundle'
-import { context as otelContext, type Span, trace } from '@opentelemetry/api'
+import {
+  context as otelContext,
+  type Span,
+  propagation,
+  trace,
+} from '@opentelemetry/api'
 import { AsyncLocalStorage } from 'async_hooks'
 import { getFeatureValue_CACHED_MAY_BE_STALE } from '../../services/analytics/growthbook.js'
 import type { AssistantMessage, UserMessage } from '../../types/message.js'
@@ -145,8 +150,35 @@ export function isEnhancedTelemetryEnabled(): boolean {
 /**
  * Check if any tracing is enabled (either standard enhanced telemetry OR beta tracing)
  */
-function isAnyTracingEnabled(): boolean {
+export function isAnyTracingEnabled(): boolean {
   return isEnhancedTelemetryEnabled() || isBetaTracingEnabled()
+}
+
+const ZERO_TRACE_ID = '00000000000000000000000000000000'
+
+/**
+ * W3C TRACEPARENT for child processes (Bash). Uses the current interaction,
+ * tool, or active span when tracing is on and the traceId is real.
+ */
+export function getW3CTraceparent(): string | undefined {
+  if (!isAnyTracingEnabled()) {
+    return
+  }
+  const span =
+    interactionContext.getStore()?.span ??
+    toolContext.getStore()?.span ??
+    trace.getActiveSpan()
+  if (!span) {
+    return
+  }
+  const spanContext = span.spanContext()
+  if (!spanContext.traceId || spanContext.traceId === ZERO_TRACE_ID) {
+    return
+  }
+  const ctx = trace.setSpan(otelContext.active(), span)
+  const carrier: Record<string, string> = {}
+  propagation.inject(ctx, carrier)
+  return carrier.traceparent
 }
 
 function getTracer() {

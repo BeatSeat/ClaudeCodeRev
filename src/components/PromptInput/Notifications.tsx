@@ -16,6 +16,7 @@ import { useVoiceEnabled } from '../../hooks/useVoiceEnabled.js'
 import { Box, Text } from '../../ink.js'
 import { useClaudeAiLimits } from '../../services/claudeAiLimitsHook.js'
 import { calculateTokenWarningState } from '../../services/compact/autoCompact.js'
+import { useCompactWarningSuppression } from '../../services/compact/compactWarningHook.js'
 import type { MCPServerConnection } from '../../services/mcp/types.js'
 import type { Message } from '../../types/message.js'
 import {
@@ -109,6 +110,12 @@ export function Notifications({
   const notifications = useAppState(s => s.notifications)
   const { addNotification, removeNotification } = useNotifications()
   const claudeAiLimits = useClaudeAiLimits()
+  const suppressTokenWarning = useCompactWarningSuppression()
+  const isBriefOnly =
+    feature('KAIROS') || feature('KAIROS_BRIEF')
+      ? // biome-ignore lint/correctness/useHookAtTopLevel: feature() is a compile-time constant
+        useAppState(s => s.isBriefOnly)
+      : false
 
   // Register env hook notifier for CwdChanged/FileChanged feedback
   useEffect(() => {
@@ -176,6 +183,28 @@ export function Notifications({
   }, [
     shouldShowExternalEditorHint,
     editor,
+    addNotification,
+    removeNotification,
+  ])
+
+  useEffect(() => {
+    if (isShowingCompactMessage && !suppressTokenWarning && !isBriefOnly) {
+      addNotification({
+        key: 'token-warning',
+        jsx: <TokenWarning tokenUsage={tokenUsage} model={mainLoopModel} />,
+        priority: 'medium',
+        timeoutMs: 18_000_000,
+        fold: (_a, b) => b,
+      })
+    } else {
+      removeNotification('token-warning')
+    }
+  }, [
+    isShowingCompactMessage,
+    suppressTokenWarning,
+    isBriefOnly,
+    tokenUsage,
+    mainLoopModel,
     addNotification,
     removeNotification,
   ])
@@ -299,12 +328,6 @@ function NotificationContent({
     ? // biome-ignore lint/correctness/useHookAtTopLevel: feature() is a compile-time constant
       useVoiceState(s => s.voiceError)
     : null
-  const isBriefOnly =
-    feature('KAIROS') || feature('KAIROS_BRIEF')
-      ? // biome-ignore lint/correctness/useHookAtTopLevel: feature() is a compile-time constant
-        useAppState(s => s.isBriefOnly)
-      : false
-
   // When voice is actively recording or processing, replace all
   // notifications with just the voice indicator.
   if (
@@ -378,9 +401,6 @@ function NotificationContent({
             {uncachedHint}
           </Text>
         </Box>
-      )}
-      {!isBriefOnly && (
-        <TokenWarning tokenUsage={tokenUsage} model={mainLoopModel} />
       )}
       {shouldShowAutoUpdater && (
         <AutoUpdaterWrapper

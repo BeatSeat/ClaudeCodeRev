@@ -117,6 +117,7 @@ export function renderTruncatedContent(
  *  very long line that wraps past 3 visual rows — acceptable, since the common
  *  case is multi-line output. */
 export function isOutputLineTruncated(content: string): boolean {
+  if (typeof content !== 'string') return false
   let pos = 0
   // Need more than MAX_LINES_TO_SHOW newlines (content fills > 3 lines).
   // The +1 accounts for wrapText showing an extra line when remainingLines==1.

@@ -100,6 +100,15 @@ export async function getAnthropicClient({
   fetchOverride?: ClientOptions['fetch']
   source?: string
 }): Promise<Anthropic> {
+  for (const name of [
+    'AWS_BEARER_TOKEN_BEDROCK',
+    'ANTHROPIC_BEDROCK_BASE_URL',
+  ] as const) {
+    const value = process.env[name]
+    if (value !== undefined && value.trim() === '') {
+      delete process.env[name]
+    }
+  }
   const containerId = process.env.CLAUDE_CODE_CONTAINER_ID
   const remoteSessionId = process.env.CLAUDE_CODE_REMOTE_SESSION_ID
   const clientApp = process.env.CLAUDE_AGENT_SDK_CLIENT_APP

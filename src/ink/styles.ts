@@ -110,14 +110,14 @@ export type Styles = {
   readonly marginBottom?: number
 
   /**
-   * Left margin.
+   * Left margin. `'auto'` pushes the box to the trailing edge (official footer).
    */
-  readonly marginLeft?: number
+  readonly marginLeft?: number | 'auto'
 
   /**
    * Right margin.
    */
-  readonly marginRight?: number
+  readonly marginRight?: number | 'auto'
 
   /**
    * Padding on all sides. Equivalent to setting `paddingTop`, `paddingBottom`, `paddingLeft` and `paddingRight`.
@@ -465,11 +465,19 @@ const applyMarginStyles = (node: LayoutNode, style: Styles): void => {
   }
 
   if ('marginLeft' in style) {
-    node.setMargin(LayoutEdge.Start, style.marginLeft || 0)
+    if (style.marginLeft === 'auto') {
+      node.setMarginAuto(LayoutEdge.Start)
+    } else {
+      node.setMargin(LayoutEdge.Start, style.marginLeft || 0)
+    }
   }
 
   if ('marginRight' in style) {
-    node.setMargin(LayoutEdge.End, style.marginRight || 0)
+    if (style.marginRight === 'auto') {
+      node.setMarginAuto(LayoutEdge.End)
+    } else {
+      node.setMargin(LayoutEdge.End, style.marginRight || 0)
+    }
   }
 
   if ('marginTop' in style) {

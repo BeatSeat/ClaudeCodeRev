@@ -363,6 +363,7 @@ export function convertToSandboxRuntimeConfig(
       allowUnixSockets: settings.sandbox?.network?.allowUnixSockets,
       allowAllUnixSockets: settings.sandbox?.network?.allowAllUnixSockets,
       allowLocalBinding: settings.sandbox?.network?.allowLocalBinding,
+      allowMachLookup: settings.sandbox?.network?.allowMachLookup,
       httpProxyPort: settings.sandbox?.network?.httpProxyPort,
       socksProxyPort: settings.sandbox?.network?.socksProxyPort,
     },

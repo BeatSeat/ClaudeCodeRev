@@ -1,7 +1,9 @@
+import chalk from 'chalk'
 import { marked, type Token, type Tokens } from 'marked'
 import React, { Suspense, use, useMemo, useRef } from 'react'
 import { useSettings } from '../hooks/useSettings.js'
 import { Ansi, Box, useTheme } from '../ink.js'
+import type { ThemeName } from '../utils/theme.js'
 import {
   type CliHighlight,
   getCliHighlightPromise,
@@ -130,6 +132,17 @@ function MarkdownBody({
             highlight={highlight}
           />,
         )
+      } else if (token.type === 'blockquote') {
+        flushNonTableContent()
+        elements.push(
+          <MarkdownBlockquote
+            key={elements.length}
+            token={token as Tokens.Blockquote}
+            theme={theme}
+            highlight={highlight}
+            dimColor={dimColor}
+          />,
+        )
       } else {
         nonTableContent += formatToken(token, theme, 0, null, null, highlight)
       }
@@ -142,6 +155,37 @@ function MarkdownBody({
   return (
     <Box flexDirection="column" gap={1}>
       {elements}
+    </Box>
+  )
+}
+
+function MarkdownBlockquote({
+  token,
+  theme,
+  highlight,
+  dimColor,
+}: {
+  token: Tokens.Blockquote
+  theme: ThemeName
+  highlight: CliHighlight | null
+  dimColor?: boolean
+}): React.ReactNode {
+  const inner = chalk.italic(
+    (token.tokens ?? [])
+      .map(child => formatToken(child, theme, 0, null, null, highlight))
+      .join('')
+      .trim(),
+  )
+  return (
+    <Box
+      borderStyle="quote"
+      borderTop={false}
+      borderBottom={false}
+      borderRight={false}
+      borderDimColor
+      paddingLeft={1}
+    >
+      <Ansi dimColor={dimColor}>{inner}</Ansi>
     </Box>
   )
 }

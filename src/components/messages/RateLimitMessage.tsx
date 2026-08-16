@@ -18,6 +18,8 @@ type UpsellParams = {
   shouldAutoOpenRateLimitOptionsMenu: boolean
   isTeamOrEnterprise: boolean
   hasBillingAccess: boolean
+  serverHidesUpgrade?: boolean
+  serverHidesOverage?: boolean
 }
 
 export function getUpsellMessage({
@@ -27,40 +29,42 @@ export function getUpsellMessage({
   shouldAutoOpenRateLimitOptionsMenu,
   isTeamOrEnterprise,
   hasBillingAccess,
+  serverHidesUpgrade = false,
+  serverHidesOverage = false,
 }: UpsellParams): string | null {
   if (!shouldShowUpsell) return null
-
+  if (shouldAutoOpenRateLimitOptionsMenu) {
+    return 'Opening your options\u2026'
+  }
+  const extraUsageVisible = isExtraUsageCommandEnabled && !serverHidesOverage
   if (isMax20x) {
-    if (isExtraUsageCommandEnabled) {
+    if (extraUsageVisible) {
       return '/extra-usage to finish what you\u2019re working on.'
     }
     return '/login to switch to an API usage-billed account.'
   }
-
-  if (shouldAutoOpenRateLimitOptionsMenu) {
-    return 'Opening your options\u2026'
-  }
-
-  if (!isTeamOrEnterprise && !isExtraUsageCommandEnabled) {
-    return '/upgrade to increase your usage limit.'
-  }
-
   if (isTeamOrEnterprise) {
-    if (!isExtraUsageCommandEnabled) return null
-
+    if (!extraUsageVisible) return null
     if (hasBillingAccess) {
       return '/extra-usage to finish what you\u2019re working on.'
     }
-
     return '/extra-usage to request more usage from your admin.'
   }
-
+  if (serverHidesUpgrade) {
+    if (extraUsageVisible) {
+      return '/extra-usage to finish what you\u2019re working on.'
+    }
+    return null
+  }
+  if (!extraUsageVisible) {
+    return '/upgrade to increase your usage limit.'
+  }
   return '/upgrade or /extra-usage to finish what you\u2019re working on.'
 }
 
 type RateLimitMessageProps = {
   text: string
-  onOpenRateLimitOptions?: () => void
+  onOpenRateLimitOptions?: () => boolean
 }
 
 export function RateLimitMessage({
@@ -77,8 +81,11 @@ export function RateLimitMessage({
 
   const canSeeRateLimitOptionsUpsell = shouldShowUpsell && !isMax20x
 
-  const [hasOpenedInteractiveMenu, setHasOpenedInteractiveMenu] =
-    useState(false)
+  // pending → try auto-open once; opened → hide upsell; blocked → keep
+  // upsell but do not auto-open again (survives compact remount via REPL ref).
+  const [menuState, setMenuState] = useState<
+    'pending' | 'opened' | 'blocked'
+  >('pending')
 
   // Check actual rate limit status - only auto-open if user is currently rate limited
   // AND we've verified this with the API (resetsAt is only set after API response).
@@ -91,15 +98,15 @@ export function RateLimitMessage({
 
   const shouldAutoOpenRateLimitOptionsMenu =
     canSeeRateLimitOptionsUpsell &&
-    !hasOpenedInteractiveMenu &&
+    menuState === 'pending' &&
     isCurrentlyRateLimited &&
-    onOpenRateLimitOptions
+    !!onOpenRateLimitOptions
 
   useEffect(() => {
-    if (shouldAutoOpenRateLimitOptionsMenu) {
-      setHasOpenedInteractiveMenu(true)
-      onOpenRateLimitOptions()
+    if (!shouldAutoOpenRateLimitOptionsMenu || !onOpenRateLimitOptions) {
+      return
     }
+    setMenuState(onOpenRateLimitOptions() ? 'opened' : 'blocked')
   }, [shouldAutoOpenRateLimitOptionsMenu, onOpenRateLimitOptions])
 
   const upsell = useMemo(() => {
@@ -107,7 +114,7 @@ export function RateLimitMessage({
       shouldShowUpsell,
       isMax20x,
       isExtraUsageCommandEnabled: extraUsage.isEnabled(),
-      shouldAutoOpenRateLimitOptionsMenu: !!shouldAutoOpenRateLimitOptionsMenu,
+      shouldAutoOpenRateLimitOptionsMenu,
       isTeamOrEnterprise,
       hasBillingAccess: hasClaudeAiBillingAccess(),
     })
@@ -124,7 +131,7 @@ export function RateLimitMessage({
     <MessageResponse>
       <Box flexDirection="column">
         <Text color="error">{text}</Text>
-        {hasOpenedInteractiveMenu ? null : upsell}
+        {menuState === 'opened' ? null : upsell}
       </Box>
     </MessageResponse>
   )

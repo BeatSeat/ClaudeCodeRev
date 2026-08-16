@@ -22,6 +22,65 @@ type SessionEvent = {
   data: SDKMessage
 }
 
+export async function buildGitSessionContext(
+  gitRepoUrl: string | null,
+  branch: string,
+  defaultBranch?: string,
+): Promise<{ sources: GitSource[]; outcomes: GitOutcome[] }> {
+  if (!gitRepoUrl) {
+    return { sources: [], outcomes: [] }
+  }
+
+  const { parseGitRemote, parseGitHubRepository } = await import(
+    '../utils/detectRepository.js'
+  )
+  const { getDefaultBranch } = await import('../utils/git.js')
+
+  const make = (
+    host: string,
+    owner: string,
+    name: string,
+    revision: string | undefined,
+  ): { sources: GitSource[]; outcomes: GitOutcome[] } => ({
+    sources: [
+      {
+        type: 'git_repository',
+        url: `https://${host}/${owner}/${name}`,
+        revision,
+      },
+    ],
+    outcomes: [
+      {
+        type: 'git_repository',
+        git_info: {
+          type: 'github',
+          repo: `${owner}/${name}`,
+          branches: revision ? [revision] : [],
+        },
+      },
+    ],
+  })
+
+  const parsed = parseGitRemote(gitRepoUrl)
+  if (parsed) {
+    const revision =
+      branch || defaultBranch || (await getDefaultBranch()) || undefined
+    return make(parsed.host, parsed.owner, parsed.name, revision)
+  }
+
+  const ownerRepo = parseGitHubRepository(gitRepoUrl)
+  if (ownerRepo) {
+    const [owner, name] = ownerRepo.split('/')
+    if (owner && name) {
+      const revision =
+        branch || defaultBranch || (await getDefaultBranch()) || undefined
+      return make('github.com', owner, name, revision)
+    }
+  }
+
+  return { sources: [], outcomes: [] }
+}
+
 /**
  * Create a session on a bridge environment via POST /v1/sessions.
  *
@@ -56,9 +115,8 @@ export async function createBridgeSession({
   const { getOrganizationUUID } = await import('../services/oauth/client.js')
   const { getOauthConfig } = await import('../constants/oauth.js')
   const { getOAuthHeaders } = await import('../utils/teleport/api.js')
-  const { parseGitHubRepository } = await import('../utils/detectRepository.js')
-  const { getDefaultBranch } = await import('../utils/git.js')
   const { getMainLoopModel } = await import('../utils/model/model.js')
+  const { getOriginalCwd } = await import('../bootstrap/state.js')
   const { default: axios } = await import('axios')
 
   const accessToken =
@@ -74,61 +132,17 @@ export async function createBridgeSession({
     return null
   }
 
-  // Build git source and outcome context
-  let gitSource: GitSource | null = null
-  let gitOutcome: GitOutcome | null = null
-
-  if (gitRepoUrl) {
-    const { parseGitRemote } = await import('../utils/detectRepository.js')
-    const parsed = parseGitRemote(gitRepoUrl)
-    if (parsed) {
-      const { host, owner, name } = parsed
-      const revision = branch || (await getDefaultBranch()) || undefined
-      gitSource = {
-        type: 'git_repository',
-        url: `https://${host}/${owner}/${name}`,
-        revision,
-      }
-      gitOutcome = {
-        type: 'git_repository',
-        git_info: {
-          type: 'github',
-          repo: `${owner}/${name}`,
-          branches: [`claude/${branch || 'task'}`],
-        },
-      }
-    } else {
-      // Fallback: try parseGitHubRepository for owner/repo format
-      const ownerRepo = parseGitHubRepository(gitRepoUrl)
-      if (ownerRepo) {
-        const [owner, name] = ownerRepo.split('/')
-        if (owner && name) {
-          const revision = branch || (await getDefaultBranch()) || undefined
-          gitSource = {
-            type: 'git_repository',
-            url: `https://github.com/${owner}/${name}`,
-            revision,
-          }
-          gitOutcome = {
-            type: 'git_repository',
-            git_info: {
-              type: 'github',
-              repo: `${owner}/${name}`,
-              branches: [`claude/${branch || 'task'}`],
-            },
-          }
-        }
-      }
-    }
-  }
+  const { sources, outcomes } = await buildGitSessionContext(gitRepoUrl, branch)
 
   const requestBody = {
     ...(title !== undefined && { title }),
     events,
     session_context: {
-      sources: gitSource ? [gitSource] : [],
-      outcomes: gitOutcome ? [gitOutcome] : [],
+      sources,
+      outcomes,
       model: getMainLoopModel(),
+      cwd: getOriginalCwd(),
+      reuse_outcome_branches: true,
     },
     environment_id: environmentId,
     source: 'remote-control',
