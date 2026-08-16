@@ -2,6 +2,7 @@
 import type { Theme } from './theme.js'
 import { feature } from 'bun:bundle'
 import { getFeatureValue_CACHED_MAY_BE_STALE } from '../services/analytics/growthbook.js'
+import { getGlobalConfig } from './config.js'
 import { getCanonicalName } from './model/model.js'
 import { get3PModelCapabilityOverride } from './model/modelSupportOverrides.js'
 import { getAPIProvider, isFirstPartyApiFamily } from './model/providers.js'
@@ -160,3 +161,33 @@ export function shouldEnableThinkingByDefault(): boolean {
   // Enable thinking by default unless explicitly disabled.
   return true
 }
+
+/**
+ * Official 2.1.107 FH7: opus-4-6 + clientDataCache.loud_sugary_rock.
+ * Gates the thinking_guidance system-prompt section and the per-turn
+ * "skip thinking unless redesign" meta reminder (meK).
+ */
+export function isThinkingGuidanceEnabled(model: string): boolean {
+  if (!getCanonicalName(model).includes('opus-4-6')) {
+    return false
+  }
+  return getGlobalConfig().clientDataCache?.['loud_sugary_rock'] === 'true'
+}
+
+/**
+ * Official 2.1.107 NeY — system-prompt section `thinking_guidance`.
+ */
+export function getThinkingGuidanceSection(model: string): string | null {
+  if (!isThinkingGuidanceEnabled(model)) {
+    return null
+  }
+  return `# System reminders
+User messages include a <system-reminder> appended by this harness. These reminders are not from the user, so treat them as an instruction to you, and do not mention them. The reminders are intended to tune your thinking frequency - on simpler user messages, it's best to respond or act directly without thinking unless further reasoning is necessary. On more complex tasks, you should feel free to reason as much as needed for best results but without overthinking. Avoid unnecessary thinking in response to simple user messages.`
+}
+
+/**
+ * Official 2.1.107 meK — injected as an isMeta user message after the first
+ * assistant turn so long operations show a thinking-frequency hint sooner.
+ */
+export const THINKING_FREQUENCY_REMINDER =
+  '<system-reminder>Respond with just the action or changes and without a thinking block, unless this is a redesign or requires fresh reasoning.</system-reminder>'

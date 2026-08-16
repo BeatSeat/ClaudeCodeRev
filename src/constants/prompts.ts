@@ -61,6 +61,7 @@ import { logForDebugging } from '../utils/debug.js'
 import { loadMemoryPrompt } from '../memdir/memdir.js'
 import { isUndercover } from '../utils/undercover.js'
 import { isMcpInstructionsDeltaEnabled } from '../utils/mcpInstructionsDelta.js'
+import { getThinkingGuidanceSection } from '../utils/thinking.js'
 
 // Dead code elimination: conditional imports for feature-gated modules
 /* eslint-disable @typescript-eslint/no-require-imports */
@@ -483,6 +484,11 @@ ${CYBER_RISK_INSTRUCTION}`,
   }
 
   const dynamicSections = [
+    // Official 2.1.107 NeY — after anti_verbosity (removed in 2.1.100 for
+    // everyone), before session_guidance. Null when FH7/loud_sugary_rock is off.
+    systemPromptSection('thinking_guidance', () =>
+      getThinkingGuidanceSection(model),
+    ),
     systemPromptSection('session_guidance', () =>
       getSessionSpecificGuidanceSection(enabledTools, skillToolCommands),
     ),
