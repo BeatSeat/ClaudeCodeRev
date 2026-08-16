@@ -77,6 +77,21 @@ node .cursor/skills/incremental-ts-restore/scripts/classify.mjs \
 
 Writes a draft ledger covering every target (+ `removed` from prior). `unchanged` rows are slim. CHANGELOG rows start as `deferred` — resolve before the gate.
 
+### 2c. Cross-version `astdiff` (required)
+
+Changelog is incomplete. For every hop, run `shcv/astdiff` on the two official `cli.js` files (2.1.88: this repo's production `dist/cli.js`) and review **local** declaration/string changes, not just changelog bullets.
+
+```bash
+astdiff --summary --dump restore-work/astdiff/<from>-to-<ver>.astdump \
+  restore-work/artifacts/official/<from>/cli.js \
+  restore-work/artifacts/official/<ver>/cli.js \
+  > restore-work/astdiff/<from>-to-<ver>.summary.txt
+astdiff inspect restore-work/artifacts/official/<ver>/cli.js <funcName> \
+  --compare-file restore-work/artifacts/official/<from>/cli.js
+```
+
+Filter vendor/SDK noise. Treat added/removed/string-only and non-100% structural product hits as must-review. Do not call a hop done from changelog coverage or `classify.mjs` alone.
+
 ### 3. CHANGELOG alignment (required)
 
 For **every** item in `changelog-by-version.json` → `byVersion[ver].items`:
