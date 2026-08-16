@@ -27,7 +27,11 @@ import { has1mContext } from './context.js'
 import { isEnvDefinedFalsy, isEnvTruthy } from './envUtils.js'
 import { getCanonicalName } from './model/model.js'
 import { get3PModelCapabilityOverride } from './model/modelSupportOverrides.js'
-import { getAPIProvider } from './model/providers.js'
+import {
+  getAPIProvider,
+  isFirstPartyApiFamily,
+  isFirstPartyAnthropicBaseUrl,
+} from './model/providers.js'
 import { getInitialSettings } from './settings/settings.js'
 
 /**
@@ -103,7 +107,7 @@ export function modelSupportsISP(model: string): boolean {
   if (provider === 'foundry') {
     return true
   }
-  if (provider === 'firstParty') {
+  if (isFirstPartyApiFamily(provider)) {
     return !canonical.includes('claude-3-')
   }
   return (
@@ -128,7 +132,7 @@ export function modelSupportsContextManagement(model: string): boolean {
   if (provider === 'foundry') {
     return true
   }
-  if (provider === 'firstParty') {
+  if (isFirstPartyApiFamily(provider)) {
     return !canonical.includes('claude-3-')
   }
   return (
@@ -143,7 +147,7 @@ export function modelSupportsStructuredOutputs(model: string): boolean {
   const canonical = getCanonicalName(model)
   const provider = getAPIProvider()
   // Structured outputs only supported on firstParty and Foundry (not Bedrock/Vertex yet)
-  if (provider !== 'firstParty' && provider !== 'foundry') {
+  if (!isFirstPartyApiFamily(provider) && provider !== 'foundry') {
     return false
   }
   return (
@@ -213,8 +217,9 @@ export function getToolSearchBetaHeader(): string {
  * and may not be supported by proxies or other providers.
  */
 export function shouldIncludeFirstPartyOnlyBetas(): boolean {
+  const provider = getAPIProvider()
   return (
-    (getAPIProvider() === 'firstParty' || getAPIProvider() === 'foundry') &&
+    (isFirstPartyApiFamily(provider) || provider === 'foundry') &&
     !isEnvTruthy(process.env.CLAUDE_CODE_DISABLE_EXPERIMENTAL_BETAS)
   )
 }
@@ -225,10 +230,14 @@ export function shouldIncludeFirstPartyOnlyBetas(): boolean {
  * treatment data is firstParty-only.
  */
 export function shouldUseGlobalCacheScope(): boolean {
-  return (
-    getAPIProvider() === 'firstParty' &&
-    !isEnvTruthy(process.env.CLAUDE_CODE_DISABLE_EXPERIMENTAL_BETAS)
-  )
+  // Official 2.1.98 gV6: experimental-beta gate + 1P base URL + 1P API family
+  if (!shouldIncludeFirstPartyOnlyBetas()) {
+    return false
+  }
+  if (!isFirstPartyAnthropicBaseUrl()) {
+    return false
+  }
+  return isFirstPartyApiFamily()
 }
 
 export const getAllModelBetas = memoize((model: string): string[] => {
