@@ -1,0 +1,52 @@
+{
+  "version": "2.1.146",
+  "fromVersion": "2.1.145",
+  "expectedFunctionCount": 0,
+  "functions": [],
+  "changelogCoverage": [
+    {
+      "item": "No official CHANGELOG section for 2.1.146",
+      "status": "absent-in-bundle",
+      "evidence": "inventory present=false. Product is astdiff-unique only."
+    },
+    {
+      "item": "CLAUDE_BG_SESSION_PERMISSION_RULES (official 147 CHANGELOG row shipped in 146 bundle)",
+      "status": "located",
+      "evidence": "LzA parse + Nu6 session merge in permissionSetup.ts; sanitizer detect+delete in subprocessEnv. Spawn JSON.stringify is deferred-large-infra (ed/Ll5/fC4). Dist count 2."
+    },
+    {
+      "item": "Workflow engine / CLAUDE_CODE_WORKFLOWS / REFUTATIONS_REQUIRED / tengu_ultrawork",
+      "status": "partial",
+      "evidence": "default-false-growthbook (sm() / XMH return false). Not landed. Dist 0."
+    },
+    {
+      "item": "/code-review rename",
+      "status": "partial",
+      "evidence": "146 bundle is name-only with old simplify prompt. Official 147 owns the rewrite. Not pulled forward."
+    }
+  ],
+  "notes": "Do not land workflow engine. Do not pull 147 /code-review --comment/g49 or CLAUDE_BG_MEMORY_TOGGLED_OFF into this hop. Four-domain review PASS.",
+  "astdiff": {
+    "version": "2.1.146",
+    "from": "2.1.145",
+    "from_bundle": "/root/projects/ClaudeCodeRev/restore-work/artifacts/cometix/2.1.145/cli.js",
+    "to_bundle": "/root/projects/ClaudeCodeRev/restore-work/artifacts/cometix/2.1.146/cli.js",
+    "from_sha256": "3b8ec7da5f9e19e142f48644e4a3756252f2cfb37d10ee05fe903173a6b84c1a",
+    "to_sha256": "538bdd13b939b0d31f716401f4a383a658d45fadfa4ca1fa9d7a7bfb718e9ba1",
+    "method": "astdiff-v0.2.0+tree-sitter0.25",
+    "parser": "tree-sitter 0.25 / tree-sitter-javascript 0.25",
+    "similarity": 98.6,
+    "matched_declarations": 23415,
+    "total_declarations_from": 23454,
+    "total_declarations_to": 23747,
+    "change_total": 10239,
+    "added": 332,
+    "removed": 39,
+    "structural": 9838,
+    "string_only": 30,
+    "command": "astdiff /root/projects/ClaudeCodeRev/restore-work/artifacts/cometix/2.1.145/cli.js /root/projects/ClaudeCodeRev/restore-work/artifacts/cometix/2.1.146/cli.js --format json",
+    "full_json": "/root/projects/Zhiman/projects/ccr-swarm/integration/astdiff-full/using/2.1.146.json",
+    "elapsed_seconds": 14.5,
+    "generated_at": "2026-11-14T15:06:30Z"
+  }
+}
