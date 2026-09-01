@@ -36,6 +36,7 @@ import { settingsChangeDetector } from '../settings/changeDetector.js'
 import { SETTING_SOURCES, type SettingSource } from '../settings/constants.js'
 import { getManagedSettingsDropInDir } from '../settings/managedPath.js'
 import {
+  getAllManagedSettingsSources,
   getInitialSettings,
   getSettings_DEPRECATED,
   getSettingsFilePathForSource,
@@ -179,20 +180,19 @@ export function resolveSandboxFilesystemPath(
 }
 
 /**
- * Check if only managed sandbox domains should be used.
- * This is true when policySettings has sandbox.network.allowManagedDomainsOnly: true
+ * Official 2.1.126 `CxH`: true if ANY managed-settings source sets
+ * sandbox.network.allowManagedDomainsOnly. First-wins policySettings used to
+ * drop the flag when a higher-priority source lacked a sandbox block.
  */
 export function shouldAllowManagedSandboxDomainsOnly(): boolean {
-  return (
-    getSettingsForSource('policySettings')?.sandbox?.network
-      ?.allowManagedDomainsOnly === true
+  return getAllManagedSettingsSources().some(
+    s => s.sandbox?.network?.allowManagedDomainsOnly === true,
   )
 }
 
 function shouldAllowManagedReadPathsOnly(): boolean {
-  return (
-    getSettingsForSource('policySettings')?.sandbox?.filesystem
-      ?.allowManagedReadPathsOnly === true
+  return getAllManagedSettingsSources().some(
+    s => s.sandbox?.filesystem?.allowManagedReadPathsOnly === true,
   )
 }
 
@@ -210,21 +210,26 @@ export function convertToSandboxRuntimeConfig(
   // Extract network domains from WebFetch rules
   const allowedDomains: string[] = []
   const deniedDomains: string[] = []
+  const managedSources = getAllManagedSettingsSources()
+  const managedDomainsOnly = shouldAllowManagedSandboxDomainsOnly()
+  const managedReadPathsOnly = shouldAllowManagedReadPathsOnly()
 
-  // When allowManagedSandboxDomainsOnly is enabled, only use domains from policy settings
-  if (shouldAllowManagedSandboxDomainsOnly()) {
-    const policySettings = getSettingsForSource('policySettings')
-    for (const domain of policySettings?.sandbox?.network?.allowedDomains ||
-      []) {
-      allowedDomains.push(domain)
-    }
-    for (const ruleString of policySettings?.permissions?.allow || []) {
-      const rule = permissionRuleValueFromString(ruleString)
-      if (
-        rule.toolName === WEB_FETCH_TOOL_NAME &&
-        rule.ruleContent?.startsWith('domain:')
-      ) {
-        allowedDomains.push(rule.ruleContent.substring('domain:'.length))
+  // When allowManagedSandboxDomainsOnly is enabled, merge domains from every
+  // managed source (126 `xl$` / `OH$()`), not first-wins policySettings.
+  if (managedDomainsOnly) {
+    for (const sourceSettings of managedSources) {
+      for (const domain of sourceSettings.sandbox?.network?.allowedDomains ||
+        []) {
+        allowedDomains.push(domain)
+      }
+      for (const ruleString of sourceSettings.permissions?.allow || []) {
+        const rule = permissionRuleValueFromString(ruleString)
+        if (
+          rule.toolName === WEB_FETCH_TOOL_NAME &&
+          rule.ruleContent?.startsWith('domain:')
+        ) {
+          allowedDomains.push(rule.ruleContent.substring('domain:'.length))
+        }
       }
     }
   } else {
@@ -378,10 +383,17 @@ export function convertToSandboxRuntimeConfig(
       for (const p of fs.denyRead || []) {
         denyRead.push(resolveSandboxFilesystemPath(p, source))
       }
-      if (!shouldAllowManagedReadPathsOnly() || source === 'policySettings') {
+      if (!managedReadPathsOnly) {
         for (const p of fs.allowRead || []) {
           allowRead.push(resolveSandboxFilesystemPath(p, source))
         }
+      }
+    }
+  }
+  if (managedReadPathsOnly) {
+    for (const sourceSettings of managedSources) {
+      for (const p of sourceSettings.sandbox?.filesystem?.allowRead || []) {
+        allowRead.push(resolveSandboxFilesystemPath(p, 'policySettings'))
       }
     }
   }

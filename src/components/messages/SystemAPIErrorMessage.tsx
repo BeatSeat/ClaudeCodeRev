@@ -1,5 +1,5 @@
 import * as React from 'react'
-import { useState } from 'react'
+import { useReducer } from 'react'
 import { Box, Text } from 'src/ink.js'
 import { formatAPIError } from 'src/services/api/errorUtils.js'
 import {
@@ -21,7 +21,7 @@ type Props = {
 }
 
 export function SystemAPIErrorMessage({
-  message: { retryAttempt, error, retryInMs, maxRetries },
+  message: { retryAttempt, error, retryInMs, maxRetries, timestamp },
   verbose,
 }: Props): React.ReactNode {
   // Hidden for early retries on external builds to avoid noise. Compute before
@@ -35,13 +35,15 @@ export function SystemAPIErrorMessage({
   const resetTime = rateLimit?.resetsAt
     ? formatResetTime(rateLimit.resetsAt)
     : undefined
-  const [countdownMs, setCountdownMs] = useState(0)
-  const remainingMs = Math.max(0, retryInMs - countdownMs)
+  // Official 126 `UZ7`: remaining time is wall-clock from message timestamp +
+  // retryInMs. Accumulating interval ticks (123 `b27`) could stall at 0s when
+  // the interval was paused at remainingMs === 0 while retryInMs was still live.
+  const deadlineMs = Date.parse(timestamp) + retryInMs
+  const [, tick] = useReducer((n: number) => n + 1, 0)
+  const remainingMs =
+    Math.max(0, Math.ceil((deadlineMs - Date.now()) / 1000)) * 1000
   const updateIntervalMs = remainingMs > 60_000 ? 60_000 : 1000
-  useInterval(
-    () => setCountdownMs(ms => ms + updateIntervalMs),
-    hidden || remainingMs === 0 ? null : updateIntervalMs,
-  )
+  useInterval(tick, hidden || remainingMs === 0 ? null : updateIntervalMs)
 
   if (hidden) {
     return null

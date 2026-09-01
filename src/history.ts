@@ -154,18 +154,29 @@ export type TimestampedHistoryEntry = {
   resolve: () => Promise<HistoryEntry>
 }
 
+/** Official 126 `Sc$` — ctrl+r picker scope cycle. */
+export const HISTORY_PICKER_SCOPES = ['session', 'project', 'everywhere'] as const
+export type HistoryPickerScope = (typeof HISTORY_PICKER_SCOPES)[number]
+
 /**
  * Current-project history for the ctrl+r picker: deduped by display text,
  * newest first, with timestamps. Paste contents are resolved lazily via
  * `resolve()` — the picker only reads display+timestamp for the list.
+ *
+ * Official 126 `$vK(scope)`: `project` (default) filters to cwd; `session`
+ * filters to this session; `everywhere` includes all projects.
  */
-export async function* getTimestampedHistory(): AsyncGenerator<TimestampedHistoryEntry> {
+export async function* getTimestampedHistory(
+  scope: HistoryPickerScope = 'project',
+): AsyncGenerator<TimestampedHistoryEntry> {
   const currentProject = getProjectRoot()
+  const currentSession = getSessionId()
   const seen = new Set<string>()
 
   for await (const entry of makeLogEntryReader()) {
     if (!entry || typeof entry.project !== 'string') continue
-    if (entry.project !== currentProject) continue
+    if (scope === 'project' && entry.project !== currentProject) continue
+    if (scope === 'session' && entry.sessionId !== currentSession) continue
     if (seen.has(entry.display)) continue
     seen.add(entry.display)
 

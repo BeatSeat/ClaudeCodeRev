@@ -196,7 +196,7 @@ export function getRequestTooLargeErrorMessage(): string {
     : `Request too large (${limits}). Double press esc to go back and try with a smaller file.`
 }
 export const OAUTH_ORG_NOT_ALLOWED_ERROR_MESSAGE =
-  'Your account does not have access to Claude Code. Please run /login.'
+  'Your organization has disabled Claude subscription access for Claude Code · Use an Anthropic API key instead, or ask your admin to enable access'
 
 export function getTokenRevokedErrorMessage(): string {
   return getIsNonInteractiveSession()
@@ -204,10 +204,9 @@ export function getTokenRevokedErrorMessage(): string {
     : TOKEN_REVOKED_ERROR_MESSAGE
 }
 
+/** Official 2.1.126 `dE1`/`gE1` — admin copy, not the login screen. */
 export function getOauthOrgNotAllowedErrorMessage(): string {
-  return getIsNonInteractiveSession()
-    ? 'Your organization does not have access to Claude. Please login again or contact your administrator.'
-    : OAUTH_ORG_NOT_ALLOWED_ERROR_MESSAGE
+  return OAUTH_ORG_NOT_ALLOWED_ERROR_MESSAGE
 }
 
 /**
@@ -875,7 +874,7 @@ export function getAssistantMessageFromError(
     )
   ) {
     return createAssistantAPIErrorMessage({
-      error: 'authentication_failed',
+      error: 'oauth_org_not_allowed',
       content: getOauthOrgNotAllowedErrorMessage(),
     })
   }
