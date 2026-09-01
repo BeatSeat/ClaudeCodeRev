@@ -80,6 +80,8 @@ import {
 import { checkPermissionMode } from './modeValidation.js'
 import {
   checkDangerousRemovalPaths,
+  checkDangerousRmComplexVariable,
+  createDangerousRemovalResult,
   checkPathConstraints,
 } from './pathValidation.js'
 // Official 116 ht8 is the canonical wrapper peel in pathValidation.ts
@@ -2186,6 +2188,68 @@ function checkSemanticsDeny(
 }
 
 /**
+ * 2.1.141 G25 (`a55`): the AST 'too-complex'-branch hook for an rm/rmdir
+ * whose target is a shell-variable expansion that would resolve to the
+ * filesystem root when the variable is unset or empty.
+ *
+ * This is a faithful port of the official `a55`, which on the 'too-complex'
+ * path runs the `b84` deny check (exact deny + prefix deny — i.e.
+ * checkEarlyExitDeny here) and, when that does not deny, runs the
+ * `checkDangerousRmComplexVariable` detector (`iM7`). On a detector hit it
+ * fires the `tengu_bash_dangerous_rm_too_complex` telemetry event and returns
+ * the shared dangerous-removal ask result (`createDangerousRemovalResult`, the
+ * official `IX6` formatter).
+ *
+ * Precedence (matches the official `a55`, and is what makes G25 "cannot be
+ * auto-allowed by permission rules"): an exact/prefix DENY beats G25; G25
+ * beats an exact ask/allow; and an exact ask/allow only stands when its rule
+ * content matches the command (a broader rule does not override the safety
+ * ask). Returns null when none matched, so the caller falls through to the
+ * generic too-complex ask.
+ */
+function checkDangerousRmComplexVariableAsk(
+  input: z.infer<typeof BashTool.inputSchema>,
+  toolPermissionContext: ToolPermissionContext,
+): PermissionResult | null {
+  // b84 deny (exact deny + prefix deny) takes precedence over G25.
+  const earlyExit = checkEarlyExitDeny(input, toolPermissionContext)
+  if (earlyExit?.behavior === 'deny') return earlyExit
+
+  // iM7: detect an rm/rmdir whose target is an unset/empty variable that
+  // expands to the filesystem root.
+  const hit = checkDangerousRmComplexVariable(input.command)
+  if (hit !== null) {
+    logEvent('tengu_bash_dangerous_rm_too_complex', {})
+    return createDangerousRemovalResult(
+      hit.command,
+      // Official 2.1.141 a55 message, verbatim. The literal backticks around
+      // the example command are escaped; the \u2014 em-dash matches the bundle.
+      `Dangerous ${hit.command} operation detected: '${hit.target}'\n\nThis target is a shell variable expansion that points at the filesystem root (or a top-level directory) when the variable is unset or empty \u2014 e.g. \`rm -rf $UNSET/*\` becomes \`rm -rf /*\`. This requires explicit approval and cannot be auto-allowed by permission rules.`,
+      `on possibly-empty variable path: ${hit.target}`,
+    )
+  }
+
+  // No G25 hit: honor the early-exit result. checkEarlyExitDeny returns an
+  // exact-ask or exact-allow rule here; an exact ALLOW only stands when its
+  // rule content matches the command (the official a55 guard) — a broader
+  // allow rule does not override the safety ask (falls through to ask).
+  if (earlyExit?.behavior === 'deny' || earlyExit?.behavior === 'ask') {
+    return earlyExit
+  }
+  if (earlyExit?.behavior === 'allow') {
+    const reason = earlyExit.decisionReason
+    if (
+      reason !== undefined &&
+      reason.type === 'rule' &&
+      reason.rule.ruleValue.ruleContent === input.command.trim()
+    ) {
+      return earlyExit
+    }
+  }
+  return null
+}
+
+/**
  * Builds the pending classifier check metadata if classifier is enabled and has allow descriptions.
  * Returns undefined if classifier is disabled, in auto mode, or no allow descriptions exist.
  */
@@ -2474,9 +2538,16 @@ export async function bashToolHasPermission(
   if (astResult.kind === 'too-complex') {
     // Parse succeeded but found structure we can't statically analyze
     // (command substitution, expansion, control flow, parser differential).
-    // Respect exact-match deny/ask/allow, then prefix/wildcard deny. Only
-    // fall through to ask if no deny matched — don't downgrade deny to ask.
-    const earlyExit = checkEarlyExitDeny(input, appState.toolPermissionContext)
+    // 2.1.141 G25: the bundle `kL$` too-complex branch calls `a55`, which runs
+    // the deny check (b84 = checkEarlyExitDeny) AND the rm-variable detector
+    // (iM7) in that order, so an exact deny beats G25 but G25 beats an exact
+    // allow (the "cannot be auto-allowed by permission rules" property). We
+    // use checkDangerousRmComplexVariableAsk as the single early-exit here
+    // (it subsumes checkEarlyExitDeny), matching the bundle ordering.
+    const earlyExit = checkDangerousRmComplexVariableAsk(
+      input,
+      appState.toolPermissionContext,
+    )
     if (earlyExit !== null) return earlyExit
     const decisionReason: PermissionDecisionReason = {
       type: 'other' as const,

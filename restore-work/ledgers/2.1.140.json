@@ -4,69 +4,14 @@
   "expectedFunctionCount": 0,
   "functions": [],
   "changelogCoverage": [
-    {
-      "item": "Improved Agent tool subagent_type matching to accept case- and separator-insensitive values (e.g. 'Code Reviewer' resolves to code-reviewer)",
-      "status": "located",
-      "evidence": "Official subagent_type 34→38. src/tools/AgentTool/AgentTool.tsx normalizeAgentType() helper + updated 3 match sites (agentDef, found, agentExistsButDenied)."
-    },
-    {
-      "item": "Updated agent color palette",
-      "status": "shared-logic",
-      "evidence": "UI colors; no unique string."
-    },
-    {
-      "item": "Fixed /goal hanging when disableAllHooks/allowManagedHooksOnly set",
-      "status": "shared-logic",
-      "evidence": "UI runtime."
-    },
-    {
-      "item": "Fixed settings hot-reload symlinked settings regression",
-      "status": "shared-logic",
-      "evidence": "Runtime."
-    },
-    {
-      "item": "Fixed claude --bg 'connection dropped mid-request'",
-      "status": "shared-logic",
-      "evidence": "Runtime."
-    },
-    {
-      "item": "Fixed background service startup timing with enterprise endpoint security",
-      "status": "shared-logic",
-      "evidence": "Runtime."
-    },
-    {
-      "item": "Fixed remote managed settings not retrying on 401",
-      "status": "shared-logic",
-      "evidence": "Runtime."
-    },
-    {
-      "item": "Fixed managed extraKnownMarketplaces auto-update not persisted",
-      "status": "shared-logic",
-      "evidence": "Runtime."
-    }
+    { "item": "Improved Agent tool subagent_type matching to accept case- and separator-insensitive values (e.g. 'Code Reviewer' resolves to code-reviewer)", "status": "located", "evidence": "Official subagent_type 34→38. src/tools/AgentTool/AgentTool.tsx normalizeAgentType() helper + updated 3 match sites (agentDef, found, agentExistsButDenied)." },
+    { "item": "Updated agent color palette", "status": "shared-logic", "evidence": "UI colors; no unique string." },
+    { "item": "Fixed /goal hanging when disableAllHooks/allowManagedHooksOnly set", "status": "shared-logic", "evidence": "UI runtime." },
+    { "item": "Fixed settings hot-reload symlinked settings regression", "status": "shared-logic", "evidence": "Runtime." },
+    { "item": "Fixed claude --bg 'connection dropped mid-request'", "status": "shared-logic", "evidence": "Runtime." },
+    { "item": "Fixed background service startup timing with enterprise endpoint security", "status": "shared-logic", "evidence": "Runtime." },
+    { "item": "Fixed remote managed settings not retrying on 401", "status": "shared-logic", "evidence": "Runtime." },
+    { "item": "Fixed managed extraKnownMarketplaces auto-update not persisted", "status": "shared-logic", "evidence": "Runtime." }
   ],
-  "notes": "Landed item 1. Remaining 12 items shared-logic.",
-  "astdiff": {
-    "version": "2.1.140",
-    "from": "2.1.139",
-    "from_bundle": "/root/projects/ClaudeCodeRev/restore-work/artifacts/cometix/2.1.139/cli.js",
-    "to_bundle": "/root/projects/ClaudeCodeRev/restore-work/artifacts/cometix/2.1.140/cli.js",
-    "from_sha256": "c87a68632dfb7f02de81d94526284af248b18989e07de0aa92e12bf61ac485f2",
-    "to_sha256": "3876b093d9360a2f84c6b5ec9c3309ba46412c920ac1bc6b9944101d09d49bd7",
-    "method": "astdiff-v0.2.0+tree-sitter0.25",
-    "parser": "tree-sitter 0.25 / tree-sitter-javascript 0.25",
-    "similarity": 99.4,
-    "matched_declarations": 22876,
-    "total_declarations_from": 22902,
-    "total_declarations_to": 23012,
-    "change_total": 9428,
-    "added": 136,
-    "removed": 26,
-    "structural": 9238,
-    "string_only": 28,
-    "command": "astdiff /root/projects/ClaudeCodeRev/restore-work/artifacts/cometix/2.1.139/cli.js /root/projects/ClaudeCodeRev/restore-work/artifacts/cometix/2.1.140/cli.js --format json",
-    "full_json": "/root/projects/Zhiman/projects/ccr-swarm/integration/astdiff-full/using/2.1.140.json",
-    "elapsed_seconds": 13.9,
-    "generated_at": "2026-11-14T15:05:47Z"
-  }
+  "notes": "Landed item 1. Remaining 12 items shared-logic."
 }
