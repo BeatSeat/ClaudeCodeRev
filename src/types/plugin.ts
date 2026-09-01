@@ -65,6 +65,10 @@ export type LoadedPlugin = {
   skillsPaths?: string[] // Additional skill paths from manifest
   outputStylesPath?: string
   outputStylesPaths?: string[] // Additional output style paths from manifest
+  /** Official 2.1.153 `themesPath` — auto-loaded `themes/` when manifest does not set themes */
+  themesPath?: string
+  /** Official 2.1.153 `themesPaths` — manifest / marketplace `experimental.themes ?? themes` */
+  themesPaths?: string[]
   hooksConfig?: HooksSettings
   mcpServers?: Record<string, McpServerConfig>
   lspServers?: Record<string, LspServerConfig>
@@ -88,6 +92,7 @@ export type PluginComponent =
   | 'skills'
   | 'hooks'
   | 'output-styles'
+  | 'themes'
   | 'monitors'
 
 /**

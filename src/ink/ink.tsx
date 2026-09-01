@@ -1063,6 +1063,17 @@ export default class Ink {
     return this.altScreenActive
   }
 
+  // Official 2.1.140: FleetView Windows open hands raw-mode off to ink.
+  private _handoffRawMode = false
+
+  handoffRawMode(): void {
+    this._handoffRawMode = true
+  }
+
+  get isHandoffRawMode(): boolean {
+    return this._handoffRawMode
+  }
+
   /**
    * Re-assert terminal modes after a gap (>5s stdin silence or event-loop
    * stall). Catches tmux detach→attach, ssh reconnect, and laptop

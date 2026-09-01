@@ -1,0 +1,17 @@
+{
+  "version": "2.1.140",
+  "fromVersion": "2.1.139",
+  "expectedFunctionCount": 0,
+  "functions": [],
+  "changelogCoverage": [
+    { "item": "Improved Agent tool subagent_type matching to accept case- and separator-insensitive values (e.g. 'Code Reviewer' resolves to code-reviewer)", "status": "located", "evidence": "Official subagent_type 34→38. src/tools/AgentTool/AgentTool.tsx normalizeAgentType() helper + updated 3 match sites (agentDef, found, agentExistsButDenied)." },
+    { "item": "Updated agent color palette", "status": "shared-logic", "evidence": "UI colors; no unique string." },
+    { "item": "Fixed /goal hanging when disableAllHooks/allowManagedHooksOnly set", "status": "shared-logic", "evidence": "UI runtime." },
+    { "item": "Fixed settings hot-reload symlinked settings regression", "status": "shared-logic", "evidence": "Runtime." },
+    { "item": "Fixed claude --bg 'connection dropped mid-request'", "status": "shared-logic", "evidence": "Runtime." },
+    { "item": "Fixed background service startup timing with enterprise endpoint security", "status": "shared-logic", "evidence": "Runtime." },
+    { "item": "Fixed remote managed settings not retrying on 401", "status": "shared-logic", "evidence": "Runtime." },
+    { "item": "Fixed managed extraKnownMarketplaces auto-update not persisted", "status": "shared-logic", "evidence": "Runtime." }
+  ],
+  "notes": "Landed item 1. Remaining 12 items shared-logic."
+}

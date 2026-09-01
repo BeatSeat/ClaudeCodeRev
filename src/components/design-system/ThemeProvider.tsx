@@ -20,6 +20,7 @@ import {
   type CustomTheme,
   watchUserThemes,
 } from '../../utils/customThemes.js'
+import { loadPluginThemes } from '../../utils/plugins/loadPluginThemes.js'
 import {
   getSystemThemeName,
   type SystemTheme,
@@ -87,13 +88,20 @@ export function ThemeProvider({
     null,
   )
 
+  // Official 153 `V68`: reload (`L=()=>M(xM6())`) is sync and user-only.
+  // Plugin themes are registered once (`U69`/`uXz`), not on every watch fire.
   const reloadCustomThemes = useCallback((): void => {
     setCustomThemes(loadCustomThemes())
   }, [])
 
   useEffect(() => {
+    void loadPluginThemes()
+      .catch(() => {})
+      .then(() => {
+        setCustomThemes(loadCustomThemes())
+      })
     return watchUserThemes(reloadCustomThemes)
-  }, [])
+  }, [reloadCustomThemes])
 
   // Track terminal theme for 'auto' resolution. Seeds from $COLORFGBG (or
   // 'dark' if unset); the OSC 11 watcher corrects it on first poll.

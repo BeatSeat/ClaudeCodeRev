@@ -136,6 +136,14 @@ import {
   userFacingNameBackgroundColor,
 } from './UI.js'
 
+/**
+ * 2.1.140: normalize a subagent_type/agentType for case- and
+ * separator-insensitive matching (e.g. "Code Reviewer" → code-reviewer).
+ */
+function normalizeAgentType(type: string): string {
+  return type.trim().toLowerCase().replace(/[ _]+/g, '-')
+}
+
 /* eslint-disable @typescript-eslint/no-require-imports */
 const proactiveModule =
   feature('PROACTIVE') || feature('KAIROS')
@@ -448,7 +456,7 @@ export const AgentTool = buildTool({
       // Set agent definition color for grouped UI display before spawning
       const agentDef = subagent_type
         ? toolUseContext.options.agentDefinitions.activeAgents.find(
-            a => a.agentType === subagent_type,
+            a => normalizeAgentType(a.agentType) === normalizeAgentType(subagent_type),
           )
         : undefined
       if (agentDef?.color) {
@@ -521,11 +529,16 @@ export const AgentTool = buildTool({
         AGENT_TOOL_NAME,
       )
 
-      const found = agents.find(agent => agent.agentType === effectiveType)
+      const found = agents.find(
+        // 2.1.140: match subagent_type case- and separator-insensitively
+        // (e.g. "Code Reviewer" resolves to code-reviewer).
+        agent => normalizeAgentType(agent.agentType) === normalizeAgentType(effectiveType),
+      )
       if (!found) {
         // Check if the agent exists but is denied by permission rules
         const agentExistsButDenied = allAgents.find(
-          agent => agent.agentType === effectiveType,
+          agent =>
+            normalizeAgentType(agent.agentType) === normalizeAgentType(effectiveType),
         )
         if (agentExistsButDenied) {
           const denyRule = getDenyRuleForAgent(

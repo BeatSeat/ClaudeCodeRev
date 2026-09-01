@@ -530,6 +530,29 @@ const PluginManifestOutputStylesSchema = lazySchema(() =>
   }),
 )
 
+/**
+ * Official 2.1.153 `aNq` (118 `$r4` older "additional … if it exists" describe).
+ * When set, `themes/` is not auto-loaded — list those files here to keep both.
+ */
+const PluginManifestThemesSchema = lazySchema(() =>
+  z.object({
+    themes: z.union([
+      RelativePath().describe(
+        'Path to a themes directory or file, relative to the plugin root. When set, the themes/ directory is not auto-loaded \u2014 list its files here if you want both.',
+      ),
+      z
+        .array(
+          RelativePath().describe(
+            'Path to a themes directory or file, relative to the plugin root. When set, the themes/ directory is not auto-loaded \u2014 list its files here if you want both.',
+          ),
+        )
+        .describe(
+          'List of theme directory or file paths. When set, the themes/ directory is not auto-loaded.',
+        ),
+    ]),
+  }),
+)
+
 // Helper validators for LSP config
 const nonEmptyString = lazySchema(() => z.string().min(1))
 const fileExtension = lazySchema(() =>
@@ -875,6 +898,7 @@ const PluginManifestExperimentalSchema = lazySchema(() =>
     experimental: z
       .object({
         ...PluginManifestMonitorsSchema().partial().shape,
+        ...PluginManifestThemesSchema().partial().shape,
       })
       .describe(
         'Experimental components. Declaring them here instead of at the top level opts into the supported spelling; top-level still loads but is deprecated.',
@@ -981,6 +1005,7 @@ export const PluginManifestSchema = lazySchema(() =>
     ...PluginManifestAgentsSchema().partial().shape,
     ...PluginManifestSkillsSchema().partial().shape,
     ...PluginManifestOutputStylesSchema().partial().shape,
+    ...PluginManifestThemesSchema().partial().shape,
     ...PluginManifestChannelsSchema().partial().shape,
     ...PluginManifestMcpServerSchema().partial().shape,
     ...PluginManifestLspServerSchema().partial().shape,
@@ -1080,6 +1105,13 @@ export const MarketplaceSourceSchema = lazySchema(() =>
         .string()
         .describe('Local directory containing .claude-plugin/marketplace.json'),
     }),
+    z
+      .object({
+        source: z.literal('skills-dir'),
+      })
+      .describe(
+        'Policy-list sentinel for the ~/.claude/skills/ auto-load (@skills-dir plugins). In strictKnownMarketplaces: opt the scan back IN (by default any allowlist blocks it). In blockedMarketplaces: turn the scan OFF without otherwise restricting marketplaces. Only meaningful in those two managed-settings lists (areLocalPluginDirsAllowedByPolicy); known_marketplaces.json / marketplace add etc. ignore it.',
+      ),
     z.object({
       source: z.literal('hostPattern'),
       hostPattern: z
@@ -1350,6 +1382,70 @@ export function isLocalMarketplaceSource(
 }
 
 /**
+ * Official 2.1.152 `WU$` — matchers that determine when a marketplace plugin
+ * is relevant (spinner tips / auto-suggest / browse ranking).
+ */
+const PluginRelevanceSignalsSchema = lazySchema(() =>
+  z.object({
+    cli: z
+      .array(z.string().max(64))
+      .max(10)
+      .optional()
+      .describe(
+        'CLI command tokens matched exactly against commands run this session.',
+      ),
+    hosts: z
+      .array(z.string().max(128))
+      .max(20)
+      .optional()
+      .describe(
+        'Exact hostname match (case-insensitive) against ' +
+          'hostnames seen in https?:// URLs in bash commands run this session. Bare hostname only: lowercase, no scheme, no port, no path.',
+      ),
+    filePath: z
+      .string()
+      .max(256)
+      .optional()
+      .describe(
+        'RegExp source matched (case-insensitive) against file paths read this session, or present in cwd at session start.',
+      ),
+    manifestDeps: z
+      .array(
+        z.object({
+          file: z.string().max(256),
+          pattern: z.string().max(256),
+        }),
+      )
+      .max(10)
+      .optional()
+      .describe(
+        'Dependency declared in a package manifest. Each {file, pattern} is a pair of RegExp sources: ' +
+          '`file` matches the manifest filename (package.json, go.mod, requirements.txt, …); ' +
+          '`pattern` matches the dependency declaration inside that file. Evaluated against files read this session, or present in cwd at session start.',
+      ),
+  }),
+)
+
+/**
+ * Official 2.1.152 `ZU$`.
+ */
+const PluginRelevanceSchema = lazySchema(() =>
+  z.object({
+    topic: z
+      .string()
+      .max(64)
+      .optional()
+      .describe(
+        'What the user is working with when this plugin is relevant — fills "Working with {topic}?". ' +
+          'Topic label; defaults to the plugin name with each hyphen-segment capitalized.',
+      ),
+    signals: PluginRelevanceSignalsSchema()
+      .optional()
+      .describe('Matchers that determine when the plugin is relevant.'),
+  }),
+)
+
+/**
  * Schema for individual plugin entries in a marketplace
  *
  * When strict=true (default): Plugin.json is required, marketplace fields supplement it
@@ -1390,6 +1486,20 @@ export const PluginMarketplaceEntrySchema = lazySchema(() =>
         .default(true)
         .describe(
           'Require the plugin manifest to be present in the plugin folder. If false, the marketplace entry provides the manifest.',
+        ),
+      // Official 2.1.152 GU$.relevance — consumed by WNz spinner tips
+      relevance: z
+        .preprocess(
+          value =>
+            typeof value === 'object' &&
+            value !== null &&
+            !Array.isArray(value)
+              ? value
+              : undefined,
+          PluginRelevanceSchema().optional(),
+        )
+        .describe(
+          'Declares when this plugin is relevant to the user\'s work. Consumed by the spinner tip ("Working with {topic}?"), session-start auto-suggest, and marketplace browse ranking.',
         ),
     }),
 )
