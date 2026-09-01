@@ -1,4 +1,4 @@
-import { dirname, sep } from 'path'
+import { basename, dirname, sep } from 'path'
 import { logEvent } from 'src/services/analytics/index.js'
 import { z } from 'zod/v4'
 import { getFeatureValue_CACHED_MAY_BE_STALE } from '../../services/analytics/growthbook.js'
@@ -42,7 +42,11 @@ import type { PermissionDecision } from '../../utils/permissions/PermissionResul
 import { matchWildcardPattern } from '../../utils/permissions/shellRuleMatching.js'
 import { FILE_UNEXPECTEDLY_MODIFIED_ERROR } from '../FileEditTool/constants.js'
 import { gitDiffSchema, hunkSchema } from '../FileEditTool/types.js'
-import { FILE_WRITE_TOOL_NAME, getWriteToolDescription } from './prompt.js'
+import {
+  FILE_WRITE_TOOL_NAME,
+  getWriteToolDescription,
+  isWriteAppendModeEnabled,
+} from './prompt.js'
 import {
   getToolUseSummary,
   isResultTruncated,
@@ -61,6 +65,12 @@ const inputSchema = lazySchema(() =>
         'The absolute path to the file to write (must be absolute, not relative)',
       ),
     content: z.string().describe('The content to write to the file'),
+    mode: z
+      .enum(['overwrite', 'append'])
+      .optional()
+      .describe(
+        "Write mode. 'overwrite' (default) replaces the file. Use 'append' to add content to the end of an existing file instead of rewriting the full content — e.g. for logs, accumulating output, or adding entries to a list.",
+      ),
   }),
 )
 type InputSchema = ReturnType<typeof inputSchema>
@@ -111,7 +121,9 @@ export const FileWriteTool = buildTool({
   renderToolUseMessage,
   isResultTruncated,
   get inputSchema(): InputSchema {
-    return inputSchema()
+    return isWriteAppendModeEnabled()
+      ? inputSchema()
+      : inputSchema().omit({ mode: true })
   },
   get outputSchema(): OutputSchema {
     return outputSchema()
@@ -152,6 +164,24 @@ export const FileWriteTool = buildTool({
   },
   async validateInput({ file_path, content }, toolUseContext: ToolUseContext) {
     const fullFilePath = expandPath(file_path)
+
+    // Official 2.1.91 tengu_sub_nomdrep_q7k: subagents must return findings
+    // as text, not Write REPORT/SUMMARY/FINDINGS/ANALYSIS*.md files.
+    if (
+      getFeatureValue_CACHED_MAY_BE_STALE('tengu_sub_nomdrep_q7k', false) &&
+      toolUseContext.agentId &&
+      /^(REPORT|SUMMARY|FINDINGS|ANALYSIS).*\.md$/i.test(basename(fullFilePath))
+    ) {
+      logEvent('tengu_subagent_md_report_blocked', {
+        contentBytes: Buffer.byteLength(content),
+      })
+      return {
+        result: false,
+        message:
+          'Subagents should return findings as text, not write report files. Include this content in your final response instead.',
+        errorCode: 5,
+      }
+    }
 
     // Reject writes to team memory files that contain secrets
     const secretError = checkTeamMemSecrets(fullFilePath, content)
@@ -221,7 +251,7 @@ export const FileWriteTool = buildTool({
     return { result: true }
   },
   async call(
-    { file_path, content },
+    { file_path, content, mode },
     { readFileState, updateFileHistoryState, dynamicSkillDirTriggers },
     _,
     parentMessage,
@@ -296,13 +326,20 @@ export const FileWriteTool = buildTool({
 
     const enc = meta?.encoding ?? 'utf8'
     const oldContent = meta?.content ?? null
+    const isAppend = mode === 'append'
+    const newContent = isAppend ? (oldContent ?? '') + content : content
+    logEvent('tengu_write_append_used', {
+      isAppend,
+      contentBytes: Buffer.byteLength(content, 'utf8'),
+      oldFileBytes: oldContent ? Buffer.byteLength(oldContent, 'utf8') : 0,
+    })
 
     // Write is a full content replacement — the model sent explicit line endings
     // in `content` and meant them. Do not rewrite them. Previously we preserved
     // the old file's line endings (or sampled the repo via ripgrep for new
     // files), which silently corrupted e.g. bash scripts with \r on Linux when
     // overwriting a CRLF file or when binaries in cwd poisoned the repo sample.
-    writeTextContent(fullFilePath, content, enc, 'LF')
+    writeTextContent(fullFilePath, newContent, enc, 'LF')
 
     // Notify LSP servers about file modification (didChange) and save (didSave)
     const lspManager = getLspServerManager()
@@ -310,7 +347,7 @@ export const FileWriteTool = buildTool({
       // Clear previously delivered diagnostics so new ones will be shown
       clearDeliveredDiagnosticsForFile(`file://${fullFilePath}`)
       // didChange: Content has been modified
-      lspManager.changeFile(fullFilePath, content).catch((err: Error) => {
+      lspManager.changeFile(fullFilePath, newContent).catch((err: Error) => {
         logForDebugging(
           `LSP: Failed to notify server of file change for ${fullFilePath}: ${err.message}`,
         )
@@ -326,11 +363,11 @@ export const FileWriteTool = buildTool({
     }
 
     // Notify VSCode about the file change for diff view
-    notifyVscodeFileUpdated(fullFilePath, oldContent, content)
+    notifyVscodeFileUpdated(fullFilePath, oldContent, newContent)
 
     // Update read timestamp, to invalidate stale writes
     readFileState.set(fullFilePath, {
-      content,
+      content: newContent,
       timestamp: getFileModificationTime(fullFilePath),
       offset: undefined,
       limit: undefined,
@@ -363,7 +400,7 @@ export const FileWriteTool = buildTool({
         edits: [
           {
             old_string: oldContent,
-            new_string: content,
+            new_string: newContent,
             replace_all: false,
           },
         ],
@@ -372,7 +409,7 @@ export const FileWriteTool = buildTool({
       const data = {
         type: 'update' as const,
         filePath: file_path,
-        content,
+        content: newContent,
         structuredPatch: patch,
         originalFile: oldContent,
         ...(gitDiff && { gitDiff }),
@@ -395,14 +432,14 @@ export const FileWriteTool = buildTool({
     const data = {
       type: 'create' as const,
       filePath: file_path,
-      content,
+      content: newContent,
       structuredPatch: [],
       originalFile: null,
       ...(gitDiff && { gitDiff }),
     }
 
     // For creation of new files, count all lines as additions, right before yielding the result
-    countLinesChanged([], content)
+    countLinesChanged([], newContent)
 
     logFileOperation({
       operation: 'write',

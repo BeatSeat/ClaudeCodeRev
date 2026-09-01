@@ -100,28 +100,5 @@
       "evidence": "astdiff removed /displaydns; auto-allow list no longer includes those DNS cache commands"
     }
   ],
-  "notes": "astdiff 2.1.89→2.1.90: 99.2% similar, +148/-50, 7011 structural, 57 string-only. filter-astdiff: 7266 entries (product 180, unknown 850, vendor 181, rename-only-100% 6177). Most product hits are minify-adjacent permission/anthropic/marketplace string neighbors. Changelog-external FAILs engineered into this hop: (1) runForkedAgent defaults maxTurns to 50 (official CfK) and logs tengu_forked_agent_default_turns_exceeded when the caller omitted maxTurns and the fork hit that cap; (2) extractMemories skips when no ≥3-word non-meta user prose since the cursor (official U_Y/tDK/aDK=3) and logs tengu_extract_memories_skipped_no_prose; (3) session memoryToggledOff + /toggle-memory (official isEnabled always false) + autoMem/filesystem deny copy. Already in this hop from prior review: /powerup, KEEP_MARKETPLACE_ON_FAILURE, .husky, ultraplan timeout GB default 1800, CLAUDE_CODE_USE_ANTHROPIC_AWS / SKIP_ANTHROPIC_AWS_AUTH. Skipped: tengu_slate_harbor default false (Max-plan UI). Telemetry-only names without extra control flow beyond the FAILs above are not treated as missing features.",
-  "astdiff": {
-    "version": "2.1.90",
-    "from": "2.1.89",
-    "from_bundle": "/root/projects/ClaudeCodeRev/restore-work/artifacts/official/2.1.89/cli.js",
-    "to_bundle": "/root/projects/ClaudeCodeRev/restore-work/artifacts/official/2.1.90/cli.js",
-    "from_sha256": "a9950ef6407fdc750bddb673852485500387e524a99d42385cb81e7d17128e01",
-    "to_sha256": "069185909d50518b8b239acc0f9ae9b062a610595299b35955fc53e6e2c2f5e9",
-    "method": "astdiff-v0.2.0+tree-sitter0.25",
-    "parser": "tree-sitter 0.25 / tree-sitter-javascript 0.25",
-    "similarity": 99.2,
-    "matched_declarations": 18263,
-    "total_declarations_from": 18304,
-    "total_declarations_to": 18402,
-    "change_total": 7828,
-    "added": 139,
-    "removed": 41,
-    "structural": 7617,
-    "string_only": 31,
-    "command": "astdiff /root/projects/ClaudeCodeRev/restore-work/artifacts/official/2.1.89/cli.js /root/projects/ClaudeCodeRev/restore-work/artifacts/official/2.1.90/cli.js --format json",
-    "full_json": "/root/projects/Zhiman/projects/ccr-swarm/integration/astdiff-full/using/2.1.90.json",
-    "elapsed_seconds": 11.6,
-    "generated_at": "2026-11-14T15:01:22Z"
-  }
+  "notes": "astdiff 2.1.89→2.1.90: 99.2% similar, +148/-50, 7011 structural, 57 string-only. filter-astdiff: 7266 entries (product 180, unknown 850, vendor 181, rename-only-100% 6177). Most product hits are minify-adjacent permission/anthropic/marketplace string neighbors. Changelog-external FAILs engineered into this hop: (1) runForkedAgent defaults maxTurns to 50 (official CfK) and logs tengu_forked_agent_default_turns_exceeded when the caller omitted maxTurns and the fork hit that cap; (2) extractMemories skips when no ≥3-word non-meta user prose since the cursor (official U_Y/tDK/aDK=3) and logs tengu_extract_memories_skipped_no_prose; (3) session memoryToggledOff + /toggle-memory (official isEnabled always false) + autoMem/filesystem deny copy. Already in this hop from prior review: /powerup, KEEP_MARKETPLACE_ON_FAILURE, .husky, ultraplan timeout GB default 1800, CLAUDE_CODE_USE_ANTHROPIC_AWS / SKIP_ANTHROPIC_AWS_AUTH. Skipped: tengu_slate_harbor default false (Max-plan UI). Telemetry-only names without extra control flow beyond the FAILs above are not treated as missing features."
 }

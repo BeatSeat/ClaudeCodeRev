@@ -1,6 +1,6 @@
 # Tool use with Claude
 
-Connect Claude to external tools and APIs. Learn where tools execute and how the agentic loop works.
+Connect Claude to external tools and APIs. Learn where tools execute and how the agentic loop works. For decision heuristics on which tools to expose, how to manage context in long-running agents, and caching strategy, see `agent-design.md`.
 
 ---
 

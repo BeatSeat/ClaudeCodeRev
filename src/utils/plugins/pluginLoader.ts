@@ -3145,6 +3145,14 @@ export const loadAllPluginsCacheOnly = memoize(
   },
 )
 
+/** Enabled non-builtin plugin `bin/` dirs for Bash PATH. */
+export async function getPluginBinDirs(): Promise<string[]> {
+  const { enabled } = await loadAllPluginsCacheOnly()
+  return enabled
+    .filter(plugin => !plugin.isBuiltin && plugin.path)
+    .map(plugin => join(plugin.path, 'bin'))
+}
+
 /**
  * Shared body of loadAllPlugins and loadAllPluginsCacheOnly.
  *

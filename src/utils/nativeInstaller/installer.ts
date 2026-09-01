@@ -1279,6 +1279,7 @@ export async function cleanupOldVersions(): Promise<void> {
     path: string
     resolvedPath: string
     mtime: Date
+    size: number
   }
   const versionFiles: VersionInfo[] = []
   let tempFilesCleanedCount = 0
@@ -1321,6 +1322,7 @@ export async function cleanupOldVersions(): Promise<void> {
         path: entryPath,
         resolvedPath: resolve(entryPath),
         mtime: stats.mtime,
+        size: stats.size,
       })
     } catch {
       // Skip files we can't stat
@@ -1351,6 +1353,17 @@ export async function cleanupOldVersions(): Promise<void> {
     const currentSymlinkVersion = await getVersionFromSymlink(dirs.executable)
     if (currentSymlinkVersion) {
       protectedVersions.add(currentSymlinkVersion)
+    } else if (process.platform.startsWith('win32')) {
+      try {
+        const exe = await stat(dirs.executable)
+        for (const v of versionFiles) {
+          if (v.size === exe.size) {
+            protectedVersions.add(v.resolvedPath)
+          }
+        }
+      } catch {
+        // claude.exe missing or unreadable — skip size-based rollback protection
+      }
     }
 
     // Protect versions with active locks (running in other processes)
