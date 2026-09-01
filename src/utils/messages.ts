@@ -2391,11 +2391,21 @@ export function mergeAssistantMessages(
   a: AssistantMessage,
   b: AssistantMessage,
 ): AssistantMessage {
+  const merged = [...a.message.content, ...b.message.content]
+  const filtered = merged.filter(
+    block =>
+      block.type !== 'text' ||
+      block.text.length === 0 ||
+      block.text.trim() !== '',
+  )
+  const hasNonThinking = filtered.some(
+    block => block.type !== 'thinking' && block.type !== 'redacted_thinking',
+  )
   return {
     ...a,
     message: {
       ...a.message,
-      content: [...a.message.content, ...b.message.content],
+      content: hasNonThinking ? filtered : merged,
     },
   }
 }
@@ -2647,6 +2657,91 @@ export function mergeUserContentBlocks(
   return [...a.slice(0, -1), smooshed, ...toolResults]
 }
 
+type ZodDefLike = {
+  type?: string
+  typeName?: string
+  shape?: Record<string, { _zod?: { def?: ZodDefLike }; _def?: ZodDefLike }>
+  innerType?: { _zod?: { def?: ZodDefLike }; _def?: ZodDefLike }
+  in?: { _zod?: { def?: ZodDefLike }; _def?: ZodDefLike }
+  schema?: { _def?: ZodDefLike }
+}
+
+function unwrapZodType(def: ZodDefLike | undefined): string {
+  let current = def
+  while (current) {
+    if (current.type) {
+      switch (current.type) {
+        case 'optional':
+        case 'nullable':
+        case 'default':
+          if (!current.innerType) return current.type
+          current = current.innerType._zod?.def ?? current.innerType._def
+          continue
+        case 'pipe':
+          if (!current.in) return current.type
+          current = current.in._zod?.def ?? current.in._def
+          continue
+        default:
+          return current.type
+      }
+    }
+    const typeName = current.typeName
+    if (
+      typeName === 'ZodOptional' ||
+      typeName === 'ZodNullable' ||
+      typeName === 'ZodDefault'
+    ) {
+      current = current.innerType?._def
+      continue
+    }
+    if (typeName === 'ZodEffects' || typeName === 'ZodPipeline') {
+      current = current.schema?._def ?? current.in?._def
+      continue
+    }
+    if (typeName === 'ZodArray') return 'array'
+    if (typeName === 'ZodObject' || typeName === 'ZodRecord') return 'object'
+    return typeName ?? 'unknown'
+  }
+  return 'unknown'
+}
+
+function coerceJsonEncodedSchemaFields(
+  input: { [key: string]: unknown },
+  schema: { _zod?: { def?: ZodDefLike }; _def?: ZodDefLike; shape?: unknown },
+): { [key: string]: unknown } {
+  const z4 = schema._zod?.def
+  const z3 = schema._def
+  const rawShape =
+    (z4?.type === 'object' ? z4.shape : undefined) ??
+    (z3?.typeName === 'ZodObject' ? z3.shape : undefined) ??
+    schema.shape
+  const shape = (
+    typeof rawShape === 'function' ? rawShape() : rawShape
+  ) as ZodDefLike['shape'] | undefined
+  if (!shape) {
+    return input
+  }
+  let next = input
+  for (const [key, field] of Object.entries(shape)) {
+    const value = input[key]
+    if (typeof value !== 'string') continue
+    const fieldDef = field._zod?.def ?? field._def
+    const underlying = unwrapZodType(fieldDef)
+    if (underlying !== 'array' && underlying !== 'object') continue
+    const parsed = safeParseJSON(value, false)
+    const ok =
+      underlying === 'array'
+        ? Array.isArray(parsed)
+        : parsed !== null &&
+          typeof parsed === 'object' &&
+          !Array.isArray(parsed)
+    if (!ok) continue
+    if (next === input) next = { ...input }
+    next[key] = parsed
+  }
+  return next
+}
+
 // Sometimes the API returns empty messages (eg. "\n\n"). We need to filter these out,
 // otherwise they will give an API error when we send them to the API next time we call query().
 export function normalizeContentFromAPI(
@@ -2701,15 +2796,20 @@ export function normalizeContentFromAPI(
         if (typeof normalizedInput === 'object' && normalizedInput !== null) {
           const tool = findToolByName(tools, contentBlock.name)
           if (tool) {
+            const coerced = coerceJsonEncodedSchemaFields(
+              normalizedInput as { [key: string]: unknown },
+              tool.inputSchema,
+            )
             try {
               normalizedInput = normalizeToolInput(
                 tool,
-                normalizedInput as { [key: string]: unknown },
+                coerced,
                 agentId,
               )
             } catch (error) {
               logError(new Error('Error normalizing tool input: ' + error))
-              // Keep the original input if normalization fails
+              // Keep the already-coerced input if normalization fails
+              normalizedInput = coerced
             }
           }
         }

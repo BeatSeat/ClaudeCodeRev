@@ -70,7 +70,9 @@ import {
 } from './services/policyLimits/index.js'
 import {
   loadRemoteManagedSettings,
+  loadRemoteManagedSettingsRequired,
   refreshRemoteManagedSettings,
+  requireRemoteManagedSettings,
 } from './services/remoteManagedSettings/index.js'
 import type { ToolInputJSONSchema } from './Tool.js'
 import {
@@ -1299,7 +1301,15 @@ async function run(): Promise<CommanderCommand> {
     // Fails open - if fetch fails, continues without remote settings
     // Settings are applied via hot-reload when they arrive
     // Must happen after init() to ensure config reading is allowed
-    void loadRemoteManagedSettings()
+    if (getSettingsForSource('policySettings')?.forceRemoteSettingsRefresh) {
+      const fresh = await loadRemoteManagedSettingsRequired()
+      if (!fresh.valid) {
+        process.stderr.write(fresh.message + '\n')
+        process.exit(1)
+      }
+    } else {
+      void loadRemoteManagedSettings()
+    }
     void loadPolicyLimits()
 
     profileCheckpoint('preAction_after_remote_settings')
@@ -2019,6 +2029,13 @@ async function run(): Promise<CommanderCommand> {
         remoteControlOption.length > 0
           ? remoteControlOption
           : undefined
+      const remoteControlNamePrefix = (
+        options as { remoteControlSessionNamePrefix?: string }
+      ).remoteControlSessionNamePrefix
+      if (remoteControlNamePrefix) {
+        process.env.CLAUDE_REMOTE_CONTROL_SESSION_NAME_PREFIX =
+          remoteControlNamePrefix
+      }
 
       // Validate session ID if provided
       if (sessionId) {
@@ -3312,7 +3329,18 @@ async function run(): Promise<CommanderCommand> {
         if (onboardingShown) {
           // Refresh auth-dependent services now that the user has logged in during onboarding.
           // Keep in sync with the post-login logic in src/commands/login.tsx
-          void refreshRemoteManagedSettings()
+          if (
+            getSettingsForSource('policySettings')?.forceRemoteSettingsRefresh
+          ) {
+            const fresh = await requireRemoteManagedSettings(
+              refreshRemoteManagedSettings,
+            )
+            if (!fresh.valid) {
+              return await exitWithError(root, fresh.message)
+            }
+          } else {
+            void refreshRemoteManagedSettings()
+          }
           void refreshPolicyLimits()
           // Clear user data cache BEFORE GrowthBook refresh so it picks up fresh credentials
           resetUserCache()
@@ -5398,6 +5426,10 @@ async function run(): Promise<CommanderCommand> {
       new Option('--rc [name]', 'Alias for --remote-control')
         .argParser(value => value || true)
         .hideHelp(),
+    )
+    program.option(
+      '--remote-control-session-name-prefix <prefix>',
+      'Prefix for auto-generated Remote Control session names (default: hostname)',
     )
   }
 

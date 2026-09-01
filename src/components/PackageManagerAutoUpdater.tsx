@@ -11,6 +11,7 @@ import {
 import { isAutoUpdaterDisabled } from '../utils/config.js'
 import { logForDebugging } from '../utils/debug.js'
 import {
+  getHomebrewCaskName,
   getPackageManager,
   type PackageManager,
 } from '../utils/nativeInstaller/packageManagers.js'
@@ -49,7 +50,13 @@ export function PackageManagerAutoUpdater({ verbose }: Props): React.ReactNode {
     ])
     setPackageManager(pm)
 
-    let latest = await getLatestVersionFromGcs(channel)
+    let resolvedChannel = channel
+    if (pm === 'homebrew') {
+      const cask = getHomebrewCaskName()
+      resolvedChannel = cask === 'claude-code@latest' ? 'latest' : 'stable'
+    }
+
+    let latest = await getLatestVersionFromGcs(resolvedChannel)
 
     // Check if max version is set (server-side kill switch for auto-updates)
     const maxVersion = await getMaxVersion()
@@ -97,7 +104,7 @@ export function PackageManagerAutoUpdater({ verbose }: Props): React.ReactNode {
   // rpm: dnf/yum/zypper)
   const updateCommand =
     packageManager === 'homebrew'
-      ? 'brew upgrade claude-code'
+      ? `brew upgrade ${getHomebrewCaskName() ?? 'claude-code'}`
       : packageManager === 'winget'
         ? 'winget upgrade Anthropic.ClaudeCode'
         : packageManager === 'apk'

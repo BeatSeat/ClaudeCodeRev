@@ -19,11 +19,6 @@ import {
 import { registerTmuxBackend } from './registry.js'
 import type { CreatePaneResult, PaneBackend, PaneId } from './types.js'
 
-// Track whether the first pane has been used for external swarm session
-let firstPaneUsedForExternal = false
-
-// Cached leader window target (session:window format) to avoid repeated queries
-let cachedLeaderWindowTarget: string | null = null
 
 // Lock mechanism to prevent race conditions when spawning teammates in parallel
 let paneCreationLock: Promise<void> = Promise.resolve()
@@ -105,6 +100,8 @@ export class TmuxBackend implements PaneBackend {
   readonly type = 'tmux' as const
   readonly displayName = 'tmux'
   readonly supportsHideShow = true
+  private cachedLeaderWindowTarget: string | null = null
+  private firstPaneUsedForExternal = false
 
   /**
    * Checks if tmux is installed and available.
@@ -399,8 +396,8 @@ export class TmuxBackend implements PaneBackend {
    */
   private async getCurrentWindowTarget(): Promise<string | null> {
     // Return cached value if available
-    if (cachedLeaderWindowTarget) {
-      return cachedLeaderWindowTarget
+    if (this.cachedLeaderWindowTarget) {
+      return this.cachedLeaderWindowTarget
     }
 
     // Build the command - use -t to target the leader's pane specifically
@@ -409,7 +406,7 @@ export class TmuxBackend implements PaneBackend {
     if (leaderPane) {
       args.push('-t', leaderPane)
     }
-    args.push('-p', '#{session_name}:#{window_index}')
+    args.push('-p', '#{window_id}')
 
     const result = await execFileNoThrow(TMUX_COMMAND, args)
 
@@ -420,8 +417,8 @@ export class TmuxBackend implements PaneBackend {
       return null
     }
 
-    cachedLeaderWindowTarget = result.stdout.trim()
-    return cachedLeaderWindowTarget
+    this.cachedLeaderWindowTarget = result.stdout.trim()
+    return this.cachedLeaderWindowTarget
   }
 
   /**
@@ -643,13 +640,13 @@ export class TmuxBackend implements PaneBackend {
     if (paneCount === null) {
       throw new Error('Could not determine pane count for swarm window')
     }
-    const isFirstTeammate = !firstPaneUsedForExternal && paneCount === 1
+    const isFirstTeammate = !this.firstPaneUsedForExternal && paneCount === 1
 
     let paneId: string
 
     if (isFirstTeammate) {
       paneId = firstPaneId
-      firstPaneUsedForExternal = true
+      this.firstPaneUsedForExternal = true
       logForDebugging(
         `[TmuxBackend] Using initial pane for first teammate ${teammateName}: ${paneId}`,
       )

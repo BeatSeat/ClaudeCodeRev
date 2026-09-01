@@ -15,6 +15,8 @@ import { OAuthService } from '../services/oauth/index.js'
 import { getOauthAccountInfo, validateForceLoginOrg } from '../utils/auth.js'
 import { logError } from '../utils/log.js'
 import { getSettings_DEPRECATED } from '../utils/settings/settings.js'
+import { openBrowser } from '../utils/browser.js'
+import { BedrockSetupWizard } from './bedrock-setup/BedrockSetupWizard.js'
 import { Select } from './CustomSelect/select.js'
 import { KeyboardShortcutHint } from './design-system/KeyboardShortcutHint.js'
 import { Spinner } from './Spinner.js'
@@ -29,7 +31,9 @@ type Props = {
 
 type OAuthStatus =
   | { state: 'idle' } // Initial state, waiting to select login method
-  | { state: 'platform_setup' } // Show platform setup info (Bedrock/Vertex/Foundry)
+  | { state: 'platform_setup' } // 3rd-party platform picker (Bedrock wizard / docs)
+  | { state: 'bedrock_wizard' } // Interactive AWS Bedrock setup wizard
+  | { state: 'bedrock_done'; message: string } // Bedrock settings saved
   | { state: 'ready_to_start' } // Flow started, waiting for browser to open
   | { state: 'waiting_for_login'; url: string } // Browser opened, waiting for user to login
   | { state: 'creating_api_key' } // Got access token, creating API key
@@ -51,7 +55,10 @@ export function ConsoleOAuthFlow({
 }: Props): React.ReactNode {
   const settings = getSettings_DEPRECATED() || {}
   const forceLoginMethod = forceLoginMethodProp ?? settings.forceLoginMethod
-  const orgUUID = settings.forceLoginOrgUUID
+  const orgUUID =
+    typeof settings.forceLoginOrgUUID === 'string'
+      ? settings.forceLoginOrgUUID
+      : undefined
   const forcedMethodMessage =
     forceLoginMethod === 'claudeai'
       ? 'Login method pre-selected: Subscription Plan (Claude Pro/Max)'
@@ -116,15 +123,15 @@ export function ConsoleOAuthFlow({
     },
   )
 
-  // Handle Enter to continue from platform setup
+  // Handle Enter to continue after Bedrock setup
   useKeybinding(
     'confirm:yes',
     () => {
-      setOAuthStatus({ state: 'idle' })
+      onDone()
     },
     {
       context: 'Confirmation',
-      isActive: oauthStatus.state === 'platform_setup',
+      isActive: oauthStatus.state === 'bedrock_done',
     },
   )
 
@@ -288,8 +295,9 @@ export function ConsoleOAuthFlow({
           startOAuth: () => Promise<void>,
           pendingOAuthStartRef: React.MutableRefObject<boolean>,
         ) => {
-          void startOAuth()
-          pendingOAuthStartRef.current = false
+          void startOAuth().finally(() => {
+            pendingOAuthStartRef.current = false
+          })
         },
         startOAuth,
         pendingOAuthStartRef,
@@ -499,47 +507,97 @@ function OAuthStatusMessage({
       return (
         <Box flexDirection="column" gap={1} marginTop={1}>
           <Text bold>Using 3rd-party platforms</Text>
+          <Select
+            options={[
+              {
+                label: (
+                  <Text>
+                    Amazon Bedrock ·{' '}
+                    <Text dimColor>interactive setup</Text>
+                  </Text>
+                ),
+                value: 'bedrock',
+              },
+              {
+                label: (
+                  <Text>
+                    Microsoft Foundry · <Text dimColor>opens docs</Text>
+                  </Text>
+                ),
+                value: 'foundry',
+              },
+              {
+                label: (
+                  <Text>
+                    Google Vertex AI · <Text dimColor>opens docs</Text>
+                  </Text>
+                ),
+                value: 'vertex',
+              },
+              { label: 'Go back', value: 'back' },
+            ]}
+            onChange={value => {
+              switch (value) {
+                case 'bedrock':
+                  logEvent('tengu_oauth_bedrock_wizard_launched', {})
+                  setOAuthStatus({ state: 'bedrock_wizard' })
+                  break
+                case 'foundry':
+                  logEvent('tengu_oauth_platform_docs_opened', {
+                    platform:
+                      'foundry' as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
+                  })
+                  void openBrowser(
+                    'https://code.claude.com/docs/en/microsoft-foundry',
+                  )
+                  setOAuthStatus({ state: 'idle' })
+                  break
+                case 'vertex':
+                  logEvent('tengu_oauth_platform_docs_opened', {
+                    platform:
+                      'vertex' as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
+                  })
+                  void openBrowser(
+                    'https://code.claude.com/docs/en/google-vertex-ai',
+                  )
+                  setOAuthStatus({ state: 'idle' })
+                  break
+                default:
+                  setOAuthStatus({ state: 'idle' })
+              }
+            }}
+            onCancel={() => setOAuthStatus({ state: 'idle' })}
+          />
+          <Text dimColor>
+            Foundry and Vertex AI:{' '}
+            <Link url="https://code.claude.com/docs/en/microsoft-foundry">
+              https://code.claude.com/docs/en/microsoft-foundry
+            </Link>
+            {' · '}
+            <Link url="https://code.claude.com/docs/en/google-vertex-ai">
+              https://code.claude.com/docs/en/google-vertex-ai
+            </Link>
+          </Text>
+        </Box>
+      )
 
-          <Box flexDirection="column" gap={1}>
-            <Text>
-              Claude Code supports Amazon Bedrock, Microsoft Foundry, and Vertex
-              AI. Set the required environment variables, then restart Claude
-              Code.
-            </Text>
+    case 'bedrock_wizard':
+      return (
+        <BedrockSetupWizard
+          onComplete={message =>
+            setOAuthStatus({ state: 'bedrock_done', message })
+          }
+          onCancel={() => setOAuthStatus({ state: 'platform_setup' })}
+        />
+      )
 
-            <Text>
-              If you are part of an enterprise organization, contact your
-              administrator for setup instructions.
-            </Text>
-
-            <Box flexDirection="column" marginTop={1}>
-              <Text bold>Documentation:</Text>
-              <Text>
-                · Amazon Bedrock:{' '}
-                <Link url="https://code.claude.com/docs/en/amazon-bedrock">
-                  https://code.claude.com/docs/en/amazon-bedrock
-                </Link>
-              </Text>
-              <Text>
-                · Microsoft Foundry:{' '}
-                <Link url="https://code.claude.com/docs/en/microsoft-foundry">
-                  https://code.claude.com/docs/en/microsoft-foundry
-                </Link>
-              </Text>
-              <Text>
-                · Vertex AI:{' '}
-                <Link url="https://code.claude.com/docs/en/google-vertex-ai">
-                  https://code.claude.com/docs/en/google-vertex-ai
-                </Link>
-              </Text>
-            </Box>
-
-            <Box marginTop={1}>
-              <Text dimColor>
-                Press <Text bold>Enter</Text> to go back to login options.
-              </Text>
-            </Box>
-          </Box>
+    case 'bedrock_done':
+      return (
+        <Box flexDirection="column" gap={1} marginTop={1}>
+          <Text color="success">{oauthStatus.message}</Text>
+          <Text dimColor>
+            Press <Text bold>Enter</Text> to close.
+          </Text>
         </Box>
       )
 

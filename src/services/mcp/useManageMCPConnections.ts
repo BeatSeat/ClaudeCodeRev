@@ -873,12 +873,13 @@ export function useManageMCPConnections(
       }
 
       // Phase 1: Load Claude Code configs. Plugin MCP servers that duplicate a
-      // --mcp-config entry or a claude.ai connector are suppressed here so they
-      // don't connect alongside the connector in Phase 2.
+      // --mcp-config entry are suppressed here. claude.ai connectors are
+      // deduped in Phase 2 so an unauthenticated connector cannot leave a
+      // plugin server stuck "connecting".
       const { servers: claudeCodeConfigs, errors: mcpErrors } =
         isStrictMcpConfig
           ? { servers: {}, errors: [] }
-          : await getClaudeCodeMcpConfigs(dynamicMcpConfig, claudeaiPromise)
+          : await getClaudeCodeMcpConfigs(dynamicMcpConfig)
       if (cancelled) return
 
       // Add MCP errors to plugin errors for UI visibility (deduplicated)
