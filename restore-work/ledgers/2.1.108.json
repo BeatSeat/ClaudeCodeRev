@@ -125,28 +125,5 @@
       "evidence": "isInstallationRelevantToCurrentProject = official C_7 (user|managed|projectPath===cwd). pluginAutoupdate already filters with it"
     }
   ],
-  "notes": "astdiff 2.1.107→2.1.108: structural similarity 98.6%, +261/-108, 7816 structural, 59 string-only. Filter: product 258, unknown 1178, vendor 170, rename-only-100% 6790. Reviewed all 258 product hits. Real 108 adds engineered: MoY 1h cache, knY Skill builtin slash, fg8/l7Y unknown-command suggest, Nw7 DISABLE_PROMPT_CACHING notice, yiK /model cache-miss, uh6/ecY recap, SV/Kc1/Mb4 lazy grammar, JOA tengu_mcp_retry_failed_remote default true (print + interactive), pe/xxY title min 10, Feedback P(null) retry, bash CLAUDE_ENV_FILE `\\n:`, chain self-ref, transcript write logError, jQK/OpY/ApY/zpY ultrareview always-confirm + hasSeenUltrareviewTerms. Default-false GBs left unwired: tengu_slate_harbor/CLAUDE_CODE_REPL (aH/po6/Bo6/m0K REPL), tengu_birch_compass, tengu_bridge_requires_action_details. Other added product names are minify splits (session-memory getters, marketplace git URL, Ink table Ce, OAuth callback, input-value store z1Y/PC6/zg8) or 107-already-present. string-only product hits are VERSION/BUILD_TIME/minify. Do not pull 109 rotating thinking hint, 110 /tui /focus, or 111 Opus 4.7 xhigh into this hop.",
-  "astdiff": {
-    "version": "2.1.108",
-    "from": "2.1.107",
-    "from_bundle": "/root/projects/ClaudeCodeRev/restore-work/artifacts/official/2.1.107/cli.js",
-    "to_bundle": "/root/projects/ClaudeCodeRev/restore-work/artifacts/official/2.1.108/cli.js",
-    "from_sha256": "6f6f6b97ede3d13f8e0ed8ab41a84da82b525249d24fa577e98e69d8c0113844",
-    "to_sha256": "dc82842f51ef4c3af458c56a2e12efbfce2a3f20f615b19bece30d983d14fe73",
-    "method": "astdiff-v0.2.0+tree-sitter0.25",
-    "parser": "tree-sitter 0.25 / tree-sitter-javascript 0.25",
-    "similarity": 98.7,
-    "matched_declarations": 19063,
-    "total_declarations_from": 19157,
-    "total_declarations_to": 19310,
-    "change_total": 8787,
-    "added": 247,
-    "removed": 94,
-    "structural": 8406,
-    "string_only": 40,
-    "command": "astdiff /root/projects/ClaudeCodeRev/restore-work/artifacts/official/2.1.107/cli.js /root/projects/ClaudeCodeRev/restore-work/artifacts/official/2.1.108/cli.js --format json",
-    "full_json": "/root/projects/Zhiman/projects/ccr-swarm/integration/astdiff-full/using/2.1.108.json",
-    "elapsed_seconds": 12.1,
-    "generated_at": "2026-11-14T15:02:32Z"
-  }
+  "notes": "astdiff 2.1.107→2.1.108: structural similarity 98.6%, +261/-108, 7816 structural, 59 string-only. Filter: product 258, unknown 1178, vendor 170, rename-only-100% 6790. Reviewed all 258 product hits. Real 108 adds engineered: MoY 1h cache, knY Skill builtin slash, fg8/l7Y unknown-command suggest, Nw7 DISABLE_PROMPT_CACHING notice, yiK /model cache-miss, uh6/ecY recap, SV/Kc1/Mb4 lazy grammar, JOA tengu_mcp_retry_failed_remote default true (print + interactive), pe/xxY title min 10, Feedback P(null) retry, bash CLAUDE_ENV_FILE `\\n:`, chain self-ref, transcript write logError, jQK/OpY/ApY/zpY ultrareview always-confirm + hasSeenUltrareviewTerms. Default-false GBs left unwired: tengu_slate_harbor/CLAUDE_CODE_REPL (aH/po6/Bo6/m0K REPL), tengu_birch_compass, tengu_bridge_requires_action_details. Other added product names are minify splits (session-memory getters, marketplace git URL, Ink table Ce, OAuth callback, input-value store z1Y/PC6/zg8) or 107-already-present. string-only product hits are VERSION/BUILD_TIME/minify. Do not pull 109 rotating thinking hint, 110 /tui /focus, or 111 Opus 4.7 xhigh into this hop."
 }
