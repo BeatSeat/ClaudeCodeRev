@@ -456,12 +456,15 @@ export async function* runPreToolUseHooks(
       type: 'additionalContext'
       message: MessageUpdateLazy<AttachmentMessage>
     }
+  | { type: 'defer'; hookName: string }
   // stop execution
   | { type: 'stop' }
 > {
   const hookStartTime = Date.now()
   try {
     const appState = toolUseContext.getAppState()
+    let pendingDeferHookName: string | undefined
+    let deniedByHook = false
 
     for await (const result of executePreToolHooks(
       tool.name,
@@ -479,6 +482,8 @@ export async function* runPreToolUseHooks(
           yield { type: 'message', message: { message: result.message } }
         }
         if (result.blockingError) {
+          deniedByHook = true
+          pendingDeferHookName = undefined
           const denialMessage = getPreToolHookBlockingMessage(
             `PreToolUse:${tool.name}`,
             result.blockingError,
@@ -517,7 +522,10 @@ export async function* runPreToolUseHooks(
             hookSource: result.hookSource,
             reason: result.hookPermissionDecisionReason,
           }
-          if (result.permissionBehavior === 'allow') {
+          if (result.permissionBehavior === 'defer') {
+            pendingDeferHookName =
+              result.hookSource || `PreToolUse:${tool.name}`
+          } else if (result.permissionBehavior === 'allow') {
             yield {
               type: 'hookPermissionResult',
               hookPermissionResult: {
@@ -540,6 +548,8 @@ export async function* runPreToolUseHooks(
             }
           } else {
             // deny - updatedInput is irrelevant since tool won't run
+            deniedByHook = true
+            pendingDeferHookName = undefined
             yield {
               type: 'hookPermissionResult',
               hookPermissionResult: {
@@ -641,6 +651,9 @@ export async function* runPreToolUseHooks(
         }
         yield { type: 'stop' }
       }
+    }
+    if (pendingDeferHookName && !deniedByHook) {
+      yield { type: 'defer', hookName: pendingDeferHookName }
     }
   } catch (error) {
     logError(error)

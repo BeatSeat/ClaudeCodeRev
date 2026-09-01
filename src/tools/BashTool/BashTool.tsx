@@ -46,6 +46,7 @@ import {
   detectFileEncoding,
   detectLineEndings,
   getFileModificationTime,
+  getFileModificationTimeAsync,
   writeTextContent,
 } from '../../utils/file.js'
 import {
@@ -55,7 +56,7 @@ import {
 import { truncate } from '../../utils/format.js'
 import { getFsImplementation } from '../../utils/fsOperations.js'
 import { lazySchema } from '../../utils/lazySchema.js'
-import { expandPath } from '../../utils/path.js'
+import { expandPath, toRelativePath } from '../../utils/path.js'
 import type { PermissionResult } from '../../utils/permissions/PermissionResult.js'
 import { maybeRecordPluginHint } from '../../utils/plugins/hintRecommendation.js'
 import { exec } from '../../utils/Shell.js'
@@ -63,7 +64,7 @@ import type { ExecResult } from '../../utils/ShellCommand.js'
 import { SandboxManager } from '../../utils/sandbox/sandbox-adapter.js'
 import { semanticBoolean } from '../../utils/semanticBoolean.js'
 import { semanticNumber } from '../../utils/semanticNumber.js'
-import { EndTruncatingAccumulator } from '../../utils/stringUtils.js'
+import { EndTruncatingAccumulator, plural } from '../../utils/stringUtils.js'
 import { getTaskOutputPath } from '../../utils/task/diskOutput.js'
 import { TaskOutput } from '../../utils/task/TaskOutput.js'
 import { isOutputLineTruncated } from '../../utils/terminal.js'
@@ -89,6 +90,7 @@ import {
   getSimplePrompt,
 } from './prompt.js'
 import { checkReadOnlyConstraints } from './readOnlyValidation.js'
+import { seedReadFileStateFromReadonlyBash } from './seedReadFileState.js'
 import { parseSedEditCommand } from './sedEditParser.js'
 import { shouldUseSandbox } from './shouldUseSandbox.js'
 import { BASH_TOOL_NAME } from './toolName.js'
@@ -499,8 +501,61 @@ const outputSchema = lazySchema(() =>
       .describe(
         'Total size of the output in bytes (set when output is too large for inline)',
       ),
+    staleReadFileStateHint: z
+      .string()
+      .optional()
+      .describe(
+        'Model-facing note listing readFileState entries whose mtime bumped during this command (set when WRITE_COMMAND_MARKERS matches)',
+      ),
   }),
 )
+
+const WRITE_COMMAND_MARKERS = new RegExp(
+  [
+    '--write',
+    '--fix',
+    '--in-place',
+    '--auto-correct',
+    '\\brun\\s+format\\b',
+    '\\brun\\s+fix\\b',
+    '\\b(yarn|pnpm)\\s+format\\b',
+    '\\blint:file\\b',
+    '\\blint:fix\\b',
+    '\\bblack\\b',
+    '\\bisort\\b',
+    '\\bruff\\s+format\\b',
+    '\\bcargo\\s+(fmt|fix)\\b',
+    '\\brustfmt\\b',
+    '\\bgo\\s+fmt\\b',
+    '\\bterraform\\s+fmt\\b',
+    '\\bdprint\\s+fmt\\b',
+    '\\bswiftformat\\b',
+    '\\bphpcbf\\b',
+  ].join('|'),
+)
+
+async function findStaleReadFiles(
+  command: string,
+  readFileState: ToolUseContext['readFileState'],
+  startedAt: number,
+): Promise<string[]> {
+  if (!WRITE_COMMAND_MARKERS.test(command)) {
+    return []
+  }
+  const stale: string[] = []
+  await Promise.all(
+    Array.from(readFileState.entries(), ([filePath, state]) =>
+      getFileModificationTimeAsync(filePath)
+        .then(mtime => {
+          if (mtime > startedAt && mtime > state.timestamp) {
+            stale.push(filePath)
+          }
+        })
+        .catch(() => {}),
+    ),
+  )
+  return stale
+}
 
 type OutputSchema = ReturnType<typeof outputSchema>
 export type Out = z.infer<OutputSchema>
@@ -777,6 +832,7 @@ export const BashTool = buildTool({
       structuredContent,
       persistedOutputPath,
       persistedOutputSize,
+      staleReadFileStateHint,
     },
     toolUseID,
   ): ToolResultBlockParam {
@@ -837,7 +893,12 @@ export const BashTool = buildTool({
     return {
       tool_use_id: toolUseID,
       type: 'tool_result',
-      content: [processedStdout, errorMessage, backgroundInfo]
+      content: [
+        processedStdout,
+        errorMessage,
+        backgroundInfo,
+        staleReadFileStateHint,
+      ]
         .filter(Boolean)
         .join('\n'),
       is_error: interrupted,
@@ -859,6 +920,8 @@ export const BashTool = buildTool({
         parentMessage,
       )
     }
+
+    const commandStartedAt = Math.floor(Date.now() / 1000) * 1000
 
     const { abortController, getAppState, setAppState, setToolJSX } =
       toolUseContext
@@ -1070,6 +1133,32 @@ export const BashTool = buildTool({
       }
     }
 
+    let staleReadFileStateHint: string | undefined
+    if (!wasInterrupted && !isImage && !result.backgroundTaskId) {
+      const stale = await findStaleReadFiles(
+        input.command,
+        toolUseContext.readFileState,
+        commandStartedAt,
+      )
+      if (stale.length > 0) {
+        const shown = stale
+          .slice(0, 5)
+          .map(p => toRelativePath(p) || p)
+          .join(', ')
+        const extra =
+          stale.length > 5 ? ` and ${stale.length - 5} more` : ''
+        staleReadFileStateHint = `[This command modified ${stale.length} ${plural(stale.length, 'file')} you've previously read: ${shown}${extra}. Call Read before editing.]`
+      }
+    }
+
+    if (!wasInterrupted && !isImage && !result.backgroundTaskId) {
+      await seedReadFileStateFromReadonlyBash(
+        input.command,
+        toolUseContext.readFileState,
+        abortController.signal,
+      )
+    }
+
     const data: Out = {
       stdout: compressedStdout,
       stderr: stderrForShellReset,
@@ -1086,6 +1175,7 @@ export const BashTool = buildTool({
           : undefined,
       persistedOutputPath,
       persistedOutputSize,
+      staleReadFileStateHint,
     }
 
     return {

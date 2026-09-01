@@ -38,3 +38,11 @@ export function isFirstPartyAnthropicBaseUrl(): boolean {
     return false
   }
 }
+
+/** Official 2.1.152 `Yn$` — compile fallback for versions before the helper. */
+export function shouldPropagateTraceparent(): boolean {
+  return (
+    isFirstPartyAnthropicBaseUrl() ||
+    isEnvTruthy(process.env.CLAUDE_CODE_PROPAGATE_TRACEPARENT)
+  )
+}

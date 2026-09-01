@@ -3128,13 +3128,17 @@ async function callMCPTool({
         Array.isArray(result.content) &&
         result.content.length > 0
       ) {
-        const firstContent = result.content[0]
-        if (
-          firstContent &&
-          typeof firstContent === 'object' &&
-          'text' in firstContent
-        ) {
-          errorDetails = firstContent.text
+        const texts = result.content
+          .filter(
+            (block): block is { text: string } =>
+              block != null &&
+              typeof block === 'object' &&
+              'text' in block &&
+              typeof (block as { text: unknown }).text === 'string',
+          )
+          .map(block => block.text)
+        if (texts.length > 0) {
+          errorDetails = texts.join('\n')
         }
       } else if ('error' in result) {
         // Fallback for legacy error format

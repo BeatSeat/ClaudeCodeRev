@@ -62,7 +62,8 @@ import {
   normalizeMessages,
 } from '../../utils/messages.js'
 import { getAgentModel } from '../../utils/model/agent.js'
-import { permissionModeSchema } from '../../utils/permissions/PermissionMode.js'
+import type { permissionModeSchema } from '../../utils/permissions/PermissionMode.js'
+import { PERMISSION_MODES } from '../../types/permissions.js'
 import type { PermissionResult } from '../../utils/permissions/PermissionResult.js'
 import {
   filterDeniedAgents,
@@ -202,7 +203,7 @@ const fullInputSchema = lazySchema(() => {
       .describe(
         'Team name for spawning. Uses current team context if omitted.',
       ),
-    mode: permissionModeSchema()
+    mode: z.enum(PERMISSION_MODES)
       .optional()
       .describe(
         'Permission mode for spawned teammate (e.g., "plan" to require plan approval).',

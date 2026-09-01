@@ -1756,6 +1756,11 @@ export function setPromptId(id: string | null): void {
   STATE.promptId = id
 }
 
+/** Compile fallback; the restored tree does not carry the bridge state helper. */
+export function isReplBridgeActive(): boolean {
+  return false
+}
+
 /** Compile fallback for the 2.1.153 MCP config setter. */
 export function setStrictMcpConfig(value: boolean): void {
   state.strictMcpConfig = value

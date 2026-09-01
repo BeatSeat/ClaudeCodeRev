@@ -1342,6 +1342,7 @@ export declare type OutputFormat = JsonSchemaOutputFormat;
 export declare type OutputFormatType = 'json_schema';
 
 export declare type PermissionBehavior = 'allow' | 'deny' | 'ask';
+export declare type HookPermissionDecision = PermissionBehavior | 'defer';
 
 /**
  * Classification of this permission decision for telemetry. SDK hosts that prompt users (desktop apps, IDEs) should set this to reflect what actually happened: user_temporary for allow-once, user_permanent for always-allow (both the click and later cache hits), user_reject for deny. If unset, the CLI infers conservatively (temporary for allow, reject for deny). The vocabulary matches tool_decision OTel events (monitoring-usage docs).
@@ -1488,7 +1489,7 @@ export declare type PreToolUseHookInput = BaseHookInput & {
 
 export declare type PreToolUseHookSpecificOutput = {
     hookEventName: 'PreToolUse';
-    permissionDecision?: PermissionBehavior;
+    permissionDecision?: HookPermissionDecision;
     permissionDecisionReason?: string;
     updatedInput?: Record<string, unknown>;
     additionalContext?: string;
