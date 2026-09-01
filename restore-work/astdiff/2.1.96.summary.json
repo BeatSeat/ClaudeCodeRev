@@ -1,0 +1,23 @@
+{
+  "version": "2.1.96",
+  "from": "2.1.94",
+  "from_bundle": "/root/projects/ClaudeCodeRev/restore-work/artifacts/official/2.1.94/cli.js",
+  "to_bundle": "/root/projects/ClaudeCodeRev/restore-work/artifacts/official/2.1.96/cli.js",
+  "from_sha256": "11fa0f142edee45aa24ad60b071345847da6c8b2372d338037fe8c4fd4469564",
+  "to_sha256": "62ad81e3eb00df80ac019b607cd4bad36607f665bffc7b4e9e3db7ade492d66e",
+  "method": "astdiff-v0.2.0+tree-sitter0.25",
+  "parser": "tree-sitter 0.25 / tree-sitter-javascript 0.25",
+  "similarity": 100.0,
+  "matched_declarations": 18689,
+  "total_declarations_from": 18690,
+  "total_declarations_to": 18691,
+  "change_total": 1426,
+  "added": 2,
+  "removed": 1,
+  "structural": 1364,
+  "string_only": 59,
+  "command": "astdiff /root/projects/ClaudeCodeRev/restore-work/artifacts/official/2.1.94/cli.js /root/projects/ClaudeCodeRev/restore-work/artifacts/official/2.1.96/cli.js --format json",
+  "full_json": "/root/projects/Zhiman/projects/ccr-swarm/integration/astdiff-full/using/2.1.96.json",
+  "elapsed_seconds": 11.6,
+  "generated_at": "2026-11-14T15:01:44Z"
+}
