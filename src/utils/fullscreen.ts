@@ -1,11 +1,15 @@
 import { spawnSync } from 'child_process'
 import { getIsInteractive } from '../bootstrap/state.js'
+import { getFeatureValue_CACHED_MAY_BE_STALE } from '../services/analytics/growthbook.js'
 import { logForDebugging } from './debug.js'
 import { isEnvDefinedFalsy, isEnvTruthy } from './envUtils.js'
 import { execFileNoThrow } from './execFileNoThrow.js'
+import { getInitialSettings } from './settings/settings.js'
 
 let loggedTmuxCcDisable = false
 let checkedTmuxMouseHint = false
+/** Official dq() caches tengu_pewter_brook so settings/GB aren't re-read every render. */
+let gbGateCached: boolean | undefined
 
 /**
  * Cached result from `tmux display-message -p '#{client_control_mode}'`.
@@ -105,7 +109,8 @@ export function _resetTmuxControlModeProbeForTesting(): void {
 }
 
 /**
- * Official 2.1.89 `b4()`: env opt-out/in, tmux -CC disable, then default off.
+ * Official dq(): env opt-out/in, tmux -CC disable, then settings.tui,
+ * then tengu_pewter_brook. `/tui fullscreen|default` persists via userSettings.
  */
 export function isFullscreenEnvEnabled(): boolean {
   // Explicit user opt-out always wins.
@@ -123,7 +128,16 @@ export function isFullscreenEnvEnabled(): boolean {
     }
     return false
   }
-  return false
+  switch (getInitialSettings().tui) {
+    case 'fullscreen':
+      return true
+    case 'default':
+      return false
+  }
+  return (gbGateCached ??= getFeatureValue_CACHED_MAY_BE_STALE(
+    'tengu_pewter_brook',
+    false,
+  ))
 }
 
 /**
@@ -197,4 +211,5 @@ export async function maybeGetTmuxMouseHint(): Promise<string | null> {
 export function _resetForTesting(): void {
   loggedTmuxCcDisable = false
   checkedTmuxMouseHint = false
+  gbGateCached = undefined
 }

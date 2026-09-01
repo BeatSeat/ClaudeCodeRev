@@ -364,7 +364,15 @@ export function getEnabledPluginIdsForScope(
 export function formatDependencyCountSuffix(installedDeps: string[]): string {
   if (installedDeps.length === 0) return ''
   const n = installedDeps.length
-  return ` (+ ${n} ${n === 1 ? 'dependency' : 'dependencies'})`
+  // Official 2.1.110 `AZ4`: list names (cap 5) so `/plugin install` shows
+  // which deps were auto-installed, not just a count.
+  const max = 5
+  const names = installedDeps.map(id => parsePluginIdentifier(id).name)
+  const listed =
+    names.length <= max
+      ? names.join(', ')
+      : `${names.slice(0, max).join(', ')}, …`
+  return ` (+ ${n} ${n === 1 ? 'dependency' : 'dependencies'}: ${listed})`
 }
 
 /**

@@ -9,6 +9,7 @@ import type { QuerySource } from 'src/constants/querySource.js'
 import { logEvent } from 'src/services/analytics/index.js'
 import { getContentText } from 'src/utils/messages.js'
 import {
+  findBridgeSafeLocalCommand,
   findCommand,
   getCommandName,
   isBridgeSafeCommand,
@@ -424,6 +425,8 @@ async function processUserInputBase(
   // known-but-unsafe command (local-jsx UI or terminal-only), short-circuit
   // with a helpful message rather than letting the model see raw "/config".
   let effectiveSkipSlash = skipSlashCommands
+  let effectiveInput = inputString
+  let effectiveContext = context
   if (bridgeOrigin && inputString !== null && inputString.startsWith('/')) {
     const parsed = parseSlashCommand(inputString)
     const cmd = parsed
@@ -433,16 +436,31 @@ async function processUserInputBase(
       if (isBridgeSafeCommand(cmd)) {
         effectiveSkipSlash = false
       } else {
-        const msg = `/${getCommandName(cmd)} isn't available over Remote Control.`
-        return {
-          messages: [
-            createUserMessage({ content: inputString, uuid }),
-            createCommandInputMessage(
-              `<local-command-stdout>${msg}</local-command-stdout>`,
-            ),
-          ],
-          shouldQuery: false,
-          resultText: msg,
+        // Official 2.1.110 kj7: rewrite local-jsx to a same-name local
+        // counterpart in BRIDGE_SAFE_COMMANDS (/context, /exit).
+        const local = findBridgeSafeLocalCommand(cmd)
+        if (local) {
+          effectiveSkipSlash = false
+          effectiveInput = inputString.replace(/^\/\S+/, `/${local.name}`)
+          effectiveContext = {
+            ...context,
+            options: {
+              ...context.options,
+              commands: [local, ...context.options.commands],
+            },
+          }
+        } else {
+          const msg = `/${getCommandName(cmd)} isn't available over Remote Control.`
+          return {
+            messages: [
+              createUserMessage({ content: inputString, uuid }),
+              createCommandInputMessage(
+                `<local-command-stdout>${msg}</local-command-stdout>`,
+              ),
+            ],
+            shouldQuery: false,
+            resultText: msg,
+          }
         }
       }
     }
@@ -495,7 +513,7 @@ async function processUserInputBase(
   // but still need skill reminders and other attachments.
   const shouldExtractAttachments =
     !skipAttachments &&
-    (mode !== 'prompt' || effectiveSkipSlash || !inputString?.startsWith('/'))
+    (mode !== 'prompt' || effectiveSkipSlash || !effectiveInput?.startsWith('/'))
 
   queryCheckpoint('query_attachment_loading_start')
   const attachmentMessages = shouldExtractAttachments
@@ -530,17 +548,17 @@ async function processUserInputBase(
   // Slash commands
   // Skip for remote bridge messages — input from CCR clients is plain text
   if (
-    inputString !== null &&
+    effectiveInput !== null &&
     !effectiveSkipSlash &&
-    inputString.startsWith('/')
+    effectiveInput.startsWith('/')
   ) {
     const { processSlashCommand } = await import('./processSlashCommand.js')
     const slashResult = await processSlashCommand(
-      inputString,
+      effectiveInput,
       precedingInputBlocks,
       imageContentBlocks,
       attachmentMessages,
-      context,
+      effectiveContext,
       setToolJSX,
       uuid,
       isAlreadyProcessing,

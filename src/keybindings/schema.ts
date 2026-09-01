@@ -168,6 +168,7 @@ export const KEYBINDING_ACTIONS = [
   // Plugin dialog actions
   'plugin:toggle',
   'plugin:install',
+  'plugin:favorite',
   'doctor:fix',
   // Permission dialog actions
   'permission:toggleDebug',

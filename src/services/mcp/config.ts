@@ -211,6 +211,74 @@ export function getMcpServerSignature(config: McpServerConfig): string | null {
   return null
 }
 
+/** Official 2.1.110 `frz`. Human-readable endpoint for /doctor conflict copy. */
+export function formatMcpEndpoint(config: McpServerConfig): string {
+  const url = getServerUrl(config)
+  if (url) return unwrapCcrProxyUrl(url)
+  const cmd = getServerCommandArray(config)
+  if (cmd) return cmd.join(' ')
+  return config.type ?? 'unknown'
+}
+
+export type McpScopeConflict = {
+  path: string
+  message: string
+  severity: 'warning'
+  suggestion: string
+  mcpErrorMetadata: {
+    scope: ConfigScope
+    serverName: string
+    severity: 'warning'
+  }
+}
+
+/**
+ * Official 2.1.110 `w9K`. Warn when the same MCP server name is defined in
+ * multiple config scopes with different signatures (different endpoints).
+ * Same-name + same-signature is fine (override). Enterprise is excluded —
+ * managed policy is not something /doctor tells the user to `mcp remove`.
+ */
+export function findMcpScopeConflicts(
+  scopes: Array<{
+    scope: ConfigScope
+    servers: Record<string, ScopedMcpServerConfig>
+  }>,
+): McpScopeConflict[] {
+  const byName = new Map<
+    string,
+    Array<{ scope: ConfigScope; sig: string; endpoint: string }>
+  >()
+  for (const { scope, servers } of scopes) {
+    for (const [name, config] of Object.entries(servers)) {
+      const sig = getMcpServerSignature(config)
+      if (!sig) continue
+      let entries = byName.get(name)
+      if (!entries) {
+        entries = []
+        byName.set(name, entries)
+      }
+      entries.push({ scope, sig, endpoint: formatMcpEndpoint(config) })
+    }
+  }
+  const conflicts: McpScopeConflict[] = []
+  for (const [name, entries] of byName) {
+    if (entries.length < 2) continue
+    if (new Set(entries.map(e => e.sig)).size < 2) continue
+    conflicts.push({
+      path: `mcpServers.${name}`,
+      message: `Server "${name}" is defined in multiple scopes with different endpoints: ${entries.map(e => `${e.scope} (${e.endpoint})`).join(', ')}. OAuth tokens are stored per endpoint, so authenticating in one context will not carry over.`,
+      severity: 'warning',
+      suggestion: `Keep the correct endpoint and remove the others: ${entries.map(e => `\`claude mcp remove ${name} -s ${e.scope}\``).join(' or ')}`,
+      mcpErrorMetadata: {
+        scope: entries[0]!.scope,
+        serverName: name,
+        severity: 'warning',
+      },
+    })
+  }
+  return conflicts
+}
+
 /**
  * Filter plugin MCP servers, dropping any whose signature matches a
  * manually-configured server or an earlier-loaded plugin server.

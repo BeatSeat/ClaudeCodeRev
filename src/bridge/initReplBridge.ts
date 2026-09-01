@@ -14,6 +14,7 @@
  */
 
 import { feature } from 'bun:bundle'
+import type { UUID } from 'crypto'
 import { hostname } from 'os'
 import { getOriginalCwd, getSessionId } from '../bootstrap/state.js'
 import type { SDKMessage } from '../entrypoints/agentSdkTypes.js'
@@ -42,7 +43,10 @@ import {
   isSyntheticMessage,
 } from '../utils/messages.js'
 import type { PermissionMode } from '../utils/permissions/PermissionMode.js'
-import { getCurrentSessionTitle } from '../utils/sessionStorage.js'
+import {
+  getCurrentSessionTitle,
+  saveCustomTitle,
+} from '../utils/sessionStorage.js'
 import {
   extractConversationText,
   generateSessionTitle,
@@ -310,6 +314,26 @@ export async function initReplBridge(
   // Skips count 1 if initialMessages already derived (that title is fresh);
   // still refreshes at count 3. v2 passes cse_*; updateBridgeSessionTitle
   // retags internally.
+  // Official 2.1.110 rename_session: persist claude.ai title to the local
+  // JSONL so --resume / session list show it (not just the in-memory CCR title).
+  const onRenameSession = (
+    newTitle: string,
+  ): { ok: true } | { ok: false; error: string } => {
+    const trimmed = newTitle.trim()
+    if (!trimmed) {
+      return { ok: false, error: 'rename_session requires a non-empty title' }
+    }
+    const sessionId = getSessionId()
+    if (!sessionId) {
+      return { ok: false, error: 'rename_session: no local session id' }
+    }
+    void saveCustomTitle(sessionId as UUID, trimmed, undefined, 'user')
+    title = trimmed
+    hasTitle = true
+    hasExplicitTitle = true
+    return { ok: true }
+  }
+
   let userMessageCount = 0
   let lastBridgeSessionId: string | undefined
   let genSeq = 0
@@ -447,6 +471,7 @@ export async function initReplBridge(
       onSetModel,
       onSetMaxThinkingTokens,
       onSetPermissionMode,
+      onRenameSession,
       onStateChange,
       outboundOnly,
       tags,
@@ -541,6 +566,7 @@ export async function initReplBridge(
     onSetModel,
     onSetMaxThinkingTokens,
     onSetPermissionMode,
+    onRenameSession,
     onStateChange,
     perpetual,
   })
