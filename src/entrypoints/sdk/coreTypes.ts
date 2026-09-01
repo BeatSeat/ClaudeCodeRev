@@ -51,6 +51,7 @@ export const HOOK_EVENTS = [
   'InstructionsLoaded',
   'CwdChanged',
   'FileChanged',
+  'MessageDisplay',
 ] as const
 
 export const EXIT_REASONS = [

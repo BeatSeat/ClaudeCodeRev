@@ -3017,6 +3017,14 @@ function PromptInput({
       {...baseProps}
       initialMode={vimMode}
       onModeChange={setVimMode}
+      onOpenHistorySearch={() => {
+        if (feature('HISTORY_PICKER')) {
+          setShowHistoryPicker(true)
+          setHelpOpen(false)
+        } else {
+          setIsSearchingHistory(true)
+        }
+      }}
     />
   ) : (
     <TextInput {...baseProps} />

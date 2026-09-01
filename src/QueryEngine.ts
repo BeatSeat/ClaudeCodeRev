@@ -66,6 +66,7 @@ import { headlessProfilerCheckpoint } from './utils/headlessProfiler.js'
 import { registerStructuredOutputEnforcement } from './utils/hooks/hookHelpers.js'
 import { logForDebugging } from './utils/debug.js'
 import { getInMemoryErrors } from './utils/log.js'
+import { applyMessageDisplayToCompletedMessage } from './utils/hooks/messageDisplayFlush.js'
 import { countToolCalls, SYNTHETIC_MESSAGES } from './utils/messages.js'
 import {
   getMainLoopModel,
@@ -797,6 +798,9 @@ export class QueryEngine {
     const initialStructuredOutputCalls = jsonSchema
       ? countToolCalls(this.mutableMessages, SYNTHETIC_OUTPUT_TOOL_NAME)
       : 0
+    // Official 2.1.152 F$ / I$: one turn id + original→display map for Xj9.
+    const messageDisplayTurnId = randomUUID()
+    const displayedAssistantMessages = new Map<Message, Message>()
 
     for await (const message of query({
       messages,
@@ -888,7 +892,7 @@ export class QueryEngine {
         case 'tombstone':
           // Tombstone messages are control signals for removing messages, skip them
           break
-        case 'assistant':
+        case 'assistant': {
           // Capture stop_reason if already set (synthetic messages). For
           // streamed responses, this is null at content_block_stop time;
           // the real value arrives via message_delta (handled below).
@@ -896,8 +900,19 @@ export class QueryEngine {
             lastStopReason = message.message.stop_reason
           }
           this.mutableMessages.push(message)
-          yield* normalizeMessage(message)
+          // Official 2.1.152 Xj9: store original, yield display-transformed.
+          const displayedAssistant = await applyMessageDisplayToCompletedMessage(
+            message,
+            messageDisplayTurnId,
+            getAppState,
+            this.abortController.signal,
+          )
+          if (displayedAssistant !== message) {
+            displayedAssistantMessages.set(message, displayedAssistant)
+          }
+          yield* normalizeMessage(displayedAssistant)
           break
+        }
         case 'progress':
           this.mutableMessages.push(message)
           // Record inline so the dedup loop in the next ask() call sees it
@@ -1283,12 +1298,18 @@ export class QueryEngine {
     let isApiError = false
 
     if (result.type === 'assistant') {
+      const displayed = displayedAssistantMessages.get(result) ?? result
       const lastContent = last(result.message.content)
+      const displayedLast =
+        displayed.type === 'assistant'
+          ? last(displayed.message.content)
+          : undefined
       if (
         lastContent?.type === 'text' &&
-        !SYNTHETIC_MESSAGES.has(lastContent.text)
+        !SYNTHETIC_MESSAGES.has(lastContent.text) &&
+        displayedLast?.type === 'text'
       ) {
-        textResult = lastContent.text
+        textResult = displayedLast.text
       }
       isApiError = Boolean(result.isApiErrorMessage)
     }

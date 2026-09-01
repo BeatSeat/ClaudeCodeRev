@@ -45,6 +45,8 @@ type UseVimInputProps = Omit<UseTextInputProps, 'inputFilter'> & {
   onModeChange?: (mode: VimMode) => void
   onUndo?: () => void
   inputFilter?: UseTextInputProps['inputFilter']
+  /** Official 2.1.152: Vim NORMAL `/` opens reverse history search. */
+  onOpenHistorySearch?: () => void
 }
 
 export function useVimInput(props: UseVimInputProps): VimInputState {
@@ -401,6 +403,16 @@ export function useVimInput(props: UseVimInputProps): VimInputState {
     }
 
     if (state.mode !== 'NORMAL') {
+      return
+    }
+
+    // Official 2.1.152: idle `/` opens reverse history search (not a vim motion).
+    if (
+      state.command.type === 'idle' &&
+      input === '/' &&
+      props.onOpenHistorySearch
+    ) {
+      props.onOpenHistorySearch()
       return
     }
 

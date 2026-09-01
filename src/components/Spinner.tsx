@@ -29,6 +29,7 @@ import { useAppState } from '../state/AppState.js'
 import { useTerminalSize } from '../hooks/useTerminalSize.js'
 import { stringWidth } from '../ink/stringWidth.js'
 import { getDefaultCharacters, type SpinnerMode } from './Spinner/index.js'
+import { syncThinkingStartedAt } from './Spinner/thinkingStartedAt.js'
 import { SpinnerAnimationRow } from './Spinner/SpinnerAnimationRow.js'
 import { useSettings } from '../hooks/useSettings.js'
 import { isInProcessTeammateTask } from '../tasks/InProcessTeammateTask/types.js'
@@ -156,6 +157,10 @@ function SpinnerWithVerbInner({
     'thinking' | number | null
   >(null)
   const thinkingStartRef = useRef<number | null>(null)
+
+  useEffect(() => {
+    syncThinkingStartedAt(mode)
+  }, [mode])
 
   useEffect(() => {
     let showDurationTimer: ReturnType<typeof setTimeout> | null = null

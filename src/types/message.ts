@@ -94,6 +94,9 @@ export type SystemStopHookSummaryMessage = SystemMessageBase & {
 export type SystemTurnDurationMessage = SystemMessageBase & {
   subtype: 'turn_duration'; durationMs: number
   budgetTokens?: number; budgetLimit?: number; budgetNudges?: number; messageCount?: number
+  pendingBackgroundAgentCount?: number
+  pendingWorkflowCount?: number
+  backgroundWaitStartTime?: number | null
 }
 export type SystemAwaySummaryMessage = SystemMessageBase & { subtype: 'away_summary'; content: string }
 export type SystemMemorySavedMessage = SystemMessageBase & { subtype: 'memory_saved'; writtenPaths: string[] }
@@ -160,6 +163,8 @@ export type CollapsedReadSearchGroup = {
   linesRemoved?: number
   pendingText?: string
   latestDisplayHint?: string
+  thoughtForMs?: number
+  latestThinkingSummary?: string
   readFilePaths?: string[]
   searchArgs?: string[]
   commits?: Array<{ sha: string; kind: string }>

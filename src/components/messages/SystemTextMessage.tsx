@@ -43,6 +43,8 @@ import { useAppStateStore } from '../../state/AppState.js'
 import { isBackgroundTask, type TaskState } from '../../tasks/types.js'
 import { getPillLabel } from '../../tasks/pillLabel.js'
 import { useSelectedMessageBg } from '../messageActions.js'
+import { countPendingBackgroundWork } from './pendingBackgroundWait.js'
+import { getCommandQueueSnapshot } from '../../utils/messageQueueManager.js'
 
 type Props = {
   message: SystemMessage
@@ -349,13 +351,22 @@ function TurnDurationMessage({
   const bg = useSelectedMessageBg()
   const [verb] = useState(() => sample(TURN_COMPLETION_VERBS) ?? 'Worked')
   const store = useAppStateStore()
-  const [backgroundTaskSummary] = useState(() => {
-    const tasks = store.getState().tasks
-    const running = (Object.values(tasks ?? {}) as TaskState[]).filter(
-      isBackgroundTask,
-    )
-    return running.length > 0 ? getPillLabel(running) : null
-  })
+  const [{ backgroundTaskSummary, hasPendingAgents, hasPendingWorkflows }] =
+    useState(() => {
+      const tasks = (store.getState().tasks ?? {}) as Record<string, TaskState>
+      const running = (Object.values(tasks) as TaskState[]).filter(
+        isBackgroundTask,
+      )
+      const pending = countPendingBackgroundWork({
+        tasks,
+        queuedCommands: getCommandQueueSnapshot(),
+      })
+      return {
+        backgroundTaskSummary: running.length > 0 ? getPillLabel(running) : null,
+        hasPendingAgents: pending.pendingAgents > 0,
+        hasPendingWorkflows: pending.pendingWorkflows > 0,
+      }
+    })
 
   const showTurnDuration = getUserIntentSetting('showTurnDuration', true) ?? true
 
@@ -380,6 +391,14 @@ function TurnDurationMessage({
     return null
   }
 
+  const pendingAgents = hasPendingAgents
+    ? (message.pendingBackgroundAgentCount ?? 0)
+    : 0
+  const pendingWorkflows = hasPendingWorkflows
+    ? (message.pendingWorkflowCount ?? 0)
+    : 0
+  const waiting = pendingAgents > 0 || pendingWorkflows > 0
+
   return (
     <Box
       flexDirection="row"
@@ -390,11 +409,42 @@ function TurnDurationMessage({
       <Box minWidth={2}>
         <Text dimColor>{TEARDROP_ASTERISK}</Text>
       </Box>
-      <Text dimColor>
-        {showTurnDuration && `${verb} for ${duration}`}
-        {budgetSuffix}
-        {backgroundTaskSummary &&
-          ` \u00B7 ${backgroundTaskSummary} still running`}
+      <Text>
+        {showTurnDuration &&
+          (waiting ? (
+            <Text dimColor>
+              Waiting for
+              {pendingAgents > 0 && (
+                <Text>
+                  {' '}
+                  <Text bold dimColor>
+                    {pendingAgents}
+                  </Text>
+                  {` background ${pendingAgents === 1 ? 'agent' : 'agents'}`}
+                </Text>
+              )}
+              {pendingAgents > 0 && pendingWorkflows > 0 && ' and'}
+              {pendingWorkflows > 0 && (
+                <Text>
+                  {' '}
+                  <Text bold dimColor>
+                    {pendingWorkflows}
+                  </Text>
+                  {` ${pendingWorkflows === 1 ? 'workflow' : 'workflows'}`}
+                </Text>
+              )}{' '}
+              to finish
+            </Text>
+          ) : (
+            <Text dimColor>
+              {verb} for {duration}
+            </Text>
+          ))}
+        {budgetSuffix && <Text dimColor>{budgetSuffix}</Text>}
+        {!waiting &&
+          backgroundTaskSummary && (
+            <Text dimColor>{` \u00B7 ${backgroundTaskSummary} still running`}</Text>
+          )}
       </Text>
     </Box>
   )
