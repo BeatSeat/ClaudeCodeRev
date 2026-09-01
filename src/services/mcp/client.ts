@@ -504,6 +504,19 @@ function getConnectionTimeoutMs(): number {
 const MCP_REQUEST_TIMEOUT_MS = 60000
 
 /**
+ * 2.1.142: per-request fetch timeout now honors MCP_TOOL_TIMEOUT instead of
+ * being capped at 60s regardless of the configured value. When MCP_TOOL_TIMEOUT
+ * is set (>0) the per-request timeout is clamped to at least 60s and at most
+ * 2^31-1 (effectively unlimited); otherwise it stays at the 60s default.
+ */
+function getMcpRequestTimeoutMs(): number {
+  const parsed = parseInt(process.env.MCP_TOOL_TIMEOUT || '', 10)
+  return parsed > 0
+    ? Math.min(Math.max(parsed, MCP_REQUEST_TIMEOUT_MS), 2147483647)
+    : MCP_REQUEST_TIMEOUT_MS
+}
+
+/**
  * MCP Streamable HTTP spec requires clients to advertise acceptance of both
  * JSON and SSE on every POST. Servers that enforce this strictly reject
  * requests without it (HTTP 406).
@@ -558,7 +571,7 @@ export function wrapFetchWithTimeout(baseFetch: FetchLike): FetchLike {
     const timer = setTimeout(
       c =>
         c.abort(new DOMException('The operation timed out.', 'TimeoutError')),
-      MCP_REQUEST_TIMEOUT_MS,
+      getMcpRequestTimeoutMs(),
       controller,
     )
     timer.unref?.()
@@ -894,7 +907,7 @@ export const connectToServer = memoize(
             url: serverRef.url,
             headers: headersForLogging,
             hasAuthProvider: !!authProvider,
-            timeoutMs: MCP_REQUEST_TIMEOUT_MS,
+            timeoutMs: getMcpRequestTimeoutMs(),
           })}`,
         )
 

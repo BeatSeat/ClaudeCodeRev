@@ -1,4 +1,5 @@
 import { mkdirSync, writeFileSync } from 'fs'
+import { unlink } from 'fs/promises'
 import {
   getApiKeyFromFd,
   getOauthTokenFromFd,
@@ -166,11 +167,52 @@ function getCredentialFromFd({
 }
 
 /**
+ * Official 2.1.142 `O_1`. Consume a one-shot bg-session auth snapshot written
+ * to CLAUDE_BG_AUTH_SNAPSHOT_PATH, then drop the env and file. `Ma()` calls
+ * this immediately before the OAuth FD read.
+ */
+function consumeBgAuthSnapshot(): void {
+  const snapshotPath = process.env.CLAUDE_BG_AUTH_SNAPSHOT_PATH
+  if (!snapshotPath) return
+  delete process.env.CLAUDE_BG_AUTH_SNAPSHOT_PATH
+  try {
+    const fsOps = getFsImplementation()
+    const raw = fsOps.readFileSync(snapshotPath, { encoding: 'utf8' })
+    void unlink(snapshotPath).catch(() => {})
+    const parsed = JSON.parse(raw) as {
+      accessToken?: unknown
+      subscriptionType?: string
+      rateLimitTier?: string
+    }
+    if (typeof parsed?.accessToken !== 'string' || !parsed.accessToken) {
+      logForDebugging('bg auth snapshot missing accessToken', { level: 'warn' })
+      return
+    }
+    setOauthTokenFromFd(parsed.accessToken)
+    if (parsed.subscriptionType) {
+      process.env.CLAUDE_CODE_SUBSCRIPTION_TYPE = parsed.subscriptionType
+    }
+    if (parsed.rateLimitTier) {
+      process.env.CLAUDE_CODE_RATE_LIMIT_TIER = parsed.rateLimitTier
+    }
+    logForDebugging('Consumed bg auth snapshot from sockDir')
+  } catch (error) {
+    if (!isENOENT(error)) {
+      logForDebugging(
+        `Failed to consume bg auth snapshot: ${errorMessage(error)}`,
+        { level: 'warn' },
+      )
+    }
+  }
+}
+
+/**
  * Get the CCR-injected OAuth token. See getCredentialFromFd for FD-vs-disk
  * rationale. Env var: CLAUDE_CODE_OAUTH_TOKEN_FILE_DESCRIPTOR.
  * Well-known file: /home/claude/.claude/remote/.oauth_token.
  */
 export function getOAuthTokenFromFileDescriptor(): string | null {
+  consumeBgAuthSnapshot()
   return getCredentialFromFd({
     envVar: 'CLAUDE_CODE_OAUTH_TOKEN_FILE_DESCRIPTOR',
     wellKnownPath: CCR_OAUTH_TOKEN_PATH,

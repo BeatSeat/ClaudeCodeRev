@@ -47,6 +47,7 @@ import {
 import { createWriteStream } from 'fs'
 import memoize from 'lodash-es/memoize.js'
 import { basename, dirname, join, relative, resolve, sep } from 'path'
+import { loadSkillsAsPlugins } from './loadSkillsAsPlugins.js'
 import { Readable } from 'stream'
 import { pipeline } from 'stream/promises'
 import {
@@ -3747,6 +3748,7 @@ async function assemblePluginLoadResult(
   allErrors.push(...depErrors)
 
   const enabledPlugins = allPlugins.filter(p => p.enabled)
+  await loadSkillsAsPlugins()
   logForDebugging(
     `Found ${allPlugins.length} plugins (${enabledPlugins.length} enabled, ${allPlugins.length - enabledPlugins.length} disabled)`,
   )

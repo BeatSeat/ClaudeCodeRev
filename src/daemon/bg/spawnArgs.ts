@@ -139,7 +139,7 @@ export async function writeAuthSnapshot(
     await writeFile(q, jsonStringify(snapshot), { mode: 0o600 })
     return q
   } catch (err) {
-    logForDebugging(`auth snapshot write failed: ${errorMessage(err)}`, {
+    logForDebugging(`writeAuthSnapshot failed: ${errorMessage(err)}`, {
       level: 'warn',
     })
     return
