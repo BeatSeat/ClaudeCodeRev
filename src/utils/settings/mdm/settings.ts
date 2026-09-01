@@ -25,10 +25,7 @@ import { readFileSync } from '../../fileRead.js'
 import { getFsImplementation } from '../../fsOperations.js'
 import { safeParseJSON } from '../../json.js'
 import { profileCheckpoint } from '../../startupProfiler.js'
-import {
-  getManagedFilePath,
-  getManagedSettingsDropInDir,
-} from '../managedPath.js'
+import { getManagedFilePath } from '../managedPath.js'
 import { type SettingsJson, SettingsSchema } from '../types.js'
 import {
   filterSettingsWarnings,
@@ -39,10 +36,12 @@ import {
   WINDOWS_REGISTRY_KEY_PATH_HKCU,
   WINDOWS_REGISTRY_KEY_PATH_HKLM,
   WINDOWS_REGISTRY_VALUE_NAME,
+  WSL_WINDOWS_MANAGED_DIR,
 } from './constants.js'
 import {
   fireRawRead,
   getMdmRawReadPromise,
+  isWsl,
   type RawReadResult,
 } from './rawRead.js'
 
@@ -54,6 +53,8 @@ type MdmResult = { settings: SettingsJson; errors: ValidationError[] }
 const EMPTY_RESULT: MdmResult = Object.freeze({ settings: {}, errors: [] })
 let mdmCache: MdmResult | null = null
 let hkcuCache: MdmResult | null = null
+/** 118 `KW$` — WSL opted into the Windows policy chain. */
+let wslInheritsCache = false
 let mdmLoadPromise: Promise<void> | null = null
 
 // ---------------------------------------------------------------------------
@@ -73,9 +74,10 @@ export function startMdmSettingsLoad(): void {
     // Use the startup raw read if cli.tsx fired it, otherwise fire a fresh one.
     // Both paths produce the same RawReadResult; consumeRawReadResult parses it.
     const rawPromise = getMdmRawReadPromise() ?? fireRawRead()
-    const { mdm, hkcu } = consumeRawReadResult(await rawPromise)
+    const { mdm, hkcu, wslInherits } = consumeRawReadResult(await rawPromise)
     mdmCache = mdm
     hkcuCache = hkcu
+    wslInheritsCache = wslInherits
     profileCheckpoint('mdm_load_end')
 
     const duration = Date.now() - startTime
@@ -133,6 +135,11 @@ export function getHkcuSettings(): MdmResult {
   return hkcuCache ?? EMPTY_RESULT
 }
 
+/** 118 `Na` — WSL inherit flag after consume. */
+export function getWslInherits(): boolean {
+  return wslInheritsCache
+}
+
 // ---------------------------------------------------------------------------
 // Cache management
 // ---------------------------------------------------------------------------
@@ -143,15 +150,22 @@ export function getHkcuSettings(): MdmResult {
 export function clearMdmSettingsCache(): void {
   mdmCache = null
   hkcuCache = null
+  wslInheritsCache = false
   mdmLoadPromise = null
 }
 
 /**
  * Update the session caches directly. Used by the change detector poll.
+ * 118 `ol6(mdm, hkcu, wslInherits)`.
  */
-export function setMdmSettingsCache(mdm: MdmResult, hkcu: MdmResult): void {
+export function setMdmSettingsCache(
+  mdm: MdmResult,
+  hkcu: MdmResult,
+  wslInherits = false,
+): void {
   mdmCache = mdm
   hkcuCache = hkcu
+  wslInheritsCache = wslInherits
 }
 
 // ---------------------------------------------------------------------------
@@ -166,6 +180,7 @@ export function setMdmSettingsCache(mdm: MdmResult, hkcu: MdmResult): void {
 export async function refreshMdmSettings(): Promise<{
   mdm: MdmResult
   hkcu: MdmResult
+  wslInherits: boolean
 }> {
   const raw = await fireRawRead()
   return consumeRawReadResult(raw)
@@ -225,39 +240,73 @@ export function parseRegQueryStdout(
  * Convert raw subprocess output into parsed MDM and HKCU results,
  * applying the first-source-wins policy.
  */
+function stripWslInheritFlag(settings: SettingsJson): SettingsJson {
+  const { wslInheritsWindowsSettings: _flag, ...rest } = settings
+  return rest
+}
+
+/**
+ * 118 `sl6` — first-source-wins plus WSL inherit gate.
+ */
 function consumeRawReadResult(raw: RawReadResult): {
   mdm: MdmResult
   hkcu: MdmResult
+  wslInherits: boolean
 } {
+  const collectedErrors: ValidationError[] = []
+
   // macOS: plist result (first source wins — already filtered in mdmRawRead)
   if (raw.plistStdouts && raw.plistStdouts.length > 0) {
     const { stdout, label } = raw.plistStdouts[0]!
     const result = parseCommandOutputAsSettings(stdout, label)
-    if (Object.keys(result.settings).length > 0) {
-      return { mdm: result, hkcu: EMPTY_RESULT }
+    const remainder = stripWslInheritFlag(result.settings)
+    if (Object.keys(remainder).length > 0) {
+      return { mdm: result, hkcu: EMPTY_RESULT, wslInherits: false }
     }
+    collectedErrors.push(...result.errors)
   }
 
-  // Windows: HKLM result
+  let hklm: MdmResult | null = null
   if (raw.hklmStdout) {
     const jsonString = parseRegQueryStdout(raw.hklmStdout)
     if (jsonString) {
-      const result = parseCommandOutputAsSettings(
+      hklm = parseCommandOutputAsSettings(
         jsonString,
         `Registry: ${WINDOWS_REGISTRY_KEY_PATH_HKLM}\\${WINDOWS_REGISTRY_VALUE_NAME}`,
       )
-      if (Object.keys(result.settings).length > 0) {
-        return { mdm: result, hkcu: EMPTY_RESULT }
-      }
+    }
+  }
+  if (hklm) {
+    collectedErrors.push(...hklm.errors)
+  }
+  const errorsOnly: MdmResult =
+    collectedErrors.length > 0
+      ? { settings: {}, errors: collectedErrors }
+      : EMPTY_RESULT
+
+  const wsl = isWsl()
+  let wslInherits = false
+  if (wsl) {
+    wslInherits =
+      hklm?.settings.wslInheritsWindowsSettings === true ||
+      windowsManagedSettingsHasInheritFlag()
+    if (!wslInherits) {
+      return { mdm: errorsOnly, hkcu: EMPTY_RESULT, wslInherits: false }
     }
   }
 
-  // No admin MDM — check managed-settings.json before using HKCU
-  if (hasManagedSettingsFile()) {
-    return { mdm: EMPTY_RESULT, hkcu: EMPTY_RESULT }
+  if (hklm) {
+    const remainder = stripWslInheritFlag(hklm.settings)
+    if (Object.keys(remainder).length > 0) {
+      return { mdm: hklm, hkcu: EMPTY_RESULT, wslInherits }
+    }
   }
 
-  // Fall through to HKCU (already read in parallel)
+  // 118 `pr4`: skip HKCU when a higher-priority file source exists
+  if (hasManagedSettingsFile(wslInherits)) {
+    return { mdm: errorsOnly, hkcu: EMPTY_RESULT, wslInherits }
+  }
+
   if (raw.hkcuStdout) {
     const jsonString = parseRegQueryStdout(raw.hkcuStdout)
     if (jsonString) {
@@ -265,31 +314,51 @@ function consumeRawReadResult(raw: RawReadResult): {
         jsonString,
         `Registry: ${WINDOWS_REGISTRY_KEY_PATH_HKCU}\\${WINDOWS_REGISTRY_VALUE_NAME}`,
       )
-      return { mdm: EMPTY_RESULT, hkcu: result }
+      if (!wsl || result.settings.wslInheritsWindowsSettings === true) {
+        return {
+          mdm: errorsOnly,
+          hkcu: {
+            settings: stripWslInheritFlag(result.settings),
+            errors: result.errors,
+          },
+          wslInherits,
+        }
+      }
+      if (result.errors.length > 0) {
+        return {
+          mdm: errorsOnly,
+          hkcu: { settings: {}, errors: result.errors },
+          wslInherits,
+        }
+      }
     }
   }
 
-  return { mdm: EMPTY_RESULT, hkcu: EMPTY_RESULT }
+  return { mdm: errorsOnly, hkcu: EMPTY_RESULT, wslInherits }
 }
 
-/**
- * Check if file-based managed settings (managed-settings.json or any
- * managed-settings.d/*.json) exist and have content. Cheap sync check
- * used to skip HKCU when a higher-priority file-based source exists.
- */
-function hasManagedSettingsFile(): boolean {
+/** 118 `nl6` — file has keys besides the inherit flag. */
+function managedFileHasPolicyContent(filePath: string): boolean {
+  const data = safeParseJSON(readFileSync(filePath), false)
+  if (!data || typeof data !== 'object') {
+    return false
+  }
+  filterSettingsWarnings(data, filePath)
+  const { wslInheritsWindowsSettings: _flag, ...rest } = data as SettingsJson
+  return Object.keys(rest).length > 0
+}
+
+/** 118 `il6` — managed-settings.json or any drop-in has policy content. */
+function hasManagedContentInDir(dir: string): boolean {
   try {
-    const filePath = join(getManagedFilePath(), 'managed-settings.json')
-    const content = readFileSync(filePath)
-    const data = safeParseJSON(content, false)
-    if (data && typeof data === 'object' && Object.keys(data).length > 0) {
+    if (managedFileHasPolicyContent(join(dir, 'managed-settings.json'))) {
       return true
     }
   } catch {
-    // fall through to drop-in check
+    // missing base file
   }
   try {
-    const dropInDir = getManagedSettingsDropInDir()
+    const dropInDir = join(dir, 'managed-settings.d')
     const entries = getFsImplementation().readdirSync(dropInDir)
     for (const d of entries) {
       if (
@@ -300,9 +369,7 @@ function hasManagedSettingsFile(): boolean {
         continue
       }
       try {
-        const content = readFileSync(join(dropInDir, d.name))
-        const data = safeParseJSON(content, false)
-        if (data && typeof data === 'object' && Object.keys(data).length > 0) {
+        if (managedFileHasPolicyContent(join(dropInDir, d.name))) {
           return true
         }
       } catch {
@@ -313,4 +380,90 @@ function hasManagedSettingsFile(): boolean {
     // drop-in dir doesn't exist
   }
   return false
+}
+
+/**
+ * 118 `pr4` — skip HKCU when a higher-priority file-based source exists.
+ * If WSL inherit is on, the Windows managed dir wins over Linux.
+ */
+function hasManagedSettingsFile(wslInherits: boolean): boolean {
+  if (wslInherits && hasManagedContentInDir(WSL_WINDOWS_MANAGED_DIR)) {
+    return true
+  }
+  return hasManagedContentInDir(getManagedFilePath())
+}
+
+/** 118 `Br4` — Windows managed file/drop-in sets the inherit flag. */
+function windowsManagedSettingsHasInheritFlag(): boolean {
+  function fileHasFlag(filePath: string): boolean {
+    try {
+      const data = safeParseJSON(readFileSync(filePath), false)
+      return (
+        !!data &&
+        typeof data === 'object' &&
+        'wslInheritsWindowsSettings' in data &&
+        (data as SettingsJson).wslInheritsWindowsSettings === true
+      )
+    } catch {
+      return false
+    }
+  }
+  if (fileHasFlag(join(WSL_WINDOWS_MANAGED_DIR, 'managed-settings.json'))) {
+    return true
+  }
+  try {
+    const dropInDir = join(WSL_WINDOWS_MANAGED_DIR, 'managed-settings.d')
+    for (const d of getFsImplementation().readdirSync(dropInDir)) {
+      if (
+        (d.isFile() || d.isSymbolicLink()) &&
+        d.name.endsWith('.json') &&
+        !d.name.startsWith('.') &&
+        fileHasFlag(join(dropInDir, d.name))
+      ) {
+        return true
+      }
+    }
+  } catch {
+    // no drop-ins
+  }
+  return false
+}
+
+/**
+ * 118 `O28` — WSL Windows managed-file fingerprint for MDM poll.
+ * Joins file contents with `\x01`; drop-in name/content with `\x00`.
+ */
+export function getWslWindowsFileFingerprint(): string {
+  if (!isWsl() || !wslInheritsCache) {
+    return ''
+  }
+  const parts: string[] = []
+  try {
+    parts.push(readFileSync(join(WSL_WINDOWS_MANAGED_DIR, 'managed-settings.json')))
+  } catch {
+    parts.push('')
+  }
+  try {
+    const dropInDir = join(WSL_WINDOWS_MANAGED_DIR, 'managed-settings.d')
+    const names = getFsImplementation()
+      .readdirSync(dropInDir)
+      .filter(
+        d =>
+          (d.isFile() || d.isSymbolicLink()) &&
+          d.name.endsWith('.json') &&
+          !d.name.startsWith('.'),
+      )
+      .map(d => d.name)
+      .sort()
+    for (const name of names) {
+      try {
+        parts.push(`${name}\0${readFileSync(join(dropInDir, name))}`)
+      } catch {
+        parts.push(`${name}\0`)
+      }
+    }
+  } catch {
+    // no drop-ins
+  }
+  return parts.join('\x01')
 }

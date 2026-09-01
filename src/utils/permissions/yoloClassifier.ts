@@ -109,6 +109,53 @@ export function getDefaultExternalAutoModeRules(): AutoModeRules {
   }
 }
 
+/** 118 `do$` — literal token to splice built-in rules at that position. */
+export const AUTO_MODE_DEFAULTS_TOKEN = '$defaults'
+
+/**
+ * 118 `Bo$`: empty/absent user list → defaults; `"$defaults"` inserts
+ * built-in rules once at that position; other entries pass through `map`.
+ */
+export function expandAutoModeDefaults(
+  user: string[] | undefined,
+  defaults: string[],
+  map: (entry: string) => string = entry => entry,
+): string[] {
+  if (!user?.length) {
+    return [...defaults]
+  }
+  let inserted = false
+  const out: string[] = []
+  for (const entry of user) {
+    if (entry === AUTO_MODE_DEFAULTS_TOKEN) {
+      if (!inserted) {
+        out.push(...defaults)
+        inserted = true
+      }
+      continue
+    }
+    out.push(map(entry))
+  }
+  return out
+}
+
+/** 118 `t_7` — expand all three autoMode sections against built-in defaults. */
+export function expandAutoModeConfig(config?: {
+  allow?: string[]
+  soft_deny?: string[]
+  environment?: string[]
+} | null): AutoModeRules {
+  const defaults = getDefaultExternalAutoModeRules()
+  return {
+    allow: expandAutoModeDefaults(config?.allow, defaults.allow),
+    soft_deny: expandAutoModeDefaults(config?.soft_deny, defaults.soft_deny),
+    environment: expandAutoModeDefaults(
+      config?.environment,
+      defaults.environment,
+    ),
+  }
+}
+
 function extractTaggedBullets(tagName: string): string[] {
   const match = EXTERNAL_PERMISSIONS_TEMPLATE.match(
     new RegExp(`<${tagName}>([\\s\\S]*?)</${tagName}>`),
@@ -504,44 +551,48 @@ export async function buildYoloSystemPrompt(
   const includePowerShellGuidance = feature('POWERSHELL_AUTO_MODE')
     ? !usingExternal
     : false
-  const allowDescriptions = [
-    ...(includeBashPromptRules ? getBashPromptAllowDescriptions(context) : []),
-    ...(autoMode?.allow ?? []),
-  ]
-  const denyDescriptions = [
+  const bashAllow = includeBashPromptRules
+    ? getBashPromptAllowDescriptions(context).map(d => `- ${d}`).join('\n')
+    : ''
+  const bashDeny = [
     ...(includeBashPromptRules ? getBashPromptDenyDescriptions(context) : []),
     ...(includePowerShellGuidance ? POWERSHELL_DENY_GUIDANCE : []),
-    ...(autoMode?.soft_deny ?? []),
   ]
+    .map(d => `- ${d}`)
+    .join('\n')
 
-  // All three sections use the same <foo_to_replace>...</foo_to_replace>
-  // delimiter pattern. The external template wraps its defaults inside the
-  // tags, so user-provided values REPLACE the defaults entirely. The
-  // anthropic template keeps its defaults outside the tags and uses an empty
-  // tag pair at the end of each section, so user-provided values are
-  // strictly ADDITIVE.
-  const userAllow = allowDescriptions.length
-    ? allowDescriptions.map(d => `- ${d}`).join('\n')
-    : undefined
-  const userDeny = denyDescriptions.length
-    ? denyDescriptions.map(d => `- ${d}`).join('\n')
-    : undefined
-  const userEnvironment = autoMode?.environment?.length
-    ? autoMode.environment.map(e => `- ${e}`).join('\n')
-    : undefined
+  // 118 E96(user, capture): Bo$(user, capture.length>0?[capture]:[], q=>`- ${q}`).
+  // $defaults splices the template inner as one blob — not extracted external
+  // bullets. Empty ant capture + $defaults inserts nothing.
+  const expandClassifierSection = (
+    user: string[] | undefined,
+    capture: string,
+  ): string =>
+    expandAutoModeDefaults(
+      user,
+      capture.length > 0 ? [capture] : [],
+      entry => `- ${entry}`,
+    ).join('\n')
 
   return systemPrompt
     .replace(
       /<user_allow_rules_to_replace>([\s\S]*?)<\/user_allow_rules_to_replace>/,
-      (_m, defaults: string) => userAllow ?? defaults,
+      (_m, capture: string) =>
+        [bashAllow, expandClassifierSection(autoMode?.allow, capture)]
+          .filter(Boolean)
+          .join('\n'),
     )
     .replace(
       /<user_deny_rules_to_replace>([\s\S]*?)<\/user_deny_rules_to_replace>/,
-      (_m, defaults: string) => userDeny ?? defaults,
+      (_m, capture: string) =>
+        [bashDeny, expandClassifierSection(autoMode?.soft_deny, capture)]
+          .filter(Boolean)
+          .join('\n'),
     )
     .replace(
       /<user_environment_to_replace>([\s\S]*?)<\/user_environment_to_replace>/,
-      (_m, defaults: string) => userEnvironment ?? defaults,
+      (_m, capture: string) =>
+        expandClassifierSection(autoMode?.environment, capture),
     )
 }
 // ============================================================================

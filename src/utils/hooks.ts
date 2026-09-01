@@ -155,6 +155,7 @@ import { execPromptHook } from './hooks/execPromptHook.js'
 import type { Message, AssistantMessage } from '../types/message.js'
 import { execAgentHook } from './hooks/execAgentHook.js'
 import { execHttpHook } from './hooks/execHttpHook.js'
+import { execMcpToolHook } from './hooks/execMcpToolHook.js'
 import type { ShellCommand } from './ShellCommand.js'
 import {
   getSessionHooks,
@@ -176,6 +177,7 @@ import {
 
 const TOOL_HOOK_EXECUTION_TIMEOUT_MS = 10 * 60 * 1000
 const HOOK_OUTPUT_PERSIST_THRESHOLD = 10000
+const HOOK_AGENT_ID_PREFIX = 'hook-agent-'
 
 async function persistOrTruncateHookOutput(
   content: string,
@@ -1861,6 +1863,27 @@ export async function getMatchingHooks(
           ]),
       ).values(),
     )
+    const uniqueMcpToolHooks = Array.from(
+      new Map(
+        matchedHooks
+          .filter(m => m.hook.type === 'mcp_tool')
+          .map(m => {
+            const hook = m.hook as {
+              server: string
+              tool: string
+              input?: Record<string, unknown>
+              if?: string
+            }
+            return [
+              hookDedupKey(
+                m,
+                `${hook.server}\0${hook.tool}\0${jsonStringify(hook.input ?? {})}\0${getIfCondition(hook)}`,
+              ),
+              m,
+            ]
+          }),
+      ).values(),
+    )
     const callbackHooks = matchedHooks.filter(m => m.hook.type === 'callback')
     // Function hooks don't need deduplication - each callback is unique
     const functionHooks = matchedHooks.filter(m => m.hook.type === 'function')
@@ -1869,6 +1892,7 @@ export async function getMatchingHooks(
       ...uniquePromptHooks,
       ...uniqueAgentHooks,
       ...uniqueHttpHooks,
+      ...uniqueMcpToolHooks,
       ...callbackHooks,
       ...functionHooks,
     ]
@@ -1881,7 +1905,8 @@ export async function getMatchingHooks(
         (h.hook.type === 'command' ||
           h.hook.type === 'prompt' ||
           h.hook.type === 'agent' ||
-          h.hook.type === 'http') &&
+          h.hook.type === 'http' ||
+          h.hook.type === 'mcp_tool') &&
         (h.hook as { if?: string }).if,
     )
     const ifMatcher = hasIfCondition
@@ -1892,7 +1917,8 @@ export async function getMatchingHooks(
         h.hook.type !== 'command' &&
         h.hook.type !== 'prompt' &&
         h.hook.type !== 'agent' &&
-        h.hook.type !== 'http'
+        h.hook.type !== 'http' &&
+        h.hook.type !== 'mcp_tool'
       ) {
         return true
       }
@@ -2295,6 +2321,20 @@ async function* executeHooks({
             'ToolUseContext is required for prompt hooks. This is a bug.',
           )
         }
+        if (toolUseContext.agentId?.startsWith(HOOK_AGENT_ID_PREFIX)) {
+          cleanup?.()
+          yield {
+            message: createAttachmentMessage({
+              type: 'hook_cancelled',
+              hookName,
+              toolUseID,
+              hookEvent,
+            }),
+            outcome: 'cancelled' as const,
+            hook,
+          }
+          return
+        }
         const promptResult = await execPromptHook(
           hook,
           hookName,
@@ -2327,10 +2367,19 @@ async function* executeHooks({
             'ToolUseContext is required for agent hooks. This is a bug.',
           )
         }
-        if (!messages) {
-          throw new Error(
-            'Messages are required for agent hooks. This is a bug.',
-          )
+        if (toolUseContext.agentId?.startsWith(HOOK_AGENT_ID_PREFIX)) {
+          cleanup?.()
+          yield {
+            message: createAttachmentMessage({
+              type: 'hook_cancelled',
+              hookName,
+              toolUseID,
+              hookEvent,
+            }),
+            outcome: 'cancelled' as const,
+            hook,
+          }
+          return
         }
         const agentResult = await execAgentHook(
           hook,
@@ -2340,7 +2389,7 @@ async function* executeHooks({
           abortSignal,
           toolUseContext,
           toolUseID,
-          messages,
+          messages ?? [],
           'agent_type' in hookInput
             ? (hookInput.agent_type as string)
             : undefined,
@@ -2508,6 +2557,151 @@ async function* executeHooks({
           return
         }
 
+        return
+      }
+
+      if (hook.type === 'mcp_tool') {
+        emitHookStarted(hookId, hookName, hookEvent)
+        const mcpResult = await execMcpToolHook(
+          hook,
+          hookEvent,
+          hookInput,
+          toolUseContext?.options.mcpClients,
+          abortSignal,
+        )
+        cleanup?.()
+
+        if (mcpResult.aborted) {
+          emitHookResponse({
+            hookId,
+            hookName,
+            hookEvent,
+            output: 'Hook cancelled',
+            stdout: '',
+            stderr: '',
+            exitCode: undefined,
+            outcome: 'cancelled',
+          })
+          yield {
+            message: createAttachmentMessage({
+              type: 'hook_cancelled',
+              hookName,
+              toolUseID,
+              hookEvent,
+            }),
+            outcome: 'cancelled' as const,
+            hook,
+          }
+          return
+        }
+
+        if (mcpResult.error || !mcpResult.ok) {
+          const stderr = mcpResult.error || 'MCP tool returned an error'
+          emitHookResponse({
+            hookId,
+            hookName,
+            hookEvent,
+            output: stderr,
+            stdout: mcpResult.body,
+            stderr,
+            exitCode: 1,
+            outcome: 'error',
+          })
+          yield {
+            message: createAttachmentMessage({
+              type: 'hook_non_blocking_error',
+              hookName,
+              toolUseID,
+              hookEvent,
+              stderr,
+              stdout: mcpResult.body,
+              exitCode: 1,
+            }),
+            outcome: 'non_blocking_error' as const,
+            hook,
+          }
+          return
+        }
+
+        const { json: mcpJson, validationError: mcpValidationError } =
+          parseHttpHookOutput(mcpResult.body)
+        if (mcpValidationError) {
+          emitHookResponse({
+            hookId,
+            hookName,
+            hookEvent,
+            output: mcpResult.body,
+            stdout: mcpResult.body,
+            stderr: mcpValidationError,
+            exitCode: 1,
+            outcome: 'error',
+          })
+          yield {
+            message: createAttachmentMessage({
+              type: 'hook_non_blocking_error',
+              hookName,
+              toolUseID,
+              hookEvent,
+              stderr: mcpValidationError,
+              stdout: mcpResult.body,
+              exitCode: 1,
+            }),
+            outcome: 'non_blocking_error' as const,
+            hook,
+          }
+          return
+        }
+
+        emitHookResponse({
+          hookId,
+          hookName,
+          hookEvent,
+          output: mcpResult.body,
+          stdout: mcpResult.body,
+          stderr: '',
+          exitCode: 0,
+          outcome: 'success',
+        })
+        if (mcpJson && isAsyncHookJSONOutput(mcpJson)) {
+          yield {
+            outcome: 'success' as const,
+            hook,
+          }
+          return
+        }
+        if (mcpJson) {
+          yield {
+            ...processHookJSONOutput({
+              json: mcpJson,
+              command: hookCommand,
+              hookName,
+              toolUseID,
+              hookEvent,
+              expectedHookEvent: hookEvent,
+              stdout: mcpResult.body,
+              stderr: '',
+              exitCode: 0,
+            }),
+            outcome: 'success' as const,
+            hook,
+          }
+          return
+        }
+        yield {
+          message: createAttachmentMessage({
+            type: 'hook_success',
+            hookName,
+            toolUseID,
+            hookEvent,
+            content: `${chalk.bold(hookName)} completed`,
+            stdout: mcpResult.body,
+            stderr: '',
+            command: hookCommand,
+            durationMs: Date.now() - hookStartMs,
+          }),
+          outcome: 'success' as const,
+          hook,
+        }
         return
       }
 
@@ -3381,6 +3575,48 @@ async function executeHooksOutsideREPL({
             command: hook.url,
             succeeded: false,
             output: errorMessage,
+            blocked: false,
+          }
+        }
+      }
+
+      if (hook.type === 'mcp_tool') {
+        try {
+          const mcpResult = await execMcpToolHook(
+            hook,
+            hookEvent,
+            hookInput,
+            undefined,
+            signal,
+          )
+          const command = `${hook.server}/${hook.tool}`
+          if (mcpResult.aborted) {
+            return {
+              command,
+              succeeded: false,
+              output: 'Hook cancelled',
+              blocked: false,
+            }
+          }
+          if (mcpResult.error || !mcpResult.ok) {
+            return {
+              command,
+              succeeded: false,
+              output: mcpResult.error || 'MCP tool returned an error',
+              blocked: false,
+            }
+          }
+          return {
+            command,
+            succeeded: true,
+            output: mcpResult.body,
+            blocked: false,
+          }
+        } catch (error) {
+          return {
+            command: `${hook.server}/${hook.tool}`,
+            succeeded: false,
+            output: error instanceof Error ? error.message : String(error),
             blocked: false,
           }
         }
@@ -5180,6 +5416,8 @@ function getHookDefinitionsForTelemetry(
       return { type: 'prompt', prompt: hook.prompt }
     } else if (hook.type === 'http') {
       return { type: 'http', command: hook.url }
+    } else if (hook.type === 'mcp_tool') {
+      return { type: 'mcp_tool', command: `${hook.server}/${hook.tool}` }
     } else if (hook.type === 'function') {
       return { type: 'function', name: 'function' }
     } else if (hook.type === 'callback') {

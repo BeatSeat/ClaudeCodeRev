@@ -132,6 +132,8 @@ export type LocalJSXCommandCall = (
   onDone: LocalJSXCommandOnDone,
   context: ToolUseContext & LocalJSXCommandContext,
   args: string,
+  /** Official 2.1.118: invoked slash name (alias or canonical). */
+  commandName?: string,
 ) => Promise<React.ReactNode>
 
 /**

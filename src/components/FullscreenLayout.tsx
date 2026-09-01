@@ -22,6 +22,8 @@ import { useTerminalSize } from '../hooks/useTerminalSize.js'
 import ScrollBox, { type ScrollBoxHandle } from '../ink/components/ScrollBox.js'
 import instances from '../ink/instances.js'
 import { Box, Text } from '../ink.js'
+import { Badge } from './design-system/Badge.js'
+import { useShortcutDisplay } from '../keybindings/useShortcutDisplay.js'
 import type { Message } from '../types/message.js'
 import { openBrowser, openPath } from '../utils/browser.js'
 import { isFullscreenEnvEnabled } from '../utils/fullscreen.js'
@@ -507,6 +509,10 @@ function NewMessagesPill({
   onClick?: () => void
 }): React.ReactNode {
   const [hover, setHover] = useState(false)
+  const shortcut = useShortcutDisplay('scroll:bottom', 'Scroll', 'ctrl+end')
+  const bg = hover ? 'userMessageBackgroundHover' : 'userMessageBackground'
+  const label =
+    count > 0 ? `${count} new ${plural(count, 'message')}` : 'Jump to bottom'
   return (
     <Box
       position="absolute"
@@ -520,18 +526,9 @@ function NewMessagesPill({
         onMouseEnter={() => setHover(true)}
         onMouseLeave={() => setHover(false)}
       >
-        <Text
-          backgroundColor={
-            hover ? 'userMessageBackgroundHover' : 'userMessageBackground'
-          }
-          dimColor
-        >
-          {' '}
-          {count > 0
-            ? `${count} new ${plural(count, 'message')}`
-            : 'Jump to bottom'}{' '}
-          {figures.arrowDown}{' '}
-        </Text>
+        <Badge color={bg} textColor="text" padded>
+          {label} ({shortcut}) {figures.arrowDown}
+        </Badge>
       </Box>
     </Box>
   )

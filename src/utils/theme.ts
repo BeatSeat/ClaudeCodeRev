@@ -106,7 +106,9 @@ export const THEME_SETTINGS = ['auto', ...THEME_NAMES] as const
  * A theme preference as stored in user config. `'auto'` follows the system
  * dark/light mode and is resolved to a ThemeName at runtime.
  */
-export type ThemeSetting = (typeof THEME_SETTINGS)[number]
+export type ThemeSetting =
+  | (typeof THEME_SETTINGS)[number]
+  | `custom:${string}`
 
 /**
  * Light theme using explicit RGB values to avoid inconsistencies

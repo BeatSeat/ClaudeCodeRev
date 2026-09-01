@@ -16,6 +16,7 @@ import {
 } from '../../utils/permissions/PermissionUpdate.js'
 import type { PermissionUpdateDestination } from '../../utils/permissions/PermissionUpdateSchema.js'
 import { SandboxManager } from '../../utils/sandbox/sandbox-adapter.js'
+import { recordSessionAlias } from '../../utils/sessionStorage.js'
 import {
   addDirHelpMessage,
   validateDirectoryForWorkspace,
@@ -90,6 +91,7 @@ export async function call(
       setAdditionalDirectoriesForClaudeMd([...currentDirs, path])
     }
     SandboxManager.refreshConfig()
+    void recordSessionAlias(path)
 
     let message: string
 

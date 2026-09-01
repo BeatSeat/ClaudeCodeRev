@@ -11,6 +11,11 @@
  * updated by the watcher once the OSC 11 response arrives.
  */
 
+import {
+  customThemeSlug,
+  isBuiltInThemeName,
+  loadCustomThemes,
+} from './customThemes.js'
 import type { ThemeName, ThemeSetting } from './theme.js'
 
 export type SystemTheme = 'dark' | 'light'
@@ -43,7 +48,15 @@ export function resolveThemeSetting(setting: ThemeSetting): ThemeName {
   if (setting === 'auto') {
     return getSystemThemeName()
   }
-  return setting
+  if (isBuiltInThemeName(setting)) {
+    return setting
+  }
+  const slug = customThemeSlug(setting)
+  if (slug) {
+    const found = loadCustomThemes().find(t => t.slug === slug)
+    if (found) return found.base
+  }
+  return 'dark'
 }
 
 /**

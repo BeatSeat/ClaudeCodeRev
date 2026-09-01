@@ -48,8 +48,12 @@ import {
  * and sets up the local auth state.
  */
 export async function installOAuthTokens(tokens: OAuthTokens): Promise<void> {
-  // Clear old state before saving new credentials
-  await performLogout({ clearOnboarding: false })
+  // Official 2.1.118 aJH: keep in-process env through logout so we can
+  // decide after disk save whether to delete CLAUDE_CODE_OAUTH_TOKEN.
+  await performLogout({
+    clearOnboarding: false,
+    preserveInProcessTokens: true,
+  })
 
   // Reuse pre-fetched profile if available, otherwise fetch fresh
   const profile =
@@ -79,10 +83,15 @@ export async function installOAuthTokens(tokens: OAuthTokens): Promise<void> {
   const storageResult = saveOAuthTokensIfNeeded(tokens)
   clearOAuthTokenCache()
 
-  // Official 2.1.117 aJH: /login must overwrite a stale CLAUDE_CODE_OAUTH_TOKEN
-  // so subsequent API calls use the newly issued access token.
+  // Official 2.1.118 aJH: after a successful disk save, DELETE the env
+  // token so subsequent reads use ~/.claude/.credentials.json. Only keep
+  // the 117 overwrite-assign when the disk write failed.
   if (process.env.CLAUDE_CODE_OAUTH_TOKEN) {
-    process.env.CLAUDE_CODE_OAUTH_TOKEN = tokens.accessToken
+    if (storageResult.success) {
+      delete process.env.CLAUDE_CODE_OAUTH_TOKEN
+    } else {
+      process.env.CLAUDE_CODE_OAUTH_TOKEN = tokens.accessToken
+    }
   }
 
   if (storageResult.warning) {

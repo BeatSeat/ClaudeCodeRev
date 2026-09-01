@@ -230,6 +230,10 @@ export type ServerControlRequestHandlers = {
   onRenameSession?: (
     title: string,
   ) => { ok: true } | { ok: false; error: string }
+  /** Official 2.1.118 set_color — apply claude.ai/code accent locally. */
+  onSetColor?: (
+    color: string,
+  ) => { ok: true } | { ok: false; error: string }
   /**
    * Official 2.1.113 file_suggestions — RC @-file autocomplete.
    * Returns the same fuzzy-matched paths the TUI typeahead shows.
@@ -264,6 +268,7 @@ export function handleServerControlRequest(
     onSetMaxThinkingTokens,
     onSetPermissionMode,
     onRenameSession,
+    onSetColor,
     onFileSuggestions,
   } = handlers
   if (!transport) {
@@ -429,6 +434,33 @@ export function handleServerControlRequest(
           )
         })
       return
+    }
+
+    case 'set_color': {
+      const verdict = onSetColor?.(request.request.color) ?? {
+        ok: false as const,
+        error:
+          'set_color is not supported in this context (onSetColor callback not registered)',
+      }
+      if (verdict.ok) {
+        response = {
+          type: 'control_response',
+          response: {
+            subtype: 'success',
+            request_id: request.request_id,
+          },
+        }
+      } else {
+        response = {
+          type: 'control_response',
+          response: {
+            subtype: 'error',
+            request_id: request.request_id,
+            error: verdict.error,
+          },
+        }
+      }
+      break
     }
 
     case 'rename_session': {

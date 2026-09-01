@@ -1,0 +1,202 @@
+{
+  "version": "2.1.118",
+  "fromVersion": "2.1.117",
+  "expectedFunctionCount": 0,
+  "functions": [],
+  "changelogCoverage": [
+    {
+      "item": "vim visual v + visual-line V",
+      "status": "located",
+      "evidence": "src/vim/visual.ts VISUAL LINE / selectionLinewise / visualReplace / forceLinewise"
+    },
+    {
+      "item": "Merge /cost and /stats into /usage aliases",
+      "status": "located",
+      "evidence": "src/commands/usage/index.ts aliases cost,stats; standalone cost/stats commands removed"
+    },
+    {
+      "item": "Named custom themes /theme + ~/.claude/themes + plugin themes/",
+      "status": "partial",
+      "evidence": "src/utils/customThemes.ts + CustomThemeEditor; plugin themes/ scan deferred (UI avoided plugins/)"
+    },
+    {
+      "item": "Hooks type mcp_tool",
+      "status": "located",
+      "evidence": "src/schemas/hooks.ts McpToolHookSchema + src/utils/hooks/execMcpToolHook.ts"
+    },
+    {
+      "item": "DISABLE_UPDATES blocks all update paths",
+      "status": "located",
+      "evidence": "src/utils/config.ts before DISABLE_AUTOUPDATER; update command + autoUpdater"
+    },
+    {
+      "item": "wslInheritsWindowsSettings",
+      "status": "located",
+      "evidence": "src/utils/settings/mdm + settings types wslWindowsFile / parentManagedSettings"
+    },
+    {
+      "item": "autoMode $defaults inherit built-in rules",
+      "status": "located",
+      "evidence": "settings schema + yoloClassifier / autoMode expander"
+    },
+    {
+      "item": "Don't ask again on auto mode opt-in",
+      "status": "located",
+      "evidence": "AutoModeOptInDialog decline-dont-ask / autoModeOptInDismissed"
+    },
+    {
+      "item": "claude plugin tag",
+      "status": "located",
+      "evidence": "src/utils/plugins/pluginTag.ts + TagPlugin.tsx"
+    },
+    {
+      "item": "--continue/--resume find /add-dir sessions",
+      "status": "located",
+      "evidence": ".session-aliases recordSessionAlias in sessionStorage + add-dir"
+    },
+    {
+      "item": "/color syncs accent when RC connected",
+      "status": "located",
+      "evidence": "updateBridgeSessionColorTag / onSetColor"
+    },
+    {
+      "item": "/model honors ANTHROPIC_DEFAULT_* on custom BASE_URL",
+      "status": "located",
+      "evidence": "modelOptions Kw6 !isFirstPartyApiFamily || !isFirstPartyAnthropicBaseUrl"
+    },
+    {
+      "item": "Autoupdate skip from version constraint in /doctor and plugin Errors",
+      "status": "located",
+      "evidence": "Autoupdate held / autoupdate-blocked-by-pinner / disabledPinners"
+    },
+    {
+      "item": "/mcp headersHelper OAuth actions + 401 needs-auth",
+      "status": "located",
+      "evidence": "mcp auth Iv7 headersHelper||headers return false"
+    },
+    {
+      "item": "MCP OAuth omit expires_in no longer defaults 3600",
+      "status": "located",
+      "evidence": "src/services/mcp/auth.ts drop expires_in||3600; XAA ??3600 kept"
+    },
+    {
+      "item": "MCP step-up insufficient_scope already-has-scope",
+      "status": "deferred",
+      "evidence": "shared/logic-only; no unique 118 token"
+    },
+    {
+      "item": "MCP OAuth timeout/cancel unhandled rejection",
+      "status": "deferred",
+      "evidence": "shared/logic-only"
+    },
+    {
+      "item": "MCP OAuth refresh without cross-process lock",
+      "status": "deferred",
+      "evidence": "shared/logic-only"
+    },
+    {
+      "item": "macOS keychain concurrent MCP refresh race",
+      "status": "deferred",
+      "evidence": "shared/logic-only"
+    },
+    {
+      "item": "OAuth refresh fails when server revokes before local expiry",
+      "status": "deferred",
+      "evidence": "shared/logic-only"
+    },
+    {
+      "item": "Credential save crash corrupting .credentials.json",
+      "status": "located",
+      "evidence": "src/utils/secureStorage/credentialsLock.ts withCredentialsLock"
+    },
+    {
+      "item": "/login clears CLAUDE_CODE_OAUTH_TOKEN so disk creds apply",
+      "status": "located",
+      "evidence": "auth.ts delete process.env.CLAUDE_CODE_OAUTH_TOKEN; preserveInProcessTokens"
+    },
+    {
+      "item": "Unreadable text in new messages pill and plugin badges",
+      "status": "located",
+      "evidence": "Badge textColor:text + padded on scroll pill"
+    },
+    {
+      "item": "Plan accept offered auto mode instead of bypass under dangerously-skip-permissions",
+      "status": "located",
+      "evidence": "ExitPlanModePermissionRequest reorder if bypass else if auto"
+    },
+    {
+      "item": "Agent-type hooks Messages are required",
+      "status": "located",
+      "evidence": "hooks.ts drop throw; hook-agent- cancel"
+    },
+    {
+      "item": "prompt hooks re-fire on verifier subagent tool calls",
+      "status": "located",
+      "evidence": "same hook-agent- prefix cancel on prompt hooks"
+    },
+    {
+      "item": "/fork writes pointer and hydrates on read",
+      "status": "located",
+      "evidence": "fork-context-ref / parentLastUuid / recordForkContextRef"
+    },
+    {
+      "item": "Alt+K/X/^/_ freeze keyboard",
+      "status": "deferred",
+      "evidence": "no unique 118 token"
+    },
+    {
+      "item": "Remote session overwrite local model setting",
+      "status": "deferred",
+      "evidence": "shared/logic-only"
+    },
+    {
+      "item": "Typeahead No commands match on pasted / paths",
+      "status": "located",
+      "evidence": "useTypeahead Ua$ charset gate"
+    },
+    {
+      "item": "plugin install already-installed wrong-version dep",
+      "status": "located",
+      "evidence": "already-installed extra gate not-found vs unsatisfied"
+    },
+    {
+      "item": "Unhandled file watcher errors",
+      "status": "located",
+      "evidence": "[keybindings]/[ScheduledTasks] watcher error"
+    },
+    {
+      "item": "RC sessions archived on CCR JWT refresh blips",
+      "status": "located",
+      "evidence": "SessionsV2Client onProactiveRefresh reattachSessionId"
+    },
+    {
+      "item": "SendMessage resume explicit cwd",
+      "status": "deferred",
+      "evidence": "shared/logic-only"
+    }
+  ],
+  "notes": "astdiff cometix 117→118: similarity 98.58%, 1269 struct-real, 286 added-product, 52 string-product, pass-2 genuine-structural 308. P1–P9 not landed; restored P5 EMBEDDED_SEARCH_TOOLS + bfs/ugrep aliases do-not-land (P8 helper still return null). Kept 117 fork/advisor/pin/WebFetch 1MB/where.exe cache/effort/MCP Promise.all/blockedMarketplaces/OTEL; 116 templates@/TTL/downloads.claude.ai/stripWrappers; 114 getAppState?.(); 113 tools/RC; 112 WV8; 111 YeY. Did not start 2.1.119.",
+  "astdiff": {
+    "version": "2.1.118",
+    "from": "2.1.117",
+    "from_bundle": "/root/projects/ClaudeCodeRev/restore-work/artifacts/cometix/2.1.117/cli.js",
+    "to_bundle": "/root/projects/ClaudeCodeRev/restore-work/artifacts/cometix/2.1.118/cli.js",
+    "from_sha256": "525f60e9c1a0b4ba44d1b9921f3dfed7f9f2d4e2ef6d5c065caee1b0172cec19",
+    "to_sha256": "e64e856d987663417c78eba7177334086feef85e6c8cf35ccfb41b2e10f7e35f",
+    "method": "astdiff-v0.2.0+tree-sitter0.25",
+    "parser": "tree-sitter 0.25 / tree-sitter-javascript 0.25",
+    "similarity": 98.6,
+    "matched_declarations": 20519,
+    "total_declarations_from": 20607,
+    "total_declarations_to": 20800,
+    "change_total": 9320,
+    "added": 281,
+    "removed": 88,
+    "structural": 8919,
+    "string_only": 32,
+    "command": "astdiff /root/projects/ClaudeCodeRev/restore-work/artifacts/cometix/2.1.117/cli.js /root/projects/ClaudeCodeRev/restore-work/artifacts/cometix/2.1.118/cli.js --format json",
+    "full_json": "/root/projects/Zhiman/projects/ccr-swarm/integration/astdiff-full/using/2.1.118.json",
+    "elapsed_seconds": 13.0,
+    "generated_at": "2026-11-14T15:03:37Z"
+  }
+}

@@ -159,7 +159,12 @@ export function PromptInputFooterLeftSide({
     )
   }
 
-  const showVim = isVimModeEnabled() && vimMode === 'INSERT' && !isSearching
+  const showVim =
+    isVimModeEnabled() &&
+    (vimMode === 'INSERT' ||
+      vimMode === 'VISUAL' ||
+      vimMode === 'VISUAL LINE') &&
+    !isSearching
 
   return (
     <Box justifyContent="flex-start" gap={1}>
@@ -171,8 +176,8 @@ export function PromptInputFooterLeftSide({
         />
       )}
       {showVim ? (
-        <Text dimColor key="vim-insert">
-          -- INSERT --
+        <Text dimColor key={`vim-${vimMode}`}>
+          -- {vimMode} --
         </Text>
       ) : null}
       <ModeIndicator

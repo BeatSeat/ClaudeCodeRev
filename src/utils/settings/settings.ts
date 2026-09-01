@@ -6,6 +6,7 @@ import {
   getFlagSettingsInline,
   getFlagSettingsPath,
   getOriginalCwd,
+  getParentManagedSettings,
   getUseCoworkPlugins,
 } from '../../bootstrap/state.js'
 import { getRemoteManagedSettingsSyncFromCache } from '../../services/remoteManagedSettings/syncCacheState.js'
@@ -29,11 +30,13 @@ import {
   type SettingSource,
 } from './constants.js'
 import { markInternalWrite } from './internalWrites.js'
+import { getManagedFilePath } from './managedPath.js'
+import { WSL_WINDOWS_MANAGED_DIR } from './mdm/constants.js'
 import {
-  getManagedFilePath,
-  getManagedSettingsDropInDir,
-} from './managedPath.js'
-import { getHkcuSettings, getMdmSettings } from './mdm/settings.js'
+  getHkcuSettings,
+  getMdmSettings,
+  getWslInherits,
+} from './mdm/settings.js'
 import {
   getCachedParsedFile,
   getCachedSettingsForSource,
@@ -81,7 +84,12 @@ function getManagedSettingsFilePath(): string {
  *
  * Exported for testing.
  */
-export function loadManagedFileSettings(): {
+/**
+ * 118 `D28` — load managed-settings.json + drop-ins from a directory.
+ * Emptiness ignores `wslInheritsWindowsSettings` so a flag-only file
+ * does not win the policy chain.
+ */
+function loadManagedFileSettingsFromDir(dir: string): {
   settings: SettingsJson | null
   errors: ValidationError[]
 } {
@@ -90,7 +98,7 @@ export function loadManagedFileSettings(): {
   let found = false
 
   const { settings, errors: baseErrors } = parseSettingsFile(
-    getManagedSettingsFilePath(),
+    join(dir, 'managed-settings.json'),
   )
   errors.push(...baseErrors)
   if (settings && Object.keys(settings).length > 0) {
@@ -98,7 +106,7 @@ export function loadManagedFileSettings(): {
     found = true
   }
 
-  const dropInDir = getManagedSettingsDropInDir()
+  const dropInDir = join(dir, 'managed-settings.d')
   try {
     const entries = getFsImplementation()
       .readdirSync(dropInDir)
@@ -127,7 +135,32 @@ export function loadManagedFileSettings(): {
     }
   }
 
-  return { settings: found ? merged : null, errors }
+  const { wslInheritsWindowsSettings: _flag, ...remainder } = merged
+  return {
+    settings: found && Object.keys(remainder).length > 0 ? merged : null,
+    errors,
+  }
+}
+
+/**
+ * 118 `AW$`: WSL + inherit prefers `C:/Program Files/ClaudeCode` via DrvFs.
+ */
+export function loadManagedFileSettings(): {
+  settings: SettingsJson | null
+  errors: ValidationError[]
+} {
+  if (getPlatform() === 'wsl' && getWslInherits()) {
+    const windows = loadManagedFileSettingsFromDir(WSL_WINDOWS_MANAGED_DIR)
+    if (windows.settings) {
+      return windows
+    }
+    const linux = loadManagedFileSettingsFromDir(getManagedFilePath())
+    return {
+      settings: linux.settings,
+      errors: [...windows.errors, ...linux.errors],
+    }
+  }
+  return loadManagedFileSettingsFromDir(getManagedFilePath())
 }
 
 /**
@@ -138,25 +171,69 @@ export function getManagedFileSettingsPresence(): {
   hasBase: boolean
   hasDropIns: boolean
 } {
-  const { settings: base } = parseSettingsFile(getManagedSettingsFilePath())
-  const hasBase = !!base && Object.keys(base).length > 0
-
-  let hasDropIns = false
-  const dropInDir = getManagedSettingsDropInDir()
-  try {
-    hasDropIns = getFsImplementation()
-      .readdirSync(dropInDir)
-      .some(
-        d =>
-          (d.isFile() || d.isSymbolicLink()) &&
-          d.name.endsWith('.json') &&
-          !d.name.startsWith('.'),
-      )
-  } catch {
-    // dir doesn't exist
+  // 118 `X28`: WSL inherit checks Windows dir first.
+  const dirs = [getManagedFilePath()]
+  if (getPlatform() === 'wsl' && getWslInherits()) {
+    dirs.unshift(WSL_WINDOWS_MANAGED_DIR)
   }
+  for (const dir of dirs) {
+    const { settings: base } = parseSettingsFile(
+      join(dir, 'managed-settings.json'),
+    )
+    const { wslInheritsWindowsSettings: _flag, ...remainder } = base ?? {}
+    const hasBase = Object.keys(remainder).length > 0
+    let hasDropIns = false
+    try {
+      const dropInDir = join(dir, 'managed-settings.d')
+      hasDropIns = getFsImplementation()
+        .readdirSync(dropInDir)
+        .some(d => {
+          if (
+            !(d.isFile() || d.isSymbolicLink()) ||
+            !d.name.endsWith('.json') ||
+            d.name.startsWith('.')
+          ) {
+            return false
+          }
+          const { settings } = parseSettingsFile(join(dropInDir, d.name))
+          const { wslInheritsWindowsSettings: _dropFlag, ...rest } =
+            settings ?? {}
+          return Object.keys(rest).length > 0
+        })
+    } catch {
+      // dir doesn't exist
+    }
+    if (hasBase || hasDropIns) {
+      return { hasBase, hasDropIns }
+    }
+  }
+  return { hasBase: false, hasDropIns: false }
+}
 
-  return { hasBase, hasDropIns }
+/** 118 `J28` — SDK parent `--managed-settings` blob. */
+function loadParentManagedSettings(): {
+  settings: SettingsJson | null
+  errors: ValidationError[]
+} {
+  const raw = getParentManagedSettings()
+  if (!raw || Object.keys(raw).length === 0) {
+    return { settings: null, errors: [] }
+  }
+  const cloned = clone(raw)
+  const warnings = filterSettingsWarnings(cloned, 'parent managed settings')
+  const parsed = SettingsSchema().safeParse(cloned)
+  if (!parsed.success) {
+    return {
+      settings: null,
+      errors: [
+        ...warnings,
+        ...formatZodError(parsed.error, 'parent managed settings'),
+      ],
+    }
+  }
+  return Object.keys(parsed.data).length > 0
+    ? { settings: parsed.data, errors: warnings }
+    : { settings: null, errors: warnings }
 }
 
 /**
@@ -346,7 +423,7 @@ export function getSourceForSetting(
 function getSettingsForSourceUncached(
   source: SettingSource,
 ): SettingsJson | null {
-  // For policySettings: first source wins (remote > HKLM/plist > file > HKCU)
+  // For policySettings: first source wins (remote > HKLM/plist > file > parent > HKCU)
   if (source === 'policySettings') {
     const remoteSettings = getRemoteManagedSettingsSyncFromCache()
     if (remoteSettings && Object.keys(remoteSettings).length > 0) {
@@ -367,6 +444,12 @@ function getSettingsForSourceUncached(
     const { settings: fileSettings } = loadManagedFileSettings()
     if (fileSettings) {
       return fileSettings
+    }
+
+    // 118: parent managed settings after file, before HKCU
+    const { settings: parentSettings } = loadParentManagedSettings()
+    if (parentSettings) {
+      return parentSettings
     }
 
     const hkcu = getHkcuSettings()
@@ -407,13 +490,14 @@ function getSettingsForSourceUncached(
 /**
  * Get the origin of the highest-priority active policy settings source.
  * Uses "first source wins" — returns the first source that has content.
- * Priority: remote > plist/hklm > file (managed-settings.json) > hkcu
+ * Priority: remote > plist/hklm > file (managed-settings.json) > parent > hkcu
  */
 export function getPolicySettingsOrigin():
   | 'remote'
   | 'plist'
   | 'hklm'
   | 'file'
+  | 'parent'
   | 'hkcu'
   | null {
   // 1. Remote (highest)
@@ -434,7 +518,13 @@ export function getPolicySettingsOrigin():
     return 'file'
   }
 
-  // 4. HKCU (lowest — user-writable)
+  // 4. SDK parent `--managed-settings`
+  const { settings: parentSettings } = loadParentManagedSettings()
+  if (parentSettings) {
+    return 'parent'
+  }
+
+  // 5. HKCU (lowest — user-writable)
   const hkcu = getHkcuSettings()
   if (Object.keys(hkcu.settings).length > 0) {
     return 'hkcu'
@@ -634,6 +724,7 @@ export function getManagedSettingsKeysForLogging(
       'PostToolUse',
       'Notification',
       'UserPromptSubmit',
+      'UserPromptExpansion',
       'SessionStart',
       'SessionEnd',
       'Stop',
@@ -711,7 +802,7 @@ function loadSettingsFromDisk(): SettingsWithErrors {
     // Merge settings from each source in priority order with deep merging
     for (const source of getEnabledSettingSources()) {
       // policySettings: "first source wins" — use the highest-priority source
-      // that has content. Priority: remote > HKLM/plist > managed-settings.json > HKCU
+      // that has content. Priority: remote > HKLM/plist > managed-settings.json > parent > HKCU
       if (source === 'policySettings') {
         let policySettings: SettingsJson | null = null
         const policyErrors: ValidationError[] = []
@@ -753,7 +844,16 @@ function loadSettingsFromDisk(): SettingsWithErrors {
           policyErrors.push(...errors)
         }
 
-        // 4. HKCU (lowest — user-writable, only if nothing above exists)
+        // 4. SDK parent `--managed-settings` (118 `J28`, after file, before HKCU)
+        if (!policySettings) {
+          const { settings, errors } = loadParentManagedSettings()
+          if (settings) {
+            policySettings = settings
+          }
+          policyErrors.push(...errors)
+        }
+
+        // 5. HKCU (lowest — user-writable, only if nothing above exists)
         if (!policySettings) {
           const hkcu = getHkcuSettings()
           if (Object.keys(hkcu.settings).length > 0) {

@@ -51,6 +51,7 @@ export type LogOption = {
   permissionMode?: string // toolPermissionContext.mode persisted for resume (2.1.90+)
   worktreeSession?: PersistedWorktreeSession | null // Worktree state at session end (null = exited, undefined = never entered)
   contentReplacements?: ContentReplacementRecord[] // Replacement decisions for resume reconstruction
+  isAlias?: boolean // 118: session found via `.session-aliases` from /add-dir
 }
 
 export type SummaryMessage = {
@@ -193,6 +194,18 @@ export type ContentReplacementEntry = {
   replacements: ContentReplacementRecord[]
 }
 
+/**
+ * 118 `/fork` pointer — hydrate parent prefix on read instead of
+ * writing the full parent conversation into every fork transcript.
+ */
+export type ForkContextRefEntry = {
+  type: 'fork-context-ref'
+  agentId: AgentId
+  parentSessionId: string
+  parentLastUuid: UUID
+  contextLength: number
+}
+
 export type FileHistorySnapshotMessage = {
   type: 'file-history-snapshot'
   messageId: UUID
@@ -322,6 +335,7 @@ export type Entry =
   | PermissionModeEntry
   | WorktreeStateEntry
   | ContentReplacementEntry
+  | ForkContextRefEntry
   | ContextCollapseCommitEntry
   | ContextCollapseSnapshotEntry
 

@@ -19,12 +19,22 @@ import { resetUserCache } from '../../utils/user.js'
 
 export async function performLogout({
   clearOnboarding = false,
-}): Promise<void> {
+  preserveInProcessTokens = false,
+}: {
+  clearOnboarding?: boolean
+  preserveInProcessTokens?: boolean
+} = {}): Promise<void> {
   // Flush telemetry BEFORE clearing credentials to prevent org data leakage
   const { flushTelemetry } = await import(
     '../../utils/telemetry/instrumentation.js'
   )
   await flushTelemetry()
+
+  // Official 2.1.118 z_$: unless preserveInProcessTokens, drop the env
+  // token so a subsequent /login's disk creds win.
+  if (!preserveInProcessTokens) {
+    delete process.env.CLAUDE_CODE_OAUTH_TOKEN
+  }
 
   await removeApiKey()
 

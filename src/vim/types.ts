@@ -46,9 +46,20 @@ export type TextObjScope = 'inner' | 'around'
  * INSERT mode: Track text being typed (for dot-repeat)
  * NORMAL mode: Track command being parsed (state machine)
  */
+export type VisualKind = 'char' | 'line'
+
 export type VimState =
   | { mode: 'INSERT'; insertedText: string }
   | { mode: 'NORMAL'; command: CommandState }
+  | { mode: 'VISUAL'; kind: VisualKind; anchor: number; command: VisualCommandState }
+
+export type VisualCommandState =
+  | { type: 'idle' }
+  | { type: 'count'; digits: string }
+  | { type: 'find'; find: FindType; count: number }
+  | { type: 'g'; count: number }
+  | { type: 'replace' }
+  | { type: 'textObject'; scope: TextObjScope; count: number }
 
 /**
  * Command state machine for NORMAL mode.
@@ -117,6 +128,12 @@ export type RecordedChange =
   | { type: 'indent'; dir: '>' | '<'; count: number }
   | { type: 'openLine'; direction: 'above' | 'below' }
   | { type: 'join'; count: number }
+  | { type: 'visualOp'; op: Operator; span: number; linewise: boolean }
+  | { type: 'visualReplace'; char: string; span: number; linewise: boolean }
+  | { type: 'visualCase'; caseOp: 'toggle' | 'lower' | 'upper'; span: number; linewise: boolean }
+  | { type: 'visualPaste'; content: string; span: number; linewise: boolean }
+  | { type: 'visualIndent'; dir: '>' | '<'; count: number; lines: number }
+  | { type: 'visualChange'; span: number; linewise: boolean; text: string }
 
 // ============================================================================
 // Key Groups - Named constants, no magic strings
