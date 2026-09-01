@@ -130,3 +130,24 @@ export function permissionModeSymbol(mode: PermissionMode): string {
 export function getModeColor(mode: PermissionMode): ModeColorKey {
   return getModeConfig(mode).color
 }
+
+/**
+ * Auto-resolve sandbox network prompts in modes that should not show a dialog.
+ * `true`/`false` is the decision; `null` means ask the user.
+ */
+export function shouldAutoApproveSandboxNetwork(
+  mode: PermissionMode,
+  planBypassAvailable: boolean,
+): boolean | null {
+  if (
+    mode === 'auto' ||
+    mode === 'bypassPermissions' ||
+    (mode === 'plan' && planBypassAvailable)
+  ) {
+    return true
+  }
+  if (mode === 'dontAsk') {
+    return false
+  }
+  return null
+}

@@ -3096,6 +3096,8 @@ export function handleMessageFromStream(
     if (message.ttftMs != null) {
       onApiMetrics?.({ ttftMs: message.ttftMs })
     }
+    onStreamingToolUses(uses => (uses.length > 0 ? [] : uses))
+    onStreamingText?.(text => (text !== null ? null : text))
   }
 
   if (message.event.type === 'message_stop') {

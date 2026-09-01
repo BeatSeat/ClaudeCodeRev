@@ -234,6 +234,7 @@ import {
   persistPermissionUpdate,
 } from '../utils/permissions/PermissionUpdate.js'
 import { buildPermissionUpdates } from '../components/permissions/ExitPlanModePermissionRequest/ExitPlanModePermissionRequest.js'
+import { shouldAutoApproveSandboxNetwork } from '../utils/permissions/PermissionMode.js'
 import { stripDangerousPermissionsForAutoMode } from '../utils/permissions/permissionSetup.js'
 import {
   getScratchpadDir,
@@ -2946,6 +2947,16 @@ export function REPL({
 
   const sandboxAskCallback: SandboxAskCallback = useCallback(
     async (hostPattern: NetworkHostPattern) => {
+      const { mode, isBypassPermissionsModeAvailable } =
+        store.getState().toolPermissionContext
+      const autoApprove = shouldAutoApproveSandboxNetwork(
+        mode,
+        isBypassPermissionsModeAvailable,
+      )
+      if (autoApprove !== null) {
+        return autoApprove
+      }
+
       // If running as a swarm worker, forward the request to the leader via mailbox
       if (isAgentSwarmsEnabled() && isSwarmWorker()) {
         const requestId = generateSandboxRequestId()
@@ -4868,12 +4879,18 @@ export function REPL({
   // old REPL scopes can be GC'd — saves ~35MB over a 1000-turn session.
   const onSubmitRef = useRef(onSubmit)
   onSubmitRef.current = onSubmit
-  const handleOpenRateLimitOptions = useCallback(() => {
+  const rateLimitOptionsOpenedRef = useRef(false)
+  const handleOpenRateLimitOptions = useCallback((): boolean => {
+    if (rateLimitOptionsOpenedRef.current) {
+      return false
+    }
+    rateLimitOptionsOpenedRef.current = true
     void onSubmitRef.current('/rate-limit-options', {
       setCursorOffset: () => {},
       clearBuffer: () => {},
       resetHistory: () => {},
     })
+    return true
   }, [])
 
   const handleExit = useCallback(async () => {
@@ -5123,7 +5140,11 @@ export function REPL({
   // Don't record conversation if we only have initial messages; optimizes
   // the case where user resumes a conversation then quites before doing
   // anything else
-  useLogMessages(messages, messages.length === initialMessages?.length)
+  useLogMessages(
+    messages,
+    messages.length === initialMessages?.length,
+    isLoading,
+  )
 
   // REPL Bridge: replicate user/assistant messages to the bridge session
   // for remote access via claude.ai. No-op in external builds or when not enabled.

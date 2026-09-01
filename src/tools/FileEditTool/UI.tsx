@@ -93,13 +93,14 @@ export function renderToolResultMessage(
 ): React.ReactNode {
   // For plan files, show /plan hint above the diff
   const isPlanFile = filePath.startsWith(getPlansDirectory())
+  const firstLine = originalFile ? firstLineOf(originalFile) : null
 
   return (
     <FileEditToolUpdatedMessage
       filePath={filePath}
       structuredPatch={structuredPatch}
-      firstLine={originalFile.split('\n')[0] ?? null}
-      fileContent={originalFile}
+      firstLine={firstLine}
+      fileContent={originalFile || undefined}
       style={style}
       verbose={verbose}
       previewHint={isPlanFile ? '/plan to preview' : undefined}

@@ -23,6 +23,7 @@ import {
 import { createAssistantMessage } from '../utils/messages.js'
 import {
   permissionModeFromString,
+  shouldAutoApproveSandboxNetwork,
   toExternalPermissionMode,
 } from '../utils/permissions/PermissionMode.js'
 import { applyPermissionUpdate } from '../utils/permissions/PermissionUpdate.js'
@@ -35,7 +36,10 @@ import {
 import type { PaneBackendType } from '../utils/swarm/backends/types.js'
 import { TEAM_LEAD_NAME } from '../utils/swarm/constants.js'
 import { getLeaderToolUseConfirmQueue } from '../utils/swarm/leaderPermissionBridge.js'
-import { sendPermissionResponseViaMailbox } from '../utils/swarm/permissionSync.js'
+import {
+  sendPermissionResponseViaMailbox,
+  sendSandboxPermissionResponseViaMailbox,
+} from '../utils/swarm/permissionSync.js'
 import {
   removeTeammateFromTeamFile,
   setMemberMode,
@@ -405,6 +409,14 @@ export function useInboxPoller({
         `[InboxPoller] Found ${sandboxPermissionRequests.length} sandbox permission request(s)`,
       )
 
+      const { mode, isBypassPermissionsModeAvailable } =
+        currentAppState.toolPermissionContext
+      const autoApprove = shouldAutoApproveSandboxNetwork(
+        mode,
+        isBypassPermissionsModeAvailable,
+      )
+      const teamName = currentAppState.teamContext?.teamName
+
       const newSandboxRequests: Array<{
         requestId: string
         workerId: string
@@ -422,6 +434,20 @@ export function useInboxPoller({
         if (!parsed.hostPattern?.host) {
           logForDebugging(
             `[InboxPoller] Invalid sandbox permission request: missing hostPattern.host`,
+          )
+          continue
+        }
+
+        if (autoApprove !== null) {
+          logForDebugging(
+            `[InboxPoller] Auto-resolving sandbox request ${parsed.requestId} (mode=${mode}, allow=${autoApprove})`,
+          )
+          void sendSandboxPermissionResponseViaMailbox(
+            parsed.workerName,
+            parsed.requestId,
+            parsed.hostPattern.host,
+            autoApprove,
+            teamName,
           )
           continue
         }

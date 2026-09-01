@@ -1,5 +1,6 @@
 import figures from 'figures'
 import * as React from 'react'
+import { BLACK_CIRCLE } from 'src/constants/figures.js'
 import type { SettingSource } from 'src/utils/settings/constants.js'
 import type { KeyboardEvent } from '../../ink/events/keyboard-event.js'
 import { Box, Text } from '../../ink.js'
@@ -23,6 +24,7 @@ type Props = {
   onSelect: (agent: AgentDefinition) => void
   onCreateNew?: () => void
   changes?: string[]
+  runningCounts?: Map<string, number>
 }
 
 export function AgentsList({
@@ -32,6 +34,7 @@ export function AgentsList({
   onSelect,
   onCreateNew,
   changes,
+  runningCounts,
 }: Props): React.ReactNode {
   const [selectedAgent, setSelectedAgent] =
     React.useState<ResolvedAgent | null>(null)
@@ -74,6 +77,9 @@ export function AgentsList({
     const { isOverridden, overriddenBy } = getOverrideInfo(agent)
     const dimmed = isBuiltIn || isOverridden
     const textColor = !isBuiltIn && isSelected ? 'suggestion' : undefined
+    const running = isOverridden
+      ? 0
+      : (runningCounts?.get(agent.agentType) ?? 0)
 
     const resolvedModel = resolveAgentModelDisplay(agent)
 
@@ -95,6 +101,12 @@ export function AgentsList({
           <Text dimColor={true} color={textColor}>
             {' · '}
             {agent.memory} memory
+          </Text>
+        )}
+        {running > 0 && (
+          <Text color="success">
+            {' '}
+            {BLACK_CIRCLE} {running} running
           </Text>
         )}
         {overriddenBy && (

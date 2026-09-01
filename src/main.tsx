@@ -1857,7 +1857,10 @@ async function run(): Promise<CommanderCommand> {
       // Extract these separately so they can be modified if needed
       let outputFormat = options.outputFormat
       let inputFormat = options.inputFormat
-      let verbose = options.verbose ?? getGlobalConfig().verbose
+      const viewMode = getInitialSettings().viewMode
+      let verbose =
+        options.verbose ??
+        (viewMode ? viewMode === 'verbose' : getGlobalConfig().verbose)
       let print = options.print
       const init = options.init ?? false
       const initOnly = options.initOnly ?? false
@@ -4099,6 +4102,11 @@ async function run(): Promise<CommanderCommand> {
         mainLoopModel: initialMainLoopModel,
         mainLoopModelForSession: null,
         isBriefOnly: initialIsBriefOnly,
+        briefTranscript: verbose
+          ? false
+          : viewMode
+            ? viewMode === 'focus'
+            : getGlobalConfig().briefTranscript ?? false,
         expandedView: getGlobalConfig().showSpinnerTree
           ? 'teammates'
           : getGlobalConfig().showExpandedTodos

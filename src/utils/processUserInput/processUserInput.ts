@@ -396,7 +396,7 @@ async function processUserInputBase(
       if (metadataText) {
         imageMetadataTexts.push(metadataText)
       }
-    } else if (originalDimensions) {
+    } else if (originalDimensions && !resized.tokenCompressed) {
       // Fall back to original dimensions if resize didn't provide them
       const metadataText = createImageMetadataText(
         originalDimensions,

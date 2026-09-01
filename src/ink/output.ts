@@ -19,6 +19,7 @@ import {
   resetScreen,
   type Screen,
   type StylePool,
+  packSoftWrap,
   setCellAt,
   shiftRows,
 } from './screen.js'
@@ -399,7 +400,7 @@ export default class Output {
           let { x, y } = operation
           let lines = text.split('\n')
           let swFrom = 0
-          let prevContentEnd = 0
+          let packed = 0
 
           const clip = clips.at(-1)
 
@@ -461,7 +462,7 @@ export default class Output {
               // screen.softWrap[lineY] correctly records the join point
               // even though that line's cells were never written.
               if (softWrap && from > 0 && softWrap[from] === true) {
-                prevContentEnd = x + stringWidth(lines[from - 1]!)
+                packed = packSoftWrap(x + stringWidth(lines[from - 1]!), x)
               }
 
               lines = lines.slice(from, to)
@@ -497,8 +498,8 @@ export default class Output {
             // x+stringWidth(line) which treats tabs as width 0.
             if (softWrap) {
               const isSW = softWrap[swFrom + offsetY] === true
-              swBits[lineY] = isSW ? prevContentEnd : 0
-              prevContentEnd = contentEnd
+              swBits[lineY] = isSW ? packed : 0
+              packed = packSoftWrap(contentEnd, x)
             }
             offsetY++
           }

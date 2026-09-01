@@ -232,6 +232,22 @@ export function getGitDir(cwd: string): Promise<string | null> {
   return resolveGitDir(cwd)
 }
 
+/**
+ * Linked-worktree directory name when cwd is inside `.git/worktrees/<name>`.
+ * Regular repos (gitdir basename is `.git`) and non-worktree paths return null.
+ */
+export async function getGitWorktreeName(cwd: string): Promise<string | null> {
+  const dir = await getGitDir(cwd)
+  if (
+    !dir ||
+    basename(dir) === '.git' ||
+    basename(dirname(dir)) !== 'worktrees'
+  ) {
+    return null
+  }
+  return basename(dir)
+}
+
 export async function isAtGitRoot(): Promise<boolean> {
   const cwd = getCwd()
   const gitRoot = findGitRoot(cwd)

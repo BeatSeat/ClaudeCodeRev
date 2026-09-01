@@ -160,6 +160,7 @@ const EXTENDED_KEYS_TERMINALS = [
   'ghostty',
   'tmux',
   'windows-terminal',
+  'WarpTerminal',
 ]
 
 /** True if this terminal correctly handles extended key reporting
@@ -181,6 +182,10 @@ export function hasCursorUpViewportYankBug(): boolean {
 // Computed once at module load — terminal capabilities don't change mid-session.
 // Exported so callers can pass a sync-skip hint gated to specific modes.
 export const SYNC_OUTPUT_SUPPORTED = isSynchronizedOutputSupported()
+
+/** DECSTBM + SU/SD is unsafe in zellij (DEC 2026 incomplete). */
+export const DECSTBM_SUPPORTED =
+  SYNC_OUTPUT_SUPPORTED && process.env.ZELLIJ == null
 
 export type Terminal = {
   stdout: Writable

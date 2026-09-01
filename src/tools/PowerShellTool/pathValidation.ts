@@ -1789,7 +1789,11 @@ function checkPathConstraintsForStatement(
           }
         }
 
-        if (operationType === 'write' || operationType === 'create') {
+        if (
+          (operationType === 'write' || operationType === 'create') &&
+          (toolPermissionContext.mode === 'default' ||
+            toolPermissionContext.mode === 'plan')
+        ) {
           suggestions.push({
             type: 'setMode',
             mode: 'acceptEdits',
@@ -1902,7 +1906,11 @@ function checkPathConstraintsForStatement(
             }
           }
 
-          if (operationType === 'write' || operationType === 'create') {
+          if (
+            (operationType === 'write' || operationType === 'create') &&
+            (toolPermissionContext.mode === 'default' ||
+              toolPermissionContext.mode === 'plan')
+          ) {
             suggestions.push({
               type: 'setMode',
               mode: 'acceptEdits',

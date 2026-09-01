@@ -392,26 +392,24 @@ export type Screen = Size & {
   noSelect: Uint8Array
 
   /**
-   * Per-ROW soft-wrap continuation marker. softWrap[r]=N>0 means row r
-   * is a word-wrap continuation of row r-1 (the `\n` before it was
-   * inserted by wrapAnsi, not in the source), and row r-1's written
-   * content ends at absolute column N (exclusive — cells [0..N) are the
-   * fragment, past N is unwritten padding). 0 means row r is NOT a
-   * continuation (hard newline or first row). Selection copy checks
-   * softWrap[r]>0 to join row r onto row r-1 without a newline, and
-   * reads softWrap[r+1] to know row r's content end when row r+1
-   * continues from it. The content-end column is needed because an
-   * unwritten cell and a written-unstyled-space are indistinguishable in
-   * the packed typed array (both all-zero) — without it we'd either drop
-   * the word-separator space (trim) or include trailing padding (no
-   * trim). This encoding (continuation-on-self, prev-content-end-here)
-   * is chosen so shiftRows preserves the is-continuation semantics: when
-   * row r scrolls off the top and row r+1 shifts to row r, sw[r] gets
-   * old sw[r+1] — which correctly says the new row r is a continuation
-   * of what's now in scrolledOffAbove. Reset each frame; copied by
-   * blitRegion/shiftRows.
+   * Per-ROW packed soft-wrap Int32 (official lR1):
+   *   low 16 bits  = continuation start column (this row)
+   *   high 16 bits = previous line's content-end (exclusive)
+   * softWrap[r] !== 0 means row r is a word-wrap continuation of row r-1.
+   * Selection copy joins those rows without a newline or extra space, and
+   * reads softWrap[r+1] >>> 16 for this row's content-end so trailing
+   * padding is not copied. 0 means row r is not a continuation.
+   * Reset each frame; copied by blitRegion/shiftRows.
    */
   softWrap: Int32Array
+}
+
+/** Pack prev-line content-end (high 16) with this-line start col (low 16). */
+export function packSoftWrap(
+  prevContentEnd: number,
+  startCol: number,
+): number {
+  return (prevContentEnd << 16) | (startCol & 65535)
 }
 
 function isEmptyCellByIndex(screen: Screen, index: number): boolean {
