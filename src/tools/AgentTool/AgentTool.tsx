@@ -1164,11 +1164,12 @@ export const AgentTool = buildTool({
             },
             onCacheSafeParams:
               summaryTaskId && getSdkAgentProgressSummariesEnabled()
-                ? (params: CacheSafeParams) => {
+                ? (params: CacheSafeParams, getMessages) => {
                     const { stop } = startAgentSummarization(
                       summaryTaskId,
                       syncAgentId,
                       params,
+                      getMessages,
                       rootSetAppState,
                     )
                     stopForegroundSummarization = stop
@@ -1272,11 +1273,12 @@ export const AgentTool = buildTool({
                           abortController: task.abortController,
                         },
                         onCacheSafeParams: getSdkAgentProgressSummariesEnabled()
-                          ? (params: CacheSafeParams) => {
+                          ? (params: CacheSafeParams, getMessages) => {
                               const { stop } = startAgentSummarization(
                                 backgroundedTaskId,
                                 asAgentId(backgroundedTaskId),
                                 params,
+                                getMessages,
                                 rootSetAppState,
                               )
                               stopBackgroundedSummarization = stop

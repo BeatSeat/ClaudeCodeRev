@@ -167,9 +167,12 @@ function getTeammateMailbox(): typeof import('./teammateMailbox.js') {
   return require('./teammateMailbox.js')
 }
 
+import { TOOL_SEARCH_TOOL_NAME } from '../tools/ToolSearchTool/prompt.js'
 import {
+  DEFERRED_TOOLS_REMOVED_SUMMARY_THRESHOLD,
   isToolReferenceBlock,
   isToolSearchEnabledOptimistic,
+  summarizeDeferredToolNames,
 } from './toolSearch.js'
 
 const MEMORY_CORRECTION_HINT =
@@ -4256,13 +4259,30 @@ You have exited auto mode. The user may now want to interact more directly. You 
       const parts: string[] = []
       if (attachment.addedLines.length > 0) {
         parts.push(
-          `The following deferred tools are now available via ToolSearch:\n${attachment.addedLines.join('\n')}`,
+          `The following deferred tools are now available via ${TOOL_SEARCH_TOOL_NAME}. Their schemas are NOT loaded — calling them directly will fail with InputValidationError. Use ${TOOL_SEARCH_TOOL_NAME} with query "select:<name>[,<name>...]" to load tool schemas before calling them:\n${attachment.addedLines.join('\n')}`,
+        )
+      }
+      const readdedNames = attachment.readdedNames ?? []
+      if (readdedNames.length > 0) {
+        parts.push(
+          `${readdedNames.length} deferred tool${readdedNames.length === 1 ? ' is' : 's are'} available again (MCP server reconnected — names announced earlier in this conversation): ${summarizeDeferredToolNames(readdedNames)}. Load via ${TOOL_SEARCH_TOOL_NAME} as before.`,
         )
       }
       if (attachment.removedNames.length > 0) {
         parts.push(
-          `The following deferred tools are no longer available (their MCP server disconnected). Do not search for them — ToolSearch will return no match:\n${attachment.removedNames.join('\n')}`,
+          attachment.removedNames.length > DEFERRED_TOOLS_REMOVED_SUMMARY_THRESHOLD
+            ? `${attachment.removedNames.length} deferred tools are no longer available (MCP server disconnected): ${summarizeDeferredToolNames(attachment.removedNames)}. Do not search for them — ${TOOL_SEARCH_TOOL_NAME} will return no match.`
+            : `The following deferred tools are no longer available (their MCP server disconnected). Do not search for them — ${TOOL_SEARCH_TOOL_NAME} will return no match:\n${attachment.removedNames.join('\n')}`,
         )
+      }
+      const pending = attachment.pendingMcpServers ?? []
+      if (pending.length > 0) {
+        parts.push(
+          `The following MCP servers are still connecting — their tools (typically named mcp__<server>__*) are not yet available but will appear shortly:\n${pending.join('\n')}\n\nIf the user's request might be served by one of these servers (even if they didn't name it explicitly), call ${TOOL_SEARCH_TOOL_NAME} with a relevant keyword — ${TOOL_SEARCH_TOOL_NAME} will wait for connecting servers and search their tools once available. Do not report a capability as unavailable without first searching.`,
+        )
+      }
+      if (parts.length === 0) {
+        return []
       }
       return wrapMessagesInSystemReminder([
         createUserMessage({ content: parts.join('\n\n'), isMeta: true }),

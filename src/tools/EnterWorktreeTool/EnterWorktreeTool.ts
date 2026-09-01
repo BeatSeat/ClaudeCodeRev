@@ -105,7 +105,12 @@ export const EnterWorktreeTool: Tool<InputSchema, Output> = buildTool({
         setCwd(mainRepoRoot)
       }
       const slug = input.name ?? getPlanSlug()
-      worktreeSession = await createWorktreeForSession(getSessionId(), slug)
+      worktreeSession = await createWorktreeForSession(
+        getSessionId(),
+        slug,
+        undefined,
+        { fromHead: true },
+      )
     }
 
     process.chdir(worktreeSession.worktreePath)

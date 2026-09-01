@@ -59,6 +59,9 @@ import {
 } from './types.js'
 import { getProjectMcpServerStatus } from './utils.js'
 
+/** Official 2.1.128 `pH$`: MCP server name reserved for the workspace connector. */
+export const WORKSPACE_MCP_SERVER_NAME = 'workspace'
+
 /**
  * Get the path to the managed MCP configuration file
  */
@@ -725,6 +728,11 @@ export async function addMcpConfig(
     if (isComputerUseMCPServer(name)) {
       throw new Error(`Cannot add MCP server "${name}": this name is reserved.`)
     }
+  }
+
+  // 128 pH$="workspace": reserved MCP server name (tool aliases mcp__workspace__*)
+  if (name === WORKSPACE_MCP_SERVER_NAME) {
+    throw new Error(`Cannot add MCP server "${name}": this name is reserved.`)
   }
 
   // Block adding servers when enterprise MCP config exists (it has exclusive control)

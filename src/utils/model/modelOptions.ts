@@ -33,7 +33,7 @@ import {
   renderDefaultModelSetting,
   type ModelSetting,
 } from './model.js'
-import { has1mContext } from '../context.js'
+import { has1mContext, is1mContextDisabled } from '../context.js'
 import { getGlobalConfig } from '../config.js'
 import { getGatewayModelOptions } from './gatewayModels.js'
 
@@ -163,11 +163,29 @@ export function getOpus46_1MOption(fastMode = false): ModelOption {
   const is3P = !isFirstPartyApiFamily()
   return {
     value: is3P ? getModelStrings().opus46 + '[1m]' : 'opus[1m]',
-    label: 'Opus (1M context)',
+    label: 'Opus 4.6 (1M context)',
     description: `Opus 4.6 for long sessions${getOpus46PricingSuffix(fastMode)}`,
     descriptionForModel:
       'Opus 4.6 with 1M context window - for long sessions with large codebases',
   }
+}
+
+/** Official 2.1.128 `vi7`: current Opus 4.7 1M shows as "Opus (1M context)". */
+function getOpus47_1MOption(): ModelOption {
+  const is1P = isFirstPartyApiFamily()
+  return {
+    value: is1P ? getModelStrings().opus47 + '[1m]' : 'opus[1m]',
+    label: 'Opus (1M context)',
+    description: `Opus 4.7 for long sessions${is1P ? '' : ` · ${formatModelPricing(COST_TIER_3_15)}`}`,
+    descriptionForModel:
+      'Opus 4.7 with 1M context window - for long sessions with large codebases',
+  }
+}
+
+/** Official 2.1.128 `gv6`/`d$H(fE())`: skip a second 4.7 1M row when default Opus is 4.7. */
+function isCurrentDefaultOpus47(): boolean {
+  if (is1mContextDisabled()) return false
+  return getCanonicalName(getDefaultOpusModel()) === 'claude-opus-4-7'
 }
 
 function getCustomHaikuOption(): ModelOption | undefined {
@@ -298,7 +316,11 @@ function getModelOptionsBase(fastMode = false): ModelOption[] {
     if (isMaxSubscriber() || isTeamPremiumSubscriber()) {
       // Max and Team Premium users: Opus is default, show Sonnet as alternative
       const premiumOptions = [getDefaultOptionForUser(fastMode)]
-      if (!isOpus1mMergeEnabled() && checkOpus1mAccess()) {
+      if (
+        !isOpus1mMergeEnabled() &&
+        checkOpus1mAccess() &&
+        !isCurrentDefaultOpus47()
+      ) {
         premiumOptions.push(getMaxOpus46_1MOption(fastMode))
       }
 
@@ -321,7 +343,7 @@ function getModelOptionsBase(fastMode = false): ModelOption[] {
       standardOptions.push(getMergedOpus1MOption(fastMode))
     } else {
       standardOptions.push(getMaxOpusOption(fastMode))
-      if (checkOpus1mAccess()) {
+      if (checkOpus1mAccess() && !isCurrentDefaultOpus47()) {
         standardOptions.push(getMaxOpus46_1MOption(fastMode))
       }
     }
@@ -369,8 +391,8 @@ function getModelOptionsBase(fastMode = false): ModelOption[] {
     // Add Opus 4.1, Opus 4.6 and Opus 4.6 1M
     payg3pOptions.push(getOpus41Option()) // This is the default opus
     payg3pOptions.push(getOpus46Option(fastMode))
-    if (checkOpus1mAccess()) {
-      payg3pOptions.push(getOpus46_1MOption(fastMode))
+    if (checkOpus1mAccess() && !isCurrentDefaultOpus47()) {
+      payg3pOptions.push(getOpus47_1MOption())
     }
   }
   const customHaiku = getCustomHaikuOption()

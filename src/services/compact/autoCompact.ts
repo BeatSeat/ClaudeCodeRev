@@ -56,6 +56,19 @@ export function getEffectiveContextWindowSize(model: string): number {
   return contextWindow - reservedTokensForSummary
 }
 
+/**
+ * Official 2.1.128 pg_: model/API window minus reserved output tokens.
+ * Ignores a smaller autocompact window so client-side "Prompt is too long"
+ * blocking tracks the real API limit.
+ */
+export function getApiEffectiveContextWindowSize(model: string): number {
+  const reservedTokensForSummary = Math.min(
+    getMaxOutputTokensForModel(model),
+    MAX_OUTPUT_TOKENS_FOR_SUMMARY,
+  )
+  return getContextWindowForModel(model, getSdkBetas()) - reservedTokensForSummary
+}
+
 export type AutoCompactTrackingState = {
   compacted: boolean
   turnCounter: number
@@ -136,9 +149,8 @@ export function calculateTokenWarningState(
   const isAboveAutoCompactThreshold =
     isAutoCompactEnabled() && tokenUsage >= autoCompactThreshold
 
-  const actualContextWindow = getEffectiveContextWindowSize(model)
-  const defaultBlockingLimit =
-    actualContextWindow - MANUAL_COMPACT_BUFFER_TOKENS
+  const apiContextWindow = getApiEffectiveContextWindowSize(model)
+  const defaultBlockingLimit = apiContextWindow - MANUAL_COMPACT_BUFFER_TOKENS
 
   // Allow override for testing
   const blockingLimitOverride = process.env.CLAUDE_CODE_BLOCKING_LIMIT_OVERRIDE
