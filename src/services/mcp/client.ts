@@ -10,6 +10,7 @@ import {
   type SSEClientTransportOptions,
 } from '@modelcontextprotocol/sdk/client/sse.js'
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js'
+import { BoundedStdioClientTransport } from './BoundedStdioClientTransport.js'
 import {
   StreamableHTTPClientTransport,
   type StreamableHTTPClientTransportOptions,
@@ -988,7 +989,7 @@ export const connectToServer = memoize(
         const finalArgs = process.env.CLAUDE_CODE_SHELL_PREFIX
           ? [posixQuote([serverRef.command, ...serverRef.args])]
           : serverRef.args
-        transport = new StdioClientTransport({
+        transport = new BoundedStdioClientTransport({
           command: finalCommand,
           args: finalArgs,
           env: {
@@ -1934,11 +1935,27 @@ export const fetchToolsForClient = memoizeWithLRU(
         return []
       }
 
-      const result = (await client.client.request(
-        { method: 'tools/list' },
-        ListToolsResultSchema,
-        { timeout: getConnectionTimeoutMs() },
-      )) as ListToolsResult
+      let result: ListToolsResult
+      try {
+        result = (await client.client.request(
+          { method: 'tools/list' },
+          ListToolsResultSchema,
+          { timeout: getConnectionTimeoutMs() },
+        )) as ListToolsResult
+      } catch (err) {
+        if (err instanceof McpError && err.code === ErrorCode.RequestTimeout)
+          throw err
+        logMCPError(
+          client.name,
+          `tools/list failed (${errorMessage(err)}); retrying once`,
+        )
+        result = (await client.client.request(
+          { method: 'tools/list' },
+          ListToolsResultSchema,
+          { timeout: getConnectionTimeoutMs() },
+        )) as ListToolsResult
+      }
+      client.toolsListError = undefined
 
       // Sanitize tool data from MCP server
       const toolsToProcess = recursivelySanitizeUnicode(result.tools)
@@ -2207,6 +2224,8 @@ export const fetchToolsForClient = memoizeWithLRU(
       return mappedTools
     } catch (error) {
       logMCPError(client.name, `Failed to fetch tools: ${errorMessage(error)}`)
+      if (client.type === 'connected')
+        client.toolsListError = errorMessage(error)
       return []
     }
   },

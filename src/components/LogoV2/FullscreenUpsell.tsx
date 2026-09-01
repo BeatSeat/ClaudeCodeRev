@@ -39,10 +39,20 @@ export function incrementFullscreenUpsellSeenCount(): void {
 /** Official WQK — flicker-free renderer hint on the condensed logo. */
 export function FullscreenUpsell(): React.ReactNode {
   return (
-    <Text>
-      <Text color="autoAccept"> Try flicker-free rendering</Text>
-      <Text dimColor> · /tui fullscreen</Text>
-    </Text>
+    <Box flexDirection="column">
+      <Box flexDirection="row">
+        <Text>
+          <Text color="autoAccept"> Try the new fullscreen renderer</Text>
+          <Text dimColor> · /tui fullscreen</Text>
+        </Text>
+      </Box>
+      <Text dimColor>  · Flicker-free output</Text>
+      <Text dimColor>  · Lower memory usage in long conversations</Text>
+      <Text dimColor>
+        {'  '}· Mouse support — click to move your cursor or expand results
+      </Text>
+      <Text dimColor>  · Selected text auto-copies to your clipboard</Text>
+    </Box>
   )
 }
 

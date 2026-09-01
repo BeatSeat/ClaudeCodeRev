@@ -8,6 +8,7 @@ export type MCPClientState =
       tools: unknown[]
       resources?: unknown[]
       capabilities?: { tools?: unknown }
+      toolsListError?: string
     }
   | { type: 'pending' }
   | { type: 'failed'; error: string }

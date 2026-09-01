@@ -159,7 +159,7 @@ export function PromptInputFooterLeftSide({
   if (isPasting) {
     return (
       <Text dimColor key="pasting-message">
-        Pasting text…
+        Pasting…
       </Text>
     )
   }

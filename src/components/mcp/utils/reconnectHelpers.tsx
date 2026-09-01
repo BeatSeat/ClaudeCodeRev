@@ -25,6 +25,12 @@ export function handleReconnectResult(
 ): ReconnectResult {
   switch (result.client.type) {
     case 'connected':
+      if (result.client.toolsListError) {
+        return {
+          message: `Reconnected to ${serverName}, but fetching tools failed: ${result.client.toolsListError}`,
+          success: false,
+        }
+      }
       return {
         message: `Reconnected to ${serverName}.`,
         success: true,

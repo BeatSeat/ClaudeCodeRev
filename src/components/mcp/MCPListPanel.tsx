@@ -273,7 +273,10 @@ export function MCPListPanel({
     } else if (server.client.type === 'connected') {
       const hasToolsCapability = !!server.client.capabilities?.tools
       const toolCount = counts[server.name]
-      if (hasToolsCapability && toolCount === 0) {
+      if (server.client.toolsListError) {
+        statusIcon = color('warning', theme)(figures.triangleUpOutline)
+        statusText = 'connected · tools fetch failed'
+      } else if (hasToolsCapability && toolCount === 0) {
         statusIcon = color('warning', theme)(figures.triangleUpOutline)
         statusText = 'connected · no tools'
       } else if (hasToolsCapability && toolCount !== undefined) {

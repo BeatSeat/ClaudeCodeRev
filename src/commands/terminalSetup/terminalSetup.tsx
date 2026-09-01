@@ -275,7 +275,7 @@ ${platformTerminals}   • IDE: VSCode, Cursor, Windsurf, Zed
    • Other: Alacritty
 3. Return to tmux/screen - settings will persist
 
-${chalk.dim('Note: iTerm2, WezTerm, Ghostty, Kitty, and Warp support Shift+Enter natively.')}`
+${chalk.dim('Note: iTerm2, WezTerm, Ghostty, Kitty, Warp, and Windows Terminal support Shift+Enter natively.')}`
     onDone(message)
     return null
   }

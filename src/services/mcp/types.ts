@@ -210,6 +210,9 @@ export type ConnectedMCPServer = {
   config: ScopedMcpServerConfig
   cleanup: () => Promise<void>
   transportErrorState?: MCPTransportErrorState
+  // 2.1.132: set when the MCP server connected but tools/list failed
+  // (retried once); surfaced as 'connected · tools fetch failed'.
+  toolsListError?: string
 }
 
 export type FailedMCPServer = {
