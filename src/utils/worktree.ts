@@ -15,7 +15,7 @@ import {
 } from 'fs/promises'
 import ignore from 'ignore'
 import { realpath } from 'fs/promises'
-import { basename, dirname, isAbsolute, join, resolve } from 'path'
+import { basename, dirname, isAbsolute, join, resolve, sep } from 'path'
 import { saveCurrentProjectConfig } from './config.js'
 import { getCwd } from './cwd.js'
 import { logForDebugging } from './debug.js'
@@ -163,6 +163,78 @@ let currentWorktreeSession: WorktreeSession | null = null
 
 export function getCurrentWorktreeSession(): WorktreeSession | null {
   return currentWorktreeSession
+}
+
+export type BgIsolationMode = 'worktree' | 'none'
+
+/**
+ * Official 2.1.143 `Ev6`: env CLAUDE_BG_ISOLATION overrides settings
+ * `worktree.bgIsolation`.
+ */
+export function getBgIsolation(): BgIsolationMode | undefined {
+  const fromEnv = process.env.CLAUDE_BG_ISOLATION
+  if (fromEnv === 'worktree' || fromEnv === 'none') {
+    return fromEnv
+  }
+  return getInitialSettings().worktree?.bgIsolation
+}
+
+/** Official 2.1.143 `pq$`: cwd is a linked git worktree, not the main checkout. */
+function isLinkedGitWorktree(cwd: string): boolean {
+  const gitRoot = findGitRoot(cwd)
+  if (!gitRoot) return false
+  const canonical = findCanonicalGitRoot(cwd)
+  return canonical !== null && canonical !== gitRoot
+}
+
+/**
+ * Official 2.1.143 `lnH`: block bg-session edits of the shared checkout until
+ * EnterWorktree isolates the job (unless `worktree.bgIsolation: "none"`).
+ * `skip` is the subagent id — isolation is a top-level bg-session concern.
+ */
+export function getBgFileIsolationMessage(
+  filePath: string,
+  skip?: string,
+): string | null {
+  if (process.env.CLAUDE_CODE_SESSION_KIND !== 'bg') return null
+  if (skip) return null
+  const session = getCurrentWorktreeSession()
+  if (session) {
+    return filePath.startsWith(session.originalCwd + sep) &&
+      !filePath.startsWith(session.worktreePath + sep)
+      ? `This session is now isolated in ${session.worktreePath}. Edit the worktree copy of this file instead of the shared-checkout path.`
+      : null
+  }
+  if (getBgIsolation() === 'none') return null
+  const cwd = getCwd()
+  if (!filePath.startsWith(cwd + sep)) return null
+  if (!findGitRoot(cwd) || isLinkedGitWorktree(cwd)) return null
+  return (
+    `This background session hasn't isolated its changes yet. Call EnterWorktree first so edits land in a worktree instead of the shared checkout, then retry this edit using the worktree path. ` +
+    '(To disable this guard for this repo, set `"worktree": {"bgIsolation": "none"}` in .claude/settings.json.)'
+  )
+}
+
+/**
+ * Official 2.1.143 `fp5`: system-prompt section for background sessions.
+ */
+export function getBackgroundSessionPromptSection(): string | null {
+  if (process.env.CLAUDE_CODE_SESSION_KIND !== 'bg') return null
+  const jobDir = process.env.CLAUDE_JOB_DIR
+  if (!jobDir) return null
+  const isolationHint =
+    getBgIsolation() === 'none'
+      ? 'This repository is configured with `worktree.bgIsolation: none` \u2014 edit files directly in your working directory; do not call EnterWorktree.'
+      : process.env.CLAUDE_BG_ISOLATION === 'worktree'
+        ? 'This agent is configured with `isolation: worktree`. Call the EnterWorktree tool as your first action \u2014 before reading files or running commands \u2014 unless your cwd is already under `.claude/worktrees/`. If EnterWorktree fails (e.g. not a git repo), continue in place.'
+        : "Before making any code changes, use the EnterWorktree tool to isolate your work from other parallel jobs and the user's working copy \u2014 unless your cwd is already under `.claude/worktrees/`, in which case you're already isolated. If you're only reading, searching, or answering questions, skip this and work in place. If EnterWorktree fails (e.g. not a git repo), continue in place."
+  return `# Background Session
+
+This session runs as a background job. The user may be chatting with you live or may have stepped away to check results later \u2014 respond naturally either way, and don't refer to yourself as "a background agent."
+
+Use \`$CLAUDE_JOB_DIR\` (\`${jobDir}\`) for any temporary files (scripts, query files, intermediate outputs) instead of \`/tmp\` \u2014 parallel bg jobs share \`/tmp\` and clobber each other's files. This directory already exists and is cleaned up when the job is deleted.
+
+${isolationHint}`
 }
 
 /**

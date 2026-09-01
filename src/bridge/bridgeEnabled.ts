@@ -277,3 +277,19 @@ export function getBridgeAuthDebugInfo(): string {
     return `\n[debug] failed to collect auth state: ${error}`
   }
 }
+
+/**
+ * Official 2.1.143 `q78` — GrowthBook gate `tengu_ccr_v2_send_events_cli`.
+ *
+ * Controls whether the CCR v2 "send events from CLI" path routes bridge
+ * session event POSTs to the `/v1/code/sessions/{cse_id}/events` endpoint
+ * (infra-tagged `cse_*` IDs, each event wrapped in `{ payload }`) instead of
+ * the v1 compat `/v1/sessions/{session_id}/events` endpoint. Read with the
+ * cached (non-blocking) GrowthBook value and default `false` — identical to
+ * the bundle's `q78`, which has no env-var override and no build-time
+ * feature guard. Exported as `isCcrV2SendEventsEnabled`; the bridge API
+ * client consumes it as its `useCcrV2Routing` dep.
+ */
+export function isCcrV2SendEventsEnabled(): boolean {
+  return getFeatureValue_CACHED_MAY_BE_STALE('tengu_ccr_v2_send_events_cli', false)
+}

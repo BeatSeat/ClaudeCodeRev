@@ -4,7 +4,7 @@ import { env } from '../utils/env.js'
 import { getIsGit } from '../utils/git.js'
 import { getCwd } from '../utils/cwd.js'
 import { getIsNonInteractiveSession } from '../bootstrap/state.js'
-import { getCurrentWorktreeSession } from '../utils/worktree.js'
+import { getBackgroundSessionPromptSection } from '../utils/worktree.js'
 import { getSessionStartDate } from './common.js'
 import { getGlobalConfig } from '../utils/config.js'
 import { getInitialSettings } from '../utils/settings/settings.js'
@@ -541,6 +541,7 @@ ${CYBER_RISK_INSTRUCTION}`,
           : getMcpInstructionsSection(mcpClients),
       'MCP servers connect/disconnect between turns',
     ),
+    systemPromptSection('bg-session', () => getBackgroundSessionPromptSection()),
     systemPromptSection('scratchpad', () => getScratchpadInstructions()),
     systemPromptSection('frc', () => getFunctionResultClearingSection(model)),
     systemPromptSection(

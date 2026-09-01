@@ -1,0 +1,77 @@
+{
+  "version": "2.1.143",
+  "fromVersion": "2.1.142",
+  "expectedFunctionCount": 0,
+  "functions": [],
+  "changelogCoverage": [
+    {
+      "item": "worktree.bgIsolation none",
+      "status": "located",
+      "evidence": "Ev6/lnH/fp5 in src/utils/worktree.ts; FileWrite errorCode 7, FileEdit/Notebook 12; bg-session prompt section."
+    },
+    {
+      "item": "PowerShell -ExecutionPolicy Bypass",
+      "status": "located",
+      "evidence": "powershellProvider.ts executionPolicyArgs / pU7. Already in hop commit."
+    },
+    {
+      "item": "Stop-hook block cap",
+      "status": "located",
+      "evidence": "query.ts CLAUDE_CODE_STOP_HOOK_BLOCK_CAP default 8 + tengu_stop_hook_block_count hit_cap true/false."
+    },
+    {
+      "item": "macOS TCC disclaim",
+      "status": "located",
+      "evidence": "LS4 in macosTccDisclaim.ts; cli.tsx --bg-pty-host calls it first."
+    },
+    {
+      "item": "Daemon execPath fallback",
+      "status": "located",
+      "evidence": "UP8 in daemonSpawn.ts; getRelaunchSpec({pinToCurrentBinary}); claude daemon argv path not compile-stripped."
+    },
+    {
+      "item": "NO_COLOR/FORCE_COLOR settings peel",
+      "status": "located",
+      "evidence": "JU5 peelSettingsColorEnv in managedEnv.ts; subprocess overlay via getSettingsSubprocessColorEnv."
+    },
+    {
+      "item": "/tui opt-out form",
+      "status": "located",
+      "evidence": "gk5 TuiOptOutForm + ffH getTuiEntryPath. tengu_tui_optout_reason; Couldn't switch renderers copy."
+    },
+    {
+      "item": "CLAUDE_MEMORY_STORES",
+      "status": "located",
+      "evidence": "V64 parseClaudeMemoryStores; Gz5 invalid → tengu_team_mem_multistore_config_invalid. fR6 aggregator deferred-large-infra."
+    },
+    {
+      "item": "/goal evaluator tengu_goal_failed",
+      "status": "shared-logic",
+      "evidence": "No activeGoal in recovered tree. deferred-large-infra."
+    }
+  ],
+  "notes": "Four-domain review PASS. Do not pull 145 stopHookSnapshot or 146 LzA / CLAUDE_BG_SESSION_PERMISSION_RULES into the 143 commit.",
+  "astdiff": {
+    "version": "2.1.143",
+    "from": "2.1.142",
+    "from_bundle": "/root/projects/ClaudeCodeRev/restore-work/artifacts/cometix/2.1.142/cli.js",
+    "to_bundle": "/root/projects/ClaudeCodeRev/restore-work/artifacts/cometix/2.1.143/cli.js",
+    "from_sha256": "28335f420e282947104a9ba41526a2caae683044ec22559f5251bdc477f4db93",
+    "to_sha256": "39a97240f9c6f1777df8a429c69e9110364e85f328a347d232290ebf4e295c1b",
+    "method": "astdiff-v0.2.0+tree-sitter0.25",
+    "parser": "tree-sitter 0.25 / tree-sitter-javascript 0.25",
+    "similarity": 99.5,
+    "matched_declarations": 23162,
+    "total_declarations_from": 23207,
+    "total_declarations_to": 23287,
+    "change_total": 9832,
+    "added": 125,
+    "removed": 45,
+    "structural": 9635,
+    "string_only": 27,
+    "command": "astdiff /root/projects/ClaudeCodeRev/restore-work/artifacts/cometix/2.1.142/cli.js /root/projects/ClaudeCodeRev/restore-work/artifacts/cometix/2.1.143/cli.js --format json",
+    "full_json": "/root/projects/Zhiman/projects/ccr-swarm/integration/astdiff-full/using/2.1.143.json",
+    "elapsed_seconds": 13.5,
+    "generated_at": "2026-11-14T15:06:02Z"
+  }
+}

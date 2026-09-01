@@ -3,12 +3,26 @@ import { join } from 'path'
 import { join as posixJoin } from 'path/posix'
 import type { ShellProvider } from './shellProvider.js'
 
+import { isEnvTruthy } from '../envUtils.js'
+
+/**
+ * 2.1.143: PowerShell now passes -ExecutionPolicy Bypass by default so scripts
+ * run regardless of the host execution policy. Opt out (respect the host
+ * policy) with CLAUDE_CODE_POWERSHELL_RESPECT_EXECUTION_POLICY=1.
+ */
+function executionPolicyArgs(): string[] {
+  if (isEnvTruthy(process.env.CLAUDE_CODE_POWERSHELL_RESPECT_EXECUTION_POLICY)) {
+    return []
+  }
+  return ['-ExecutionPolicy', 'Bypass']
+}
+
 /**
  * PowerShell invocation flags + command. Shared by the provider's getSpawnArgs
  * and the hook spawn path in hooks.ts so the flag set stays in one place.
  */
 export function buildPowerShellArgs(cmd: string): string[] {
-  return ['-NoProfile', '-NonInteractive', '-Command', cmd]
+  return ['-NoProfile', '-NonInteractive', ...executionPolicyArgs(), '-Command', cmd]
 }
 
 /**
@@ -87,6 +101,7 @@ export function createPowerShellProvider(shellPath: string): ShellProvider {
             `'${shellPath.replace(/'/g, `'\\''`)}'`,
             '-NoProfile',
             '-NonInteractive',
+            ...executionPolicyArgs(),
             '-EncodedCommand',
             encodePowerShellCommand(psCommand),
           ].join(' ')

@@ -7,9 +7,16 @@ import { isInBundledMode } from './bundledMode.js'
 import { getCwd } from './cwd.js'
 import { getProjectDir, getTranscriptPath } from './sessionStorage.js'
 
-export function getRelaunchSpec(): { cmd: string; prefixArgs: string[] } {
-  if (isInBundledMode()) {
-    return { cmd: process.execPath, prefixArgs: [] }
+export function getRelaunchSpec(opts?: {
+  pinToCurrentBinary?: boolean
+}): { cmd: string; prefixArgs: string[] } {
+  // Official 2.1.143 `jb({pinToCurrentBinary})`: force process.execPath when
+  // the PATH-resolved launcher is gone (daemon ENOENT/EACCES fallback).
+  if (opts?.pinToCurrentBinary || isInBundledMode()) {
+    if (isInBundledMode() || !process.argv[1]) {
+      return { cmd: process.execPath, prefixArgs: [] }
+    }
+    return { cmd: process.execPath, prefixArgs: [process.argv[1]] }
   }
   const script = process.argv[1]
   if (!script) {

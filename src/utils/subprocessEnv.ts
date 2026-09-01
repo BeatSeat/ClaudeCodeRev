@@ -3,6 +3,7 @@ import { dirname, join } from 'path'
 import { getOriginalCwd } from '../bootstrap/state.js'
 import { uniq } from './array.js'
 import { isEnvTruthy } from './envUtils.js'
+import { getSettingsSubprocessColorEnv } from './managedEnv.js'
 import {
   getManagedSandboxBwrapPath,
   resolveSandboxBwrapPath,
@@ -86,6 +87,19 @@ export function registerUpstreamProxyEnvFn(
   _getUpstreamProxyEnv = fn
 }
 
+const BG_SESSION_SUBPROCESS_STRIP = [
+  'CLAUDE_CODE_OAUTH_TOKEN',
+  'CLAUDE_CODE_SUBSCRIPTION_TYPE',
+  'CLAUDE_CODE_RATE_LIMIT_TIER',
+  'CLAUDE_BG_AUTH_SNAPSHOT_PATH',
+  'CLAUDE_CODE_SESSION_KIND',
+  'CLAUDE_BG_SOURCE',
+  'CLAUDE_BG_ISOLATION',
+  'CLAUDE_BG_BACKEND',
+  'CLAUDE_CODE_SESSION_NAME',
+  'CLAUDE_CODE_RESUME_INTERRUPTED_TURN',
+] as const
+
 export function subprocessEnv(): NodeJS.ProcessEnv {
   // CCR upstreamproxy: inject HTTPS_PROXY + CA bundle vars so curl/gh/python
   // in agent subprocesses route through the local relay. Returns {} when the
@@ -97,15 +111,23 @@ export function subprocessEnv(): NodeJS.ProcessEnv {
   // Official 2.1.128 QE: strip every OTEL_* from the env copy so Bash/hooks/
   // MCP/LSP children do not inherit the CLI's OTLP endpoint / headers.
   const hasOtel = Object.keys(process.env).some(k => k.startsWith('OTEL_'))
+  const colorEnv = getSettingsSubprocessColorEnv()
+  const hasColorOverlay = Object.keys(colorEnv).length > 0
+  const hasBgSessionKeys = BG_SESSION_SUBPROCESS_STRIP.some(
+    key => process.env[key] !== undefined,
+  )
 
-  if (!hasProxy && !scrub && !hasOtel) {
+  if (!hasProxy && !scrub && !hasOtel && !hasColorOverlay && !hasBgSessionKeys) {
     return process.env
   }
-  const env = { ...process.env, ...proxyEnv }
+  const env = { ...process.env, ...colorEnv, ...proxyEnv }
   for (const k of Object.keys(env)) {
     if (k.startsWith('OTEL_')) {
       delete env[k]
     }
+  }
+  for (const k of BG_SESSION_SUBPROCESS_STRIP) {
+    delete env[k]
   }
   if (!scrub) {
     return env

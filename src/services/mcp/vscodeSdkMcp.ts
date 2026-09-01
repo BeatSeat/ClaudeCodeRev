@@ -97,6 +97,18 @@ export function setupVscodeSdkMcp(sdkClients: MCPServerConnection[]): void {
         'tengu_vscode_cc_auth',
         false,
       ),
+      // Official 2.1.143 `OcK` — two VSCode experiment gates added in the
+      // 143 hop, both read with the cached GrowthBook value and default
+      // false (bundle `Z$("tengu_brick_follow", !1)` /
+      // `Z$("tengu_vellum_siding", !1)`).
+      tengu_brick_follow: getFeatureValue_CACHED_MAY_BE_STALE(
+        'tengu_brick_follow',
+        false,
+      ),
+      tengu_vellum_siding: getFeatureValue_CACHED_MAY_BE_STALE(
+        'tengu_vellum_siding',
+        false,
+      ),
     }
     // Tri-state: 'enabled' | 'disabled' | 'opt-in'. Omit if unknown so VSCode
     // fails closed (treats absent as 'disabled').

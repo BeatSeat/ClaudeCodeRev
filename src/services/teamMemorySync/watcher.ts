@@ -18,6 +18,7 @@ import {
 import { registerCleanup } from '../../utils/cleanupRegistry.js'
 import { logForDebugging } from '../../utils/debug.js'
 import { errorMessage } from '../../utils/errors.js'
+import { parseClaudeMemoryStores } from './memoryStores.js'
 import { getGithubRepo } from '../../utils/git.js'
 import {
   type AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
@@ -30,6 +31,12 @@ import {
   pushTeamMemory,
   type SyncState,
 } from './index.js'
+import {
+  createMultiStoreState,
+  flushMultiStorePush,
+  runMultiStoreSync,
+  type MultiStoreState,
+} from './multiStoreSync.js'
 import type { TeamMemorySyncPushResult } from './types.js'
 
 const DEBOUNCE_MS = 2000 // Wait 2s after last change before pushing
@@ -75,6 +82,11 @@ export function isPermanentFailure(r: TeamMemorySyncPushResult): boolean {
 // Sync state owned by the watcher — shared across all sync operations.
 let syncState: SyncState | null = null
 
+// Multi-store sync state (Official 2.1.143 `a9H`). Mutually exclusive with
+// `syncState`: exactly one is set after startTeamMemoryWatcher. The multi-store
+// path owns its own per-mount backends/state in multiStoreSync.ts.
+let multiStoreState: MultiStoreState | null = null
+
 /**
  * Execute the push and track its lifecycle.
  * Push is read-only on disk (delta+probe, no merge writes), so no event
@@ -82,6 +94,68 @@ let syncState: SyncState | null = null
  * the debounce re-arms after this push completes.
  */
 async function executePush(): Promise<void> {
+  // Official 2.1.143 `Zz5` — multi-store path: run the full pull+push
+  // aggregator across all mounts, clear pending on a clean run, and promote
+  // any *new* permanent failure to per-mount suppression (whole-session
+  // suppression once every mount is permanently down).
+  if (multiStoreState) {
+    pushInProgress = true
+    try {
+      const stores = multiStoreState.stores
+      const alreadySuppressed = new Set(
+        stores
+          .filter(store => store.suppressedReason !== null)
+          .map(store => store.mountName),
+      )
+      const result = await runMultiStoreSync(multiStoreState)
+      if (!Object.values(result.pushes).some(push => !push.success)) {
+        hasPendingChanges = false
+      }
+      for (const store of stores) {
+        if (
+          store.suppressedReason !== null &&
+          !alreadySuppressed.has(store.mountName)
+        ) {
+          logEvent('tengu_team_mem_push_suppressed', {
+            reason:
+              store.suppressedReason as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
+            multistore: true,
+            mount:
+              store.mountName as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
+          })
+        }
+      }
+      if (
+        stores.length > 0 &&
+        stores.every(store => store.suppressedReason !== null)
+      ) {
+        const reason = stores[0]!.suppressedReason
+        if (reason !== null && pushSuppressedReason === null) {
+          pushSuppressedReason = reason
+          logForDebugging(
+            `team-memory-watcher: suppressing retry for the rest of this session (${reason}) (all ${stores.length} mounts suppressed)`,
+            { level: 'warn' },
+          )
+          logEvent('tengu_team_mem_push_suppressed', {
+            reason:
+              reason as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
+            multistore: true,
+            stores: stores.length,
+          })
+        }
+      }
+    } catch (e) {
+      logForDebugging(
+        `team-memory-watcher: multi-store sync error: ${errorMessage(e)}`,
+        { level: 'warn' },
+      )
+    } finally {
+      pushInProgress = false
+      currentPushPromise = null
+    }
+    return
+  }
+
   if (!syncState) {
     return
   }
@@ -256,6 +330,51 @@ export async function startTeamMemoryWatcher(): Promise<void> {
   if (!isTeamMemoryEnabled() || !isTeamMemorySyncAvailable()) {
     return
   }
+
+  // Official 2.1.143 `Gz5`/`V64`: multi-store env is parsed before the
+  // github.com-remote check. Invalid JSON disables sync. A valid non-empty
+  // list is the multi-store path (full pull/push aggregator is later hop).
+  let memoryStores: ReturnType<typeof parseClaudeMemoryStores>
+  try {
+    memoryStores = parseClaudeMemoryStores()
+  } catch (err) {
+    logForDebugging(
+      `team-memory-watcher: CLAUDE_MEMORY_STORES invalid, disabling sync: ${errorMessage(err)}`,
+      { level: 'error' },
+    )
+    logEvent('tengu_team_mem_multistore_config_invalid', {
+      error: errorMessage(err) as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
+    })
+    return
+  }
+  // Official 2.1.143 `Gz5` multi-store path: build per-mount state, run the
+  // initial pull+push aggregator once (best-effort — a failure here is logged
+  // but not fatal), then start the file watcher so subsequent local edits
+  // trigger a re-sync. The watcher watches the base team dir recursively,
+  // which covers every mount (they live under `<teamMemPath>/<mount>`).
+  if (memoryStores !== null) {
+    multiStoreState = createMultiStoreState(memoryStores)
+    try {
+      await runMultiStoreSync(multiStoreState)
+    } catch (err) {
+      logForDebugging(
+        `team-memory-watcher: multi-store initial sync failed: ${errorMessage(err)}`,
+        { level: 'warn' },
+      )
+    }
+    await startFileWatcher(getTeamMemPath())
+    logEvent('tengu_feature_ok', {
+      feature_name:
+        'team_memory_sync_watcher_start' as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
+    })
+    logEvent('tengu_team_mem_sync_started', {
+      multistore: true,
+      stores: memoryStores.length,
+      watcher_started: true,
+    })
+    return
+  }
+
   const repoSlug = await getGithubRepo()
   if (!repoSlug) {
     logForDebugging(
@@ -312,7 +431,9 @@ export async function startTeamMemoryWatcher(): Promise<void> {
  * If the watcher does fire, the debounce timer just resets.
  */
 export async function notifyTeamMemoryWrite(): Promise<void> {
-  if (!syncState) {
+  // Official 2.1.143 `Tz5` — either the single-store or multi-store state
+  // being present enables the write → debounced sync path.
+  if (!syncState && !multiStoreState) {
     return
   }
   schedulePush()
@@ -342,9 +463,15 @@ export async function stopTeamMemoryWatcher(): Promise<void> {
     }
   }
   // Flush pending changes that were debounced but not yet pushed
-  if (hasPendingChanges && syncState && pushSuppressedReason === null) {
+  if (hasPendingChanges && pushSuppressedReason === null) {
     try {
-      await pushTeamMemory(syncState)
+      if (multiStoreState) {
+        // Official 2.1.143 `c64` — best-effort push-only (no pull) across all
+        // non-suppressed mounts.
+        await flushMultiStorePush(multiStoreState)
+      } else if (syncState) {
+        await pushTeamMemory(syncState)
+      }
     } catch {
       // Best-effort — shutdown may kill this
     }
@@ -364,6 +491,7 @@ export async function stopTeamMemoryWatcher(): Promise<void> {
  */
 export function _resetWatcherStateForTesting(opts?: {
   syncState?: SyncState
+  multiStoreState?: MultiStoreState
   skipWatcher?: boolean
   pushSuppressedReason?: string | null
 }): void {
@@ -375,6 +503,7 @@ export function _resetWatcherStateForTesting(opts?: {
   watcherStarted = opts?.skipWatcher ?? false
   pushSuppressedReason = opts?.pushSuppressedReason ?? null
   syncState = opts?.syncState ?? null
+  multiStoreState = opts?.multiStoreState ?? null
 }
 
 /**

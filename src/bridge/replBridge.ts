@@ -6,6 +6,7 @@ import {
   isExpiredErrorType,
   isSuppressible403,
 } from './bridgeApi.js'
+import { isCcrV2SendEventsEnabled } from './bridgeEnabled.js'
 import type { BridgeConfig, BridgeApiClient } from './types.js'
 import { logForDebugging } from '../utils/debug.js'
 import { logForDiagnosticsNoPII } from '../utils/diagLogs.js'
@@ -335,6 +336,7 @@ export async function initBridgeCore(
     onDebug: logForDebugging,
     onAuth401,
     getTrustedDeviceToken,
+    useCcrV2Routing: isCcrV2SendEventsEnabled,
   })
   // Ant-only: interpose so /bridge-kick can inject poll/register/heartbeat
   // failures. Zero cost in external builds (rawApi passes through unchanged).

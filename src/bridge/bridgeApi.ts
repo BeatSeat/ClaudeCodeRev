@@ -1,6 +1,8 @@
+import { randomUUID } from 'crypto'
 import axios from 'axios'
 
 import { debugBody, extractErrorDetail } from './debugUtils.js'
+import { toInfraSessionId } from './sessionIdCompat.js'
 import {
   BRIDGE_LOGIN_INSTRUCTION,
   type BridgeApiClient,
@@ -33,6 +35,15 @@ type BridgeApiDeps = {
    * gate is tengu_sessions_elevated_auth_enforcement (see trustedDevice.ts).
    */
   getTrustedDeviceToken?: () => string | undefined
+  /**
+   * Official 2.1.143 `useCcrV2Routing` (bundle `q78` /
+   * `isCcrV2SendEventsEnabled`). When it returns true, session event POSTs
+   * route to the CCR v2 infra endpoint `/v1/code/sessions/{cse_id}/events`
+   * (infra-tagged `cse_*` ids, each event wrapped in `{ payload }`) instead
+   * of the v1 compat `/v1/sessions/{session_id}/events` endpoint. Optional —
+   * absent or returning false keeps the v1 compat path.
+   */
+  useCcrV2Routing?: () => boolean
 }
 
 const BETA_HEADER = 'environments-2025-11-01'
@@ -94,6 +105,45 @@ export function createBridgeApiClient(deps: BridgeApiDeps): BridgeApiClient {
       throw new Error(BRIDGE_LOGIN_INSTRUCTION)
     }
     return accessToken
+  }
+
+  /**
+   * Official 2.1.143 `qG4` — route a session event POST to the v1 compat or
+   * CCR v2 infra endpoint. When `useCcrV2Routing` is false (or absent), keep
+   * the v1 compat endpoint `/v1/sessions/{id}/events` with the raw events
+   * array. When true, POST to the infra endpoint
+   * `/v1/code/sessions/{cse_id}/events` using the infra-tagged `cse_*` id
+   * (`toInfraSessionId`, a no-op for non-`session_*` ids) and wrap each event
+   * in a `{ payload }` envelope — assigning a fresh uuid when the event
+   * doesn't already carry one.
+   */
+  function resolveEventsRequest(
+    baseUrl: string,
+    sessionId: string,
+    events: readonly object[],
+    useCcrV2Routing: boolean,
+  ): { url: string; body: { events: Array<{ payload: object }> } } {
+    if (!useCcrV2Routing) {
+      return {
+        url: `${baseUrl}/v1/sessions/${sessionId}/events`,
+        body: { events: events as unknown[] },
+      }
+    }
+    const infraId = toInfraSessionId(sessionId)
+    return {
+      url: `${baseUrl}/v1/code/sessions/${encodeURIComponent(infraId)}/events`,
+      body: {
+        events: events.map(event => {
+          const eventUuid = (event as { uuid?: unknown }).uuid
+          return {
+            payload:
+              typeof eventUuid === 'string' && eventUuid
+                ? event
+                : { ...event, uuid: randomUUID() },
+          }
+        }),
+      },
+    }
   }
 
   /**
@@ -423,29 +473,26 @@ export function createBridgeApiClient(deps: BridgeApiDeps): BridgeApiClient {
     ): Promise<void> {
       validateBridgeId(sessionId, 'sessionId')
 
-      debug(
-        `[bridge:api] POST /v1/sessions/${sessionId}/events type=${event.type}`,
+      const { url, body } = resolveEventsRequest(
+        deps.baseUrl,
+        sessionId,
+        [event],
+        deps.useCcrV2Routing?.() ?? false,
       )
 
-      const response = await axios.post(
-        `${deps.baseUrl}/v1/sessions/${sessionId}/events`,
-        { events: [event] },
-        {
-          headers: getHeaders(sessionToken),
-          timeout: 10_000,
-          validateStatus: s => s < 500,
-        },
-      )
+      debug(`[bridge:api] POST ${url} type=${event.type}`)
 
-      handleErrorStatus(
-        response.status,
-        response.data,
-        'SendPermissionResponseEvent',
-      )
+      const response = await axios.post(url, body, {
+        headers: getHeaders(sessionToken),
+        timeout: 10_000,
+        validateStatus: s => s < 500,
+      })
+
+      handleErrorStatus(response.status, response.data, 'SendPermissionResponseEvent')
       debug(
-        `[bridge:api] POST /v1/sessions/${sessionId}/events -> ${response.status}`,
+        `[bridge:api] POST ${url} -> ${response.status}`,
       )
-      debug(`[bridge:api] >>> ${debugBody({ events: [event] })}`)
+      debug(`[bridge:api] >>> ${debugBody(body)}`)
       debug(`[bridge:api] <<< ${debugBody(response.data)}`)
     },
   }
