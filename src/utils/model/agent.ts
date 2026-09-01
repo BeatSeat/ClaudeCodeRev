@@ -3,6 +3,7 @@ import { capitalize } from '../stringUtils.js'
 import { MODEL_ALIASES, type ModelAlias } from './aliases.js'
 import { applyBedrockRegionPrefix, getBedrockRegionPrefix } from './bedrock.js'
 import {
+  applyOpus1mMergeIfNeeded,
   getCanonicalName,
   getRuntimeMainLoopModel,
   parseUserSpecifiedModel,
@@ -71,7 +72,9 @@ export function getAgentModel(
     if (aliasMatchesParentTier(toolSpecifiedModel, parentModel)) {
       return parentModel
     }
-    const model = parseUserSpecifiedModel(toolSpecifiedModel)
+    const model = applyOpus1mMergeIfNeeded(
+      parseUserSpecifiedModel(toolSpecifiedModel),
+    )
     return applyParentRegionPrefix(model, toolSpecifiedModel)
   }
 
@@ -90,7 +93,9 @@ export function getAgentModel(
   if (aliasMatchesParentTier(agentModelWithExp, parentModel)) {
     return parentModel
   }
-  const model = parseUserSpecifiedModel(agentModelWithExp)
+  const model = applyOpus1mMergeIfNeeded(
+    parseUserSpecifiedModel(agentModelWithExp),
+  )
   return applyParentRegionPrefix(model, agentModelWithExp)
 }
 
