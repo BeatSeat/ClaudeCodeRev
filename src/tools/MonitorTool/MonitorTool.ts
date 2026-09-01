@@ -13,6 +13,7 @@ import { lazySchema } from '../../utils/lazySchema.js'
 import { enqueuePendingNotification } from '../../utils/messageQueueManager.js'
 import type { PermissionResult } from '../../utils/permissions/PermissionResult.js'
 import { emitTaskTerminatedSdk } from '../../utils/sdkEventQueue.js'
+import { isBashShellAvailable } from '../../utils/shell/shellToolUtils.js'
 import { exec } from '../../utils/Shell.js'
 import { escapeXml } from '../../utils/xml.js'
 import { bashToolHasPermission } from '../BashTool/bashPermissions.js'
@@ -340,7 +341,11 @@ export const MonitorTool = buildTool({
       : 'Monitoring'
   },
   isEnabled() {
-    return getFeatureValue_CACHED_MAY_BE_STALE('tengu_amber_sentinel', false)
+    // Official 2.1.120: Monitor shells out via bash; hide when Git Bash is gone.
+    return (
+      getFeatureValue_CACHED_MAY_BE_STALE('tengu_amber_sentinel', false) &&
+      isBashShellAvailable()
+    )
   },
   isConcurrencySafe() {
     return true

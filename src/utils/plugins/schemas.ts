@@ -1,6 +1,7 @@
 import { z } from 'zod/v4'
 import { HooksSchema } from '../../schemas/hooks.js'
 import { McpServerConfigSchema } from '../../services/mcp/types.js'
+import { logForDebugging } from '../debug.js'
 import { lazySchema } from '../lazySchema.js'
 
 /**
@@ -273,6 +274,12 @@ export const PluginAuthorSchema = lazySchema(() =>
  */
 const PluginManifestMetadataSchema = lazySchema(() =>
   z.object({
+    $schema: z
+      .string()
+      .optional()
+      .describe(
+        'JSON Schema reference for editor autocomplete/validation; ignored at load time',
+      ),
     name: z
       .string()
       .min(1, 'Plugin name cannot be empty')
@@ -1224,6 +1231,15 @@ export const PluginSourceSchema = lazySchema(() =>
         'Plugin located in a subdirectory of a larger repository (monorepo). ' +
           'Only the specified subdirectory is materialized; the rest of the repo is not downloaded.',
       ),
+    z
+      .object({
+        source: z.literal('unsupported'),
+      })
+      .describe(
+        'Placeholder for source types this Claude Code version does not ' +
+          'recognize. Never authored by hand — PluginMarketplaceSchema rewrites ' +
+          'unparseable sources to this so the entry remains in marketplace.plugins (detectDelistedPlugins must not see it as removed). Install attempts fail at cachePlugin with a clear "update Claude Code" message.',
+      ),
     // TODO (future work) gist
     // TODO (future work) single file?
   ]),
@@ -1272,7 +1288,14 @@ const SettingsMarketplacePluginSchema = lazySchema(() =>
         'Plugins in a settings-sourced marketplace must use remote sources ' +
         '(github, git-subdir, npm, url, pip). Relative-path sources like "./foo" ' +
         'have no marketplace repository to resolve against.',
-    }),
+    })
+    .refine(
+      p => typeof p.source === 'string' || p.source.source !== 'unsupported',
+      {
+        message:
+          "source.source: 'unsupported' is a parse-time placeholder and cannot be authored. Use a remote source (github, git-subdir, npm, url).",
+      },
+    ),
 )
 
 /**
@@ -1353,6 +1376,55 @@ export const PluginMarketplaceEntrySchema = lazySchema(() =>
     }),
 )
 
+const MarketplacePluginNameOnlySchema = lazySchema(() =>
+  z.object({
+    name: z
+      .string()
+      .min(1)
+      .refine(name => !name.includes(' ')),
+  }),
+)
+
+/**
+ * Official 2.1.120 cA9 — keep marketplace.plugins loadable when one entry
+ * uses an unrecognized source. Named entries become `{source:"unsupported"}`
+ * so detectDelistedPlugins does not treat them as removed; nameless entries
+ * are dropped.
+ */
+function rewriteUnparseableMarketplacePluginEntries(
+  entries: unknown[],
+): PluginMarketplaceEntry[] {
+  const entrySchema = PluginMarketplaceEntrySchema()
+  return entries.flatMap((entry, index) => {
+    const parsed = entrySchema.safeParse(entry)
+    if (parsed.success) {
+      return [parsed.data]
+    }
+    const name = MarketplacePluginNameOnlySchema().safeParse(entry).data?.name
+    const issues = parsed.error.issues
+      .map(issue => `${issue.path.join('.')}: ${issue.message}`)
+      .join(', ')
+    if (name) {
+      logForDebugging(
+        `Stubbing unparseable marketplace plugin entry (${name}): ${issues}`,
+        { level: 'warn' },
+      )
+      return [
+        {
+          name,
+          source: { source: 'unsupported' as const },
+          strict: true,
+        } as PluginMarketplaceEntry,
+      ]
+    }
+    logForDebugging(
+      `Dropping unparseable marketplace plugin entry (index ${index}): ${issues}`,
+      { level: 'warn' },
+    )
+    return []
+  })
+}
+
 /**
  * Schema for plugin marketplace configuration
  *
@@ -1361,12 +1433,27 @@ export const PluginMarketplaceEntrySchema = lazySchema(() =>
  */
 export const PluginMarketplaceSchema = lazySchema(() =>
   z.object({
+    $schema: z
+      .string()
+      .optional()
+      .describe(
+        'JSON Schema reference for editor autocomplete/validation; ignored at load time',
+      ),
     name: MarketplaceNameSchema(),
+    version: z
+      .string()
+      .optional()
+      .describe('Marketplace manifest version'),
+    description: z
+      .string()
+      .optional()
+      .describe('Human-readable description of this marketplace'),
     owner: PluginAuthorSchema().describe(
       'Marketplace maintainer or curator information',
     ),
     plugins: z
-      .array(PluginMarketplaceEntrySchema())
+      .array(z.unknown())
+      .transform(rewriteUnparseableMarketplacePluginEntries)
       .describe('Collection of available plugins in this marketplace'),
     forceRemoveDeletedPlugins: z
       .boolean()

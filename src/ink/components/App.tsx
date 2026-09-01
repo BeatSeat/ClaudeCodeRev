@@ -237,6 +237,10 @@ export default class App extends PureComponent<Props, State> {
   // Initialized to now so startup doesn't false-trigger.
   lastStdinTime = Date.now()
 
+  // 120 `vj1`: unmodified up/down burst → wheel-as-arrows hint.
+  arrowWindow: { t: number; n: number }[] = []
+  arrowWindowDir: string | undefined
+
   // Determines if TTY is supported on the provided stdin
   isRawModeSupported(): boolean {
     return this.props.stdin.isTTY
@@ -575,6 +579,52 @@ export default class App extends PureComponent<Props, State> {
   }
 }
 
+const ARROW_BURST_WINDOW_MS = 100
+const ARROW_BURST_COUNT = 8
+
+/** 120 `vj1`: ≥8 unmodified up/down keys in 100ms → `arrow-burst`. */
+function detectArrowBurst(app: App, items: ParsedInput[]): void {
+  const first = items[0]
+  if (
+    first?.kind !== 'key' ||
+    (first.name !== 'up' && first.name !== 'down') ||
+    first.ctrl ||
+    first.meta ||
+    first.shift ||
+    first.isPasted ||
+    !items.every(
+      z =>
+        z.kind === 'key' &&
+        z.name === first.name &&
+        !z.ctrl &&
+        !z.meta &&
+        !z.shift,
+    )
+  ) {
+    app.arrowWindow.length = 0
+    return
+  }
+  if (app.arrowWindowDir !== first.name) {
+    app.arrowWindow.length = 0
+    app.arrowWindowDir = first.name
+  }
+  const now = performance.now()
+  const win = app.arrowWindow
+  win.push({ t: now, n: items.length })
+  while (win.length > 0 && now - win[0]!.t > ARROW_BURST_WINDOW_MS) {
+    win.shift()
+  }
+  let count = 0
+  for (const z of win) count += z.n
+  if (count >= ARROW_BURST_COUNT) {
+    app.internal_eventEmitter.emit('arrow-burst', {
+      direction: first.name,
+      count,
+    })
+    win.length = 0
+  }
+}
+
 // Helper to process all keys within a single discrete update context.
 // discreteUpdates expects (fn, a, b, c, d) -> fn(a, b, c, d)
 function processKeysInBatch(
@@ -599,6 +649,8 @@ function processKeysInBatch(
   ) {
     updateLastInteractionTime()
   }
+
+  detectArrowBurst(app, items)
 
   for (const item of items) {
     // Terminal responses (DECRPM, DA1, OSC replies, etc.) are not user

@@ -1,0 +1,31 @@
+{
+  "version": "2.1.120",
+  "fromVersion": "2.1.119",
+  "expectedFunctionCount": 0,
+  "functions": [],
+  "changelogCoverage": [
+    {"item": "Windows: no Git Bash required — fall back to PowerShell", "status": "located", "evidence": "Windows-gated _b/B4/st/ot6/g24; no Linux PS rewrite"},
+    {"item": "claude ultrareview [target] CI subcommand", "status": "located", "evidence": "src/cli/handlers/ultrareview.ts + main.tsx commander"},
+    {"item": "Skills ${CLAUDE_EFFORT}", "status": "located", "evidence": "loadSkillsDir/SkillTool replaceAll + getEffortValue()"},
+    {"item": "AI_AGENT env for subprocesses (gh attribution)", "status": "located", "evidence": "lL$ / Oj8 harness+agent in userAgent.ts + Shell.ts"},
+    {"item": "Hide spinner tips for desktop / skills / agents you already have", "status": "located", "evidence": "tipRegistry LC6 + memoized isDesktopInstalled"},
+    {"item": "use PgUp/PgDn to scroll when wheel sends arrows", "status": "located", "evidence": "xT5 toast + vj1 arrow-burst detectArrowBurst"},
+    {"item": "Faster start with many unauthorized claude.ai connectors", "status": "located", "evidence": "claudeai-proxy 4h TTL + clearMcpAuthCacheEntry"},
+    {"item": "Auto-mode denial message links to configuration docs", "status": "deferred", "evidence": "shared/logic-only; 119 already had docLink"},
+    {"item": "plugin validate accepts $schema/version/description", "status": "located", "evidence": "plugins/schemas.ts marketplace+plugin $schema"},
+    {"item": "Auto-compact in auto mode displays auto", "status": "deferred", "evidence": "shared/logic-only; 119=120 bodies"},
+    {"item": "Esc during stdio MCP no longer closes the server", "status": "located", "evidence": "dropped stdio fail-fast closeTransportAndRejectPending"},
+    {"item": "/rewind + overlays ignore keyboard after --resume", "status": "deferred", "evidence": "shared/logic-only; setRawMode 29=29"},
+    {"item": "Non-fullscreen scrollback duplication", "status": "located", "evidence": "virtualAnchorCol/virtualFocusCol + p_H skip"},
+    {"item": "DISABLE_TELEMETRY / NONESSENTIAL_TRAFFIC suppress usage-metrics", "status": "located", "evidence": "isTelemetryDisabled() first gate in instrumentation.ts"},
+    {"item": "False-positive Dangerous rm with pipe+redirect", "status": "deferred", "evidence": "walked; 119 vs 120 bodies norm-equal"},
+    {"item": "Fullscreen selection menus clip", "status": "deferred", "evidence": "shared/logic-only; no keepOnScreen token"},
+    {"item": "Write +N lines click expands", "status": "deferred", "evidence": "shared/logic-only; 119 iW7 === 120 pG7"},
+    {"item": "Slash picker highlight only contiguous substrings", "status": "located", "evidence": "contiguousOnly:!0 on CZ1/tt8"},
+    {"item": "/plugin marketplace unrecognized source shown + update prompt", "status": "located", "evidence": "source:unsupported + Update Claude Code and try again"},
+    {"item": "[VSCode] /usage Account & Usage", "status": "unrelated-packaging", "evidence": "absent-in-bundle"},
+    {"item": "[VSCode] voice language setting", "status": "unrelated-packaging", "evidence": "absent-in-bundle"},
+    {"item": "find exhausts FDs on large trees (native)", "status": "unrelated-packaging", "evidence": "do-not-land native FD limiter; npm keeps Glob/Grep"}
+  ],
+  "notes": "astdiff cometix 119→120: similarity 99.10%, 1376 struct-real, 192 added-product, 284 genuine-structural. Native Linux astdiff + using-preprocess. P1–P9 / bfs/ugrep / EMBEDDED_SEARCH_TOOLS not landed. #1 Windows-only (no Linux PS). AST-only hideVimModeIndicator landed; daemon/tengu_bg_*/memory survey/browser_batch/stdout-guard classified-skip. Four-domain reviews PASS. Did not start 2.1.121."
+}

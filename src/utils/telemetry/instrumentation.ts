@@ -54,6 +54,7 @@ import { isEnvTruthy } from '../envUtils.js'
 import { errorMessage } from '../errors.js'
 import { getMTLSConfig } from '../mtls.js'
 import { getProxyUrl, shouldBypassProxy } from '../proxy.js'
+import { isTelemetryDisabled } from '../privacyLevel.js'
 import { getSettings_DEPRECATED } from '../settings/settings.js'
 import { jsonStringify } from '../slowOperations.js'
 import { profileCheckpoint } from '../startupProfiler.js'
@@ -334,6 +335,12 @@ function getBigQueryExportingReader() {
 }
 
 function isBigQueryMetricsEnabled() {
+  // Official 2.1.120 QA7: DISABLE_TELEMETRY / NONESSENTIAL_TRAFFIC / DO_NOT_TRACK
+  // must suppress usage metrics for API and enterprise users. 119 only gated
+  // Datadog/1P analytics — BigQuery still exported.
+  if (isTelemetryDisabled()) {
+    return false
+  }
   // BigQuery metrics are enabled for:
   // 1. API customers (excluding Claude.ai subscribers and Bedrock/Vertex)
   // 2. Claude for Enterprise (C4E) users

@@ -10,6 +10,7 @@ import {
 import { getLspServerManager } from '../../services/lsp/manager.js'
 import { notifyVscodeFileUpdated } from '../../services/mcp/vscodeSdkMcp.js'
 import { checkTeamMemSecrets } from '../../services/teamMemorySync/teamMemSecretGuard.js'
+import { captureMemoryWrite } from '../../components/FeedbackSurvey/memoryWriteSurvey.js'
 import {
   activateConditionalSkillsForPaths,
   addSkillDirectories,
@@ -278,6 +279,8 @@ export const FileWriteTool = buildTool({
       userModified,
       updateFileHistoryState,
       dynamicSkillDirTriggers,
+      agentId,
+      setAppState,
     },
     _,
     parentMessage,
@@ -453,6 +456,24 @@ export const FileWriteTool = buildTool({
         type: 'update',
       })
 
+      // memory-write-survey (official 2.1.120): queue a survey record for
+      // memory-file writes so the REPL can show a Keep/Undo confirmation.
+      const memoryWriteRecord = captureMemoryWrite(agentId, {
+        filePath: fullFilePath,
+        afterContent: newContent,
+        beforeContent: oldContent,
+        structuredPatch: patch,
+      })
+      if (memoryWriteRecord) {
+        setAppState(prev => ({
+          ...prev,
+          memoryWriteQueue: [
+            ...(prev.memoryWriteQueue ?? []),
+            memoryWriteRecord,
+          ],
+        }))
+      }
+
       return {
         data,
       }
@@ -477,6 +498,24 @@ export const FileWriteTool = buildTool({
       filePath: fullFilePath,
       type: 'create',
     })
+
+    // memory-write-survey (official 2.1.120): queue a survey record for
+    // memory-file writes so the REPL can show a Keep/Undo confirmation.
+    const memoryWriteRecord = captureMemoryWrite(agentId, {
+      filePath: fullFilePath,
+      afterContent: newContent,
+      beforeContent: null,
+      structuredPatch: [],
+    })
+    if (memoryWriteRecord) {
+      setAppState(prev => ({
+        ...prev,
+        memoryWriteQueue: [
+          ...(prev.memoryWriteQueue ?? []),
+          memoryWriteRecord,
+        ],
+      }))
+    }
 
     return {
       data,

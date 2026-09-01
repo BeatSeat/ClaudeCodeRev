@@ -117,18 +117,13 @@ export function userFacingName(
  *  MAX_LINES_TO_RENDER); `update` renders the full diff regardless of verbose.
  *  Called per visible message on hover/scroll, so early-exit after finding the
  *  (MAX+1)th line instead of splitting the whole (possibly huge) content. */
-export function isResultTruncated({ type, content }: Output): boolean {
+export function isResultTruncated(
+  { type, content }: Output,
+  opts?: { columns?: number },
+): boolean {
   if (type !== 'create') return false
-  // Default width matches gAY's columns-12 when the caller has no layout.
-  if (countWrappedLines(content, 68) > MAX_LINES_TO_RENDER) return true
-  let pos = 0
-  for (let i = 0; i < MAX_LINES_TO_RENDER; i++) {
-    pos = content.indexOf(EOL, pos)
-    if (pos === -1) return false
-    pos++
-  }
-  // countLines treats a trailing EOL as a terminator, not a new line
-  return pos < content.length
+  const columns = opts?.columns ?? 80
+  return countWrappedLines(content, Math.max(1, columns - 12)) > MAX_LINES_TO_RENDER
 }
 
 export function getToolUseSummary(

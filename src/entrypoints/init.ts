@@ -47,6 +47,11 @@ import {
 import { configureGlobalAgents } from '../utils/proxy.js'
 import { isBetaTracingEnabled } from '../utils/telemetry/betaSessionTracing.js'
 import { getTelemetryAttributes } from '../utils/telemetryAttributes.js'
+import { getPlatform } from '../utils/platform.js'
+import {
+  isBashShellAvailable,
+  isPowerShellToolEnabled,
+} from '../utils/shell/shellToolUtils.js'
 import { setShellIfWindows } from '../utils/windowsPaths.js'
 
 // initialize1PEventLogging is dynamically imported to defer OpenTelemetry sdk-logs/resources
@@ -187,8 +192,34 @@ export const init = memoize(async (): Promise<void> => {
       }
     }
 
-    // Set up git-bash if relevant
+    // Official 2.1.120 ot6 + Windows-only Git Bash fallback. Linux is unchanged.
     setShellIfWindows()
+    if (getPlatform() === 'windows' && !isBashShellAvailable()) {
+      if (!isPowerShellToolEnabled()) {
+        // biome-ignore lint/suspicious/noConsole:: intentional console output
+        console.error(
+          `Claude Code on Windows requires a shell tool. Git Bash was not found and the PowerShell tool is disabled (CLAUDE_CODE_USE_POWERSHELL_TOOL=0).
+  - Install Git for Windows: https://git-scm.com/downloads/win, or
+  - Remove CLAUDE_CODE_USE_POWERSHELL_TOOL from your environment or settings.`,
+        )
+        // eslint-disable-next-line custom-rules/no-process-exit
+        process.exit(1)
+      }
+      const { getCachedPowerShellPath } = await import(
+        '../utils/shell/powershellDetection.js'
+      )
+      if ((await getCachedPowerShellPath()) === null) {
+        // biome-ignore lint/suspicious/noConsole:: intentional console output
+        console.error(
+          `Claude Code on Windows requires either Git for Windows (for bash) or PowerShell. Install one of:
+  - Git for Windows: https://git-scm.com/downloads/win
+  - PowerShell 7: https://aka.ms/powershell
+Or set CLAUDE_CODE_GIT_BASH_PATH to your bash.exe location.`,
+        )
+        // eslint-disable-next-line custom-rules/no-process-exit
+        process.exit(1)
+      }
+    }
 
     // Register LSP manager cleanup (initialization happens in main.tsx after --plugin-dir is processed)
     registerCleanup(shutdownLspServerManager)
