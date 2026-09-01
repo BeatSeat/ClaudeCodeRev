@@ -284,6 +284,7 @@ function findMatchedAlias(
 function createCommandSuggestionItem(
   cmd: Command,
   matchedAlias?: string,
+  query?: string,
 ): SuggestionItem {
   const commandName = getCommandName(cmd)
   // Only show the alias if the user typed it
@@ -302,6 +303,7 @@ function createCommandSuggestionItem(
     tag: isWorkflow ? 'workflow' : undefined,
     description: fullDescription,
     metadata: cmd,
+    query,
   }
 }
 
@@ -395,7 +397,7 @@ export function generateCommandSuggestions(
       ...projectCommands,
       ...policyCommands,
       ...otherCommands,
-    ].map(cmd => createCommandSuggestionItem(cmd))
+    ].map(cmd => createCommandSuggestionItem(cmd, undefined, query))
   }
 
   // The Fuse index filters isHidden at build time and is keyed on the
@@ -519,7 +521,7 @@ export function generateCommandSuggestions(
     const cmd = result.r.item.command
     // Only show alias in parentheses if the user typed an alias
     const matchedAlias = findMatchedAlias(query, cmd.aliases)
-    return createCommandSuggestionItem(cmd, matchedAlias)
+    return createCommandSuggestionItem(cmd, matchedAlias, query)
   })
   // Skip the prepend if hiddenExact is already in fuseSuggestions — this
   // happens when isHidden flips false→true mid-session (OAuth expiry,
@@ -530,7 +532,10 @@ export function generateCommandSuggestions(
   if (hiddenExact) {
     const hiddenId = getCommandId(hiddenExact)
     if (!fuseSuggestions.some(s => s.id === hiddenId)) {
-      return [createCommandSuggestionItem(hiddenExact), ...fuseSuggestions]
+      return [
+        createCommandSuggestionItem(hiddenExact, undefined, query),
+        ...fuseSuggestions,
+      ]
     }
   }
   return fuseSuggestions

@@ -3307,6 +3307,7 @@ export function REPL({
           refreshTools: computeTools,
         },
         getAppState: () => store.getState(),
+        getEffortValue: () => store.getState().effortValue,
         setAppState,
         messages,
         setMessages,

@@ -320,7 +320,7 @@ The remote Ultraplan session did not produce a plan (${reason}). Inspect the ses
  * and prompt mode is the dev/fallback. Newest-first in both cases — the tag
  * appears once at the end of the run so reverse iteration short-circuits.
  */
-function extractReviewFromLog(log: SDKMessage[]): string | null {
+export function extractReviewFromLog(log: SDKMessage[]): string | null {
   for (let i = log.length - 1; i >= 0; i--) {
     const msg = log[i]
     // The final echo before hook exit may land in either the last
@@ -377,7 +377,8 @@ function extractReviewFromLog(log: SDKMessage[]): string | null {
  * would trigger the fallback and prematurely set cachedReviewContent,
  * completing the review before the actual tagged output arrives.
  */
-function extractReviewTagFromLog(log: SDKMessage[]): string | null {
+/** Official 2.1.120 D68 — tag-only extract for CLI poll (no assistant-text fallback). */
+export function extractReviewTagFromLog(log: SDKMessage[]): string | null {
   // hook_progress / hook_response per-message scan (bughunter path)
   for (let i = log.length - 1; i >= 0; i--) {
     const msg = log[i]

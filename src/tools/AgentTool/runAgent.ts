@@ -720,6 +720,10 @@ export async function* runAgent({
     readFileState: agentReadFileState,
     abortController: agentAbortController,
     getAppState: agentGetAppState,
+    getEffortValue:
+      agentDefinition.effort !== undefined
+        ? () => agentDefinition.effort
+        : toolUseContext.getEffortValue,
     // Sync agents share these callbacks with parent
     shareSetAppState: !isAsync,
     shareSetResponseLength: true, // Both sync and async contribute to response metrics

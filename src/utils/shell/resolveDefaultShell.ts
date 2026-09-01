@@ -1,14 +1,16 @@
 import { getInitialSettings } from '../settings/settings.js'
+import {
+  isBashShellAvailable,
+  isPowerShellToolEnabled,
+} from './shellToolUtils.js'
 
 /**
- * Resolve the default shell for input-box `!` commands.
- *
- * Resolution order (docs/design/ps-shell-selection.md §4.2):
- *   settings.defaultShell → 'bash'
- *
- * Platform default is 'bash' everywhere — we do NOT auto-flip Windows to
- * PowerShell (would break existing Windows users with bash hooks).
+ * Official 2.1.120 g24: settings.defaultShell, then Windows Git Bash fallback.
+ * Linux/macOS keep bash (isBashShellAvailable is always true).
  */
 export function resolveDefaultShell(): 'bash' | 'powershell' {
-  return getInitialSettings().defaultShell ?? 'bash'
+  const setting = getInitialSettings().defaultShell
+  if (setting === 'bash' && !isBashShellAvailable()) return 'powershell'
+  if (setting === 'powershell' && !isPowerShellToolEnabled()) return 'bash'
+  return setting ?? (isBashShellAvailable() ? 'bash' : 'powershell')
 }

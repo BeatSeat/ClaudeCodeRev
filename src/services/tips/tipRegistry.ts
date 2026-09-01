@@ -35,7 +35,11 @@ import {
   getMainLoopModel,
   getUserSpecifiedModelSetting,
 } from '../../utils/model/model.js'
+import { isDesktopInstalled } from '../../utils/desktopDeepLink.js'
+import { getCwd } from '../../utils/cwd.js'
+import { loadMarkdownFilesForSubdir } from '../../utils/markdownConfigLoader.js'
 import { getPlatform } from '../../utils/platform.js'
+import memoize from 'lodash-es/memoize.js'
 import { isPluginInstalled } from '../../utils/plugins/installedPluginsManager.js'
 import { loadKnownMarketplacesConfigSafe } from '../../utils/plugins/marketplaceManager.js'
 import { OFFICIAL_MARKETPLACE_NAME } from '../../utils/plugins/officialMarketplace.js'
@@ -57,6 +61,18 @@ import { getSessionsSinceLastShown } from './tipHistory.js'
 import type { Tip, TipContext } from './types.js'
 
 let _isOfficialMarketplaceInstalledCache: boolean | undefined
+/** 120 `LC6`: `Vb(kind, cwd).length > 0` — on-disk markdown under that subdir. */
+async function hasUserDefined(kind: 'skills' | 'agents'): Promise<boolean> {
+  try {
+    return (await loadMarkdownFilesForSubdir(kind, getCwd())).length > 0
+  } catch (e) {
+    logForDebugging(`hasUserDefined(${kind}) failed: ${e}`)
+    return false
+  }
+}
+
+const isDesktopInstalledCached = memoize(isDesktopInstalled)
+
 async function isOfficialMarketplaceInstalled(): Promise<boolean> {
   if (_isOfficialMarketplaceInstalledCache !== undefined) {
     return _isOfficialMarketplaceInstalledCache
@@ -395,7 +411,7 @@ const externalTips: Tip[] = [
     cooldownSessions: 15,
     async isRelevant() {
       const config = getGlobalConfig()
-      return config.numStartups > 10
+      return config.numStartups > 10 && !(await hasUserDefined('skills'))
     },
   },
   {
@@ -421,7 +437,7 @@ const externalTips: Tip[] = [
     cooldownSessions: 15,
     async isRelevant() {
       const config = getGlobalConfig()
-      return config.numStartups > 5
+      return config.numStartups > 5 && !(await hasUserDefined('agents'))
     },
   },
   {
@@ -431,7 +447,7 @@ const externalTips: Tip[] = [
     cooldownSessions: 15,
     async isRelevant() {
       const config = getGlobalConfig()
-      return config.numStartups > 5
+      return config.numStartups > 5 && (await hasUserDefined('agents'))
     },
   },
   {
@@ -439,7 +455,8 @@ const externalTips: Tip[] = [
     content: async () =>
       'Run Claude Code locally or remotely using the Claude desktop app: clau.de/desktop',
     cooldownSessions: 15,
-    isRelevant: async () => getPlatform() !== 'linux',
+    isRelevant: async () =>
+      getPlatform() !== 'linux' && !(await isDesktopInstalledCached()),
   },
   {
     id: 'desktop-shortcut',

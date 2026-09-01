@@ -161,6 +161,7 @@ export async function buildSideQuestionFallbackParams({
     abortController: createAbortController(),
     readFileState,
     getAppState,
+    getEffortValue: () => getAppState().effortValue,
     setAppState,
     messages: forkContextMessages,
     setInProgressToolUseIDs: () => {},

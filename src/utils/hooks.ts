@@ -1013,12 +1013,7 @@ async function execCommandHook(
   //   skips user profile scripts (faster, deterministic).
   //   -NonInteractive fails fast instead of prompting.
   //
-  // The Git Bash hard-exit in findGitBashPath() is still in place for
-  // bash hooks. PowerShell hooks never call it, so a Windows user with
-  // only pwsh and shell: 'powershell' on every hook could in theory run
-  // without Git Bash — but init.ts still calls setShellIfWindows() on
-  // startup, which will exit first. Relaxing that is phase 1 of the
-  // design's implementation order (separate PR).
+  // Official 2.1.120: bash hooks throw if Git Bash is missing (no process.exit).
   let child: ChildProcessWithoutNullStreams
   if (shellType === 'powershell') {
     const pwshPath = await getCachedPowerShellPath()
@@ -1036,14 +1031,16 @@ async function execCommandHook(
       windowsHide: true,
     }) as ChildProcessWithoutNullStreams
   } else {
-    // On Windows, use Git Bash explicitly (cmd.exe can't run bash syntax).
-    // On other platforms, shell: true uses /bin/sh.
-    const shell = isWindows ? findGitBashPath() : true
+    const gitBash = isWindows ? findGitBashPath() : null
+    if (isWindows && !gitBash) {
+      throw new Error(
+        `Hook "${hook.command}" requires bash but Git Bash was not found. Install Git for Windows (https://git-scm.com/downloads/win), or add "shell": "powershell" to this hook's config.`,
+      )
+    }
     child = spawn(finalCommand, [], {
       env: envVars,
       cwd: safeCwd,
-      shell,
-      // Prevent visible console window on Windows (no-op on other platforms)
+      shell: isWindows ? gitBash! : true,
       windowsHide: true,
     }) as ChildProcessWithoutNullStreams
   }

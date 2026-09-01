@@ -277,6 +277,8 @@ export type SubagentContextOverrides = {
   abortController?: AbortController
   /** Override the getAppState function */
   getAppState?: ToolUseContext['getAppState']
+  /** Official 2.1.120: override effort reader (skill frontmatter / agent effort) */
+  getEffortValue?: ToolUseContext['getEffortValue']
 
   /**
    * Explicit opt-in to share parent's setAppState callback.
@@ -415,6 +417,8 @@ export function createSubagentContext(
 
     // AppState access
     getAppState,
+    getEffortValue:
+      overrides?.getEffortValue ?? parentContext.getEffortValue,
     setAppState: overrides?.shareSetAppState
       ? parentContext.setAppState
       : () => {},

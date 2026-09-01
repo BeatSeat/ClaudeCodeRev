@@ -4,6 +4,7 @@ import { useTerminalSize } from '../../hooks/useTerminalSize.js'
 import { stringWidth } from '../../ink/stringWidth.js'
 import { Box, Text } from '../../ink.js'
 import { truncatePathMiddle, truncateToWidth } from '../../utils/format.js'
+import { truncateToWidthNoEllipsis } from '../../utils/truncate.js'
 import type { Theme } from '../../utils/theme.js'
 
 export type SuggestionItem = {
@@ -13,6 +14,8 @@ export type SuggestionItem = {
   description?: string
   metadata?: unknown
   color?: keyof Theme
+  /** 120 `K.query`: slash filter used for highlight. */
+  query?: string
 }
 
 export type SuggestionType =
@@ -26,6 +29,89 @@ export type SuggestionType =
   | 'none'
 
 export const OVERLAY_MAX_ITEMS = 5
+
+/**
+ * 120 `CZ1`. Whole-string match first. `contiguousOnly` skips fuzzy
+ * per-character fallback so description highlight stays a contiguous span.
+ */
+export function matchRanges(
+  text: string,
+  query: string,
+  contiguousOnly = false,
+): Array<[number, number]> {
+  const lower = text.toLowerCase()
+  if (lower.length !== text.length) return []
+  const idx = lower.indexOf(query)
+  if (idx !== -1) return [[idx, idx + query.length]]
+  if (contiguousOnly) return []
+  const ranges: Array<[number, number]> = []
+  let z = 0
+  for (const ch of query) {
+    const y = lower.indexOf(ch, z)
+    if (y === -1) return []
+    const last = ranges.at(-1)
+    if (last && last[1] === y) last[1] = y + 1
+    else ranges.push([y, y + 1])
+    z = y + 1
+  }
+  return ranges
+}
+
+/** 120 `tt8`: matched spans use suggestion color, no bold. */
+function HighlightQuery({
+  text,
+  query,
+  color,
+  dimColor,
+  contiguousOnly = false,
+}: {
+  text: string
+  query?: string
+  color?: keyof Theme
+  dimColor?: boolean
+  contiguousOnly?: boolean
+}): ReactNode {
+  const ranges = query ? matchRanges(text, query, contiguousOnly) : []
+  if (ranges.length === 0) {
+    return (
+      <Text color={color} dimColor={dimColor}>
+        {text}
+      </Text>
+    )
+  }
+  const parts: ReactNode[] = []
+  const push = (from: number, to: number, hit: boolean) => {
+    if (from >= to) return
+    parts.push(
+      <Text
+        key={from}
+        color={hit ? 'suggestion' : color}
+        dimColor={!hit && dimColor}
+      >
+        {text.slice(from, to)}
+      </Text>,
+    )
+  }
+  let cursor = 0
+  for (const [from, to] of ranges) {
+    push(cursor, from, false)
+    push(from, to, true)
+    cursor = to
+  }
+  push(cursor, text.length, false)
+  return <>{parts}</>
+}
+
+/** 120 `BZ1`: width wrap on a space boundary. */
+function wrapAtWidth(text: string, width: number): [string, string] {
+  if (width <= 0 || stringWidth(text) <= width) return [text, '']
+  const head = truncateToWidthNoEllipsis(text, width)
+  const rest = text.slice(head.length)
+  if (rest.startsWith(' ')) return [head, rest.trimStart()]
+  const sp = head.lastIndexOf(' ')
+  if (sp > 0) return [head.slice(0, sp), text.slice(sp + 1)]
+  return [head, rest]
+}
 
 /**
  * Get the icon for a suggestion based on its type
@@ -52,14 +138,33 @@ function isUnifiedSuggestion(itemId: string): boolean {
   )
 }
 
+/** 120 `pZ1`: 2-line wrap when the flattened description exceeds the slot. */
+function rowHeight(
+  item: SuggestionItem,
+  columns: number,
+  maxColumnWidth: number,
+  allowWrap: boolean,
+): number {
+  if (isUnifiedSuggestion(item.id) || !item.description) return 1
+  if (!allowWrap) return 1
+  const nameWidth = Math.min(maxColumnWidth, Math.floor(columns * 0.4))
+  const tagWidth = item.tag ? stringWidth(`[${item.tag}] `) : 0
+  const descWidth = Math.max(0, columns - nameWidth - tagWidth - 4)
+  if (descWidth <= 0) return 1
+  const flat = item.description.replace(/\s+/g, ' ').trim()
+  return stringWidth(flat) > descWidth ? 2 : 1
+}
+
 const SuggestionItemRow = memo(function SuggestionItemRow({
   item,
   maxColumnWidth,
   isSelected,
+  allowWrap = true,
 }: {
   item: SuggestionItem
   maxColumnWidth?: number
   isSelected: boolean
+  allowWrap?: boolean
 }): ReactNode {
   const columns = useTerminalSize().columns
   const isUnified = isUnifiedSuggestion(item.id)
@@ -131,8 +236,7 @@ const SuggestionItemRow = memo(function SuggestionItemRow({
     )
   }
 
-  // For non-unified suggestions (commands, shell, etc.), use improved layout from main
-  // Cap the command name column at 40% of terminal width to ensure description has space
+  // For non-unified suggestions (commands, shell, etc.), 120 wrap + highlight.
   const maxNameWidth = Math.floor(columns * 0.4)
   const displayTextWidth = Math.min(
     maxColumnWidth ?? stringWidth(item.displayText) + 5,
@@ -142,14 +246,12 @@ const SuggestionItemRow = memo(function SuggestionItemRow({
   const textColor = item.color || (isSelected ? 'suggestion' : undefined)
   const shouldDim = !isSelected
 
-  // Truncate and pad the display text to fixed width
   let displayText = item.displayText
   if (stringWidth(displayText) > displayTextWidth - 2) {
     displayText = truncateToWidth(displayText, displayTextWidth - 2)
   }
-  const paddedDisplayText =
-    displayText +
-    ' '.repeat(Math.max(0, displayTextWidth - stringWidth(displayText)))
+  const padWidth = Math.max(0, displayTextWidth - stringWidth(displayText))
+  const paddedSpaces = ' '.repeat(padWidth)
 
   const tagText = item.tag ? `[${item.tag}] ` : ''
   const tagWidth = stringWidth(tagText)
@@ -157,27 +259,59 @@ const SuggestionItemRow = memo(function SuggestionItemRow({
     0,
     columns - displayTextWidth - tagWidth - 4,
   )
-  // Skill descriptions can contain newlines (e.g. /claude-api's "TRIGGER
-  // when:" block). A multi-line row grows the overlay past minHeight; when
-  // the filter narrows past that skill, the overlay shrinks and leaves
-  // ghost rows. Flatten to one line before truncating.
-  const truncatedDescription = item.description
-    ? truncateToWidth(item.description.replace(/\s+/g, ' '), descriptionWidth)
+  const flatDescription = item.description
+    ? item.description.replace(/\s+/g, ' ').trim()
     : ''
+  const [descHead, descRest] = allowWrap
+    ? wrapAtWidth(flatDescription, descriptionWidth)
+    : [truncateToWidth(flatDescription, descriptionWidth), '']
+  const descColor: keyof Theme | undefined = isSelected
+    ? 'suggestion'
+    : undefined
 
-  return (
+  const firstLine = (
     <Text wrap="truncate">
+      <HighlightQuery
+        text={displayText}
+        query={item.query}
+        color={textColor}
+        dimColor={shouldDim}
+      />
       <Text color={textColor} dimColor={shouldDim}>
-        {paddedDisplayText}
+        {paddedSpaces}
       </Text>
       {tagText ? <Text dimColor>{tagText}</Text> : null}
-      <Text
-        color={isSelected ? 'suggestion' : undefined}
+      <HighlightQuery
+        text={descHead}
+        query={item.query}
+        color={descColor}
         dimColor={!isSelected}
-      >
-        {truncatedDescription}
-      </Text>
+        contiguousOnly
+      />
     </Text>
+  )
+
+  if (!descRest) return firstLine
+
+  const indentWidth = displayTextWidth + tagWidth
+  const second = truncateToWidth(
+    descRest,
+    Math.max(0, columns - indentWidth - 4),
+  )
+  return (
+    <Box flexDirection="column">
+      {firstLine}
+      <Text wrap="truncate">
+        {' '.repeat(indentWidth)}
+        <HighlightQuery
+          text={second}
+          query={item.query}
+          color={descColor}
+          dimColor={!isSelected}
+          contiguousOnly
+        />
+      </Text>
+    </Box>
   )
 })
 
@@ -205,7 +339,7 @@ export function PromptInputFooterSuggestions({
   overlay,
   noPad,
 }: Props): ReactNode {
-  const { rows } = useTerminalSize()
+  const { rows, columns } = useTerminalSize()
   // Maximum number of suggestions to show at once (leaving space for prompt).
   // Overlay mode (fullscreen) uses a fixed 5 — the floating box sits over
   // the ScrollBox, so terminal height isn't the constraint.
@@ -237,24 +371,50 @@ export function PromptInputFooterSuggestions({
     maxColumnWidthProp ??
     Math.max(...suggestions.map(item => stringWidth(item.displayText))) + 5
 
-  // Calculate visible items range based on selected index
-  const startIndex = Math.max(
-    0,
-    Math.min(
-      selectedSuggestion - Math.floor(maxVisibleItems / 2),
-      suggestions.length - maxVisibleItems,
-    ),
+  const allowWrap = maxVisibleItems >= 2
+  const heights = suggestions.map(item =>
+    rowHeight(item, columns, maxColumnWidth, allowWrap),
   )
-  const endIndex = Math.min(startIndex + maxVisibleItems, suggestions.length)
-  const visibleItems = suggestions.slice(startIndex, endIndex)
 
-  // In non-overlay (inline) mode, justifyContent keeps suggestions
-  // anchored to the bottom (near the prompt). In overlay mode we omit
-  // both minHeight and flex-end: the parent is position=absolute with
-  // bottom='100%', so its y is clamped to 0 by the renderer when it
-  // would go negative. Adding minHeight + flex-end would create empty
-  // padding rows that shift the visible items down into the prompt area
-  // when the list has fewer items than maxVisibleItems.
+  // 120 line-height window: keep the focused row on screen, fill remaining
+  // rows around it. Prevents the jump when wrap height changes while typing.
+  const focused = Math.max(
+    0,
+    Math.min(selectedSuggestion, suggestions.length - 1),
+  )
+  let startIndex = focused
+  let endIndex = focused + 1
+  let usedHeight = heights[focused] ?? 1
+  let above = 0
+  const half = Math.floor(maxVisibleItems / 2)
+  while (
+    startIndex > 0 &&
+    usedHeight < maxVisibleItems &&
+    above + (heights[startIndex - 1] ?? 1) <= half
+  ) {
+    startIndex--
+    above += heights[startIndex] ?? 1
+  }
+  usedHeight += above
+  while (
+    endIndex < suggestions.length &&
+    usedHeight + (heights[endIndex] ?? 1) <= maxVisibleItems
+  ) {
+    usedHeight += heights[endIndex] ?? 1
+    endIndex++
+  }
+  while (
+    startIndex > 0 &&
+    usedHeight + (heights[startIndex - 1] ?? 1) <= maxVisibleItems
+  ) {
+    startIndex--
+    usedHeight += heights[startIndex] ?? 1
+  }
+
+  const visibleItems = suggestions.slice(startIndex, endIndex)
+  // 120: `noPad` always 0. 119 also gated on showing-all (`P===0&&Z===q.length`).
+  const pad = noPad ? 0 : Math.max(0, maxVisibleItems - usedHeight)
+
   return (
     <Box
       flexDirection="column"
@@ -266,7 +426,11 @@ export function PromptInputFooterSuggestions({
           item={item}
           maxColumnWidth={maxColumnWidth}
           isSelected={item.id === suggestions[selectedSuggestion]?.id}
+          allowWrap={allowWrap}
         />
+      ))}
+      {Array.from({ length: pad }, (_, i) => (
+        <Text key={`pad-${i}`}> </Text>
       ))}
     </Box>
   )

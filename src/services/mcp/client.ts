@@ -265,7 +265,8 @@ import { getClaudeConfigHomeDir } from '../../utils/envUtils.js'
 /* eslint-enable @typescript-eslint/no-require-imports */
 import { jsonParse, jsonStringify } from '../../utils/slowOperations.js'
 
-const MCP_AUTH_CACHE_TTL_MS = 15 * 60 * 1000 // 15 min
+const MCP_AUTH_CACHE_TTL_MS = 15 * 60 * 1000 // 15 min (http/sse)
+const CLAUDEAI_PROXY_AUTH_CACHE_TTL_MS = 4 * 60 * 60 * 1000 // 4h — 120 ox_
 
 type McpAuthCacheData = Record<string, { timestamp: number }>
 
@@ -288,13 +289,20 @@ function getMcpAuthCache(): Promise<McpAuthCacheData> {
   return authCachePromise
 }
 
-async function isMcpAuthCached(serverId: string): Promise<boolean> {
+async function isMcpAuthCached(
+  serverId: string,
+  transportType?: string,
+): Promise<boolean> {
   const cache = await getMcpAuthCache()
   const entry = cache[serverId]
   if (!entry) {
     return false
   }
-  return Date.now() - entry.timestamp < MCP_AUTH_CACHE_TTL_MS
+  const ttl =
+    transportType === 'claudeai-proxy'
+      ? CLAUDEAI_PROXY_AUTH_CACHE_TTL_MS
+      : MCP_AUTH_CACHE_TTL_MS
+  return Date.now() - entry.timestamp < ttl
 }
 
 // Serialize cache writes through a promise chain to prevent concurrent
@@ -324,6 +332,23 @@ export function clearMcpAuthCache(): void {
   void unlink(getMcpAuthCachePath()).catch(() => {
     // Cache file may not exist
   })
+}
+
+/** Official 2.1.120 Gu7 — drop one needs-auth entry after a successful connect. */
+function clearMcpAuthCacheEntry(serverId: string): void {
+  writeChain = writeChain
+    .then(async () => {
+      const cache = await getMcpAuthCache()
+      if (!(serverId in cache)) {
+        return
+      }
+      delete cache[serverId]
+      await writeFile(getMcpAuthCachePath(), jsonStringify(cache))
+      authCachePromise = null
+    })
+    .catch(() => {
+      // Best-effort cache write
+    })
 }
 
 /**
@@ -1365,21 +1390,10 @@ export const connectToServer = memoize(
           }
         }
 
-        // Non-SyntaxError stdio failures still fail-fast so pending
-        // callTool() promises do not hang.
-        if (transportType === 'stdio') {
-          logMCPDebug(
-            name,
-            `stdio transport error: ${error.name || 'Error'}`,
-          )
-          closeTransportAndRejectPending(
-            `stdio transport error: ${error.name || 'Error'}`,
-          )
-          if (originalOnerror) {
-            originalOnerror(error)
-          }
-          return
-        }
+        // Official 2.1.120: do NOT fail-fast-close on stdio onerror.
+        // 2.1.105/119 closed the transport on any non-SyntaxError (including
+        // AbortError from Esc during callTool), which dropped the whole
+        // stdio MCP connection. SyntaxError is still ignored above.
 
         // For HTTP transports, detect session expiry (404 + JSON-RPC -32001)
         // and close the transport so pending tool calls reject and the next
@@ -2589,7 +2603,7 @@ export async function getMcpToolsCommandsAndResources(
         (config.type === 'claudeai-proxy' ||
           config.type === 'http' ||
           config.type === 'sse') &&
-        ((await isMcpAuthCached(name)) ||
+        ((await isMcpAuthCached(name, config.type)) ||
           ((config.type === 'http' || config.type === 'sse') &&
             hasMcpDiscoveryButNoToken(name, config)))
       ) {
@@ -2616,6 +2630,9 @@ export async function getMcpToolsCommandsAndResources(
         return
       }
 
+      // Official 2.1.120 Gu7: always clear this server's needs-auth skip
+      // so a just-authorized connector is not held for the 4h claudeai TTL.
+      clearMcpAuthCacheEntry(name)
       if (config.type === 'claudeai-proxy') {
         markClaudeAiMcpConnected(name)
       }

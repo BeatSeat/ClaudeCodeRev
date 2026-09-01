@@ -208,6 +208,11 @@ function PromptInputFooter({
           <PromptInputFooterLeftSide
             exitMessage={exitMessage}
             vimMode={vimMode}
+            hideVimModeIndicator={
+              !isShort &&
+              statusLineShouldDisplay(settings) &&
+              (settings.statusLine?.hideVimModeIndicator ?? false)
+            }
             mode={mode}
             toolPermissionContext={toolPermissionContext}
             suppressHint={suppressHint}

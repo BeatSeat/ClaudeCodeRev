@@ -86,6 +86,7 @@ import type {
 import type { AgentId } from './types/ids.js'
 import type { DeepImmutable } from './types/utils.js'
 import type { AttributionState } from './utils/commitAttribution.js'
+import type { EffortValue } from './utils/effort.js'
 import type { FileHistoryState } from './utils/fileHistory.js'
 import type { Theme, ThemeName } from './utils/theme.js'
 
@@ -184,6 +185,11 @@ export type ToolUseContext = {
   /** Environment variables set by /env for child processes in this session. */
   sessionEnvVars?: Map<string, string>
   getAppState(): AppState
+  /**
+   * Official 2.1.120: session effort for skill `${CLAUDE_EFFORT}` interpolation
+   * and API request options. Defaults to AppState.effortValue when omitted.
+   */
+  getEffortValue?(): EffortValue | undefined
   setAppState(f: (prev: AppState) => AppState): void
   /**
    * Always-shared setAppState for session-scoped infrastructure (background
@@ -637,7 +643,7 @@ export type Tool<
    * click-to-expand in fullscreen — only messages where verbose actually
    * shows more get a hover/click affordance. Unset means never truncated.
    */
-  isResultTruncated?(output: Output): boolean
+  isResultTruncated?(output: Output, opts?: { columns?: number }): boolean
   /**
    * Renders an optional tag to display after the tool use message.
    * Used for additional metadata like timeout, model, resume ID, etc.

@@ -60,6 +60,7 @@ import {
   mergeScrubSandboxConfig,
   subprocessEnv,
 } from './subprocessEnv.js'
+import { formatAiAgentValue } from './userAgent.js'
 import { posixPathToWindowsPath } from './windowsPaths.js'
 
 const DEFAULT_TIMEOUT = 30 * 60 * 1000 // 30 minutes
@@ -396,6 +397,7 @@ export async function exec(
         SHELL: shellType === 'bash' ? binShell : undefined,
         GIT_EDITOR: 'true',
         CLAUDECODE: '1',
+        AI_AGENT: formatAiAgentValue('agent'),
         ...envOverrides,
         ...(traceparent && { TRACEPARENT: traceparent }),
         ...(process.env.USER_TYPE === 'ant'

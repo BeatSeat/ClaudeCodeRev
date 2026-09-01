@@ -54,6 +54,9 @@ export type SelectionState = {
   virtualAnchorRow?: number
   /** Same for focus. */
   virtualFocusRow?: number
+  /** 120: pre-clamp anchor col, restored when the row comes back on-screen. */
+  virtualAnchorCol?: number
+  virtualFocusCol?: number
   /** True if the mouse-down that started this selection had the alt
    *  modifier set (SGR button bit 0x08). On macOS xterm.js this is a
    *  signal that VS Code's macOptionClickForcesSelection is OFF — if it
@@ -94,6 +97,8 @@ export function startSelection(
   s.scrolledOffBelowSW = []
   s.virtualAnchorRow = undefined
   s.virtualFocusRow = undefined
+  s.virtualAnchorCol = undefined
+  s.virtualFocusCol = undefined
   s.lastPressHadAlt = false
 }
 
@@ -130,6 +135,8 @@ export function clearSelection(s: SelectionState): void {
   s.scrolledOffBelowSW = []
   s.virtualAnchorRow = undefined
   s.virtualFocusRow = undefined
+  s.virtualAnchorCol = undefined
+  s.virtualFocusCol = undefined
   s.lastPressHadAlt = false
 }
 
@@ -447,6 +454,7 @@ export function moveFocus(s: SelectionState, col: number, row: number): void {
   // shiftSelection clamp) no longer reflects intent. Anchor stays put so
   // virtualAnchorRow is still valid for its own round-trip.
   s.virtualFocusRow = undefined
+  s.virtualFocusCol = undefined
 }
 
 /**
@@ -537,16 +545,21 @@ export function shiftSelection(
   // Clamp col depends on which EDGE (not dRow direction): virtual tracking
   // means a top-clamped point can stay top-clamped during a dRow>0 reverse
   // shift — dRow-based clampCol would give it the bottom col.
-  const shift = (p: Point, vRow: number): Point => {
+  const vAnchorCol = s.virtualAnchorCol ?? s.anchor.col
+  const vFocusCol = s.virtualFocusCol ?? s.focus.col
+  const shift = (vRow: number, vCol: number): Point => {
     if (vRow < minRow) return { col: 0, row: minRow }
     if (vRow > maxRow) return { col: width - 1, row: maxRow }
-    return { col: p.col, row: vRow }
+    return { col: vCol, row: vRow }
   }
-  s.anchor = shift(s.anchor, vAnchor)
-  s.focus = shift(s.focus, vFocus)
-  s.virtualAnchorRow =
-    vAnchor < minRow || vAnchor > maxRow ? vAnchor : undefined
-  s.virtualFocusRow = vFocus < minRow || vFocus > maxRow ? vFocus : undefined
+  const anchorOut = vAnchor < minRow || vAnchor > maxRow
+  const focusOut = vFocus < minRow || vFocus > maxRow
+  s.anchor = shift(vAnchor, vAnchorCol)
+  s.focus = shift(vFocus, vFocusCol)
+  s.virtualAnchorRow = anchorOut ? vAnchor : undefined
+  s.virtualAnchorCol = anchorOut ? vAnchorCol : undefined
+  s.virtualFocusRow = focusOut ? vFocus : undefined
+  s.virtualFocusCol = focusOut ? vFocusCol : undefined
   // anchorSpan not virtual-tracked: it's for word/line extend-on-drag,
   // irrelevant to the keyboard-scroll round-trip case.
   if (s.anchorSpan) {
@@ -584,8 +597,11 @@ export function shiftAnchor(
   // row, under-counting total drift → shiftSelection's invariant-restore
   // prematurely clears valid drag-phase accumulator entries.
   const raw = (s.virtualAnchorRow ?? s.anchor.row) + dRow
-  s.anchor = { col: s.anchor.col, row: clamp(raw, minRow, maxRow) }
-  s.virtualAnchorRow = raw < minRow || raw > maxRow ? raw : undefined
+  const out = raw < minRow || raw > maxRow
+  const vCol = s.virtualAnchorCol ?? s.anchor.col
+  s.anchor = { col: out ? s.anchor.col : vCol, row: clamp(raw, minRow, maxRow) }
+  s.virtualAnchorRow = out ? raw : undefined
+  s.virtualAnchorCol = out ? vCol : undefined
   // anchorSpan not virtual-tracked (word/line extend, irrelevant to
   // keyboard-scroll round-trip) — plain clamp from current row.
   if (s.anchorSpan) {
@@ -812,6 +828,22 @@ export function getSelectedText(s: SelectionState, screen: Screen): string {
  * side='above': rows scrolling out the top (dragging down, anchor=start).
  * side='below': rows scrolling out the bottom (dragging up, anchor=end).
  */
+/** 120 `p_H`: skip capture when virtual rows already drifted past visible. */
+function virtualSelectionDrifted(s: SelectionState): boolean {
+  if (
+    !s.anchor ||
+    !s.focus ||
+    s.virtualAnchorRow === undefined ||
+    s.virtualFocusRow === undefined
+  ) {
+    return false
+  }
+  return (
+    (s.virtualAnchorRow < s.anchor.row && s.virtualFocusRow < s.focus.row) ||
+    (s.virtualAnchorRow > s.anchor.row && s.virtualFocusRow > s.focus.row)
+  )
+}
+
 export function captureScrolledRows(
   s: SelectionState,
   screen: Screen,
@@ -820,7 +852,7 @@ export function captureScrolledRows(
   side: 'above' | 'below',
 ): void {
   const b = selectionBounds(s)
-  if (!b || firstRow > lastRow) return
+  if (!b || firstRow > lastRow || virtualSelectionDrifted(s)) return
   const { start, end } = b
   // Intersect [firstRow, lastRow] with [start.row, end.row]. Rows outside
   // the selection aren't captured — they weren't selected.
@@ -849,6 +881,7 @@ export function captureScrolledRows(
     // col constraint was applied to the captured row. Reset to col 0 so
     // the NEXT tick and the final getSelectedText read the full row.
     if (s.anchor && s.anchor.row === start.row && lo === start.row) {
+      s.virtualAnchorCol ??= s.anchor.col
       s.anchor = { col: 0, row: s.anchor.row }
       if (s.anchorSpan) {
         s.anchorSpan = {
