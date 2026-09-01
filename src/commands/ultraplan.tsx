@@ -30,6 +30,13 @@ import {
 } from '../utils/ultraplan/ccrSession.js'
 
 // Official 2.1.90: I8("tengu_ultraplan_timeout_seconds", 1800)*1000
+function isUltraplanConfigEnabled(): boolean {
+  return (
+    getFeatureValue_CACHED_MAY_BE_STALE('tengu_ultraplan_config', null)
+      ?.enabled === true
+  )
+}
+
 function getUltraplanTimeoutMs(): number {
   return (
     getFeatureValue_CACHED_MAY_BE_STALE('tengu_ultraplan_timeout_seconds', 1800) *
@@ -187,8 +194,14 @@ function startDetachedPoll(
           e instanceof UltraplanPollError ? e.rejectCount : undefined,
       })
       enqueuePendingNotification({
-        value: `Ultraplan failed: ${errorMessage(e)}\n\nSession: ${url}`,
+        value: `Ultraplan terminated: ${errorMessage(e)}\n\nSession: ${url}`,
         mode: 'task-notification',
+      })
+      enqueuePendingNotification({
+        value:
+          "Remote Ultraplan session failed. Wait for the user's next instructions.",
+        mode: 'task-notification',
+        isMeta: true,
       })
       // Error path owns cleanup; teleport path defers to the dialog; remote
       // path handled its own cleanup above.
@@ -252,6 +265,7 @@ export async function stopUltraplan(
   // RemoteAgentTask.kill archives the session (with .catch) — no separate
   // archive call needed here.
   await RemoteAgentTask.kill(taskId, setAppState)
+  logEvent('tengu_ultraplan_stopped', {})
   setAppState(prev =>
     prev.ultraplanSessionUrl ||
     prev.ultraplanPendingChoice ||
@@ -455,6 +469,12 @@ async function launchDetached(opts: {
     enqueuePendingNotification({
       value: `ultraplan: unexpected error — ${errorMessage(e)}`,
       mode: 'task-notification',
+    })
+    enqueuePendingNotification({
+      value:
+        "Ultraplan hit an unexpected error during launch. Wait for the user's next instructions.",
+      mode: 'task-notification',
+      isMeta: true,
     })
     if (sessionId) {
       // Error after teleport succeeded — archive so the remote doesn't sit

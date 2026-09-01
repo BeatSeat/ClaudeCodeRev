@@ -2066,6 +2066,30 @@ function findLatestMessage<T extends { timestamp: string }>(
  * @param leafMessage The leaf message to start from
  * @returns Array of messages from root to leaf
  */
+const CHAIN_TIMESTAMP_FALLBACK_MS = 5000
+
+function findTimestampFallbackParent(
+  messages: Map<UUID, TranscriptMessage>,
+  current: TranscriptMessage,
+  seen: Set<UUID>,
+): TranscriptMessage | undefined {
+  const currentTs = new Date(current.timestamp).getTime()
+  if (Number.isNaN(currentTs)) return undefined
+  let best: TranscriptMessage | undefined
+  let bestDelta = Infinity
+  for (const candidate of messages.values()) {
+    if (seen.has(candidate.uuid)) continue
+    const candidateTs = new Date(candidate.timestamp).getTime()
+    if (Number.isNaN(candidateTs)) continue
+    const delta = currentTs - candidateTs
+    if (delta >= 0 && delta <= CHAIN_TIMESTAMP_FALLBACK_MS && delta < bestDelta) {
+      bestDelta = delta
+      best = candidate
+    }
+  }
+  return best
+}
+
 export function buildConversationChain(
   messages: Map<UUID, TranscriptMessage>,
   leafMessage: TranscriptMessage,
@@ -2085,9 +2109,16 @@ export function buildConversationChain(
     }
     seen.add(currentMsg.uuid)
     transcript.push(currentMsg)
-    currentMsg = currentMsg.parentUuid
-      ? messages.get(currentMsg.parentUuid)
-      : undefined
+    const parentUuid = currentMsg.parentUuid
+    if (!parentUuid) break
+    let parent = messages.get(parentUuid)
+    if (!parent) {
+      parent = findTimestampFallbackParent(messages, currentMsg, seen)
+      if (parent) {
+        logEvent('tengu_chain_timestamp_fallback', {})
+      }
+    }
+    currentMsg = parent
   }
   transcript.reverse()
   return recoverOrphanedParallelToolResults(messages, transcript, seen)

@@ -1766,6 +1766,11 @@ export const fetchToolsForClient = memoizeWithLRU(
       return toolsToProcess
         .map((tool): Tool => {
           const fullyQualifiedName = buildMcpToolName(client.name, tool.name)
+          const rawMaxResultSize = tool._meta?.['anthropic/maxResultSizeChars']
+          const hasMaxResultSize =
+            typeof rawMaxResultSize === 'number' &&
+            Number.isFinite(rawMaxResultSize) &&
+            rawMaxResultSize > 0
           return {
             ...MCPTool,
             // In skip-prefix mode, use the original name for model invocation so MCP tools
@@ -1807,6 +1812,12 @@ export const fetchToolsForClient = memoizeWithLRU(
             isOpenWorld() {
               return tool.annotations?.openWorldHint ?? false
             },
+            maxResultSizeChars: hasMaxResultSize
+              ? Math.min(rawMaxResultSize, 500_000)
+              : MCPTool.maxResultSizeChars,
+            persistenceThresholdCeiling: hasMaxResultSize
+              ? 500_000
+              : undefined,
             isSearchOrReadCommand() {
               return classifyMcpToolForCollapse(client.name, tool.name)
             },

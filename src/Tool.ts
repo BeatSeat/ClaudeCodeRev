@@ -465,6 +465,12 @@ export type Tool<
    */
   maxResultSizeChars: number
   /**
+   * Optional ceiling for getPersistenceThreshold's Math.min clamp.
+   * MCP tools that opt into anthropic/maxResultSizeChars set this to 500_000
+   * so the 50k default cap does not squash the override.
+   */
+  persistenceThresholdCeiling?: number
+  /**
    * When true, enables strict mode for this tool, which causes the API to
    * more strictly adhere to tool instructions and parameter schemas.
    * Only applied when the tengu_tool_pear is enabled.

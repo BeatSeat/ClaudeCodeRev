@@ -18,6 +18,7 @@ import skillPrompt from './claude-api/SKILL.md'
 import sharedErrorCodes from './claude-api/shared/error-codes.md'
 import sharedLiveSources from './claude-api/shared/live-sources.md'
 import sharedModels from './claude-api/shared/models.md'
+import sharedAgentDesign from './claude-api/shared/agent-design.md'
 import sharedPromptCaching from './claude-api/shared/prompt-caching.md'
 import sharedToolUseConcepts from './claude-api/shared/tool-use-concepts.md'
 import typescriptAgentSdkPatterns from './claude-api/typescript/agent-sdk/patterns.md'
@@ -60,6 +61,7 @@ export const SKILL_FILES: Record<string, string> = {
   'python/claude-api/streaming.md': pythonClaudeApiStreaming,
   'python/claude-api/tool-use.md': pythonClaudeApiToolUse,
   'ruby/claude-api.md': rubyClaudeApi,
+  'shared/agent-design.md': sharedAgentDesign,
   'shared/error-codes.md': sharedErrorCodes,
   'shared/live-sources.md': sharedLiveSources,
   'shared/models.md': sharedModels,

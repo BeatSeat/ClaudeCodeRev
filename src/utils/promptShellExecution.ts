@@ -25,6 +25,28 @@ type PromptShellTool = Tool & {
 }
 
 import { isPowerShellToolEnabled } from './shell/shellToolUtils.js'
+import {
+  getInitialSettings,
+  getSettingsForSource,
+} from './settings/settings.js'
+
+const DISABLED_PLACEHOLDER =
+  '[shell command execution disabled by policy]'
+const DISABLED_BLOCK = /```!\s*\n?[\s\S]*?\n?```/g
+const DISABLED_INLINE = /(?<=^|\s)!`[^`]+`/gm
+
+function isSkillShellExecutionDisabled(): boolean {
+  if (getSettingsForSource('policySettings')?.disableSkillShellExecution === true) {
+    return true
+  }
+  return getInitialSettings().disableSkillShellExecution === true
+}
+
+function stripDisabledSkillShell(text: string): string {
+  let next = text.replace(DISABLED_BLOCK, DISABLED_PLACEHOLDER)
+  if (next.includes('!`')) next = next.replace(DISABLED_INLINE, DISABLED_PLACEHOLDER)
+  return next
+}
 
 // Lazy: this file is on the startup import chain (main → commands →
 // loadSkillsDir → here). A static import would load PowerShellTool.ts
@@ -54,6 +76,20 @@ const BLOCK_PATTERN = /```!\s*\n?([\s\S]*?)\n?```/g
 // adjacent spans like `foo`!`bar`, and shell variables like $!
 // eslint-disable-next-line custom-rules/no-lookbehind-regex -- gated by text.includes('!`') below (PR#22986)
 const INLINE_PATTERN = /(?<=^|\s)!`([^`]+)`/gm
+
+export function shouldDisableSkillShellExecution(
+  loadedFrom: string | undefined,
+  source: string | undefined,
+): boolean {
+  if (source === 'policySettings') return false
+  return (
+    loadedFrom === 'skills' ||
+    loadedFrom === 'commands_DEPRECATED' ||
+    loadedFrom === 'plugin'
+  )
+}
+
+export { isSkillShellExecutionDisabled, stripDisabledSkillShell }
 
 /**
  * Parses prompt text and executes any embedded shell commands.
