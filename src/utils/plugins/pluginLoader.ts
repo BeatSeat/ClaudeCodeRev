@@ -820,8 +820,12 @@ async function installFromGitHub(
       `Invalid GitHub repository format: ${repo}. Expected format: owner/repo`,
     )
   }
-  // Use HTTPS for CCR (no SSH keys), SSH for normal CLI
-  const gitUrl = isEnvTruthy(process.env.CLAUDE_CODE_REMOTE)
+  // Use HTTPS for CCR (no SSH keys) or when the user prefers HTTPS, SSH for normal CLI
+  // 2.1.141: CLAUDE_CODE_PLUGIN_PREFER_HTTPS forces HTTPS for GitHub plugin sources.
+  const preferHttps =
+    isEnvTruthy(process.env.CLAUDE_CODE_REMOTE) ||
+    isEnvTruthy(process.env.CLAUDE_CODE_PLUGIN_PREFER_HTTPS)
+  const gitUrl = preferHttps
     ? `https://github.com/${repo}.git`
     : `git@github.com:${repo}.git`
   return installFromGit(gitUrl, targetPath, ref, sha)
@@ -835,7 +839,9 @@ async function installFromGitHub(
  */
 function resolveGitSubdirUrl(url: string): string {
   if (/^[a-zA-Z0-9-_.]+\/[a-zA-Z0-9-_.]+$/.test(url)) {
-    return isEnvTruthy(process.env.CLAUDE_CODE_REMOTE)
+    // 2.1.141: CLAUDE_CODE_PLUGIN_PREFER_HTTPS forces HTTPS for GitHub sources.
+    return isEnvTruthy(process.env.CLAUDE_CODE_REMOTE) ||
+      isEnvTruthy(process.env.CLAUDE_CODE_PLUGIN_PREFER_HTTPS)
       ? `https://github.com/${url}.git`
       : `git@github.com:${url}.git`
   }
@@ -1624,6 +1630,7 @@ export async function createPluginFromPath(
     agentsDirExists,
     skillsDirExists,
     outputStylesDirExists,
+    themesDirExists,
   ] = await Promise.all([
     !manifest.commands ? pathExists(join(pluginPath, 'commands')) : false,
     !manifest.agents ? pathExists(join(pluginPath, 'agents')) : false,
@@ -1631,6 +1638,7 @@ export async function createPluginFromPath(
     !manifest.outputStyles
       ? pathExists(join(pluginPath, 'output-styles'))
       : false,
+    pathExists(join(pluginPath, 'themes')),
   ])
 
   const commandsPath = join(pluginPath, 'commands')
@@ -1855,6 +1863,38 @@ export async function createPluginFromPath(
 
     if (validPaths.length > 0) {
       plugin.outputStylesPaths = validPaths
+    }
+  }
+
+  // Official 2.1.153 `b_8`: auto-load themes/ only when manifest does not set
+  // `experimental.themes ?? themes` (setting those shadows the default folder).
+  const themesPath = join(pluginPath, 'themes')
+  const shouldAutoLoadThemes = !(
+    manifest.experimental?.themes ?? manifest.themes
+  )
+  if (shouldAutoLoadThemes && themesDirExists) {
+    plugin.themesPath = themesPath
+  }
+
+  const manifestThemes = manifest.experimental?.themes ?? manifest.themes
+  if (manifestThemes) {
+    const themePaths = Array.isArray(manifestThemes)
+      ? manifestThemes
+      : [manifestThemes]
+
+    const validPaths = await validatePluginPaths(
+      themePaths,
+      pluginPath,
+      manifest.name,
+      source,
+      'themes',
+      'Theme',
+      'specified in manifest but',
+      errors,
+    )
+
+    if (validPaths.length > 0) {
+      plugin.themesPaths = validPaths
     }
   }
 
@@ -2201,11 +2241,14 @@ async function loadPluginsFromMarketplaces({
   // fail-closed: unknown source + active policy → block.
   //
   // Allowlist: any value (including []) is active — empty allowlist = deny all.
-  // Blocklist: empty [] is a semantic no-op — only non-empty counts as active.
+  // Blocklist: empty [] is a semantic no-op. Official 2.1.141 C87: a
+  // skills-dir-only blocklist also does not count as general enterprise policy
+  // (`O.some((X)=>X.source!=="skills-dir")`).
   const strictAllowlist = getStrictKnownMarketplaces()
   const blocklist = getBlockedMarketplaces()
   const hasEnterprisePolicy =
-    strictAllowlist !== null || (blocklist !== null && blocklist.length > 0)
+    strictAllowlist !== null ||
+    (blocklist !== null && blocklist.some(s => s.source !== 'skills-dir'))
 
   // Pre-load marketplace catalogs once per marketplace rather than re-reading
   // known_marketplaces.json + marketplace.json for every plugin. This is the
@@ -2999,6 +3042,29 @@ async function finishLoadingPluginFromPath(
       }
     }
 
+    // Official 2.1.153 marketplace themes (same `experimental.themes ?? themes`)
+    const entryThemes = entry.experimental?.themes ?? entry.themes
+    if (entryThemes) {
+      const themePaths = Array.isArray(entryThemes)
+        ? entryThemes
+        : [entryThemes]
+
+      const validPaths = await validatePluginPaths(
+        themePaths,
+        pluginPath,
+        entry.name,
+        pluginId,
+        'themes',
+        'Theme',
+        'from marketplace entry',
+        errors,
+      )
+
+      if (validPaths.length > 0) {
+        plugin.themesPaths = validPaths
+      }
+    }
+
     // Process inline hooks from marketplace entry
     if (entry.hooks) {
       plugin.hooksConfig = entry.hooks as HooksSettings
@@ -3010,14 +3076,16 @@ async function finishLoadingPluginFromPath(
       entry.agents ||
       entry.skills ||
       entry.hooks ||
-      entry.outputStyles)
+      entry.outputStyles ||
+      entry.themes ||
+      entry.experimental?.themes)
   ) {
-    // In non-strict mode with plugin.json, marketplace entries for commands/agents/skills/hooks/outputStyles are conflicts
+    // In non-strict mode with plugin.json, marketplace entries for commands/agents/skills/hooks/outputStyles/themes are conflicts
     const error = new Error(
-      `Plugin ${entry.name} has both plugin.json and marketplace manifest entries for commands/agents/skills/hooks/outputStyles. This is a conflict.`,
+      `Plugin ${entry.name} has both plugin.json and marketplace manifest entries for commands/agents/skills/hooks/outputStyles/themes. This is a conflict.`,
     )
     logForDebugging(
-      `Plugin ${entry.name} has both plugin.json and marketplace manifest entries for commands/agents/skills/hooks/outputStyles. This is a conflict.`,
+      `Plugin ${entry.name} has both plugin.json and marketplace manifest entries for commands/agents/skills/hooks/outputStyles/themes. This is a conflict.`,
       { level: 'error' },
     )
     logError(error)
@@ -3028,7 +3096,7 @@ async function finishLoadingPluginFromPath(
     })
     return null
   } else if (hasManifest) {
-    // Has plugin.json - marketplace can supplement commands/agents/skills/hooks/outputStyles
+    // Has plugin.json - marketplace can supplement commands/agents/skills/hooks/outputStyles/themes
 
     // Supplement commands from marketplace entry
     if (entry.commands) {
@@ -3223,6 +3291,29 @@ async function finishLoadingPluginFromPath(
           ...(plugin.outputStylesPaths || []),
           ...validPaths,
         ]
+      }
+    }
+
+    // Official 2.1.153 marketplace themes supplement
+    const entryThemes = entry.experimental?.themes ?? entry.themes
+    if (entryThemes) {
+      const themePaths = Array.isArray(entryThemes)
+        ? entryThemes
+        : [entryThemes]
+
+      const validPaths = await validatePluginPaths(
+        themePaths,
+        pluginPath,
+        entry.name,
+        pluginId,
+        'themes',
+        'Theme',
+        'from marketplace entry',
+        errors,
+      )
+
+      if (validPaths.length > 0) {
+        plugin.themesPaths = [...(plugin.themesPaths || []), ...validPaths]
       }
     }
 

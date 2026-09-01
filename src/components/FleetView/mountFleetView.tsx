@@ -6,7 +6,11 @@ import { KeybindingSetup } from '../../keybindings/KeybindingProviderSetup.js'
 import instances from '../../ink/instances.js'
 import { FleetView } from './FleetView.js'
 import type { FleetGroupMode, FleetViewAction } from './types.js'
-import { attachThenRemount, handoffAltScreen } from './attachFleetJob.js'
+import {
+  attachThenRemount,
+  handoffAltScreen,
+  handoffRawMode,
+} from './attachFleetJob.js'
 import { bgAgentAction } from './fleetTelemetry.js'
 
 /**
@@ -43,6 +47,7 @@ export async function mountFleetView(root: Root): Promise<void> {
 
     const alreadyInAlt = instances.get(process.stdout)?.isAltScreenActive ?? false
     if (alreadyInAlt && action.type === 'open') handoffAltScreen()
+    if (getPlatform() === 'windows' && action.type === 'open') handoffRawMode()
     if (!alreadyInAlt) current.render(null)
     current.unmount()
     initialError = undefined
