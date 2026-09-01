@@ -29,6 +29,10 @@ export const AFK_MODE_BETA_HEADER = feature('TRANSCRIPT_CLASSIFIER')
 export const CLI_INTERNAL_BETA_HEADER =
   process.env.USER_TYPE === 'ant' ? 'cli-internal-2026-02-09' : ''
 export const ADVISOR_BETA_HEADER = 'advisor-tool-2026-03-01'
+// Server-side prompt-cache diagnosis. 121 `y$$` / kM5 gate `tengu_prompt_cache_diagnostics`.
+// Once sent the server can attach `diagnostics.cache_miss_reason` to the response so
+// the client can explain cache breaks that are not caused by a client-side change.
+export const CACHE_DIAGNOSIS_BETA_HEADER = 'cache-diagnosis-2026-04-07'
 
 /**
  * Bedrock only supports a limited number of beta headers and only through

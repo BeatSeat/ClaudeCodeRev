@@ -32,6 +32,7 @@ export const McpStdioServerConfigSchema = lazySchema(() =>
     command: z.string().min(1, 'Command cannot be empty'),
     args: z.array(z.string()).default([]),
     env: z.record(z.string(), z.string()).optional(),
+    alwaysLoad: z.boolean().optional(),
   }),
 )
 
@@ -63,6 +64,7 @@ export const McpSSEServerConfigSchema = lazySchema(() =>
     headers: z.record(z.string(), z.string()).optional(),
     headersHelper: z.string().optional(),
     oauth: McpOAuthConfigSchema().optional(),
+    alwaysLoad: z.boolean().optional(),
   }),
 )
 
@@ -73,6 +75,7 @@ export const McpSSEIDEServerConfigSchema = lazySchema(() =>
     url: z.string(),
     ideName: z.string(),
     ideRunningInWindows: z.boolean().optional(),
+    alwaysLoad: z.boolean().optional(),
   }),
 )
 
@@ -84,6 +87,7 @@ export const McpWebSocketIDEServerConfigSchema = lazySchema(() =>
     ideName: z.string(),
     authToken: z.string().optional(),
     ideRunningInWindows: z.boolean().optional(),
+    alwaysLoad: z.boolean().optional(),
   }),
 )
 
@@ -94,6 +98,7 @@ export const McpHTTPServerConfigSchema = lazySchema(() =>
     headers: z.record(z.string(), z.string()).optional(),
     headersHelper: z.string().optional(),
     oauth: McpOAuthConfigSchema().optional(),
+    alwaysLoad: z.boolean().optional(),
   }),
 )
 
@@ -103,6 +108,7 @@ export const McpWebSocketServerConfigSchema = lazySchema(() =>
     url: z.string(),
     headers: z.record(z.string(), z.string()).optional(),
     headersHelper: z.string().optional(),
+    alwaysLoad: z.boolean().optional(),
   }),
 )
 
@@ -110,6 +116,7 @@ export const McpSdkServerConfigSchema = lazySchema(() =>
   z.object({
     type: z.literal('sdk'),
     name: z.string(),
+    alwaysLoad: z.boolean().optional(),
   }),
 )
 
@@ -119,6 +126,7 @@ export const McpClaudeAIProxyServerConfigSchema = lazySchema(() =>
     type: z.literal('claudeai-proxy'),
     url: z.string(),
     id: z.string(),
+    alwaysLoad: z.boolean().optional(),
   }),
 )
 

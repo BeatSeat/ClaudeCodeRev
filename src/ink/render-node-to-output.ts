@@ -755,16 +755,21 @@ function renderNodeToOutput(
         // active text selection by the same delta (native terminal behavior:
         // view keeps scrolling, highlight walks up with the text).
         const scrollTopBeforeFollow = node.scrollTop ?? 0
-        const sticky =
-          node.stickyScroll ?? Boolean(node.attributes['stickyScroll'])
+        const stickyAttr = node.attributes['stickyScroll']
+        const sticky = node.stickyScroll ?? Boolean(stickyAttr)
         const prevMaxScroll = Math.max(0, prevScrollHeight - prevInnerHeight)
         // Positional check only valid when content grew — virtualization can
         // transiently SHRINK scrollHeight (tail unmount + stale heightCache
         // spacer) making scrollTop >= prevMaxScroll true by artifact, not
         // because the user was at bottom.
         const grew = scrollHeight >= prevScrollHeight
+        // Official 121: positional follow is skipped when the stickyScroll
+        // attribute is explicitly false (typing must not jump-scroll).
         const atBottom =
-          sticky || (grew && scrollTopBeforeFollow >= prevMaxScroll)
+          sticky ||
+          (stickyAttr !== false &&
+            grew &&
+            scrollTopBeforeFollow >= prevMaxScroll)
         if (atBottom && (node.pendingScrollDelta ?? 0) >= 0) {
           node.scrollTop = maxScroll
           node.pendingScrollDelta = undefined

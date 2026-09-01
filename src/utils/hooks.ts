@@ -63,6 +63,8 @@ import {
 import { stringWidth } from '../ink/stringWidth.js'
 import { logOTelEvent } from './telemetry/events.js'
 import { ALLOWED_OFFICIAL_MARKETPLACE_NAMES } from './plugins/schemas.js'
+import { parsePluginIdentifier } from './plugins/pluginIdentifier.js'
+import { buildPluginTelemetryFields } from './telemetry/pluginTelemetry.js'
 import {
   startHookSpan,
   endHookSpan,
@@ -391,6 +393,7 @@ export interface HookResult {
   sessionTitle?: string
   initialUserMessage?: string
   updatedInput?: Record<string, unknown>
+  updatedToolOutput?: unknown
   updatedMCPToolOutput?: unknown
   permissionRequestResult?: PermissionRequestResult
   elicitationResponse?: ElicitationResponse
@@ -412,6 +415,7 @@ export type AggregatedHookResult = {
   sessionTitle?: string
   initialUserMessage?: string
   updatedInput?: Record<string, unknown>
+  updatedToolOutput?: unknown
   updatedMCPToolOutput?: unknown
   permissionRequestResult?: PermissionRequestResult
   watchPaths?: string[]
@@ -694,7 +698,9 @@ function processHookJSONOutput({
         break
       case 'PostToolUse':
         result.additionalContext = json.hookSpecificOutput.additionalContext
-        // Extract updatedMCPToolOutput if provided
+        if (json.hookSpecificOutput.updatedToolOutput !== undefined) {
+          result.updatedToolOutput = json.hookSpecificOutput.updatedToolOutput
+        }
         if (json.hookSpecificOutput.updatedMCPToolOutput) {
           result.updatedMCPToolOutput =
             json.hookSpecificOutput.updatedMCPToolOutput
@@ -3007,12 +3013,58 @@ async function* executeHooks({
     cancelled: 0,
   }
 
+  type PluginHookCharCounts = {
+    additionalContextChars: number
+    systemMessageChars: number
+    initialUserMessageChars: number
+    hookSuccessStdoutChars: number
+  }
+  const emptyPluginHookChars = (): PluginHookCharCounts => ({
+    additionalContextChars: 0,
+    systemMessageChars: 0,
+    initialUserMessageChars: 0,
+    hookSuccessStdoutChars: 0,
+  })
+  const hookPluginIds = new Map(
+    matchingHooks.map(({ hook, pluginId }) => [hook, pluginId]),
+  )
+  const pluginHookChars = new Map<string, PluginHookCharCounts>()
+  function addPluginHookChars(
+    hook: MatchedHook['hook'],
+    field: keyof PluginHookCharCounts,
+    chars: number,
+  ): void {
+    const pluginId = hookPluginIds.get(hook)
+    if (!pluginId || chars === 0) {
+      return
+    }
+    let counts = pluginHookChars.get(pluginId)
+    if (!counts) {
+      counts = emptyPluginHookChars()
+      pluginHookChars.set(pluginId, counts)
+    }
+    counts[field] += chars
+  }
+
   let permissionBehavior: PermissionResult['behavior'] | 'defer' | undefined
   let hookPersistSeq = 0
 
   // Run all hooks in parallel and wait for all to complete
   for await (const result of all(hookPromises)) {
     outcomes[result.outcome]++
+    const hookSuccessMsg = result.message as
+      | { type?: string; attachment?: { type?: string; stdout?: string } }
+      | undefined
+    if (
+      hookSuccessMsg?.type === 'attachment' &&
+      hookSuccessMsg.attachment?.type === 'hook_success'
+    ) {
+      addPluginHookChars(
+        result.hook,
+        'hookSuccessStdoutChars',
+        hookSuccessMsg.attachment.stdout?.length ?? 0,
+      )
+    }
 
     // Check for preventContinuation early
     if (result.preventContinuation) {
@@ -3040,6 +3092,11 @@ async function* executeHooks({
 
     // Yield system message separately if present
     if (result.systemMessage) {
+      addPluginHookChars(
+        result.hook,
+        'systemMessageChars',
+        result.systemMessage.length,
+      )
       yield {
         message: createAttachmentMessage({
           type: 'hook_system_message',
@@ -3057,6 +3114,11 @@ async function* executeHooks({
 
     // Collect additional context from hooks
     if (result.additionalContext) {
+      addPluginHookChars(
+        result.hook,
+        'additionalContextChars',
+        result.additionalContext.length,
+      )
       logForDebugging(
         `Hook ${hookEvent} (${getHookDisplayText(result.hook)}) provided additionalContext (${result.additionalContext.length} chars)`,
       )
@@ -3072,6 +3134,11 @@ async function* executeHooks({
     }
 
     if (result.initialUserMessage) {
+      addPluginHookChars(
+        result.hook,
+        'initialUserMessageChars',
+        result.initialUserMessage.length,
+      )
       logForDebugging(
         `Hook ${hookEvent} (${getHookDisplayText(result.hook)}) provided initialUserMessage (${result.initialUserMessage.length} chars)`,
       )
@@ -3102,10 +3169,22 @@ async function* executeHooks({
       }
     }
 
-    // Yield updatedMCPToolOutput if provided (from PostToolUse hooks)
-    if (result.updatedMCPToolOutput) {
+    if (result.updatedToolOutput !== undefined) {
       logForDebugging(
-        `Hook ${hookEvent} (${getHookDisplayText(result.hook)}) replaced MCP tool output`,
+        `Hook ${hookEvent} (${getHookDisplayText(result.hook)}) replaced tool output`,
+      )
+      yield {
+        updatedToolOutput: result.updatedToolOutput,
+      }
+    }
+
+    // Yield updatedMCPToolOutput if provided (from PostToolUse hooks)
+    if (
+      result.updatedMCPToolOutput !== undefined &&
+      result.updatedToolOutput === undefined
+    ) {
+      logForDebugging(
+        `Hook ${hookEvent} (${getHookDisplayText(result.hook)}) replaced tool output (updatedMCPToolOutput)`,
       )
       yield {
         updatedMCPToolOutput: result.updatedMCPToolOutput,
@@ -3232,6 +3311,16 @@ async function* executeHooks({
   const totalDurationMs = Date.now() - batchStartTime
   getStatsStore()?.observe('hook_duration_ms', totalDurationMs)
   addToTurnHookDuration(totalDurationMs)
+
+  for (const [pluginId, chars] of pluginHookChars) {
+    const { name, marketplace } = parsePluginIdentifier(pluginId)
+    logEvent('tengu_hook_plugin_injected', {
+      hookName:
+        hookName as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
+      ...buildPluginTelemetryFields(name, marketplace),
+      ...chars,
+    })
+  }
 
   logEvent(`tengu_repl_hook_finished`, {
     hookName:
