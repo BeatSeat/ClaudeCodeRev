@@ -2149,6 +2149,9 @@ export async function getChangedFiles(
         const result = await FileReadTool.call(fileInput, toolUseContext)
         // Extract only the changed section
         if (result.data.type === 'text') {
+          if (result.data.file.truncatedByTokenCap === true) {
+            return null
+          }
           const snippet = getSnippetForTwoFileDiff(
             fileState.content,
             result.data.file.content,
@@ -3268,6 +3271,12 @@ export async function generateFileAttachment(
 
     try {
       const result = await FileReadTool.call(fileInput, toolUseContext)
+      if (
+        result.data.type === 'text' &&
+        result.data.file.truncatedByTokenCap === true
+      ) {
+        return await readTruncatedFile()
+      }
       logEvent(successEventName, {})
       if (mode === 'at-mention') {
         logOTelAtMention({ mentionType: 'file', success: true })

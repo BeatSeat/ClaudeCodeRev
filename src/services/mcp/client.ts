@@ -2399,7 +2399,8 @@ export const fetchCommandsForClient = memoizeWithLRU(
 
       // Convert MCP prompts to our Command format
       return promptsToProcess.map(prompt => {
-        const argNames = Object.values(prompt.arguments ?? {}).map(k => k.name)
+        const promptArgs = Object.values(prompt.arguments ?? {})
+        const argNames = promptArgs.map(k => k.name)
         return {
           type: 'prompt' as const,
           name: 'mcp__' + normalizeNameForMCP(client.name) + '__' + prompt.name,
@@ -2418,7 +2419,17 @@ export const fetchCommandsForClient = memoizeWithLRU(
           argNames,
           source: 'mcp',
           async getPromptForCommand(args: string) {
-            const argsArray = args.split(' ')
+            const trimmed = args.trim()
+            const argsArray = trimmed ? trimmed.split(/\s+/) : []
+            const missing = promptArgs
+              .filter((arg, i) => arg.required && argsArray[i] === undefined)
+              .map(arg => arg.name)
+            if (missing.length > 0) {
+              const plural = missing.length > 1 ? 's' : ''
+              throw new Error(
+                `Missing required argument${plural}: ${missing.join(', ')}. Usage: /mcp__${normalizeNameForMCP(client.name)}__${prompt.name} ${argNames.join(' ')}`,
+              )
+            }
             try {
               const connectedClient = await ensureConnectedClient(client)
               const result = await connectedClient.client.getPrompt({

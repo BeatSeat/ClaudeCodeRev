@@ -40,7 +40,12 @@ export type SimpleCommand = {
 }
 
 export type ParseForSecurityResult =
-  | { kind: 'simple'; commands: SimpleCommand[] }
+  | {
+      kind: 'simple'
+      commands: SimpleCommand[]
+      /** Official 2.1.145: statement-level `VAR=value` names (not command env prefixes). */
+      bareAssignmentNames: string[]
+    }
   | { kind: 'too-complex'; reason: string; nodeType?: string }
   | { kind: 'parse-unavailable' }
 
@@ -384,7 +389,7 @@ export async function parseForSecurity(
   // parseCommandRaw('') returns null (falsy check), so short-circuit here.
   // Don't use .trim() — it strips Unicode whitespace (\u00a0 etc.) which the
   // pre-checks in parseForSecurityFromAst need to see and reject.
-  if (cmd === '') return { kind: 'simple', commands: [] }
+  if (cmd === '') return { kind: 'simple', commands: [], bareAssignmentNames: [] }
   const root = await parseCommandRaw(cmd)
   return root === null
     ? { kind: 'parse-unavailable' }
@@ -438,7 +443,7 @@ export function parseForSecurityFromAst(
 
   const trimmed = cmd.trim()
   if (trimmed === '') {
-    return { kind: 'simple', commands: [] }
+    return { kind: 'simple', commands: [], bareAssignmentNames: [] }
   }
 
   if (root === PARSE_ABORTED) {
@@ -470,9 +475,10 @@ function walkProgram(root: Node): ParseForSecurityResult {
   // `NOW=$(date) && jq --arg now "$NOW" ...` — $NOW is known to be the
   // $(date) output (already extracted as inner command).
   const varScope = new Map<string, string>()
-  const err = collectCommands(root, commands, varScope)
+  const bareAssignmentNames: string[] = []
+  const err = collectCommands(root, commands, varScope, bareAssignmentNames)
   if (err) return err
-  return { kind: 'simple', commands }
+  return { kind: 'simple', commands, bareAssignmentNames }
 }
 
 /**
@@ -483,18 +489,30 @@ function collectCommands(
   node: Node,
   commands: SimpleCommand[],
   varScope: Map<string, string>,
+  bareAssignmentNames: string[],
 ): ParseForSecurityResult | null {
   if (node.type === 'command') {
     // Pass `commands` as the innerCommands accumulator — any $() extracted
     // during walkCommand gets appended alongside the outer command.
-    const result = walkCommand(node, [], commands, varScope)
+    const result = walkCommand(
+      node,
+      [],
+      commands,
+      varScope,
+      bareAssignmentNames,
+    )
     if (result.kind !== 'simple') return result
     commands.push(...result.commands)
     return null
   }
 
   if (node.type === 'redirected_statement') {
-    return walkRedirectedStatement(node, commands, varScope)
+    return walkRedirectedStatement(
+      node,
+      commands,
+      varScope,
+      bareAssignmentNames,
+    )
   }
 
   if (node.type === 'comment') {
@@ -558,7 +576,7 @@ function collectCommands(
         }
         continue
       }
-      const err = collectCommands(child, commands, scope)
+      const err = collectCommands(child, commands, scope, bareAssignmentNames)
       if (err) return err
     }
     return null
@@ -571,7 +589,7 @@ function collectCommands(
     for (const child of node.children) {
       if (!child) continue
       if (child.type === '!') continue
-      return collectCommands(child, commands, varScope)
+      return collectCommands(child, commands, varScope, bareAssignmentNames)
     }
     return null
   }
@@ -656,7 +674,12 @@ function collectCommands(
           break
         }
         case 'variable_assignment': {
-          const ev = walkVariableAssignment(child, commands, varScope)
+          const ev = walkVariableAssignment(
+            child,
+            commands,
+            varScope,
+            bareAssignmentNames,
+          )
           if ('kind' in ev) return ev
           // export/declare assignments populate the scope so later $VAR refs resolve.
           applyVarToScope(varScope, ev)
@@ -683,10 +706,18 @@ function collectCommands(
     // inner command. Does NOT push to commands — a bare assignment needs
     // no permission rule (it's inert). Common pattern: `VAR=x && cmd`
     // where cmd references $VAR. ~35% of too-complex in top-5k ant cmds.
-    const ev = walkVariableAssignment(node, commands, varScope)
+    const ev = walkVariableAssignment(
+      node,
+      commands,
+      varScope,
+      bareAssignmentNames,
+    )
     if ('kind' in ev) return ev
     // Populate scope so later `$VAR` references resolve.
     applyVarToScope(varScope, ev)
+    // Official 2.1.145: track so read-only auto-allow cannot bypass
+    // `UNSAFE=x && readonly-cmd` (assignment is not in commands[]).
+    bareAssignmentNames.push(ev.name)
     return null
   }
 
@@ -723,7 +754,12 @@ function collectCommands(
         continue // structural tokens
       } else if (child.type === 'command_substitution') {
         // `for i in $(seq 1 3)` — inner cmd IS extracted and rule-checked.
-        const err = collectCommandSubstitution(child, commands, varScope)
+        const err = collectCommandSubstitution(
+          child,
+          commands,
+          varScope,
+          bareAssignmentNames,
+        )
         if (err) return err
       } else {
         // Iteration values — validated via walkArgument. Value discarded:
@@ -755,7 +791,7 @@ function collectCommands(
     for (const c of doGroup.children) {
       if (!c) continue
       if (c.type === 'do' || c.type === 'done' || c.type === ';') continue
-      const err = collectCommands(c, commands, bodyScope)
+      const err = collectCommands(c, commands, bodyScope, bareAssignmentNames)
       if (err) return err
     }
     return null
@@ -804,7 +840,12 @@ function collectCommands(
         for (const c of child.children) {
           if (!c) continue
           if (c.type === 'do' || c.type === 'done' || c.type === ';') continue
-          const err = collectCommands(c, commands, bodyScope)
+          const err = collectCommands(
+            c,
+            commands,
+            bodyScope,
+            bareAssignmentNames,
+          )
           if (err) return err
         }
         continue
@@ -823,7 +864,12 @@ function collectCommands(
           ) {
             continue
           }
-          const err = collectCommands(c, commands, branchScope)
+          const err = collectCommands(
+            c,
+            commands,
+            branchScope,
+            bareAssignmentNames,
+          )
           if (err) return err
         }
         continue
@@ -834,7 +880,12 @@ function collectCommands(
       // collected, track VAR in the REAL scope so the body COPY inherits it.
       const targetScope = seenThen ? new Map(varScope) : varScope
       const before = commands.length
-      const err = collectCommands(child, commands, targetScope)
+      const err = collectCommands(
+        child,
+        commands,
+        targetScope,
+        bareAssignmentNames,
+      )
       if (err) return err
       // If condition included `read VAR...`, track vars in REAL scope.
       // read var value is UNKNOWN (stdin input) → use VAR_PLACEHOLDER
@@ -888,7 +939,12 @@ function collectCommands(
     for (const child of node.children) {
       if (!child) continue
       if (child.type === '(' || child.type === ')') continue
-      const err = collectCommands(child, commands, innerScope)
+      const err = collectCommands(
+        child,
+        commands,
+        innerScope,
+        bareAssignmentNames,
+      )
       if (err) return err
     }
     return null
@@ -1018,6 +1074,7 @@ function walkRedirectedStatement(
   node: Node,
   commands: SimpleCommand[],
   varScope: Map<string, string>,
+  bareAssignmentNames: string[],
 ): ParseForSecurityResult | null {
   const redirects: Redirect[] = []
   let innerCommand: Node | null = null
@@ -1055,7 +1112,12 @@ function walkRedirectedStatement(
   }
 
   const before = commands.length
-  const err = collectCommands(innerCommand, commands, varScope)
+  const err = collectCommands(
+    innerCommand,
+    commands,
+    varScope,
+    bareAssignmentNames,
+  )
   if (err) return err
   if (commands.length > before && redirects.length > 0) {
     const last = commands[commands.length - 1]
@@ -1239,6 +1301,7 @@ function walkCommand(
   extraRedirects: Redirect[],
   innerCommands: SimpleCommand[],
   varScope: Map<string, string>,
+  bareAssignmentNames: string[],
 ): ParseForSecurityResult {
   const argv: string[] = []
   const envVars: { name: string; value: string }[] = []
@@ -1249,7 +1312,12 @@ function walkCommand(
 
     switch (child.type) {
       case 'variable_assignment': {
-        const ev = walkVariableAssignment(child, innerCommands, varScope)
+        const ev = walkVariableAssignment(
+          child,
+          innerCommands,
+          varScope,
+          bareAssignmentNames,
+        )
         if ('kind' in ev) return ev
         // SECURITY: Env-prefix assignments (`VAR=x cmd`) are command-local in
         // bash — VAR is only visible to `cmd` as an env var, NOT to
@@ -1359,6 +1427,7 @@ function walkCommand(
   return {
     kind: 'simple',
     commands: [{ argv, envVars, redirects, text }],
+    bareAssignmentNames: [],
   }
 }
 
@@ -1375,6 +1444,7 @@ function collectCommandSubstitution(
   csNode: Node,
   innerCommands: SimpleCommand[],
   varScope: Map<string, string>,
+  bareAssignmentNames: string[],
 ): ParseForSecurityResult | null {
   // Vars set BEFORE the $() are visible inside (bash subshell semantics),
   // but vars set INSIDE don't leak out. Pass a COPY of the outer scope so
@@ -1386,7 +1456,12 @@ function collectCommandSubstitution(
     if (child.type === '$(' || child.type === '`' || child.type === ')') {
       continue
     }
-    const err = collectCommands(child, innerCommands, innerScope)
+    const err = collectCommands(
+      child,
+      innerCommands,
+      innerScope,
+      bareAssignmentNames,
+    )
     if (err) return err
   }
   return null
@@ -1597,7 +1672,12 @@ function walkString(
         // `echo "SHA: $(git rev-parse HEAD)"` → extracts BOTH
         // `echo "SHA: $(...)"` AND `git rev-parse HEAD` — both must match
         // permission rules. ~27% of too-complex in top-5k ant cmds.
-        const err = collectCommandSubstitution(child, innerCommands, varScope)
+        const err = collectCommandSubstitution(
+          child,
+          innerCommands,
+          varScope,
+          [],
+        )
         if (err) return err
         result += CMDSUB_PLACEHOLDER
         sawDynamicPlaceholder = true
@@ -1778,6 +1858,7 @@ function walkVariableAssignment(
   node: Node,
   innerCommands: SimpleCommand[],
   varScope: Map<string, string>,
+  bareAssignmentNames: string[],
 ): { name: string; value: string; isAppend: boolean } | ParseForSecurityResult {
   let name: string | null = null
   let value = ''
@@ -1799,7 +1880,12 @@ function walkVariableAssignment(
       // `VAR=$(date)` runs `date`, stores output. `VAR=$(rm -rf /)` runs
       // `rm` — the inner command IS checked against permission rules, so
       // `rm` must match a rule. The variable just holds whatever `rm` prints.
-      const err = collectCommandSubstitution(child, innerCommands, varScope)
+      const err = collectCommandSubstitution(
+        child,
+        innerCommands,
+        varScope,
+        bareAssignmentNames,
+      )
       if (err) return err
       value = CMDSUB_PLACEHOLDER
     } else if (child.type === 'simple_expansion') {

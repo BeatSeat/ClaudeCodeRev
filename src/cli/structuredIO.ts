@@ -14,6 +14,7 @@ import type {
 } from 'src/entrypoints/agentSdkTypes.js'
 import {
   SDKControlElicitationResponseSchema,
+  SDKControlHostAuthTokenRefreshResponseSchema,
   SDKControlOAuthTokenRefreshResponseSchema,
 } from 'src/entrypoints/sdk/controlSchemas.js'
 import type {
@@ -549,6 +550,17 @@ export class StructuredIO {
       AbortSignal.timeout(30_000),
     )
     return response.accessToken
+  }
+
+  async requestHostAuthTokenRefresh(
+    timeoutMs?: number,
+  ): Promise<string | null> {
+    const response = await this.sendRequest<{ authToken: string | null }>(
+      { subtype: 'host_auth_token_refresh' },
+      SDKControlHostAuthTokenRefreshResponseSchema(),
+      AbortSignal.timeout(timeoutMs ?? 30_000),
+    )
+    return response.authToken
   }
 
   createCanUseTool(

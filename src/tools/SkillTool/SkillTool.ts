@@ -273,6 +273,7 @@ async function executeForkedSkill(
       canUseTool,
       isAsync: false,
       querySource: 'agent:custom',
+      spawnedBySkill: command.name,
       model: command.model as ModelAlias | undefined,
       availableTools: context.options.tools,
       override: { agentId },
@@ -457,6 +458,21 @@ export const SkillTool: Tool<InputSchema, Output, Progress> = buildTool({
           ? `Unknown skill: ${normalizedCommandName}. Did you mean ${suggestion}?`
           : `Unknown skill: ${normalizedCommandName}`,
         errorCode: 2,
+      }
+    }
+
+    // Official 2.1.145: a `context: fork` skill must not re-invoke itself
+    // from the subagent that is already executing it.
+    if (
+      foundCommand.type === 'prompt' &&
+      foundCommand.context === 'fork' &&
+      context.options.spawnedBySkill === foundCommand.name
+    ) {
+      logEvent('tengu_skill_tool_fork_recursion_blocked', {})
+      return {
+        result: false,
+        message: `Skill ${normalizedCommandName} is already executing in this forked context — you are the subagent running it. Execute the instructions in the skill body directly instead of re-invoking the ${SKILL_TOOL_NAME} tool.`,
+        errorCode: 9,
       }
     }
 

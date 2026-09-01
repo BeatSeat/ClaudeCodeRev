@@ -534,6 +534,16 @@ function isSafeEnvVarName(name: string): boolean {
   )
 }
 
+/**
+ * Official 2.1.145 `S4H` + `cf$` in `WK8`: bare `VAR=value` to a name that
+ * is not on the bash SAFE list can change later commands. Official `cf$`
+ * is currently gated off (`KnK=!1`) and returns null, which treats every
+ * non-allowlisted name as present.
+ */
+export function hasNonAllowlistedBareAssignment(names: string[]): boolean {
+  return names.some(name => !SAFE_ENV_VARS.has(name))
+}
+
 const ENV_ASSIGN_PREFIX_RE = /^([A-Za-z_][A-Za-z0-9_]*)\+?=/
 const ENV_ASSIGN_CONSUME_RE =
   /^[A-Za-z_][A-Za-z0-9_]*\+?=(?:"[^"$`\\]*"|'[^']*'|[A-Za-z0-9_./:+-]*)[ \t]+/

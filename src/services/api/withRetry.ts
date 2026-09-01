@@ -21,6 +21,7 @@ import {
   clearAwsCredentialsCache,
   clearGcpCredentialsCache,
   getClaudeAIOAuthTokens,
+  handleHostAuth401Error,
   handleOAuth401Error,
   isClaudeAISubscriber,
   isEnterpriseSubscriber,
@@ -256,6 +257,7 @@ export async function* withRetry<T>(
           if (failedAccessToken) {
             await handleOAuth401Error(failedAccessToken)
           }
+          await handleHostAuth401Error()
         }
         client = await getClient()
       }

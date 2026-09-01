@@ -1,0 +1,109 @@
+{
+  "version": "2.1.145",
+  "fromVersion": "2.1.144",
+  "expectedFunctionCount": 0,
+  "functions": [],
+  "changelogCoverage": [
+    {
+      "item": "claude agents --json live sessions",
+      "status": "located",
+      "evidence": "main.tsx --json help + printAgentsJson/listLiveSessions (ENH/l_A). cli_agents_json in dist."
+    },
+    {
+      "item": "OTEL agent_id/parent_agent_id on claude_code.tool spans",
+      "status": "located",
+      "evidence": "sessionTracing.startToolSpan setAttribute pair; AgentTool parentAgentId."
+    },
+    {
+      "item": "Status line JSON GitHub repo and PR",
+      "status": "located",
+      "evidence": "Ll5 extras: workspace.repo via s6H/parseGitRemoteRepo; pr.review_state. Official docs copied into statuslineSetup.ts."
+    },
+    {
+      "item": "/plugin Discover/Browse capability preview",
+      "status": "absent-in-bundle",
+      "evidence": "No 145-unique product string. Discover 141→142 only. Not invented."
+    },
+    {
+      "item": "claude agents tab title awaiting-input count",
+      "status": "absent-in-bundle",
+      "evidence": "No unique string isolated. CLI --json is the unique agents land."
+    },
+    {
+      "item": "Suggestion list mouse hover/click in fullscreen",
+      "status": "shared-logic",
+      "evidence": "hover/onMouse structural growth only. Not invented."
+    },
+    {
+      "item": "Stop/SubagentStop background_tasks and session_crons",
+      "status": "located",
+      "evidence": "Zod leaked into 144 fold (f5ff920). 145 lands CE$/SR4/IR4 producers + executeStopHooks spread."
+    },
+    {
+      "item": "Bare assignment auto-approve bypass",
+      "status": "located",
+      "evidence": "bareAssignmentNames + hasNonAllowlistedBareAssignment (S4H) + WK8 message."
+    },
+    {
+      "item": "MCP prompt missing required argument",
+      "status": "located",
+      "evidence": "getPromptForCommand unique Error string in mcp/client.ts."
+    },
+    {
+      "item": "Spinner freeze after resize/refocus",
+      "status": "partial",
+      "evidence": "Only unique neighbor is tengu_shining_fractals V$(…,!1). default-false-growthbook; not landed."
+    },
+    {
+      "item": "Windows PowerShell resume-hint semicolon",
+      "status": "absent-in-bundle",
+      "evidence": "No unique token isolated. Not invented."
+    },
+    {
+      "item": "Voice PTT in agent-view reply pane",
+      "status": "shared-logic",
+      "evidence": "voice 226→232; no unique string."
+    },
+    {
+      "item": "Task list creation order",
+      "status": "absent-in-bundle",
+      "evidence": "No unique string. Not invented."
+    },
+    {
+      "item": "Stale Anthropic marketplace banner",
+      "status": "shared-logic",
+      "evidence": "Copy 1→1. Genuine marketplace rows are React-compiler cache."
+    },
+    {
+      "item": "Footer PR badge live update after gh pr create",
+      "status": "partial",
+      "evidence": "Statusline JSON pr field landed. AppState.prStatus lift has no unique string; not invented."
+    },
+    {
+      "item": "Agent Teams non-ASCII header encoding",
+      "status": "shared-logic",
+      "evidence": "encodeURIComponent 67→68. Not invented."
+    },
+    {
+      "item": "/review Classic Projects projectCards GraphQL",
+      "status": "shared-logic",
+      "evidence": "projectCards 0→0 both sides."
+    },
+    {
+      "item": "claude plugin validate skills: file vs directory",
+      "status": "located",
+      "evidence": "validatePlugin.ts official copy + parent-directory hint."
+    },
+    {
+      "item": "Skill context:fork recursion loop",
+      "status": "located",
+      "evidence": "SkillTool validateInput + spawnedBySkill; tengu_skill_tool_fork_recursion_blocked in dist."
+    },
+    {
+      "item": "Read tool PARTIAL view instead of hard error",
+      "status": "located",
+      "evidence": "Hz$ pager + truncatedByTokenCap schema/consumers. Dist PARTIAL view 1."
+    }
+  ],
+  "notes": "Ast-only also: host-auth OAuth twin (x74/xk8/NAH/jh9). Default-false: tengu_shining_fractals. Deferred-large-infra: Cs_ pewter_summit / spend-limit nudge. Docs-in-bundle: ANTHROPIC_ENVIRONMENT_ID/KEY, ANTHROPIC_SESSION_ID, ANTHROPIC_WORK_ID. Do not pull 146 LzA/CLAUDE_BG_SESSION_PERMISSION_RULES into this hop. Four-domain review PASS. Typecheck delta vs HEAD: 145 files clean; permissionSetup +2 is 146 LzA (excluded)."
+}

@@ -210,11 +210,34 @@ export async function validatePluginManifest(
     // Check skills
     if (obj.skills) {
       const skills = Array.isArray(obj.skills) ? obj.skills : [obj.skills]
-      skills.forEach((skill, i) => {
-        if (typeof skill === 'string') {
-          checkPathTraversal(skill, `skills[${i}]`, errors)
+      const pluginRoot =
+        path.basename(path.dirname(absolutePath)) === '.claude-plugin'
+          ? path.dirname(path.dirname(absolutePath))
+          : path.dirname(absolutePath)
+      for (let i = 0; i < skills.length; i++) {
+        const skill = skills[i]
+        if (typeof skill !== 'string') continue
+        checkPathTraversal(skill, `skills[${i}]`, errors)
+        if (skill.includes('..')) continue
+        // Official 2.1.145: `skills:` must name a directory, not SKILL.md.
+        try {
+          const st = await stat(path.resolve(pluginRoot, skill))
+          if (!st.isDirectory()) {
+            const parent = path.dirname(skill)
+            const hint =
+              path.basename(skill).toLowerCase() === 'skill.md' &&
+              parent !== '.'
+                ? ` — point to the parent directory '${parent}' instead`
+                : ''
+            errors.push({
+              path: `skills[${i}]`,
+              message: `Path is a file; skills entries must be directories containing SKILL.md${hint}: ${skill}`,
+            })
+          }
+        } catch {
+          // ENOENT / unreadable — schema/path checks already cover missing paths
         }
-      })
+      }
     }
   }
 

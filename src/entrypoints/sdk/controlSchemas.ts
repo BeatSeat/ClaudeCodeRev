@@ -601,6 +601,26 @@ export const SDKControlOAuthTokenRefreshResponseSchema = lazySchema(() =>
     ),
 )
 
+export const SDKControlHostAuthTokenRefreshRequestSchema = lazySchema(() =>
+  z
+    .object({
+      subtype: z.literal('host_auth_token_refresh'),
+    })
+    .describe(
+      '@internal Request from the CLI subprocess to the SDK host for a fresh provider auth token after a 401 when the host owns the credential (Cowork 3P).',
+    ),
+)
+
+export const SDKControlHostAuthTokenRefreshResponseSchema = lazySchema(() =>
+  z
+    .object({
+      authToken: z.string().nullable(),
+    })
+    .describe(
+      '@internal Fresh provider auth token returned by the SDK host getHostAuthToken callback, or null when the host has no token available.',
+    ),
+)
+
 
 // ============================================================================
 // Control Request/Response Wrappers
@@ -633,6 +653,7 @@ export const SDKControlRequestInnerSchema = lazySchema(() =>
     SDKControlGetSettingsRequestSchema(),
     SDKControlElicitationRequestSchema(),
     SDKControlOAuthTokenRefreshRequestSchema(),
+    SDKControlHostAuthTokenRefreshRequestSchema(),
   ]),
 )
 

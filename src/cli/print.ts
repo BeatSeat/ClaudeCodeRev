@@ -197,7 +197,9 @@ import {
 import { getLastCacheSafeParams } from 'src/utils/forkedAgent.js'
 import {
   getAccountInformation,
+  SDK_HOST_AUTH_REFRESH_ENTRYPOINTS,
   SDK_OAUTH_REFRESH_ENTRYPOINTS,
+  setSdkHostAuthTokenRefreshCallback,
   setSdkOAuthTokenRefreshCallback,
 } from 'src/utils/auth.js'
 import { OAuthService } from 'src/services/oauth/index.js'
@@ -657,6 +659,20 @@ export async function runHeadless(
   ) {
     setSdkOAuthTokenRefreshCallback(() =>
       structuredIO.requestOAuthTokenRefresh(),
+    )
+  }
+
+  if (
+    isEnvTruthy(process.env.CLAUDE_CODE_SDK_HAS_HOST_AUTH_REFRESH) &&
+    SDK_HOST_AUTH_REFRESH_ENTRYPOINTS.has(
+      process.env.CLAUDE_CODE_ENTRYPOINT ?? '',
+    )
+  ) {
+    const timeoutMs = Number(process.env.CLAUDE_CODE_HOST_AUTH_REFRESH_TIMEOUT_MS)
+    setSdkHostAuthTokenRefreshCallback(() =>
+      structuredIO.requestHostAuthTokenRefresh(
+        Number.isFinite(timeoutMs) && timeoutMs > 0 ? timeoutMs : undefined,
+      ),
     )
   }
 

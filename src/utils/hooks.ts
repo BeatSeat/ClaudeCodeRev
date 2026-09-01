@@ -17,6 +17,10 @@ import {
 } from './sessionEnvironment.js'
 import { subprocessEnv } from './subprocessEnv.js'
 import { sleep } from './sleep.js'
+import {
+  projectStopHookBackgroundTasks,
+  projectStopHookSessionCrons,
+} from './stopHookSnapshot.js'
 import { getPlatform } from './platform.js'
 import { findGitBashPath, windowsPathToPosixPath } from './windowsPaths.js'
 import { getCachedPowerShellPath } from './shell/powershellDetection.js'
@@ -4168,6 +4172,15 @@ export async function* executeStopHooks(
       undefined
     : undefined
 
+  const stopHookSnapshot = toolUseContext
+    ? {
+        background_tasks: projectStopHookBackgroundTasks(
+          toolUseContext.getAppState().tasks,
+        ),
+        session_crons: projectStopHookSessionCrons(),
+      }
+    : undefined
+
   const hookInput = (
     subagentId
       ? {
@@ -4178,12 +4191,14 @@ export async function* executeStopHooks(
           agent_transcript_path: getAgentTranscriptPath(subagentId),
           agent_type: agentType ?? '',
           last_assistant_message: lastAssistantText,
+          ...stopHookSnapshot,
         }
       : {
           ...createBaseHookInput(permissionMode),
           hook_event_name: 'Stop',
           stop_hook_active: stopHookActive,
           last_assistant_message: lastAssistantText,
+          ...stopHookSnapshot,
         }
   ) as StopHookInput | SubagentStopHookInput
 

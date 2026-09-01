@@ -42,7 +42,9 @@ import {
   getDisplayedEffortLevel,
   modelSupportsEffort,
 } from '../utils/effort.js'
-import { getGitWorktreeName } from '../utils/git.js'
+import { getGitWorktreeName, getRemoteUrl, parseGitRemoteRepo } from '../utils/git.js'
+import { usePrStatus } from '../hooks/usePrStatus.js'
+import type { PrStatusState } from '../hooks/usePrStatus.js'
 import { isFullscreenEnvEnabled } from '../utils/fullscreen.js'
 import {
   createBaseHookInput,
@@ -77,6 +79,8 @@ function buildStatusLineCommandInput(
   addedDirs: string[],
   mainLoopModel: ModelName,
   gitWorktreeName: string | null,
+  repo: StatusLineCommandInput['workspace']['repo'] | null,
+  prStatus: PrStatusState | null,
   vimMode: VimMode | undefined,
   effortValue: EffortValue | undefined,
   thinkingEnabled: boolean | undefined,
@@ -129,6 +133,7 @@ function buildStatusLineCommandInput(
       project_dir: getOriginalCwd(),
       added_dirs: addedDirs,
       ...(gitWorktreeName && { git_worktree: gitWorktreeName }),
+      ...(repo && { repo }),
     },
     version: MACRO.VERSION,
     output_style: {
@@ -181,6 +186,14 @@ function buildStatusLineCommandInput(
         original_branch: worktreeSession.originalBranch,
       },
     }),
+    ...(prStatus?.number != null &&
+      prStatus.url && {
+        pr: {
+          number: prStatus.number,
+          url: prStatus.url,
+          ...(prStatus.reviewState && { review_state: prStatus.reviewState }),
+        },
+      }),
   }
 }
 
@@ -216,6 +229,7 @@ function StatusLineInner({
   const mainLoopModel = useMainLoopModel()
   const effortValue = useAppState(s => s.effortValue)
   const thinkingEnabled = useAppState(s => s.thinkingEnabled)
+  const prStatus = usePrStatus(true)
 
   // Keep latest values in refs for stable callback access
   const settingsRef = useRef(settings)
@@ -232,6 +246,8 @@ function StatusLineInner({
   effortValueRef.current = effortValue
   const thinkingEnabledRef = useRef(thinkingEnabled)
   thinkingEnabledRef.current = thinkingEnabled
+  const prStatusRef = useRef(prStatus)
+  prStatusRef.current = prStatus
 
   // Track previous state to detect changes and cache expensive calculations
   const previousStateRef = useRef<{
@@ -284,6 +300,11 @@ function StatusLineInner({
         previousStateRef.current.exceeds200kTokens = exceeds200kTokens
       }
 
+      const cwd = getCwd()
+      const [gitWorktreeName, remoteUrl] = await Promise.all([
+        getGitWorktreeName(cwd),
+        getIsRemoteMode() ? Promise.resolve(null) : getRemoteUrl(),
+      ])
       const statusInput = buildStatusLineCommandInput(
         permissionModeRef.current,
         exceeds200kTokens,
@@ -291,7 +312,9 @@ function StatusLineInner({
         msgs,
         Array.from(addedDirsRef.current.keys()),
         mainLoopModelRef.current,
-        await getGitWorktreeName(getCwd()),
+        gitWorktreeName,
+        remoteUrl ? parseGitRemoteRepo(remoteUrl) : null,
+        prStatusRef.current,
         vimModeRef.current,
         effortValueRef.current,
         thinkingEnabledRef.current,

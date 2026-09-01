@@ -46,7 +46,12 @@ How to use the statusLine command:
        "current_dir": "string",  // Current working directory path
        "project_dir": "string",  // Project root directory path
        "added_dirs": ["string"], // Directories added via /add-dir
-       "git_worktree": "string"  // Optional: git worktree name when cwd is in a linked worktree
+       "git_worktree": "string", // Optional: git worktree name when cwd is in a linked worktree
+       "repo": {                 // Optional: repository identity from the origin remote
+         "host": "string",       // Remote host (e.g., "github.com")
+         "owner": "string",      // Repository owner/organization (e.g., "anthropics")
+         "name": "string"        // Repository name (e.g., "claude-code")
+       }
      },
      "version": "string",        // Claude Code app version (e.g., "1.0.71")
      "output_style": {
@@ -88,6 +93,11 @@ How to use the statusLine command:
        "branch": "string",         // Optional: Git branch name for the worktree
        "original_cwd": "string",   // The directory Claude was in before entering the worktree
        "original_branch": "string" // Optional: Branch that was checked out before entering the worktree
+     },
+     "pr": {                       // Optional: open PR for the current branch (mirrors the footer PR badge)
+       "number": number,           // PR number
+       "url": "string",            // PR URL
+       "review_state": "approved" | "pending" | "changes_requested" | "draft"  // Optional review status
      }
    }
    
@@ -110,6 +120,12 @@ How to use the statusLine command:
 
    To display both 5-hour and 7-day limits when available:
    - input=$(cat); five=$(echo "$input" | jq -r '.rate_limits.five_hour.used_percentage // empty'); week=$(echo "$input" | jq -r '.rate_limits.seven_day.used_percentage // empty'); out=""; [ -n "$five" ] && out="5h:$(printf '%.0f' "$five")%"; [ -n "$week" ] && out="$out 7d:$(printf '%.0f' "$week")%"; echo "$out"
+
+   To display the GitHub repo (owner/name) when in a git repository:
+   - input=$(cat); repo=$(echo "$input" | jq -r '.workspace.repo | if . then .owner + "/" + .name else empty end'); [ -n "$repo" ] && echo "$repo"
+
+   To display the open PR for the current branch when one exists:
+   - input=$(cat); pr=$(echo "$input" | jq -r '.pr.number // empty'); [ -n "$pr" ] && echo "PR #$pr ($(echo "$input" | jq -r '.pr.review_state // "open"'))"
 
 2. For longer commands, you can save a new file in the user's ~/.claude directory, e.g.:
    - ~/.claude/statusline-command.sh and reference that file in the settings.

@@ -177,6 +177,8 @@ export type ToolUseContext = {
     appendSystemPrompt?: string
     /** Override querySource for analytics tracking */
     querySource?: QuerySource
+    /** Official 2.1.145: skill name that spawned this forked subagent. */
+    spawnedBySkill?: string
     /** Optional callback to get the latest tools (e.g., after MCP servers connect mid-query) */
     refreshTools?: () => Tools
   }

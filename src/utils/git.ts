@@ -336,6 +336,43 @@ export function normalizeGitRemoteUrl(url: string): string | null {
   return null
 }
 
+export type GitRemoteRepo = {
+  host: string
+  owner: string
+  name: string
+}
+
+function isDottedHostname(host: string): boolean {
+  if (!host.includes('.')) return false
+  const tld = host.split('.').pop()
+  return tld !== undefined && /^[a-zA-Z]+$/.test(tld)
+}
+
+/** Official 2.1.145 `s6H`: parse a git remote into `{host,owner,name}`. */
+export function parseGitRemoteRepo(url: string): GitRemoteRepo | null {
+  const trimmed = url.trim()
+  const ssh = trimmed.match(/^git@([^:]+):([^/]+)\/([^/]+?)(?:\.git)?$/)
+  if (ssh?.[1] && ssh[2] && ssh[3]) {
+    if (!isDottedHostname(ssh[1])) return null
+    return { host: ssh[1], owner: ssh[2], name: ssh[3] }
+  }
+  const http = trimmed.match(
+    /^(https?|ssh|git):\/\/(?:[^@]+@)?([^/:]+(?::\d+)?)\/([^/]+)\/([^/]+?)(?:\.git)?$/,
+  )
+  if (http?.[1] && http[2] && http[3] && http[4]) {
+    const scheme = http[1]
+    const hostPort = http[2]
+    const host = hostPort.split(':')[0] ?? hostPort
+    if (!isDottedHostname(host)) return null
+    return {
+      host: scheme === 'https' || scheme === 'http' ? hostPort : host,
+      owner: http[3],
+      name: http[4],
+    }
+  }
+  return null
+}
+
 /**
  * Returns a SHA256 hash (first 16 chars) of the normalized git remote URL.
  * This provides a globally unique identifier for the repository that:
