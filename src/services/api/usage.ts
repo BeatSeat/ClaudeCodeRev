@@ -7,6 +7,7 @@ import {
 } from '../../utils/auth.js'
 import { getAuthHeaders } from '../../utils/http.js'
 import { getClaudeCodeUserAgent } from '../../utils/userAgent.js'
+import { getRawUtilization } from '../claudeAiLimits.js'
 import { isOAuthTokenExpired } from '../oauth/client.js'
 
 export type RateLimit = {
@@ -28,6 +29,27 @@ export type Utilization = {
   seven_day_opus?: RateLimit | null
   seven_day_sonnet?: RateLimit | null
   extra_usage?: ExtraUsage | null
+}
+
+/** Official 2.1.116 `nk7`: map already-seen 5h/weekly headers into Usage bars. */
+export function utilizationFromRawHeaders(): Utilization | null {
+  const raw = getRawUtilization()
+  if (!raw.five_hour && !raw.seven_day) {
+    return null
+  }
+  const map = (
+    window: { utilization: number; resets_at: number } | undefined,
+  ): RateLimit | undefined =>
+    window
+      ? {
+          utilization: window.utilization * 100,
+          resets_at: new Date(window.resets_at * 1000).toISOString(),
+        }
+      : undefined
+  return {
+    five_hour: map(raw.five_hour),
+    seven_day: map(raw.seven_day),
+  }
 }
 
 export async function fetchUtilization(): Promise<Utilization | null> {

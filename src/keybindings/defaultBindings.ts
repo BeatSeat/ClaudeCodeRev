@@ -76,11 +76,15 @@ export const DEFAULT_BINDINGS: KeybindingBlock[] = [
       up: 'history:previous',
       down: 'history:next',
       // Editing shortcuts (defined here, migration in progress)
-      // Undo has two bindings to support different terminal behaviors:
+      // Undo bindings cover legacy control chars and Kitty keyboard protocol
+      // physical-key variants (official 2.1.116 added ctrl+- / ctrl+shift+_):
       // - ctrl+_ for legacy terminals (send \x1f control char)
-      // - ctrl+shift+- for Kitty protocol (sends physical key with modifiers)
+      // - ctrl+- for Kitty CSI-u Ctrl+minus (codepoint 45)
+      // - ctrl+shift+- / ctrl+shift+_ for shifted Kitty / modifyOtherKeys
       'ctrl+_': 'chat:undo',
+      'ctrl+-': 'chat:undo',
       'ctrl+shift+-': 'chat:undo',
+      'ctrl+shift+_': 'chat:undo',
       // ctrl+x ctrl+e is the readline-native edit-and-execute-command binding.
       'ctrl+x ctrl+e': 'chat:externalEditor',
       'ctrl+g': 'chat:externalEditor',

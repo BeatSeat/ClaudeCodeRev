@@ -10,9 +10,11 @@ import type { FocusMove, SelectionState } from '../ink/selection.js'
 import { isXtermJs } from '../ink/terminal.js'
 import { getClipboardPath } from '../ink/termio/osc.js'
 // eslint-disable-next-line custom-rules/prefer-use-keybindings -- Esc needs conditional propagation based on selection state
-import { type Key, useInput } from '../ink.js'
+import { type Key, useInput, useStdin } from '../ink.js'
 import { useKeybindings } from '../keybindings/useKeybinding.js'
+import { logEvent } from '../services/analytics/index.js'
 import { logForDebugging } from '../utils/debug.js'
+import type { Notification } from '../context/notifications.js'
 import { getGraphemeSegmenter } from '../utils/intl.js'
 
 /** Official 113 pG8 — grapheme count so the copy toast doesn't overcount emoji. */
@@ -435,6 +437,37 @@ const AUTOSCROLL_MAX_TICKS = 200 // 10s @ 50ms
  * Scrolling breaks sticky mode; Ctrl+End re-enables it. Wheeling down at
  * the bottom also re-enables sticky so new content follows naturally.
  */
+/** Official 2.1.116 `te1` / `se1`. 120 rewrites the suffix. */
+function useScrollAsArrowsHint(
+  addNotification: (n: Notification) => void,
+): void {
+  const { internal_eventEmitter } = useStdin()
+  const shown = useRef(false)
+  useEffect(() => {
+    const onBurst = (ev: { count?: number; direction?: string }) => {
+      if (shown.current) return
+      shown.current = true
+      logEvent('tengu_scroll_arrows_detected', {
+        count: ev.count,
+        up: ev.direction === 'up',
+      })
+      setTimeout(() => {
+        addNotification({
+          key: 'scroll-as-arrows',
+          priority: 'immediate',
+          text: 'Scroll wheel is sending arrow keys · run /terminal-setup to fix',
+          color: 'warning',
+          timeoutMs: 12000,
+        })
+      }, 200)
+    }
+    internal_eventEmitter.on('arrow-burst', onBurst)
+    return () => {
+      internal_eventEmitter.off('arrow-burst', onBurst)
+    }
+  }, [internal_eventEmitter, addNotification])
+}
+
 export function ScrollKeybindingHandler({
   scrollRef,
   isActive,
@@ -443,6 +476,7 @@ export function ScrollKeybindingHandler({
 }: Props): React.ReactNode {
   const selection = useSelection()
   const { addNotification } = useNotifications()
+  useScrollAsArrowsHint(addNotification)
   // Lazy-inited on first wheel event so the XTVERSION probe (fired at
   // raw-mode-enable time) has resolved by then — initializing in useRef()
   // would read getWheelBase() before the probe reply arrives over SSH.

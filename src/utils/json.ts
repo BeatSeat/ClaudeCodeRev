@@ -225,6 +225,35 @@ export async function readJSONLFile<T>(filePath: string): Promise<T[]> {
   return parseJSONL<T>(buf.subarray(0, totalRead))
 }
 
+/**
+ * Set a top-level property on a jsonc object, preserving comments and formatting.
+ * Official 2.1.116 `Tg6` — used by `/terminal-setup` to write
+ * `terminal.integrated.mouseWheelScrollSensitivity`.
+ */
+export function setJSONCProperty(
+  content: string,
+  key: string,
+  value: unknown,
+): string {
+  try {
+    const cleanContent = stripBOM(content || '')
+    const parsed = cleanContent.trim() ? parseJsonc(cleanContent) : {}
+    if (parsed === null || typeof parsed !== 'object' || Array.isArray(parsed)) {
+      return cleanContent
+    }
+    const edits = modify(cleanContent || '{}', [key], value, {
+      formattingOptions: { insertSpaces: true, tabSize: 4 },
+    })
+    if (!edits || edits.length === 0) {
+      return jsonStringify({ ...(parsed as Record<string, unknown>), [key]: value }, null, 4)
+    }
+    return applyEdits(cleanContent || '{}', edits)
+  } catch (e) {
+    logError(e)
+    return content
+  }
+}
+
 export function addItemToJSONCArray(content: string, newItem: unknown): string {
   try {
     // If the content is empty or whitespace, create a new JSON file

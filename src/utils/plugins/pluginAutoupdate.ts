@@ -27,6 +27,8 @@ import {
   refreshMarketplace,
 } from './marketplaceManager.js'
 import { parsePluginIdentifier } from './pluginIdentifier.js'
+import { clearPluginCache, loadAllPlugins } from './pluginLoader.js'
+import { resolveMissingDependencies } from './resolveMissingDependencies.js'
 import { isMarketplaceAutoUpdate, type PluginScope } from './schemas.js'
 
 /**
@@ -269,6 +271,27 @@ export function autoUpdateMarketplacesAndPluginsInBackground(): void {
 
       logForDebugging('Plugin autoupdate: checking installed plugins')
       const updatedPlugins = await updatePlugins(autoUpdateEnabledMarketplaces)
+
+      if (updatedPlugins.length > 0) {
+        clearPluginCache('autoupdate dep-resolution')
+      }
+      const { errors } = await loadAllPlugins()
+      const resolved = await resolveMissingDependencies(
+        errors.filter(error => {
+          if (error.type !== 'dependency-unsatisfied') return false
+          const marketplace = parsePluginIdentifier(error.source).marketplace
+          return (
+            marketplace !== undefined &&
+            autoUpdateEnabledMarketplaces.has(marketplace.toLowerCase())
+          )
+        }),
+      )
+      if (resolved.installed.length > 0) {
+        logForDebugging(
+          `Plugin autoupdate: resolved ${resolved.installed.length} missing plugin dependencies: ${resolved.installed.join(', ')}`,
+        )
+        updatedPlugins.push(...resolved.installed)
+      }
 
       if (updatedPlugins.length > 0) {
         if (pluginUpdateCallback) {

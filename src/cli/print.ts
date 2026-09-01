@@ -328,6 +328,7 @@ import {
   fileHistoryGetDiffStats,
 } from 'src/utils/fileHistory.js'
 import {
+  applyMainThreadAgentHooks,
   restoreAgentFromSession,
   restoreSessionStateFromLog,
 } from 'src/utils/sessionRestore.js'
@@ -4561,6 +4562,7 @@ async function handleInitializeRequest(
     if (mainThreadAgent && !alreadyResolved) {
       // Update the main thread agent type in bootstrap state
       setMainThreadAgentType(mainThreadAgent.agentType)
+      applyMainThreadAgentHooks(mainThreadAgent)
 
       // Apply the agent's system prompt if user hasn't specified a custom one
       // SDK agents are always custom agents (not built-in), so getSystemPrompt() takes no args

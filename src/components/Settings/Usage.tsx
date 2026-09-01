@@ -11,6 +11,7 @@ import {
   fetchUtilization,
   type RateLimit,
   type Utilization,
+  utilizationFromRawHeaders,
 } from '../../services/api/usage.js'
 import { formatResetText } from '../../utils/format.js'
 import { logError } from '../../utils/log.js'
@@ -102,8 +103,11 @@ function LimitBar({
 }
 
 export function Usage(): React.ReactNode {
-  const [utilization, setUtilization] = useState<Utilization | null>(null)
+  const [utilization, setUtilization] = useState<Utilization | null>(
+    utilizationFromRawHeaders,
+  )
   const [error, setError] = useState<string | null>(null)
+  const [refreshWarning, setRefreshWarning] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const { columns } = useTerminalSize()
 
@@ -113,20 +117,36 @@ export function Usage(): React.ReactNode {
   const loadUtilization = React.useCallback(async () => {
     setIsLoading(true)
     setError(null)
+    setRefreshWarning(null)
     try {
       const data = await fetchUtilization()
       setUtilization(data)
     } catch (err) {
       logError(err as Error)
-      const axiosError = err as { response?: { data?: unknown } }
-      const responseBody = axiosError.response?.data
-        ? jsonStringify(axiosError.response.data)
-        : undefined
-      setError(
-        responseBody
-          ? `Failed to load usage data: ${responseBody}`
-          : 'Failed to load usage data',
-      )
+      const axiosError = err as { response?: { status?: number; data?: unknown } }
+      const status = axiosError.response?.status
+      const cached = utilizationFromRawHeaders()
+      if (cached) {
+        setUtilization(prev => prev ?? cached)
+        setRefreshWarning(
+          status === 429
+            ? 'Per-model breakdown unavailable (rate limited — try again in a moment)'
+            : 'Could not refresh usage data',
+        )
+      } else if (status === 429) {
+        setError(
+          'Usage endpoint is rate limited. Please try again in a moment.',
+        )
+      } else {
+        const responseBody = axiosError.response?.data
+          ? jsonStringify(axiosError.response.data)
+          : undefined
+        setError(
+          responseBody
+            ? `Failed to load usage data: ${responseBody}`
+            : 'Failed to load usage data',
+        )
+      }
     } finally {
       setIsLoading(false)
     }
@@ -141,7 +161,7 @@ export function Usage(): React.ReactNode {
     () => {
       void loadUtilization()
     },
-    { context: 'Settings', isActive: !!error && !isLoading },
+    { context: 'Settings', isActive: (!!error || !!refreshWarning) && !isLoading },
   )
 
   if (error) {
@@ -230,6 +250,8 @@ export function Usage(): React.ReactNode {
             />
           ),
       )}
+
+      {refreshWarning && <Text dimColor>{refreshWarning}</Text>}
 
       {utilization.extra_usage && (
         <ExtraUsageSection

@@ -20,7 +20,7 @@ import type { ModelSetting } from 'src/utils/model/model.js'
 import type { ModelStrings } from 'src/utils/model/modelStrings.js'
 import type { SettingSource } from 'src/utils/settings/constants.js'
 import { resetSettingsCache } from 'src/utils/settings/settingsCache.js'
-import type { PluginHookMatcher } from 'src/utils/settings/types.js'
+import type { HooksSettings, PluginHookMatcher } from 'src/utils/settings/types.js'
 import { createSignal } from 'src/utils/signal.js'
 
 // Union type for registered hooks - can be SDK callbacks or native plugin hooks
@@ -197,6 +197,8 @@ type State = {
   sdkBetas: string[] | undefined
   // Main thread agent type (from --agent flag or settings)
   mainThreadAgentType: string | undefined
+  // Frontmatter hooks from the main-thread --agent (official 2.1.116 rAH)
+  mainThreadAgentHooks: HooksSettings | undefined
   // Remote mode (--remote flag)
   isRemoteMode: boolean
   // Direct connect server URL (for display in header)
@@ -389,6 +391,8 @@ function getInitialState(): State {
     sdkBetas: undefined,
     // Main thread agent type
     mainThreadAgentType: undefined,
+    // Main-thread --agent frontmatter hooks
+    mainThreadAgentHooks: undefined,
     // Remote mode
     isRemoteMode: false,
     ...(process.env.USER_TYPE === 'ant'
@@ -1647,6 +1651,16 @@ export function getMainThreadAgentType(): string | undefined {
 
 export function setMainThreadAgentType(agentType: string | undefined): void {
   STATE.mainThreadAgentType = agentType
+}
+
+export function getMainThreadAgentHooks(): HooksSettings | undefined {
+  return STATE.mainThreadAgentHooks
+}
+
+export function setMainThreadAgentHooks(
+  hooks: HooksSettings | undefined,
+): void {
+  STATE.mainThreadAgentHooks = hooks
 }
 
 export function getIsRemoteMode(): boolean {

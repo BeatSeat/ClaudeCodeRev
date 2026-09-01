@@ -63,6 +63,7 @@ import usage from './commands/usage/index.js'
 import theme from './commands/theme/index.js'
 import tui from './commands/tui/index.js'
 import focus from './commands/focus/index.js'
+import update from './commands/update/index.js'
 import { feature } from 'bun:bundle'
 // Dead code elimination: conditional imports
 /* eslint-disable @typescript-eslint/no-require-imports */
@@ -320,6 +321,7 @@ const COMMANDS = memoize((): Command[] => [
   stickers,
   theme,
   tui,
+  update,
   feedback,
   review,
   ultrareview,

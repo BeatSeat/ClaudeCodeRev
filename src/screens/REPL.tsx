@@ -6270,8 +6270,6 @@ export function REPL({
                 streamingText={
                   isLoading && !viewedAgentTask ? visibleStreamingText : null
                 }
-                showThinkingHint={!viewedAgentTask}
-                isThinking={streamMode === 'thinking'}
                 isBriefOnly={viewedAgentTask ? false : isBriefOnly}
                 unseenDivider={viewedAgentTask ? undefined : unseenDivider}
                 scrollRef={isFullscreenEnvEnabled() ? scrollRef : undefined}

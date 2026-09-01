@@ -549,7 +549,9 @@ export default class App extends PureComponent<Props, State> {
     }
 
     process.on('SIGCONT', resumeHandler)
-    process.kill(process.pid, 'SIGSTOP')
+    // Official 2.1.116: SIGTSTP to the process group (pid 0) so a wrapper
+    // (npx / bun run) suspends with us instead of hanging on a stopped child.
+    process.kill(0, 'SIGTSTP')
   }
 }
 

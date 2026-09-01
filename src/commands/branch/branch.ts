@@ -1,17 +1,21 @@
 import { randomUUID, type UUID } from 'crypto'
-import { mkdir, readFile, writeFile } from 'fs/promises'
+import { once } from 'events'
+import { createReadStream, createWriteStream } from 'fs'
+import { mkdir, unlink } from 'fs/promises'
+import { createInterface } from 'readline'
+import { finished } from 'stream/promises'
 import { getOriginalCwd, getSessionId } from '../../bootstrap/state.js'
 import type { LocalJSXCommandContext } from '../../commands.js'
 import { logEvent } from '../../services/analytics/index.js'
 import type { LocalJSXCommandOnDone } from '../../types/command.js'
 import type {
   ContentReplacementEntry,
-  Entry,
   LogOption,
   SerializedMessage,
   TranscriptMessage,
 } from '../../types/logs.js'
-import { parseJSONL } from '../../utils/json.js'
+import { isENOENT } from '../../utils/errors.js'
+import { logError } from '../../utils/log.js'
 import {
   getProjectDir,
   getTranscriptPath,
@@ -20,7 +24,7 @@ import {
   saveCustomTitle,
   searchSessionsByCustomTitle,
 } from '../../utils/sessionStorage.js'
-import { jsonStringify } from '../../utils/slowOperations.js'
+import { jsonParse, jsonStringify } from '../../utils/slowOperations.js'
 import { escapeRegExp } from '../../utils/stringUtils.js'
 
 type TranscriptEntry = TranscriptMessage & {
@@ -54,11 +58,14 @@ export function deriveFirstPrompt(
 }
 
 /**
- * Creates a fork of the current conversation by copying from the transcript file.
- * Preserves all original metadata (timestamps, gitBranch, etc.) while updating
- * sessionId and adding forkedFrom traceability.
+ * Creates a fork of the current conversation by streaming the transcript.
+ * Official 2.1.116 Vv7: no 50MB size gate — readline copy instead of
+ * readFile + parseJSONL of the whole file.
  */
-async function createFork(customTitle?: string): Promise<{
+async function createFork(
+  customTitle?: string,
+  extraMessages?: TranscriptMessage[],
+): Promise<{
   sessionId: UUID
   title: string | undefined
   forkPath: string
@@ -71,97 +78,152 @@ async function createFork(customTitle?: string): Promise<{
   const forkSessionPath = getTranscriptPathForSession(forkSessionId)
   const currentTranscriptPath = getTranscriptPath()
 
-  // Ensure project directory exists
   await mkdir(projectDir, { recursive: true, mode: 0o700 })
 
-  // Read current transcript file
-  let transcriptContent: Buffer
+  let input
   try {
-    transcriptContent = await readFile(currentTranscriptPath)
-  } catch {
-    throw new Error('No conversation to branch')
+    input = createReadStream(currentTranscriptPath, { encoding: 'utf8' })
+    await once(input, 'open')
+  } catch (error) {
+    if (isENOENT(error)) {
+      throw new Error('No conversation to branch')
+    }
+    logError(error)
+    throw error
   }
 
-  if (transcriptContent.length === 0) {
-    throw new Error('No conversation to branch')
+  const output = createWriteStream(forkSessionPath, {
+    encoding: 'utf8',
+    mode: 0o600,
+  })
+  let writeError: Error | null = null
+  output.on('error', err => {
+    writeError = err instanceof Error ? err : new Error(String(err))
+  })
+
+  const rl = createInterface({ input, crlfDelay: Infinity })
+  let parentUuid: UUID | null = null
+  let lastOriginal: TranscriptMessage | null = null
+  const serializedMessages: SerializedMessage[] = []
+  const contentReplacementRecords: ContentReplacementEntry['replacements'] = []
+
+  const cleanup = async () => {
+    output.destroy()
+    await unlink(forkSessionPath).catch(() => {})
+  }
+  const writeLine = async (line: string) => {
+    if (writeError) {
+      await cleanup()
+      throw writeError
+    }
+    if (!output.write(line)) {
+      await once(output, 'drain').catch(() => {})
+    }
   }
 
-  // Parse all transcript entries (messages + metadata entries like content-replacement)
-  const entries = parseJSONL<Entry>(transcriptContent)
+  try {
+    for await (const line of rl) {
+      if (line.length === 0) continue
+      let entry: unknown
+      try {
+        entry = jsonParse(line)
+      } catch {
+        continue
+      }
+      if (!entry || typeof entry !== 'object') continue
+      const rec = entry as Record<string, unknown>
+      if (
+        rec.type === 'content-replacement' &&
+        rec.sessionId === originalSessionId
+      ) {
+        const replacements = rec.replacements
+        if (Array.isArray(replacements)) {
+          contentReplacementRecords.push(
+            ...(replacements as ContentReplacementEntry['replacements']),
+          )
+        }
+        continue
+      }
+      if (
+        !isTranscriptMessage(rec as TranscriptMessage) ||
+        (rec as TranscriptMessage).isSidechain
+      ) {
+        continue
+      }
+      const original = rec as TranscriptMessage
+      const forkedEntry: TranscriptEntry = {
+        ...original,
+        sessionId: forkSessionId,
+        parentUuid,
+        isSidechain: false,
+        forkedFrom: {
+          sessionId: originalSessionId,
+          messageUuid: original.uuid,
+        },
+      }
+      serializedMessages.push({
+        ...original,
+        sessionId: forkSessionId,
+      })
+      lastOriginal = original
+      await writeLine(jsonStringify(forkedEntry) + '\n')
+      if (original.type !== 'progress') {
+        parentUuid = original.uuid
+      }
+    }
+  } catch (error) {
+    await cleanup()
+    throw error
+  } finally {
+    rl.close()
+    input.destroy()
+  }
 
-  // Filter to only main conversation messages (exclude sidechains and non-message entries)
-  const mainConversationEntries = entries.filter(
-    (entry): entry is TranscriptMessage =>
-      isTranscriptMessage(entry) && !entry.isSidechain,
-  )
-
-  // Content-replacement entries for the original session. These record which
-  // tool_result blocks were replaced with previews by the per-message budget.
-  // Without them in the fork JSONL, `claude -r {forkId}` reconstructs state
-  // with an empty replacements Map → previously-replaced results are classified
-  // as FROZEN and sent as full content (prompt cache miss + permanent overage).
-  // sessionId must be rewritten since loadTranscriptFile keys lookup by the
-  // session's messages' sessionId.
-  const contentReplacementRecords = entries
-    .filter(
-      (entry): entry is ContentReplacementEntry =>
-        entry.type === 'content-replacement' &&
-        entry.sessionId === originalSessionId,
-    )
-    .flatMap(entry => entry.replacements)
-
-  if (mainConversationEntries.length === 0) {
+  if (lastOriginal === null) {
+    await cleanup()
     throw new Error('No messages to branch')
   }
 
-  // Build forked entries with new sessionId and preserved metadata
-  let parentUuid: UUID | null = null
-  const lines: string[] = []
-  const serializedMessages: SerializedMessage[] = []
-
-  for (const entry of mainConversationEntries) {
-    // Create forked transcript entry preserving all original metadata
-    const forkedEntry: TranscriptEntry = {
-      ...entry,
-      sessionId: forkSessionId,
-      parentUuid,
-      isSidechain: false,
-      forkedFrom: {
-        sessionId: originalSessionId,
-        messageUuid: entry.uuid,
-      },
-    }
-
-    // Build serialized message for LogOption
-    const serialized: SerializedMessage = {
-      ...entry,
-      sessionId: forkSessionId,
-    }
-
-    serializedMessages.push(serialized)
-    lines.push(jsonStringify(forkedEntry))
-    if (entry.type !== 'progress') {
-      parentUuid = entry.uuid
+  if (extraMessages?.length) {
+    for (const extra of extraMessages) {
+      const stamped: TranscriptMessage = {
+        ...extra,
+        cwd: lastOriginal.cwd,
+        userType: lastOriginal.userType,
+        entrypoint: lastOriginal.entrypoint,
+        version: lastOriginal.version,
+        gitBranch: lastOriginal.gitBranch,
+        sessionId: forkSessionId,
+        timestamp: new Date().toISOString(),
+      }
+      const forked: TranscriptEntry = {
+        ...stamped,
+        parentUuid,
+        isSidechain: false,
+      }
+      serializedMessages.push(stamped)
+      await writeLine(jsonStringify(forked) + '\n')
+      if (extra.type !== 'progress') {
+        parentUuid = extra.uuid
+      }
     }
   }
 
-  // Append content-replacement entry (if any) with the fork's sessionId.
-  // Written as a SINGLE entry (same shape as insertContentReplacement) so
-  // loadTranscriptFile's content-replacement branch picks it up.
   if (contentReplacementRecords.length > 0) {
     const forkedReplacementEntry: ContentReplacementEntry = {
       type: 'content-replacement',
       sessionId: forkSessionId,
       replacements: contentReplacementRecords,
     }
-    lines.push(jsonStringify(forkedReplacementEntry))
+    await writeLine(jsonStringify(forkedReplacementEntry) + '\n')
   }
 
-  // Write the fork session file
-  await writeFile(forkSessionPath, lines.join('\n') + '\n', {
-    encoding: 'utf8',
-    mode: 0o600,
-  })
+  output.end()
+  await finished(output).catch(() => {})
+  if (writeError) {
+    await cleanup()
+    throw writeError
+  }
 
   return {
     sessionId: forkSessionId,
@@ -272,8 +334,8 @@ export async function call(
     }
 
     // Resume into the fork
-    const titleInfo = title ? ` "${title}"` : ''
-    const resumeHint = `\nTo resume the original: claude -r ${originalSessionId}`
+    const titleInfo = title ? ` "${effectiveTitle}"` : ''
+    const resumeHint = `\nTo return to the original: /resume ${originalSessionId}\n(or from a new terminal: claude -r ${originalSessionId})`
     const successMessage = `Branched conversation${titleInfo}. You are now in the branch.${resumeHint}`
 
     if (context.resume) {

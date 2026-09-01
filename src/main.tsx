@@ -165,6 +165,7 @@ import {
   setMainThreadAgentType,
   setTeleportedSessionInfo,
 } from './bootstrap/state.js'
+import { applyMainThreadAgentHooks } from './utils/sessionRestore.js'
 import { filterCommandsForRemoteMode, getCommands } from './commands.js'
 import type { StatsStore } from './context/stats.js'
 import {
@@ -3046,6 +3047,8 @@ async function run(): Promise<CommanderCommand> {
 
       // Store the main thread agent type in bootstrap state so hooks can access it
       setMainThreadAgentType(mainThreadAgentDefinition?.agentType)
+      // Official 2.1.116 rAH: fire agent frontmatter hooks on main-thread --agent
+      applyMainThreadAgentHooks(mainThreadAgentDefinition)
 
       // Log agent flag usage — only log agent name for built-in agents to avoid leaking custom agent names
       if (mainThreadAgentDefinition) {

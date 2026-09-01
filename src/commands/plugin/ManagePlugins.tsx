@@ -1031,7 +1031,12 @@ export function ManagePlugins({
         .map(item => ({ kind: 'item' as const, section: 'main' as const, item }))
     }
     const rows: InstalledListRow[] = []
+    const seen = new Set<string>()
     const push = (section: InstalledListSection, item: UnifiedInstalledItem) => {
+      // Official 2.1.116 wS7: do not repeat Installed-tab items already
+      // listed under Needs attention / Favorites.
+      if (seen.has(item.id)) return
+      seen.add(item.id)
       const last = rows.at(-1)
       const lastIsPlugin =
         last?.kind === 'item' &&
@@ -1047,10 +1052,12 @@ export function ManagePlugins({
       if (needsAttention(item)) push('attention', item)
     }
     for (const item of unifiedItems) {
-      if (favoriteIds.has(item.id)) push('favorites', item)
+      if (favoriteIds.has(item.id) && !seen.has(item.id)) push('favorites', item)
     }
     for (const item of unifiedItems) {
-      if (!isDisabledInstalledItem(item)) push('main', item)
+      if (!isDisabledInstalledItem(item) && !seen.has(item.id)) {
+        push('main', item)
+      }
     }
     const disabled = unifiedItems.filter(isDisabledInstalledItem)
     if (disabled.length > 0) {

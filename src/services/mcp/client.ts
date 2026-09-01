@@ -465,7 +465,8 @@ const IMAGE_MIME_TYPES = new Set([
 ])
 
 function getConnectionTimeoutMs(): number {
-  return parseInt(process.env.MCP_TIMEOUT || '', 10) || 30000
+  const parsed = parseInt(process.env.MCP_TIMEOUT || '', 10)
+  return parsed > 0 ? parsed : 30000
 }
 
 /**
@@ -1915,6 +1916,7 @@ export const fetchToolsForClient = memoizeWithLRU(
       const result = (await client.client.request(
         { method: 'tools/list' },
         ListToolsResultSchema,
+        { timeout: getConnectionTimeoutMs() },
       )) as ListToolsResult
 
       // Sanitize tool data from MCP server
@@ -2186,6 +2188,7 @@ export const fetchResourcesForClient = memoizeWithLRU(
       const result = await client.client.request(
         { method: 'resources/list' },
         ListResourcesResultSchema,
+        { timeout: getConnectionTimeoutMs() },
       )
 
       if (!result.resources) return []
@@ -2216,20 +2219,25 @@ export const fetchResourceTemplatesForClient = memoizeWithLRU(
         return []
       }
 
-      const result = await client.client.request(
-        { method: 'resources/templates/list' },
-        ListResourceTemplatesResultSchema,
-      )
-
-      if (!result.resourceTemplates) return []
-
-      return result.resourceTemplates.map(template => ({
+      const templates =
+        (
+          await client.client.request(
+            { method: 'resources/templates/list' },
+            ListResourceTemplatesResultSchema,
+            { timeout: getConnectionTimeoutMs() },
+          )
+        ).resourceTemplates ?? []
+      logEvent('tengu_mcp_resource_templates_fetched', {
+        template_count: templates.length,
+      })
+      return templates.map(template => ({
         server: client.name,
         uriTemplate: template.uriTemplate,
         name: template.name,
         description: template.description,
       }))
     } catch (error) {
+      fetchResourceTemplatesForClient.cache.delete(client.name)
       logMCPError(
         client.name,
         `Failed to fetch resource templates: ${errorMessage(error)}`,
@@ -2240,6 +2248,33 @@ export const fetchResourceTemplatesForClient = memoizeWithLRU(
   (client: MCPServerConnection) => client.name,
   MCP_FETCH_CACHE_SIZE,
 )
+
+/** Official 2.1.116 `dW7`: fetch templates for connected servers not yet in state. */
+export function fetchMissingResourceTemplates(
+  clients: MCPServerConnection[],
+  already: Record<string, ServerResourceTemplate[]>,
+): Promise<
+  Array<{
+    client: ConnectedMCPServer
+    templates: ServerResourceTemplate[]
+  }>
+> {
+  const pending: Promise<{
+    client: ConnectedMCPServer
+    templates: ServerResourceTemplate[]
+  }>[] = []
+  for (const client of clients) {
+    if (client.type !== 'connected') continue
+    if (client.name in already) continue
+    pending.push(
+      fetchResourceTemplatesForClient(client).then(templates => ({
+        client,
+        templates,
+      })),
+    )
+  }
+  return Promise.all(pending)
+}
 
 /** Official 2.1.98 GB4. */
 export async function completeResourceTemplate(
@@ -2283,6 +2318,7 @@ export const fetchCommandsForClient = memoizeWithLRU(
       const result = (await client.client.request(
         { method: 'prompts/list' },
         ListPromptsResultSchema,
+        { timeout: getConnectionTimeoutMs() },
       )) as ListPromptsResult
 
       if (!result.prompts) return []
@@ -2409,17 +2445,13 @@ export async function reconnectMcpServerImpl(
 
     const supportsResources = !!client.capabilities?.resources
 
-    const [tools, mcpCommands, mcpSkills, resources, resourceTemplates] =
-      await Promise.all([
+    const [tools, mcpCommands, mcpSkills, resources] = await Promise.all([
       fetchToolsForClient(client),
       fetchCommandsForClient(client),
       feature('MCP_SKILLS') && supportsResources
         ? fetchMcpSkillsForClient!(client)
         : Promise.resolve([]),
       supportsResources ? fetchResourcesForClient(client) : Promise.resolve([]),
-      supportsResources
-        ? fetchResourceTemplatesForClient(client)
-        : Promise.resolve([]),
     ])
     const commands = [...mcpCommands, ...mcpSkills]
 
@@ -2440,8 +2472,8 @@ export async function reconnectMcpServerImpl(
       tools: [...tools, ...resourceTools],
       commands,
       resources: resources.length > 0 ? resources : undefined,
-      resourceTemplates:
-        resourceTemplates.length > 0 ? resourceTemplates : undefined,
+      // Official 2.1.116: templates/list deferred to first @-mention
+      resourceTemplates: [],
     }
   } catch (error) {
     // Handle errors gracefully - connection might have closed during fetch
@@ -2589,8 +2621,7 @@ export async function getMcpToolsCommandsAndResources(
 
       const supportsResources = !!client.capabilities?.resources
 
-      const [tools, mcpCommands, mcpSkills, resources, resourceTemplates] =
-        await Promise.all([
+      const [tools, mcpCommands, mcpSkills, resources] = await Promise.all([
         fetchToolsForClient(client),
         fetchCommandsForClient(client),
         // Discover skills from skill:// resources
@@ -2600,9 +2631,6 @@ export async function getMcpToolsCommandsAndResources(
         // Fetch resources if supported
         supportsResources
           ? fetchResourcesForClient(client)
-          : Promise.resolve([]),
-        supportsResources
-          ? fetchResourceTemplatesForClient(client)
           : Promise.resolve([]),
       ])
       const commands = [...mcpCommands, ...mcpSkills]
@@ -2620,8 +2648,8 @@ export async function getMcpToolsCommandsAndResources(
         tools: [...tools, ...resourceTools],
         commands,
         resources: resources.length > 0 ? resources : undefined,
-        resourceTemplates:
-          resourceTemplates.length > 0 ? resourceTemplates : undefined,
+        // Official 2.1.116: templates/list deferred to first @-mention
+        resourceTemplates: undefined,
       })
     } catch (error) {
       // Handle errors gracefully - connection might have closed during fetch

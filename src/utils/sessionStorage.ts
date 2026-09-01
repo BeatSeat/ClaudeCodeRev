@@ -70,7 +70,7 @@ import { getCwd } from './cwd.js'
 import { logForDebugging } from './debug.js'
 import { logForDiagnosticsNoPII } from './diagLogs.js'
 import { getClaudeConfigHomeDir, isEnvTruthy } from './envUtils.js'
-import { isFsInaccessible } from './errors.js'
+import { isENOENT, isFsInaccessible } from './errors.js'
 import type { FileHistorySnapshot } from './fileHistory.js'
 import { formatFileSize } from './format.js'
 import { getFsImplementation } from './fsOperations.js'
@@ -3256,8 +3256,10 @@ export async function loadFullLog(log: LogOption): Promise<LogOption> {
           ? contextCollapseSnapshot
           : undefined,
     }
-  } catch {
-    // If loading fails, return the original log
+  } catch (error) {
+    // Official 2.1.116 Ge: record the failure. Caller treats a still-lite
+    // log as a load error instead of silently resuming an empty conversation.
+    logError(error)
     return log
   }
 }
@@ -3726,6 +3728,9 @@ export async function loadTranscriptFile(
   const contextCollapseCommits: ContextCollapseCommitEntry[] = []
   // Last-wins — later entries supersede.
   let contextCollapseSnapshot: ContextCollapseSnapshotEntry | undefined
+  // Official 2.1.116 Ze `k`: last main-chain transcript uuid for the
+  // latest-leaf /resume fast path (skip walking dead-fork terminals).
+  let latestMainUuid: UUID | undefined
 
   try {
     // For large transcripts, avoid materializing megabytes of stale content.
@@ -3856,6 +3861,9 @@ export async function loadTranscriptFile(
           entry.parentUuid = progressBridge.get(entry.parentUuid) ?? null
         }
         messages.set(entry.uuid, entry)
+        if (!entry.isSidechain) {
+          latestMainUuid = entry.uuid
+        }
         // Compact boundary: prior marble-origami-commit entries reference
         // messages that won't be in the post-boundary chain. The >5MB
         // backward-scan path discards them naturally by never reading the
@@ -3911,12 +3919,68 @@ export async function loadTranscriptFile(
         contextCollapseSnapshot = entry
       }
     }
-  } catch {
-    // File doesn't exist or can't be read
+  } catch (error) {
+    // Official 2.1.116 Ze: missing file stays empty; anything else is a
+    // load error (large-session parse/read) and must surface to /resume.
+    if (!isENOENT(error)) {
+      logError(error)
+      throw error
+    }
   }
 
   applyPreservedSegmentRelinks(messages)
   applySnipRemovals(messages)
+
+  // Official 2.1.116 Ze R(): /resume only needs the latest main-chain leaf.
+  // Walk that chain first and skip scanning dead-fork terminals when we can.
+  const leafUuids = new Set<UUID>()
+  if (
+    !opts?.keepAllLeaves &&
+    !hasPreservedSegment &&
+    latestMainUuid &&
+    messages.has(latestMainUuid)
+  ) {
+    const seen = new Set<UUID>()
+    let current: TranscriptMessage | undefined = messages.get(latestMainUuid)
+    while (current) {
+      if (seen.has(current.uuid)) {
+        logEvent('tengu_transcript_parent_cycle', {})
+        break
+      }
+      seen.add(current.uuid)
+      if (current.type === 'user' || current.type === 'assistant') {
+        leafUuids.add(current.uuid)
+        break
+      }
+      current = current.parentUuid
+        ? messages.get(current.parentUuid)
+        : undefined
+    }
+    if (leafUuids.size === 1) {
+      return {
+        messages,
+        summaries,
+        customTitles,
+        tags,
+        agentNames,
+        agentColors,
+        agentSettings,
+        prNumbers,
+        prUrls,
+        prRepositories,
+        modes,
+        permissionModes,
+        worktreeStates,
+        fileHistorySnapshots,
+        attributionSnapshots,
+        contentReplacements,
+        agentContentReplacements,
+        contextCollapseCommits,
+        contextCollapseSnapshot,
+        leafUuids,
+      }
+    }
+  }
 
   // Compute leaf UUIDs once at load time
   // Only user/assistant messages should be considered as leaves for anchoring resume.
@@ -3939,7 +4003,6 @@ export async function loadTranscriptFile(
   // Find all terminal messages (messages with no children)
   const terminalMessages = allMessages.filter(msg => !parentUuids.has(msg.uuid))
 
-  const leafUuids = new Set<UUID>()
   let hasCycle = false
 
   if (getFeatureValue_CACHED_MAY_BE_STALE('tengu_pebble_leaf_prune', false)) {
@@ -4001,6 +4064,30 @@ export async function loadTranscriptFile(
 
   if (hasCycle) {
     logEvent('tengu_transcript_parent_cycle', {})
+  }
+
+  // Official 2.1.116: after a full scan, /resume still only needs the latest
+  // main-chain leaf — drop dead-fork leaves unless keepAllLeaves.
+  if (
+    !opts?.keepAllLeaves &&
+    leafUuids.size > 1 &&
+    latestMainUuid &&
+    messages.has(latestMainUuid)
+  ) {
+    const seen = new Set<UUID>()
+    let current: TranscriptMessage | undefined = messages.get(latestMainUuid)
+    while (current) {
+      if (seen.has(current.uuid)) break
+      seen.add(current.uuid)
+      if (current.type === 'user' || current.type === 'assistant') {
+        leafUuids.clear()
+        leafUuids.add(current.uuid)
+        break
+      }
+      current = current.parentUuid
+        ? messages.get(current.parentUuid)
+        : undefined
+    }
   }
 
   return {

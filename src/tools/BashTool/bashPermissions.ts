@@ -78,7 +78,13 @@ import {
   stripSafeHeredocSubstitutions,
 } from './bashSecurity.js'
 import { checkPermissionMode } from './modeValidation.js'
-import { checkPathConstraints } from './pathValidation.js'
+import {
+  checkDangerousRemovalPaths,
+  checkPathConstraints,
+} from './pathValidation.js'
+// Official 116 ht8 is the canonical wrapper peel in pathValidation.ts
+// (nice/stdbuf/env). Do not bind the 116 gate to this file's narrow export.
+import { stripWrappersFromArgv as stripWrappersHt8 } from './pathValidation.js'
 import { checkSedConstraints } from './sedValidation.js'
 import { shouldUseSandbox } from './shouldUseSandbox.js'
 
@@ -1844,6 +1850,21 @@ function checkSandboxAutoAllow(
     }
   }
 
+  // Official 2.1.116 vZ7: do not auto-allow rm/rmdir on /, $HOME, or other
+  // critical paths. ht8 = stripWrappersFromArgv; Et8 = checkDangerousRemovalPaths
+  // at getCwd(). cd && rm is fail-closed (cwd after cd is not getCwd()).
+  // Returning passthrough lets the caller fall through to the full path check.
+  if (
+    astCommands &&
+    astCommands.length > 0 &&
+    sandboxAutoAllowBlockedByDangerousRemoval(astCommands)
+  ) {
+    return {
+      behavior: 'passthrough',
+      message: 'Sandbox auto-allow skipped: dangerous rm/rmdir path',
+    }
+  }
+
   // No explicit rules, so auto-allow with sandbox
   return {
     behavior: 'allow',
@@ -1853,6 +1874,32 @@ function checkSandboxAutoAllow(
       reason: 'Auto-allowed with sandbox (autoAllowBashIfSandboxed enabled)',
     },
   }
+}
+
+/**
+ * Official 2.1.116 vZ7 rm/rmdir gate. True → skip sandbox auto-allow.
+ */
+function sandboxAutoAllowBlockedByDangerousRemoval(
+  astCommands: SimpleCommand[],
+): boolean {
+  let hasCd = false
+  let hasRm = false
+  for (const cmd of astCommands) {
+    const [name, ...args] = stripWrappersHt8(cmd.argv)
+    if (name === 'cd') {
+      hasCd = true
+      continue
+    }
+    if (name !== 'rm' && name !== 'rmdir') continue
+    hasRm = true
+    if (
+      checkDangerousRemovalPaths(name, args, getCwd()).behavior !==
+      'passthrough'
+    ) {
+      return true
+    }
+  }
+  return hasCd && hasRm
 }
 
 /**

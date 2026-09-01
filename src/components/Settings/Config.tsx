@@ -1310,7 +1310,14 @@ export function Config({
       if (setting.id.toLowerCase().includes(lowerQuery)) return true
       const searchableText =
         'searchText' in setting ? setting.searchText : setting.label
-      return searchableText.toLowerCase().includes(lowerQuery)
+      if (searchableText.toLowerCase().includes(lowerQuery)) return true
+      // Official 2.1.116: /config search matches enum option values (e.g. "vim")
+      if (setting.type === 'enum') {
+        return setting.options.some(option =>
+          option.toLowerCase().includes(lowerQuery),
+        )
+      }
+      return false
     })
   }, [settingsItems, searchQuery])
 

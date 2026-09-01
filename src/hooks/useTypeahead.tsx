@@ -26,7 +26,12 @@ import {
 } from '../keybindings/KeybindingContext.js'
 import { useKeybindings } from '../keybindings/useKeybinding.js'
 import { useShortcutDisplay } from '../keybindings/useShortcutDisplay.js'
-import { useAppState, useAppStateStore } from '../state/AppState.js'
+import {
+  useAppState,
+  useAppStateStore,
+  useSetAppState,
+} from '../state/AppState.js'
+import { fetchMissingResourceTemplates } from '../services/mcp/client.js'
 import type { AgentDefinition } from '../tools/AgentTool/loadAgentsDir.js'
 import type {
   InlineGhostText,
@@ -153,16 +158,19 @@ type Props = {
       suggestions: SuggestionItem[]
       selectedSuggestion: number
       commandArgumentHint?: string
+      suggestionsEmptyMessage?: string
     }) => {
       suggestions: SuggestionItem[]
       selectedSuggestion: number
       commandArgumentHint?: string
+      suggestionsEmptyMessage?: string
     },
   ) => void
   suggestionsState: {
     suggestions: SuggestionItem[]
     selectedSuggestion: number
     commandArgumentHint?: string
+    suggestionsEmptyMessage?: string
   }
   suppressSuggestions?: boolean
   markAccepted: () => void
@@ -175,6 +183,7 @@ type UseTypeaheadResult = {
   suggestionType: SuggestionType
   maxColumnWidth?: number
   commandArgumentHint?: string
+  suggestionsEmptyMessage?: string
   inlineGhostText?: InlineGhostText
   handleKeyDown: (e: KeyboardEvent) => void
 }
@@ -481,7 +490,12 @@ export function useTypeahead({
   mode,
   agents,
   setSuggestionsState,
-  suggestionsState: { suggestions, selectedSuggestion, commandArgumentHint },
+  suggestionsState: {
+    suggestions,
+    selectedSuggestion,
+    commandArgumentHint,
+    suggestionsEmptyMessage,
+  },
   suppressSuggestions = false,
   markAccepted,
   onModeChange,
@@ -511,6 +525,35 @@ export function useTypeahead({
   const mcpResources = useAppState(s => s.mcp.resources)
   const mcpResourceTemplates = useAppState(s => s.mcp.resourceTemplates)
   const store = useAppStateStore()
+  const setAppState = useSetAppState()
+  const ensureResourceTemplates = useCallback(() => {
+    const state = store.getState()
+    void fetchMissingResourceTemplates(
+      state.mcp.clients,
+      state.mcp.resourceTemplates,
+    ).then(fetched => {
+      if (fetched.length === 0) return
+      setAppState(prev => {
+        let templates = prev.mcp.resourceTemplates
+        for (const { client, templates: next } of fetched) {
+          if (client.name in templates) continue
+          if (
+            !prev.mcp.clients.some(
+              c => c.type === 'connected' && c.client === client.client,
+            )
+          ) {
+            continue
+          }
+          templates = { ...templates, [client.name]: next }
+        }
+        if (templates === prev.mcp.resourceTemplates) return prev
+        return {
+          ...prev,
+          mcp: { ...prev.mcp, resourceTemplates: templates },
+        }
+      })
+    })
+  }, [setAppState, store])
   const promptSuggestion = useAppState(s => s.promptSuggestion)
   // PromptInput hides suggestion ghost text in teammate view — mirror that
   // gate here so Tab/rightArrow can't accept what isn't displayed.
@@ -587,9 +630,10 @@ export function useTypeahead({
       isAtSymbol: boolean,
     ): Promise<SuggestionItem[]> => {
       if (isAtSymbol) {
+        ensureResourceTemplates()
         const templateItems = await generateMcpResourceTemplateCompletions(
           searchToken,
-          mcpResourceTemplates,
+          store.getState().mcp.resourceTemplates,
           store.getState().mcp.clients,
         )
         if (templateItems) return templateItems
@@ -602,7 +646,7 @@ export function useTypeahead({
         mcpResourceTemplates,
       )
     },
-    [agents, mcpResources, mcpResourceTemplates, store],
+    [agents, mcpResources, mcpResourceTemplates, store, ensureResourceTemplates],
   )
 
   // Expensive async operation to fetch file/resource suggestions
@@ -1027,8 +1071,14 @@ export function useTypeahead({
           commandArgumentHint,
           suggestions: commandItems,
           selectedSuggestion: commandItems.length > 0 ? 0 : -1,
+          suggestionsEmptyMessage:
+            commandItems.length === 0 && value.length > 1
+              ? `No commands match "${value}"`
+              : undefined,
         }))
-        setSuggestionType(commandItems.length > 0 ? 'command' : 'none')
+        // Official 2.1.116: keep suggestionType 'command' on zero matches so
+        // the footer can show "No commands match" instead of disappearing.
+        setSuggestionType('command')
 
         // Use stable width from all commands (prevents layout shift when filtering)
         if (commandItems.length > 0) {
@@ -1921,6 +1971,7 @@ export function useTypeahead({
     suggestionType,
     maxColumnWidth,
     commandArgumentHint,
+    suggestionsEmptyMessage,
     inlineGhostText: effectiveGhostText,
     handleKeyDown,
   }

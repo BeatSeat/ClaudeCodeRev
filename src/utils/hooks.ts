@@ -35,6 +35,7 @@ import {
   addToTurnHookDuration,
   getOriginalCwd,
   getMainThreadAgentType,
+  getMainThreadAgentHooks,
 } from '../bootstrap/state.js'
 import { checkHasTrustDialogAccepted } from './config.js'
 import {
@@ -1572,7 +1573,11 @@ function getHooksConfig(
     | PluginHookMatcher
     | SkillHookMatcher
     | SessionDerivedHookMatcher
-  > = [...(getHooksConfigFromSnapshot()?.[hookEvent] ?? [])]
+  > = [
+    ...(getHooksConfigFromSnapshot()?.[hookEvent] ?? []),
+    // Official 2.1.116 rAH: main-thread --agent frontmatter hooks.
+    ...(getMainThreadAgentHooks()?.[hookEvent] ?? []),
+  ]
 
   // Check if only managed hooks should run (used for both registered and session hooks)
   const managedOnly = shouldAllowManagedHooksOnly()
@@ -1648,6 +1653,7 @@ function hasHookForEvent(
 ): boolean {
   const snap = getHooksConfigFromSnapshot()?.[hookEvent]
   if (snap && snap.length > 0) return true
+  if ((getMainThreadAgentHooks()?.[hookEvent] ?? []).length > 0) return true
   const reg = getRegisteredHooks()?.[hookEvent]
   if (reg && reg.length > 0) return true
   if (appState?.sessionHooks.get(sessionId)?.hooks[hookEvent]) return true
