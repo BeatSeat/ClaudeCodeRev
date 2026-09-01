@@ -19,6 +19,7 @@ import { SETTING_SOURCES } from '../settings/constants.js'
 import {
   getSettings_DEPRECATED,
   getSettingsFilePathForSource,
+  getSettingsForSource,
   getUseAutoModeDuringPlan,
   hasAutoModeOptIn,
 } from '../settings/settings.js'
@@ -767,24 +768,38 @@ export function initialPermissionModeFromCLI({
   }
   if (settings.permissions?.defaultMode) {
     const settingsMode = settings.permissions.defaultMode as PermissionMode
-    // CCR only supports acceptEdits and plan — ignore other defaultModes from
-    // settings (e.g. bypassPermissions would otherwise silently grant full
-    // access in a remote environment).
+    // CCR supports acceptEdits, plan, default, and auto — ignore other
+    // defaultModes from settings (e.g. bypassPermissions would otherwise
+    // silently grant full access in a remote environment).
     if (
       isEnvTruthy(process.env.CLAUDE_CODE_REMOTE) &&
-      !['acceptEdits', 'plan', 'default'].includes(settingsMode)
+      !['acceptEdits', 'plan', 'default', 'auto'].includes(settingsMode)
     ) {
       logForDebugging(
-        `settings defaultMode "${settingsMode}" is not supported in CLAUDE_CODE_REMOTE — only acceptEdits and plan are allowed`,
+        `settings defaultMode "${settingsMode}" is not supported in CLAUDE_CODE_REMOTE — only acceptEdits, plan, default, and auto are allowed`,
         { level: 'warn' },
       )
       logEvent('tengu_ccr_unsupported_default_mode_ignored', {
         mode: settingsMode as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
       })
     }
-    // auto from settings requires the same gate check as from CLI
-    else if (feature('TRANSCRIPT_CLASSIFIER') && settingsMode === 'auto') {
-      if (autoModeCircuitBrokenSync) {
+    // Official 2.1.142: auto from settings is only honored from
+    // policy/user/flag sources — projectSettings and localSettings are
+    // repo-controllable.
+    else if (settingsMode === 'auto') {
+      const trustedAuto = (
+        ['policySettings', 'userSettings', 'flagSettings'] as const
+      ).some(
+        source =>
+          getSettingsForSource(source)?.permissions?.defaultMode === 'auto',
+      )
+      if (!trustedAuto) {
+        logForDebugging(
+          'settings defaultMode "auto" ignored — only policy/user/flag settings may grant auto mode (projectSettings and localSettings are repo-controllable)',
+          { level: 'warn' },
+        )
+        logEvent('tengu_settings_auto_mode_untrusted_source_ignored', {})
+      } else if (autoModeCircuitBrokenSync) {
         logForDebugging(
           'auto mode circuit breaker active (cached) — falling back to default',
           { level: 'warn' },

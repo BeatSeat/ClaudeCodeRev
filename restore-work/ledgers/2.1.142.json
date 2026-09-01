@@ -1,0 +1,34 @@
+{
+  "version": "2.1.142",
+  "fromVersion": "2.1.141",
+  "expectedFunctionCount": 0,
+  "functions": [],
+  "changelogCoverage": [
+    {
+      "item": "Fixed MCP_TOOL_TIMEOUT not raising per-request fetch timeout for remote HTTP/SSE MCP servers (capped at 60s)",
+      "status": "located",
+      "evidence": "Official U$4() 2→3. src/services/mcp/client.ts getMcpRequestTimeoutMs() matches min(max(parsed,60000),2147483647)."
+    },
+    {
+      "item": "ast-only consume bg auth snapshot",
+      "status": "located",
+      "evidence": "CLAUDE_BG_AUTH_SNAPSHOT_PATH 0→5. O_1 in src/utils/authFileDescriptor.ts: delete env, read+unlink, require accessToken, setOauthTokenFromFd (Ao), subscription/rate-limit env. Called only from getOAuthTokenFromFileDescriptor (Ma)."
+    },
+    {
+      "item": "ast-only ignore auto from project/local settings",
+      "status": "located",
+      "evidence": "tengu_settings_auto_mode_untrusted_source_ignored 0→1. permissionSetup.ts honors defaultMode:auto only from policySettings|userSettings|flagSettings."
+    },
+    {
+      "item": "Plugins with root-level SKILL.md and no skills/ surfaced as a skill",
+      "status": "shared-logic",
+      "evidence": "tengu_plugin_skills_dir_loaded 0→1; deep plugin-loader. Deferred-large-infra."
+    },
+    {
+      "item": "Added new claude agents flags",
+      "status": "shared-logic",
+      "evidence": "Background-dispatch infra; not cleanly separable."
+    }
+  ],
+  "notes": "Four-domain review PASS. SendUserFile is KAIROS-gated. Do not pull 143+ (bgIsolation, stop-hook producers) or 146 LzA into the 142 commit."
+}

@@ -10,7 +10,9 @@ import {
 // deferral, but require() hits a CJS cache that diverges from the ESM
 // namespace after mock.module() (daemon/auth.test.ts), breaking spyOn.
 import * as authModule from '../utils/auth.js'
-import { isEnvTruthy } from '../utils/envUtils.js'
+import { CLAUDE_AI_INFERENCE_SCOPE } from '../constants/oauth.js'
+import { isDebugMode } from '../utils/debug.js'
+import { isBareMode, isEnvTruthy } from '../utils/envUtils.js'
 import { lt } from '../utils/semver.js'
 
 /**
@@ -116,6 +118,23 @@ function getOauthAccountInfo(): ReturnType<
 }
 
 /**
+ * True when the active claude.ai OAuth token carries the inference scope.
+ * Mirrors the auth-source helpers above: try/catch swallows pre-config
+ * access ("Config accessed before allowed"), where false is correct.
+ */
+function hasClaudeAIInferenceScope(): boolean {
+  try {
+    return Boolean(
+      authModule.getClaudeAIOAuthTokens()?.scopes?.includes(
+        CLAUDE_AI_INFERENCE_SCOPE,
+      ),
+    )
+  } catch {
+    return false
+  }
+}
+
+/**
  * Runtime check for the env-less (v2) REPL bridge path.
  * Returns true when the GrowthBook flag `tengu_bridge_repl_v2` is enabled.
  *
@@ -199,4 +218,62 @@ export function isCcrMirrorEnabled(): boolean {
     ? isEnvTruthy(process.env.CLAUDE_CODE_CCR_MIRROR) ||
         getFeatureValue_CACHED_MAY_BE_STALE('tengu_ccr_mirror', false)
     : false
+}
+
+/**
+ * GrowthBook gate `tengu_bridge_vivid` — pure constant read, default off.
+ *
+ * Internal (USER_TYPE=ant) Remote Control bridge debug/auth-state
+ * diagnostics experiment. The bundle exposes it as a bare
+ * `return getFeatureValue('tengu_bridge_vivid', false)`; guarded here
+ * behind BRIDGE_MODE like every other bridge gate so the string literal
+ * is DCE'd from external builds.
+ */
+export function isPreviewHmrEnabled(): boolean {
+  return feature('BRIDGE_MODE')
+    ? getFeatureValue_CACHED_MAY_BE_STALE('tengu_bridge_vivid', false)
+    : false
+}
+
+/**
+ * One-line-per-field dump of the current Remote Control auth state for
+ * debugging (ant-only). Returns '' unless debug mode is active, so it is
+ * safe to append to any diagnostic string. Every read is guarded: on any
+ * failure the collector degrades to a single "failed to collect" line
+ * rather than throwing into the caller.
+ */
+export function getBridgeAuthDebugInfo(): string {
+  if (!isDebugMode()) return ''
+  const setOrUnset = (value: string | undefined): string =>
+    value ? 'set' : 'unset'
+  try {
+    const oauthTokens = authModule.getClaudeAIOAuthTokens()
+    const thirdPartyEnvVars = [
+      'CLAUDE_CODE_USE_BEDROCK',
+      'CLAUDE_CODE_USE_VERTEX',
+      'CLAUDE_CODE_USE_FOUNDRY',
+      'CLAUDE_CODE_USE_ANTHROPIC_AWS',
+      'CLAUDE_CODE_USE_MANTLE',
+    ].filter(varName => isEnvTruthy(process.env[varName]))
+    return [
+      '',
+      '[debug] Remote Control auth state:',
+      `  isBareMode=${isBareMode()}`,
+      `  hasOAuthAccessToken=${!!oauthTokens?.accessToken}`,
+      `  oauthScopes=${oauthTokens?.scopes?.join(',') ?? 'none'}`,
+      `  hasClaudeAIInferenceScope=${hasClaudeAIInferenceScope()}`,
+      `  isClaudeAISubscriber=${isClaudeAISubscriber()}`,
+      `  hasProfileScope=${hasProfileScope()}`,
+      `  oauthAccount.organizationUuid=${getOauthAccountInfo()?.organizationUuid ? 'set' : 'unset'}`,
+      `  ANTHROPIC_API_KEY=${setOrUnset(process.env.ANTHROPIC_API_KEY)}`,
+      `  ANTHROPIC_AUTH_TOKEN=${setOrUnset(process.env.ANTHROPIC_AUTH_TOKEN)}`,
+      `  apiKeyHelper=${authModule.getConfiguredApiKeyHelper() ? 'set' : 'unset'}`,
+      `  CLAUDE_CODE_API_KEY_FILE_DESCRIPTOR=${setOrUnset(process.env.CLAUDE_CODE_API_KEY_FILE_DESCRIPTOR)}`,
+      `  CLAUDE_CODE_OAUTH_TOKEN=${setOrUnset(process.env.CLAUDE_CODE_OAUTH_TOKEN)}`,
+      `  ANTHROPIC_UNIX_SOCKET=${setOrUnset(process.env.ANTHROPIC_UNIX_SOCKET)}`,
+      `  3P env=${thirdPartyEnvVars.length ? thirdPartyEnvVars.join(',') : 'none'}`,
+    ].join('\n')
+  } catch (error) {
+    return `\n[debug] failed to collect auth state: ${error}`
+  }
 }
