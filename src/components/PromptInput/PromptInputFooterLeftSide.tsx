@@ -51,6 +51,8 @@ import { isFullscreenEnvEnabled } from '../../utils/fullscreen.js'
 import { isXtermJs } from '../../ink/terminal.js'
 import { useHasSelection, useSelection } from '../../ink/hooks/use-selection.js'
 import { getGlobalConfig, saveGlobalConfig } from '../../utils/config.js'
+import { isBgSession } from '../../utils/concurrentSessions.js'
+import { isFgLeftArrowAgentsAvailable } from '../FleetView/fleetGate.js'
 import { getPlatform } from '../../utils/platform.js'
 import { PrBadge } from '../PrBadge.js'
 
@@ -530,6 +532,18 @@ function ModeIndicator({
     parts.push(
       <Text dimColor key="shortcuts-hint">
         ? for shortcuts
+      </Text>,
+    )
+  }
+  if (
+    !isBgSession() &&
+    showHint &&
+    isFgLeftArrowAgentsAvailable() &&
+    getGlobalConfig().leftArrowOpensAgents !== false
+  ) {
+    parts.push(
+      <Text dimColor key="fg-agents">
+        {'\u2190'} for agents
       </Text>,
     )
   }

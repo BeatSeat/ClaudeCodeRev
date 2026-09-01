@@ -8,7 +8,10 @@ import React, {
   useState,
 } from 'react'
 import useStdin from '../../ink/hooks/use-stdin.js'
-import { getGlobalConfig, saveGlobalConfig } from '../../utils/config.js'
+import {
+  getUserIntentSetting,
+  setUserIntentSetting,
+} from '../../utils/settings/userIntent.js'
 import {
   customThemeSlug,
   isBuiltInThemeName,
@@ -63,11 +66,11 @@ type Props = {
 }
 
 function defaultInitialTheme(): ThemeSetting {
-  return getGlobalConfig().theme
+  return getUserIntentSetting('theme', 'dark') ?? 'dark'
 }
 
 function defaultSaveTheme(setting: ThemeSetting): void {
-  saveGlobalConfig(current => ({ ...current, theme: setting }))
+  setUserIntentSetting('theme', setting)
 }
 
 export function ThemeProvider({

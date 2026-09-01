@@ -1,5 +1,5 @@
 import { getFeatureValue_CACHED_MAY_BE_STALE } from '../../services/analytics/growthbook.js'
-import { getGlobalConfig } from '../../utils/config.js'
+import { getUserIntentSetting } from '../../utils/settings/userIntent.js'
 
 export const PUSH_NOTIFICATION_TOOL_NAME = 'PushNotification'
 
@@ -20,7 +20,7 @@ export function isPushWhenClaudeDecidesEnabled(): boolean {
     getFeatureValue_CACHED_MAY_BE_STALE(
       'tengu_kairos_push_notifications',
       false,
-    ) && getGlobalConfig().agentPushNotifEnabled === true
+    ) && getUserIntentSetting('agentPushNotifEnabled', false) === true
   )
 }
 

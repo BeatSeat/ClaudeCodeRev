@@ -8,6 +8,12 @@ import {
   PERMISSION_MODES,
 } from '../permissions/PermissionMode.js'
 import { MarketplaceSourceSchema } from '../plugins/schemas.js'
+import {
+  EDITOR_MODES,
+  NOTIFICATION_CHANNELS,
+  TEAMMATE_MODES,
+} from '../configConstants.js'
+import { THEME_SETTINGS } from '../theme.js'
 import { CLAUDE_CODE_SETTINGS_SCHEMA_URL } from './constants.js'
 import { PermissionRuleSchema } from './permissionValidation.js'
 
@@ -592,6 +598,12 @@ export const SettingsSchema = lazySchema(() =>
         })
         .optional()
         .describe('Custom status line display configuration'),
+      prUrlTemplate: z
+        .string()
+        .optional()
+        .describe(
+          'URL template for PR links in the footer badge and inline messages. Placeholders: {host} {owner} {repo} {number} {url}. Example: "https://reviews.example.com/{owner}/{repo}/pull/{number}"',
+        ),
       // Enabled plugins using marketplace-first format
       enabledPlugins: z
         .record(
@@ -1140,6 +1152,84 @@ export const SettingsSchema = lazySchema(() =>
             'Useful for enterprise administrators to add organization-specific context ' +
             '(e.g., "All plugins from our internal marketplace are vetted and approved.").',
         ),
+      // Official 2.1.119: /config user-intent keys persist to ~/.claude/settings.json
+      theme: z
+        .union([
+          z.enum(THEME_SETTINGS),
+          z
+            .string()
+            .startsWith('custom:')
+            .transform(s => s),
+        ])
+        .optional()
+        .describe('Color theme for the UI'),
+      editorMode: z
+        .enum(EDITOR_MODES)
+        .optional()
+        .catch(undefined)
+        .describe('Key binding mode for the prompt input'),
+      verbose: z
+        .boolean()
+        .optional()
+        .describe('Show full tool output instead of truncated summaries'),
+      preferredNotifChannel: z
+        .enum(NOTIFICATION_CHANNELS)
+        .optional()
+        .describe('Preferred OS notification channel'),
+      autoCompactEnabled: z
+        .boolean()
+        .optional()
+        .describe('Automatically compact conversation when context fills'),
+      autoScrollEnabled: z
+        .boolean()
+        .optional()
+        .describe(
+          'Auto-scroll the conversation view to bottom (fullscreen mode only)',
+        ),
+      fileCheckpointingEnabled: z
+        .boolean()
+        .optional()
+        .describe('Snapshot files before edits so /rewind can restore them'),
+      showTurnDuration: z
+        .boolean()
+        .optional()
+        .describe('Show "Cooked for Nm Ns" after each assistant turn'),
+      showMessageTimestamps: z
+        .boolean()
+        .optional()
+        .describe('Stamp each assistant message with its arrival time'),
+      terminalProgressBarEnabled: z
+        .boolean()
+        .optional()
+        .describe('Emit OSC 9;4 progress sequences during long operations'),
+      todoFeatureEnabled: z
+        .boolean()
+        .optional()
+        .describe('Enable the todo / task tracking panel'),
+      teammateMode: z
+        .enum(TEAMMATE_MODES)
+        .optional()
+        .describe('How spawned teammates execute (tmux, in-process, auto)'),
+      remoteControlAtStartup: z
+        .boolean()
+        .optional()
+        .describe('Start Remote Control bridge automatically each session'),
+      autoUploadSessions: z
+        .boolean()
+        .optional()
+        .describe(
+          'Mirror local sessions to claude.ai as view-only (no remote control)',
+        ),
+      inputNeededNotifEnabled: z
+        .boolean()
+        .optional()
+        .describe(
+          'Push to mobile when a permission prompt or question is waiting',
+        ),
+      agentPushNotifEnabled: z
+        .boolean()
+        .optional()
+        .describe('Allow Claude to push proactive mobile notifications'),
     })
     .passthrough(),
 )

@@ -35,7 +35,7 @@ import {
   formatNumber,
   formatSecondsShort,
 } from '../../utils/format.js'
-import { getGlobalConfig } from '../../utils/config.js'
+import { getUserIntentSetting } from '../../utils/settings/userIntent.js'
 import Link from '../../ink/components/Link.js'
 import ThemedText from '../design-system/ThemedText.js'
 import { CtrlOToExpand } from '../CtrlOToExpand.js'
@@ -357,7 +357,7 @@ function TurnDurationMessage({
     return running.length > 0 ? getPillLabel(running) : null
   })
 
-  const showTurnDuration = getGlobalConfig().showTurnDuration ?? true
+  const showTurnDuration = getUserIntentSetting('showTurnDuration', true) ?? true
 
   const duration = formatDuration(message.durationMs)
   const hasBudget = message.budgetLimit !== undefined

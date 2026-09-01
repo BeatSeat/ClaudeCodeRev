@@ -28,31 +28,31 @@ type SettingConfig = {
 
 export const SUPPORTED_SETTINGS: Record<string, SettingConfig> = {
   theme: {
-    source: 'global',
+    source: 'settings',
     type: 'string',
     description: 'Color theme for the UI',
     options: feature('AUTO_THEME') ? THEME_SETTINGS : THEME_NAMES,
   },
   editorMode: {
-    source: 'global',
+    source: 'settings',
     type: 'string',
     description: 'Key binding mode',
     options: EDITOR_MODES,
   },
   verbose: {
-    source: 'global',
+    source: 'settings',
     type: 'boolean',
     description: 'Show detailed debug output',
     appStateKey: 'verbose',
   },
   preferredNotifChannel: {
-    source: 'global',
+    source: 'settings',
     type: 'string',
     description: 'Preferred notification channel',
     options: NOTIFICATION_CHANNELS,
   },
   autoCompactEnabled: {
-    source: 'global',
+    source: 'settings',
     type: 'boolean',
     description: 'Auto-compact when context is full',
   },
@@ -67,23 +67,23 @@ export const SUPPORTED_SETTINGS: Record<string, SettingConfig> = {
     description: 'Enable background memory consolidation',
   },
   fileCheckpointingEnabled: {
-    source: 'global',
+    source: 'settings',
     type: 'boolean',
     description: 'Enable file checkpointing for code rewind',
   },
   showTurnDuration: {
-    source: 'global',
+    source: 'settings',
     type: 'boolean',
     description:
       'Show turn duration message after responses (e.g., "Cooked for 1m 6s")',
   },
   terminalProgressBarEnabled: {
-    source: 'global',
+    source: 'settings',
     type: 'boolean',
     description: 'Show OSC 9;4 progress indicator in supported terminals',
   },
   todoFeatureEnabled: {
-    source: 'global',
+    source: 'settings',
     type: 'boolean',
     description: 'Enable todo/task tracking',
   },
@@ -125,7 +125,7 @@ export const SUPPORTED_SETTINGS: Record<string, SettingConfig> = {
       'Preferred language for Claude responses and voice dictation (e.g., "japanese", "spanish")',
   },
   teammateMode: {
-    source: 'global',
+    source: 'settings',
     type: 'string',
     description:
       'How to spawn teammates: "tmux" for traditional tmux, "in-process" for same process, "auto" to choose automatically',
@@ -153,7 +153,7 @@ export const SUPPORTED_SETTINGS: Record<string, SettingConfig> = {
   ...(feature('BRIDGE_MODE')
     ? {
         remoteControlAtStartup: {
-          source: 'global' as const,
+          source: 'settings' as const,
           type: 'boolean' as const,
           description:
             'Enable Remote Control for all sessions (true | false | default)',
@@ -170,13 +170,13 @@ export const SUPPORTED_SETTINGS: Record<string, SettingConfig> = {
             'Push to your mobile device when idle after Claude finishes (requires Remote Control)',
         },
         inputNeededNotifEnabled: {
-          source: 'global' as const,
+          source: 'settings' as const,
           type: 'boolean' as const,
           description:
             'Push to your mobile device when a permission prompt or question is waiting (requires Remote Control)',
         },
         agentPushNotifEnabled: {
-          source: 'global' as const,
+          source: 'settings' as const,
           type: 'boolean' as const,
           description:
             'Allow Claude to push to your mobile device when it deems it appropriate (requires Remote Control)',

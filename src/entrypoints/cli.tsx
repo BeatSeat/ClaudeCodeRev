@@ -167,8 +167,9 @@ async function main(): Promise<void> {
     return
   }
 
-  // Fast-path for `claude daemon [subcommand]`: long-running supervisor.
-  if (feature('DAEMON') && args[0] === 'daemon') {
+  // Official 2.1.119: `claude daemon` is always registered; `isDaemonCliEnabled`
+  // is `() => false` so non-`run` subs call fleetGateRejected.
+  if (args[0] === 'daemon') {
     profileCheckpoint('cli_daemon_path')
     const { enableConfigs } = await import('../utils/config.js')
     enableConfigs()
@@ -212,6 +213,36 @@ async function main(): Promise<void> {
         await bg.handleBgFlag(args)
     }
     return
+  }
+
+  // Official 2.1.119 `rk5` + `YY5`: TTY `claude agents` mounts FleetView
+  // before the full CLI. Extra flags (`--json`, `--cwd`, …) fall through.
+  if (
+    args[0] === 'agents' &&
+    process.stdout.isTTY &&
+    (await import('../components/FleetView/fleetGate.js')).isAgentsDebugOnlyArgs(
+      args.slice(1),
+    )
+  ) {
+    profileCheckpoint('cli_agents_path')
+    const { enableConfigs } = await import('../utils/config.js')
+    enableConfigs()
+    const { isAgentsFleetEnabled, mountFleetView } = await import(
+      '../components/FleetView/index.js'
+    )
+    if (isAgentsFleetEnabled()) {
+      const { initSinks } = await import('../utils/sinks.js')
+      initSinks()
+      const { setIsInteractive } = await import('../bootstrap/state.js')
+      setIsInteractive(true)
+      const { logEvent } = await import('../services/analytics/index.js')
+      logEvent('tengu_fleetview', {})
+      const { createRoot } = await import('../ink.js')
+      const root = await createRoot({ exitOnCtrlC: false })
+      await mountFleetView(root)
+      // eslint-disable-next-line custom-rules/no-process-exit
+      process.exit(0)
+    }
   }
 
   // Fast-path for template job commands.

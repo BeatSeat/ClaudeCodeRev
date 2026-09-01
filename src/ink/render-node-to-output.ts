@@ -13,6 +13,7 @@ import {
   squashTextNodesToSegments,
 } from './squash-text-nodes.js'
 import type { Color } from './styles.js'
+import { logForDebugging } from '../utils/debug.js'
 import { isXtermJs } from './terminal.js'
 import { widestLine } from './widest-line.js'
 import wrapText from './wrap-text.js'
@@ -781,6 +782,11 @@ function renderNodeToOutput(
             node.stickyScroll === false &&
             scrollTopBeforeFollow >= prevMaxScroll
           ) {
+            if (maxScroll - scrollTopBeforeFollow > 3) {
+              logForDebugging(
+                `render-node-to-output: positional follow re-enabled sticky (scrollTop=${scrollTopBeforeFollow} prevMax=${prevMaxScroll} → newMax=${maxScroll}, prevH=${prevScrollHeight} → ${scrollHeight})`,
+              )
+            }
             node.stickyScroll = true
           }
         }

@@ -7,9 +7,9 @@ import type { Message } from '../../types/message.js'
 import {
   resolveAutoCompactWindow,
 } from '../../utils/autoCompactWindow.js'
-import { getGlobalConfig } from '../../utils/config.js'
 import { getContextWindowForModel } from '../../utils/context.js'
 import { getInitialSettings } from '../../utils/settings/settings.js'
+import { getUserIntentSetting } from '../../utils/settings/userIntent.js'
 import { logForDebugging } from '../../utils/debug.js'
 import { isEnvTruthy } from '../../utils/envUtils.js'
 import { hasExactErrorMessage } from '../../utils/errors.js'
@@ -165,9 +165,8 @@ export function isAutoCompactEnabled(): boolean {
   if (isEnvTruthy(process.env.DISABLE_AUTO_COMPACT)) {
     return false
   }
-  // Check if user has disabled auto-compact in their settings
-  const userConfig = getGlobalConfig()
-  return userConfig.autoCompactEnabled
+  // Official 2.1.119 T5: user-intent key from settings.json + legacy fallback
+  return getUserIntentSetting('autoCompactEnabled', true) ?? true
 }
 
 export async function shouldAutoCompact(

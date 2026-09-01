@@ -20,13 +20,13 @@ import { logEvent } from 'src/services/analytics/index.js'
 import { notifyVscodeFileUpdated } from 'src/services/mcp/vscodeSdkMcp.js'
 import type { LogOption } from 'src/types/logs.js'
 import { inspect } from 'util'
-import { getGlobalConfig } from './config.js'
 import { logForDebugging } from './debug.js'
 import { getClaudeConfigHomeDir, isEnvTruthy } from './envUtils.js'
 import { getErrnoCode, isENOENT } from './errors.js'
 import { pathExists } from './file.js'
 import { logError } from './log.js'
 import { recordFileHistorySnapshot } from './sessionStorage.js'
+import { getUserIntentSetting } from './settings/userIntent.js'
 
 type BackupFileName = string | null // The null value means the file does not exist in this version
 
@@ -65,7 +65,7 @@ export function fileHistoryEnabled(): boolean {
     return fileHistoryEnabledSdk()
   }
   return (
-    getGlobalConfig().fileCheckpointingEnabled !== false &&
+    getUserIntentSetting('fileCheckpointingEnabled', true) !== false &&
     !isEnvTruthy(process.env.CLAUDE_CODE_DISABLE_FILE_CHECKPOINTING)
   )
 }

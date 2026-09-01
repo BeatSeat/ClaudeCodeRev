@@ -55,12 +55,12 @@ const GH_PR_ACTIONS: readonly { re: RegExp; action: PrAction; op: string }[] = [
   { re: /\bgh\s+pr\s+ready\b/, action: 'ready', op: 'pr_ready' },
 ]
 
-// Official 2.1.116 qpK / eE9 / Hh9 / $h9=60000 / rmK.
-// Hint when a gh command's stdout mentions "rate limit" so the model backs
-// off instead of retrying. Cooldown is process-local (one hint / 60s).
+// Official 2.1.116 qpK / eE9 / $h9=60000. 119 mo_ tightens stdout match
+// (118 Hh9 `/\brate limit\b/i` fired on PR titles). Cooldown stays 60s.
 const GH_RATE_LIMIT_CMD_RE =
   /(?:^|[;&|]|\b(?:then|do)\b)\s*gh\s+(?!auth\b|help\b|version\b|alias\b|completion\b|config\b)/
-const GH_RATE_LIMIT_OUTPUT_RE = /\brate limit\b/i
+const GH_RATE_LIMIT_OUTPUT_RE =
+  /API rate limit (?:already )?exceeded|exceeded a secondary rate limit|\bRATE_LIMITED\b/i
 const GH_RATE_LIMIT_HINT_COOLDOWN_MS = 60_000
 const GH_RATE_LIMIT_HINT =
   '<system-reminder>GitHub API rate limit exceeded (5,000/hr shared across all tools and agents). Run `gh api rate_limit --jq .resources` and sleep until reset before further gh calls. If polling in a loop, use ScheduleWakeup instead of retrying.</system-reminder>'
@@ -68,9 +68,10 @@ const GH_RATE_LIMIT_HINT =
 let nextGhRateLimitHintAt = 0
 
 /**
- * Official 2.1.116 qpK. Returns a model-facing system-reminder when `command`
- * is a `gh` invocation (not auth/help/version/alias/completion/config) and
- * `stdout` contains `rate limit`. Undefined when on cooldown or no match.
+ * Official 2.1.116 qpK / 119 FsK. Returns a model-facing system-reminder when
+ * `command` is a `gh` invocation (not auth/help/version/alias/completion/config)
+ * and `stdout` matches the 119 API-rate-limit regex. Undefined on cooldown
+ * or no match. Function + 60s cooldown kept; only the output regex changed.
  */
 export function maybeGhRateLimitHint(
   command: string,

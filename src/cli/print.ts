@@ -314,7 +314,7 @@ import {
 } from 'src/bootstrap/state.js'
 import { endInteractionSpan } from 'src/utils/telemetry/sessionTracing.js'
 
-/** Compile passthrough; official bundles expose no name for this helper. */
+/** 118/119 compile passthrough — name is 0 in both official bundles. */
 async function runWithInteractionContext<T>(
   _userPrompt: string,
   fn: () => Promise<T>,
