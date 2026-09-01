@@ -30,9 +30,11 @@ import {
   formatVersionRequirementError,
   getEnabledPluginIdsForScope,
   intersectConstraints,
+  pluginVersionSatisfies,
   qualifyDependency,
   type ResolutionResult,
   resolveDependencyClosure,
+  type VersionRequirementWhy,
 } from './dependencyResolver.js'
 import {
   addInstalledPlugin,
@@ -340,7 +342,8 @@ export type InstallCoreResult =
       reason: 'range-conflict'
       dep: string
       ranges: string[]
-      why: 'disjoint' | 'too-complex' | 'invalid'
+      why: VersionRequirementWhy
+      installed?: string
     }
   | { ok: false; reason: 'no-matching-tag'; dep: string; range: string }
 
@@ -557,9 +560,14 @@ export async function installResolvedPlugin({
   const fromLoaded = new Map<string, string[]>()
   const fromClosure = new Map<string, string[]>()
   const closureSet = new Set(resolution.closure)
+  const installedVersions = new Map<string, string | undefined>()
   try {
     const loaded = await loadAllPluginsCacheOnly()
     for (const plugin of loaded.enabled.concat(loaded.disabled)) {
+      installedVersions.set(
+        plugin.source,
+        plugin.resolvedVersion ?? plugin.manifest.version,
+      )
       if (!plugin.depConstraints || closureSet.has(plugin.source)) continue
       for (const [raw, constraint] of Object.entries(plugin.depConstraints)) {
         if (constraint.version === undefined) continue
@@ -585,7 +593,8 @@ export async function installResolvedPlugin({
         reason: 'range-conflict'
         dep: string
         ranges: string[]
-        why: 'disjoint' | 'too-complex' | 'invalid'
+        why: VersionRequirementWhy
+        installed?: string
       }
   > {
     let info = depInfo.get(id)
@@ -653,6 +662,38 @@ export async function installResolvedPlugin({
     if (id === undefined) continue
     const materialized = await materializeOne(id)
     if (materialized.ok === false) return materialized
+  }
+
+  // Official 2.1.113: after materializing the new closure, fail install
+  // when a newly discovered constraint conflicts with an already-installed
+  // plugin that is not in this closure.
+  for (const [dep, closureRanges] of fromClosure) {
+    if (closureSet.has(dep) || !installedVersions.has(dep)) continue
+    const ranges = closureRanges.concat(fromLoaded.get(dep) ?? [])
+    const intersected = intersectConstraints(ranges)
+    if (intersected.ok === false) {
+      return {
+        ok: false,
+        reason: 'range-conflict',
+        dep,
+        ranges,
+        why: intersected.reason,
+      }
+    }
+    const installed = installedVersions.get(dep)
+    if (
+      intersected.range !== '*' &&
+      !pluginVersionSatisfies(installed, intersected.range)
+    ) {
+      return {
+        ok: false,
+        reason: 'range-conflict',
+        dep,
+        ranges,
+        why: 'installed-unsatisfied',
+        installed,
+      }
+    }
   }
 
   // Official 2.1.110 `Y3z`: honor plugin.json dependencies the marketplace
@@ -800,6 +841,7 @@ export async function installPluginFromMarketplace({
               result.dep,
               result.ranges,
               result.why,
+              result.installed,
             ),
           }
         case 'no-matching-tag':

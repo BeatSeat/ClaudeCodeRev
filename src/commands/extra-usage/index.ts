@@ -18,6 +18,7 @@ export const extraUsage = {
   load: () => import('./extra-usage.js'),
 } satisfies Command
 
+/** Official 2.1.113 — also in BRIDGE_SAFE_COMMANDS so RC clients can invoke /extra-usage. */
 export const extraUsageNonInteractive = {
   type: 'local',
   name: 'extra-usage',

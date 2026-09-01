@@ -145,7 +145,9 @@ import { getMcpServerHeaders } from './headersHelper.js'
 import { SdkControlClientTransport } from './SdkControlTransport.js'
 import type {
   ConnectedMCPServer,
+  MCPCallWatchdog,
   MCPServerConnection,
+  MCPTransportErrorState,
   McpSdkServerConfig,
   ScopedMcpServerConfig,
   ServerResource,
@@ -1232,8 +1234,21 @@ export const connectToServer = memoize(
       // The SDK's transport calls onerror on connection failures but doesn't call onclose,
       // which CC uses to trigger reconnection. We bridge this gap by tracking consecutive
       // terminal errors and manually closing after MAX_ERRORS_BEFORE_RECONNECT failures.
-      let consecutiveConnectionErrors = 0
       const MAX_ERRORS_BEFORE_RECONNECT = 3
+      // Official 2.1.113: per-call watchdogs. A later JSON-RPC message for
+      // call B must not clear call A's armed timer (112 shared lastErrorAt).
+      const transportErrorState: MCPTransportErrorState = {
+        consecutiveErrors: 0,
+        activeCallWatchdogs: new Set(),
+      }
+      const armActiveCallWatchdogs = (): void => {
+        const now = Date.now()
+        for (const watchdog of transportErrorState.activeCallWatchdogs) {
+          if (watchdog.armedAt === 0) {
+            watchdog.armedAt = now
+          }
+        }
+      }
 
       // Guard against re-entry: close() aborts in-flight streams which may fire
       // onerror again before the close chain completes.
@@ -1293,6 +1308,7 @@ export const connectToServer = memoize(
           error instanceof SyntaxError
         ) {
           hasErrorOccurred = true
+          armActiveCallWatchdogs()
           closeTransportAndRejectPending(
             'malformed JSON-RPC message (response truncated)',
           )
@@ -1401,25 +1417,42 @@ export const connectToServer = memoize(
           }
 
           if (isTerminalConnectionError(error.message)) {
-            consecutiveConnectionErrors++
+            transportErrorState.consecutiveErrors++
+            armActiveCallWatchdogs()
             logMCPDebug(
               name,
-              `Terminal connection error ${consecutiveConnectionErrors}/${MAX_ERRORS_BEFORE_RECONNECT}`,
+              `Terminal connection error ${transportErrorState.consecutiveErrors}/${MAX_ERRORS_BEFORE_RECONNECT}`,
             )
 
-            if (consecutiveConnectionErrors >= MAX_ERRORS_BEFORE_RECONNECT) {
-              consecutiveConnectionErrors = 0
+            if (
+              transportErrorState.consecutiveErrors >=
+              MAX_ERRORS_BEFORE_RECONNECT
+            ) {
+              transportErrorState.consecutiveErrors = 0
               closeTransportAndRejectPending('max consecutive terminal errors')
             }
           } else {
             // Non-terminal error (e.g., transient issue), reset counter
-            consecutiveConnectionErrors = 0
+            transportErrorState.consecutiveErrors = 0
           }
         }
 
         // Call original handler
         if (originalOnerror) {
           originalOnerror(error)
+        }
+      }
+
+      // Official 2.1.113: a message for one in-flight tool call must not
+      // disarm another call's watchdog. Only reset the consecutive-error
+      // counter — 112 zeroed a shared lastErrorAt here.
+      if (client.transport) {
+        const originalOnmessage = client.transport.onmessage
+        client.transport.onmessage = (message, extra) => {
+          if (transportErrorState.consecutiveErrors !== 0) {
+            transportErrorState.consecutiveErrors = 0
+          }
+          originalOnmessage?.(message, extra)
         }
       }
 
@@ -1654,6 +1687,7 @@ export const connectToServer = memoize(
         instructions,
         config: serverRef,
         cleanup: wrappedCleanup,
+        transportErrorState,
       }
     } catch (error) {
       const connectionDurationMs = Date.now() - connectStartTime
@@ -3271,7 +3305,7 @@ export async function callMCPToolWithUrlElicitationRetry({
 }
 
 async function callMCPTool({
-  client: { client, name, config },
+  client: { client, name, config, transportErrorState },
   tool,
   args,
   meta,
@@ -3291,23 +3325,42 @@ async function callMCPTool({
 }> {
   const toolStartTime = Date.now()
   let progressInterval: NodeJS.Timeout | undefined
+  const callWatchdog: MCPCallWatchdog = { armedAt: 0 }
+  transportErrorState?.activeCallWatchdogs.add(callWatchdog)
 
   try {
     logMCPDebug(name, `Calling MCP tool: ${tool}`)
 
-    // Set up progress logging for long-running tools (every 30 seconds)
-    progressInterval = setInterval(
-      (startTime, name, tool) => {
-        const elapsed = Date.now() - startTime
-        const elapsedSeconds = Math.floor(elapsed / 1000)
-        const duration = `${elapsedSeconds}s`
-        logMCPDebug(name, `Tool '${tool}' still running (${duration} elapsed)`)
-      },
-      30000, // Log every 30 seconds
-      toolStartTime,
-      name,
-      tool,
-    )
+    let rejectTransportLost: ((error: Error) => void) | undefined
+    const transportLostPromise = new Promise<never>((_, reject) => {
+      rejectTransportLost = reject
+    })
+
+    // Set up progress logging for long-running tools (every 30 seconds).
+    // Official 2.1.113: also abort THIS call if its own watchdog has been
+    // armed for >90s. Progress on another concurrent call must not reset it.
+    progressInterval = setInterval(() => {
+      const elapsedSeconds = Math.floor((Date.now() - toolStartTime) / 1000)
+      logMCPDebug(
+        name,
+        `Tool '${tool}' still running (${elapsedSeconds}s elapsed)`,
+      )
+      if (
+        callWatchdog.armedAt > 0 &&
+        Date.now() - callWatchdog.armedAt > 90000
+      ) {
+        logMCPDebug(
+          name,
+          `Tool '${tool}' aborting: transport error ${Math.floor((Date.now() - callWatchdog.armedAt) / 1000)}s ago, response presumed lost`,
+        )
+        rejectTransportLost?.(
+          new TelemetrySafeError_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS(
+            `MCP server "${name}" transport dropped mid-call; response for tool "${tool}" was lost`,
+            'MCP transport lost mid-call',
+          ),
+        )
+      }
+    }, 30000)
 
     // Use Promise.race with our own timeout to handle cases where SDK's
     // internal timeout doesn't work (e.g., SSE stream breaks mid-request)
@@ -3343,26 +3396,33 @@ async function callMCPTool({
         {
           signal,
           timeout: timeoutMs,
-          onprogress: onProgress
-            ? sdkProgress => {
-                onProgress({
-                  type: 'mcp_progress',
-                  status: 'progress',
-                  serverName: name,
-                  toolName: tool,
-                  progress: sdkProgress.progress,
-                  total: sdkProgress.total,
-                  progressMessage: sdkProgress.message,
-                })
-              }
-            : undefined,
+          onprogress: sdkProgress => {
+            callWatchdog.armedAt = 0
+            if (onProgress) {
+              onProgress({
+                type: 'mcp_progress',
+                status: 'progress',
+                serverName: name,
+                toolName: tool,
+                progress: sdkProgress.progress,
+                total: sdkProgress.total,
+                progressMessage: sdkProgress.message,
+              })
+            }
+          },
         },
       ),
       timeoutPromise,
+      transportLostPromise,
     ]).finally(() => {
       if (timeoutId) {
         clearTimeout(timeoutId)
       }
+      if (progressInterval !== undefined) {
+        clearInterval(progressInterval)
+        progressInterval = undefined
+      }
+      transportErrorState?.activeCallWatchdogs.delete(callWatchdog)
     })
 
     if ('isError' in result && result.isError) {
@@ -3429,6 +3489,7 @@ async function callMCPTool({
     if (progressInterval !== undefined) {
       clearInterval(progressInterval)
     }
+    transportErrorState?.activeCallWatchdogs.delete(callWatchdog)
 
     const elapsed = Date.now() - toolStartTime
 
@@ -3554,6 +3615,10 @@ export async function setupSdkMcpClients(
           config: { ...config, scope: 'dynamic' as const },
           cleanup: async () => {
             await client.close()
+          },
+          transportErrorState: {
+            consecutiveErrors: 0,
+            activeCallWatchdogs: new Set(),
           },
         }
 

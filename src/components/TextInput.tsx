@@ -13,6 +13,7 @@ import {
   useTheme,
 } from '../ink.js'
 import type { BaseTextInputProps } from '../types/textInputTypes.js'
+import { rawInverse } from '../ink/colorize.js'
 import { isEnvTruthy } from '../utils/envUtils.js'
 import type { TextHighlight } from '../utils/textHighlighting.js'
 import { BaseTextInput } from './BaseTextInput.js'
@@ -100,7 +101,7 @@ export default function TextInput(props: Props): React.ReactNode {
     const { r, g, b } = isSilent ? { r: 128, g: 128, b: 128 } : hueToRgb(hue)
     invert = () => chalk.rgb(r, g, b)(BARS[barIndex]!)
   } else {
-    invert = chalk.inverse
+    invert = rawInverse
   }
 
   const textInputState = useTextInput({

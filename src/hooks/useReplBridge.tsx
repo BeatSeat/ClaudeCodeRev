@@ -30,6 +30,8 @@ import type { Message } from '../types/message.js'
 import { getCwd } from '../utils/cwd.js'
 import { logForDebugging } from '../utils/debug.js'
 import { errorMessage } from '../utils/errors.js'
+import { generateFileSuggestions } from './fileSuggestions.js'
+import { cancelAllPendingLoopSessionCrons } from '../utils/cronTasks.js'
 import { enqueue } from '../utils/messageQueueManager.js'
 import { buildSystemInitMessage } from '../utils/messages/systemInit.js'
 import {
@@ -468,7 +470,12 @@ export function useReplBridge(
             onInboundMessage: handleInboundMessage,
             onPermissionResponse: handlePermissionResponse,
             onInterrupt() {
+              cancelAllPendingLoopSessionCrons()
               abortControllerRef.current?.abort()
+            },
+            async onFileSuggestions(query) {
+              const items = await generateFileSuggestions(query, true)
+              return items.map(item => ({ path: item.displayText }))
             },
             onSetModel(model) {
               const resolved = model === 'default' ? null : (model ?? null)

@@ -20,6 +20,10 @@ export type CommandIdentityCheckers = {
   isNormalizedGitCommand: (command: string) => boolean
 }
 
+export type CompoundCdNoopCheck = (
+  subcommands: string[],
+) => Promise<boolean>
+
 async function segmentedCommandPermissionResult(
   input: z.infer<typeof BashTool.inputSchema>,
   segments: string[],
@@ -27,6 +31,7 @@ async function segmentedCommandPermissionResult(
     input: z.infer<typeof BashTool.inputSchema>,
   ) => Promise<PermissionResult>,
   checkers: CommandIdentityCheckers,
+  areCompoundCdsNoops?: CompoundCdNoopCheck,
 ): Promise<PermissionResult> {
   // Check for multiple cd commands across all segments
   const cdCommands = segments.filter(segment => {
@@ -68,15 +73,26 @@ async function segmentedCommandPermissionResult(
       }
     }
     if (hasCd && hasGit) {
-      const decisionReason = {
-        type: 'other' as const,
-        reason:
-          'Compound commands with cd and git require approval to prevent bare repository attacks',
+      const allSubs: string[] = []
+      for (const segment of segments) {
+        for (const sub of splitCommand_DEPRECATED(segment)) {
+          allSubs.push(sub.trim())
+        }
       }
-      return {
-        behavior: 'ask',
-        decisionReason,
-        message: createPermissionRequestMessage(BashTool.name, decisionReason),
+      const cdsAreNoops = areCompoundCdsNoops
+        ? await areCompoundCdsNoops(allSubs)
+        : false
+      if (!cdsAreNoops) {
+        const decisionReason = {
+          type: 'other' as const,
+          reason:
+            'This command changes directory before running git, which can execute untrusted hooks from the target directory. Approve only if you trust it.',
+        }
+        return {
+          behavior: 'ask',
+          decisionReason,
+          message: createPermissionRequestMessage(BashTool.name, decisionReason),
+        }
       }
     }
   }
@@ -185,6 +201,7 @@ export async function checkCommandOperatorPermissions(
   ) => Promise<PermissionResult>,
   checkers: CommandIdentityCheckers,
   astRoot: Node | null | typeof PARSE_ABORTED,
+  areCompoundCdsNoops?: CompoundCdNoopCheck,
 ): Promise<PermissionResult> {
   const parsed =
     astRoot && astRoot !== PARSE_ABORTED
@@ -198,6 +215,7 @@ export async function checkCommandOperatorPermissions(
     bashToolHasPermissionFn,
     checkers,
     parsed,
+    areCompoundCdsNoops,
   )
 }
 
@@ -212,6 +230,7 @@ async function bashToolCheckCommandOperatorPermissions(
   ) => Promise<PermissionResult>,
   checkers: CommandIdentityCheckers,
   parsed: IParsedCommand,
+  areCompoundCdsNoops?: CompoundCdNoopCheck,
 ): Promise<PermissionResult> {
   // 1. Check for unsafe compound commands (subshells, command groups).
   const tsAnalysis = parsed.getTreeSitterAnalysis()
@@ -261,5 +280,6 @@ async function bashToolCheckCommandOperatorPermissions(
     segments,
     bashToolHasPermissionFn,
     checkers,
+    areCompoundCdsNoops,
   )
 }
