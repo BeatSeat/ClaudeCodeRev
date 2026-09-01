@@ -27,6 +27,7 @@ import {
 import { ImageSizeError } from './utils/imageValidation.js'
 import { ImageResizeError } from './utils/imageResizer.js'
 import { findToolByName, type ToolUseContext } from './Tool.js'
+import { isBetaTracingEnabled } from './utils/telemetry/sessionTracing.js'
 import { asSystemPrompt, type SystemPrompt } from './utils/systemPromptType.js'
 import type {
   AssistantMessage,
@@ -712,6 +713,15 @@ async function* queryLoop(
                 toolUseContext.options.agentDefinitions.allowedAgentTypes,
               hasAppendSystemPrompt:
                 !!toolUseContext.options.appendSystemPrompt,
+              userSystemPrompt:
+                !toolUseContext.agentId && isBetaTracingEnabled()
+                  ? [
+                      toolUseContext.options.customSystemPrompt,
+                      toolUseContext.options.appendSystemPrompt,
+                    ]
+                      .filter((part): part is string => !!part)
+                      .join('\n\n') || undefined
+                  : undefined,
               maxOutputTokensOverride,
               fetchOverride: dumpPromptsFetch,
               mcpTools: appState.mcp.tools,

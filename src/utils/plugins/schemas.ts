@@ -1658,6 +1658,12 @@ export const InstalledPluginSchema = lazySchema(() =>
       .describe(
         'Tag-derived semver this install resolved to (when fetched via a version constraint). Used by verifyAndDemote in preference to manifest.version, since the upstream may have forgotten to bump plugin.json.',
       ),
+    auto: z
+      .boolean()
+      .optional()
+      .describe(
+        'True when this plugin was pulled in as a dependency rather than installed explicitly. Auto-installed plugins are eligible for removal by the orphan sweep when nothing depends on them. Absent = manual (preserves pre-flag installs).',
+      ),
   }),
 )
 
@@ -1742,6 +1748,12 @@ export const PluginInstallationEntrySchema = lazySchema(() =>
       .string()
       .optional()
       .describe('Tag-derived semver this install resolved to'),
+    auto: z
+      .boolean()
+      .optional()
+      .describe(
+        'True when pulled in as a dependency. Eligible for orphan sweep.',
+      ),
   }),
 )
 

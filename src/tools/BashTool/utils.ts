@@ -181,8 +181,13 @@ export function resetCwdIfOutsideProject(
     (cwd !== originalCwd &&
       !pathInAllowedWorkingPath(cwd, toolPermissionContext))
   ) {
-    // Reset to original directory if maintaining project dir OR outside allowed working directory
-    setCwd(originalCwd)
+    // Official 2.1.121 N78: setCwd throws if originalCwd was deleted/moved.
+    // Catch so Bash is not permanently unusable for the rest of the session.
+    try {
+      setCwd(originalCwd)
+    } catch {
+      return true
+    }
     if (!shouldMaintain) {
       logEvent('tengu_bash_tool_reset_to_original_dir', {})
       return true

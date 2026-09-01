@@ -241,11 +241,19 @@ type State = {
   // microcompact is first enabled, keep sending the header so mid-session
   // GrowthBook/settings toggles don't bust the prompt cache.
   cacheEditingHeaderLatched: boolean | null
+  // Sticky-on latch for the server-side prompt-cache diagnosis beta header.
+  // Once enabled (firstParty + tengu_prompt_cache_diagnostics gate), keep
+  // sending the header so the server can diagnose cache misses; the latch is
+  // dropped (to false) if the server 400s the beta. 121 `cacheDiagnosisHeaderLatched`.
+  cacheDiagnosisHeaderLatched: boolean | null
   // Sticky-on latch for clearing thinking from prior tool loops. Triggered
   // when >1h since last API call (confirmed cache miss — no cache-hit
   // benefit to keeping thinking). Once latched, stays on so the newly-warmed
   // thinking-cleared cache isn't busted by flipping back to keep:'all'.
   thinkingClearLatched: boolean | null
+  // Per-model flip after the API 400s thinking.type.enabled / .adaptive
+  // (Bedrock application-inference-profile ARNs). 121 `thinkingTypeOverrides`.
+  thinkingTypeOverrides: Map<string, 'enabled' | 'adaptive'>
   // Current prompt ID (UUID) correlating a user prompt with subsequent OTel events
   promptId: string | null
   // Last API requestId for the main conversation chain (not subagents).
@@ -424,7 +432,9 @@ function getInitialState(): State {
     afkModeHeaderLatched: null,
     fastModeHeaderLatched: null,
     cacheEditingHeaderLatched: null,
+    cacheDiagnosisHeaderLatched: null,
     thinkingClearLatched: null,
+    thinkingTypeOverrides: new Map(),
     // Current prompt ID
     promptId: null,
     lastMainRequestId: undefined,
@@ -1777,12 +1787,33 @@ export function setCacheEditingHeaderLatched(v: boolean): void {
   STATE.cacheEditingHeaderLatched = v
 }
 
+export function getCacheDiagnosisHeaderLatched(): boolean | null {
+  return STATE.cacheDiagnosisHeaderLatched
+}
+
+export function setCacheDiagnosisHeaderLatched(v: boolean): void {
+  STATE.cacheDiagnosisHeaderLatched = v
+}
+
 export function getThinkingClearLatched(): boolean | null {
   return STATE.thinkingClearLatched
 }
 
 export function setThinkingClearLatched(v: boolean): void {
   STATE.thinkingClearLatched = v
+}
+
+export function getThinkingTypeOverride(
+  model: string,
+): 'enabled' | 'adaptive' | undefined {
+  return STATE.thinkingTypeOverrides.get(model)
+}
+
+export function setThinkingTypeOverride(
+  model: string,
+  type: 'enabled' | 'adaptive',
+): void {
+  STATE.thinkingTypeOverrides.set(model, type)
 }
 
 /**
@@ -1793,6 +1824,7 @@ export function clearBetaHeaderLatches(): void {
   STATE.afkModeHeaderLatched = null
   STATE.fastModeHeaderLatched = null
   STATE.cacheEditingHeaderLatched = null
+  STATE.cacheDiagnosisHeaderLatched = null
   STATE.thinkingClearLatched = null
 }
 

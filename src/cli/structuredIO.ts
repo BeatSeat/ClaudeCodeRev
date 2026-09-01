@@ -55,7 +55,7 @@ import {
 import {
   notifySessionStateChanged,
   type RequiresActionDetails,
-  type SessionExternalMetadata,
+  type RestoredWorkerState,
 } from '../utils/sessionState.js'
 import { jsonParse } from '../utils/slowOperations.js'
 import { Stream } from '../utils/stream.js'
@@ -143,9 +143,9 @@ export class StructuredIO {
   readonly structuredInput: AsyncGenerator<StdinMessage | SDKMessage>
   private readonly pendingRequests = new Map<string, PendingRequest<unknown>>()
 
-  // CCR external_metadata read back on worker start; null when the
-  // transport doesn't restore. Assigned by RemoteIO.
-  restoredWorkerState: Promise<SessionExternalMetadata | null> =
+  // CCR external + internal metadata read back on worker start; null when
+  // the transport doesn't restore. Assigned by RemoteIO.
+  restoredWorkerState: Promise<RestoredWorkerState | null> =
     Promise.resolve(null)
 
   private inputClosed = false

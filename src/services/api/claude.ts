@@ -118,13 +118,16 @@ import {
 import {
   getAfkModeHeaderLatched,
   getCacheEditingHeaderLatched,
+  getCacheDiagnosisHeaderLatched,
   getFastModeHeaderLatched,
   getLastApiCompletionTimestamp,
   getPromptCache1hAllowlist,
   getSessionId,
   getThinkingClearLatched,
+  getThinkingTypeOverride,
   setAfkModeHeaderLatched,
   setCacheEditingHeaderLatched,
+  setCacheDiagnosisHeaderLatched,
   setFastModeHeaderLatched,
   setLastMainRequestId,
   setPromptCache1hAllowlist,
@@ -136,6 +139,7 @@ import {
   CONTEXT_MANAGEMENT_BETA_HEADER,
   EFFORT_BETA_HEADER,
   FAST_MODE_BETA_HEADER,
+  CACHE_DIAGNOSIS_BETA_HEADER,
   PROMPT_CACHING_SCOPE_BETA_HEADER,
   REDACT_THINKING_BETA_HEADER,
   STRUCTURED_OUTPUTS_BETA_HEADER,
@@ -249,7 +253,9 @@ import {
 } from './logging.js'
 import {
   CACHE_TTL_1HOUR_MS,
+  type ServerCacheDiagnosis,
   checkResponseForCacheBreak,
+  reportServerPromptCacheDiagnosis,
   recordPromptState,
 } from './promptCacheBreakDetection.js'
 import {
@@ -709,6 +715,8 @@ export type Options = {
   agents: AgentDefinition[]
   allowedAgentTypes?: string[]
   hasAppendSystemPrompt: boolean
+  /** Combined --system-prompt / --append-system-prompt for OTEL user_system_prompt */
+  userSystemPrompt?: string
   fetchOverride?: ClientOptions['fetch']
   enablePromptCaching?: boolean
   skipCacheWrite?: boolean
@@ -1469,6 +1477,26 @@ async function* queryModel(
     }
   }
 
+  // 121 kM5 / SL8 / q2$ — sticky-on latch for the server-side prompt-cache
+  // diagnosis beta header. Eligible when firstParty on the default Anthropic
+  // base URL (or Anthropic-AWS without a custom base URL) AND the
+  // tengu_prompt_cache_diagnostics GrowthBook gate is on. Once sent it is
+  // kept for the session; dropped (to false) if the server 400s the beta.
+  let cacheDiagnosisEnabled = getCacheDiagnosisHeaderLatched() === true
+  {
+    const prevDiagnosisLatch = getCacheDiagnosisHeaderLatched()
+    const diagnosisEligible =
+      shouldIncludeFirstPartyOnlyBetas() &&
+      ((getAPIProvider() === 'firstParty' && isFirstPartyAnthropicBaseUrl()) ||
+        (getAPIProvider() === 'anthropicAws' &&
+          !process.env.ANTHROPIC_AWS_BASE_URL)) &&
+      getFeatureValue_CACHED_MAY_BE_STALE('tengu_prompt_cache_diagnostics', false)
+    if (!cacheDiagnosisEnabled && prevDiagnosisLatch === null && diagnosisEligible) {
+      cacheDiagnosisEnabled = true
+      setCacheDiagnosisHeaderLatched(true)
+    }
+  }
+
   // Only latch from agentic queries so a classifier call doesn't flip the
   // main thread's context_management mid-turn.
   let thinkingClearLatched = getThinkingClearLatched() === true
@@ -1508,6 +1536,9 @@ async function* queryModel(
       autoModeActive: afkHeaderLatched,
       isUsingOverage: currentLimits.isUsingOverage ?? false,
       cachedMCEnabled: cacheEditingHeaderLatched,
+      cacheDiagnosis: cacheDiagnosisEnabled,
+      is1hCacheTTL: cacheTtl === '1h',
+      queryDepth: options.queryTracking?.depth,
       effortValue: effort,
       extraBodyParams: getExtraBodyParams(),
     })
@@ -1516,6 +1547,7 @@ async function* queryModel(
   const newContext: LLMRequestNewContext | undefined = isBetaTracingEnabled()
     ? {
         systemPrompt: systemPrompt.join('\n\n'),
+        userSystemPrompt: options.userSystemPrompt,
         querySource: options.querySource,
         tools: jsonStringify(allTools),
       }
@@ -1633,12 +1665,16 @@ async function* queryModel(
     // contain opus-4-7, so thinking.type.enabled 400s unless we classify
     // against the resolved backing model.
     if (hasThinking && modelSupportsThinking(resolvedModel)) {
+      const thinkingTypeOverride = getThinkingTypeOverride(options.model)
       if (
-        !isEnvTruthy(process.env.CLAUDE_CODE_DISABLE_ADAPTIVE_THINKING) &&
-        modelSupportsAdaptiveThinking(resolvedModel)
+        thinkingTypeOverride !== undefined
+          ? thinkingTypeOverride === 'adaptive'
+          : !isEnvTruthy(process.env.CLAUDE_CODE_DISABLE_ADAPTIVE_THINKING) &&
+            modelSupportsAdaptiveThinking(resolvedModel)
       ) {
         // For models that support adaptive thinking, always use adaptive
-        // thinking without a budget.
+        // thinking without a budget. 121 override flips enabled↔adaptive
+        // after Bedrock profile ARNs reject the first type.
         thinking = {
           type: 'adaptive',
         } satisfies BetaMessageStreamParams['thinking']
@@ -1717,6 +1753,19 @@ async function* queryModel(
       logForDebugging(
         'Cache editing beta header enabled for cached microcompact',
       )
+    }
+
+    // 121: server-side prompt-cache diagnosis beta header (sticky-on latch).
+    // Lets the server attach diagnostics.cache_miss_reason to the response so
+    // the client can explain cache breaks that are not client-caused.
+    // Read the global latch fresh each attempt (not the pre-call snapshot): a
+    // 400 on the beta drops the latch via withRetry, and we must stop sending
+    // it on subsequent retries (bundle e=!1 + q2$('false') sync).
+    if (
+      getCacheDiagnosisHeaderLatched() === true &&
+      !betasParams.includes(CACHE_DIAGNOSIS_BETA_HEADER)
+    ) {
+      betasParams.push(CACHE_DIAGNOSIS_BETA_HEADER)
     }
 
     // Only send temperature when thinking is disabled — the API requires
@@ -1803,6 +1852,10 @@ async function* queryModel(
   let maxOutputTokens = 0
   let responseHeaders: globalThis.Headers | undefined = undefined
   let research: unknown = undefined
+  // 121 QEK: server-side prompt-cache diagnosis captured from the response
+  // (diagnostics.cache_miss_reason — an object of { type, cache_missed_input_tokens }).
+  // Forwarded via tengu_prompt_cache_diagnosis_received at end.
+  let cacheMissReason: ServerCacheDiagnosis | undefined = undefined
   let isFastModeRequest = isFastMode // Keep separate state as it may change if falling back
   let isAdvisorInProgress = false
 
@@ -2014,6 +2067,11 @@ async function* queryModel(
         switch (part.type) {
           case 'message_start': {
             partialMessage = part.message
+            cacheMissReason = (
+              part.message as unknown as {
+                diagnostics?: { cache_miss_reason?: ServerCacheDiagnosis }
+              }
+            ).diagnostics?.cache_miss_reason
             ttftMs = Date.now() - start
             usage = updateUsage(usage, part.message?.usage)
             // Capture research from message_start if available (internal only).
@@ -2430,6 +2488,28 @@ async function* queryModel(
         )
       }
 
+      // 121 QEK: forward the server-side prompt-cache diagnosis (if the
+      // diagnosis beta was sent and the response carried a cache-miss reason).
+      if (getCacheDiagnosisHeaderLatched() === true && cacheMissReason) {
+        const previousMessage = messages.findLast(
+          m => m.type === 'assistant' && m.requestId,
+        )
+        reportServerPromptCacheDiagnosis(
+          cacheMissReason,
+          {
+            requestId: streamRequestId,
+            previousMessageId:
+              previousMessage?.type === 'assistant'
+                ? previousMessage.message.id
+                : undefined,
+            model: options.model,
+            is1hCacheTTL: cacheTtl === '1h',
+            querySource: options.querySource,
+            queryDepth: options.queryTracking?.depth,
+          },
+        )
+      }
+
       // Process fallback percentage header and quota status if available
       // streamResponse is set when the stream is created in the withRetry callback above
       // TypeScript's control flow analysis can't track that streamResponse is set in the callback
@@ -2675,6 +2755,11 @@ async function* queryModel(
         streamRequestId,
       )
 
+      cacheMissReason = (
+        result as unknown as {
+          diagnostics?: { cache_miss_reason?: ServerCacheDiagnosis }
+        }
+      ).diagnostics?.cache_miss_reason
       const m: AssistantMessage = {
         message: {
           ...result,

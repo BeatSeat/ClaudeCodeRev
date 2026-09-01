@@ -56,9 +56,12 @@ import {
   notifySessionMetadataChanged,
   setPermissionModeChangedListener,
   type RequiresActionDetails,
-  type SessionExternalMetadata,
+  type RestoredWorkerState,
 } from 'src/utils/sessionState.js'
-import { externalMetadataToAppState } from 'src/state/onChangeAppState.js'
+import {
+  externalMetadataToAppState,
+  sessionAllowRulesToAppState,
+} from 'src/state/onChangeAppState.js'
 import { getInMemoryErrors, logError, logMCPDebug } from 'src/utils/log.js'
 import {
   writeToStdout,
@@ -247,6 +250,7 @@ import {
   performMCPOAuthFlow,
   revokeServerTokens,
 } from 'src/services/mcp/auth.js'
+import { buildClaudeAiConnectorAuthUrl } from 'src/services/mcp/claudeai.js'
 import {
   runElicitationHooks,
   runElicitationResultHooks,
@@ -1636,6 +1640,7 @@ function runHeadlessStreaming(
 
   function applyMcpServerChanges(
     servers: Record<string, McpServerConfigForProcessTransport>,
+    caller = 'unknown',
   ): Promise<{
     response: SDKControlMcpSetServersResponse
     sdkServersChanged: boolean
@@ -1653,6 +1658,7 @@ function runHeadlessStreaming(
         { configs: sdkMcpConfigs, clients: sdkClients, tools: sdkTools },
         dynamicMcpState,
         setAppState,
+        caller,
       )
 
       // Update SDK state (need to mutate sdkMcpConfigs since it's shared)
@@ -3178,6 +3184,7 @@ function runHeadlessStreaming(
         } else if (message.request.subtype === 'mcp_set_servers') {
           const { response, sdkServersChanged } = await applyMcpServerChanges(
             message.request.servers,
+            'mcp_set_servers',
           )
           sendControlResponseSuccess(message, response)
 
@@ -3452,7 +3459,10 @@ function runHeadlessStreaming(
             output,
           )
         } else if (message.request.subtype === 'mcp_authenticate') {
-          const { serverName } = message.request
+          const { serverName, redirectUri } = message.request as {
+            serverName: string
+            redirectUri?: string
+          }
           const currentAppState = getAppState()
           const config =
             getMcpConfigByName(serverName) ??
@@ -3462,6 +3472,21 @@ function runHeadlessStreaming(
             null
           if (!config) {
             sendControlResponseError(message, `Server not found: ${serverName}`)
+          } else if (config.type === 'claudeai-proxy') {
+            const authUrl = buildClaudeAiConnectorAuthUrl(config)
+            if (!authUrl) {
+              sendControlResponseError(
+                message,
+                'Unable to build claude.ai connector auth URL (missing org or server id)',
+              )
+            } else {
+              logEvent('tengu_claudeai_mcp_auth_started', {})
+              sendControlResponseSuccess(message, {
+                authUrl,
+                requiresUserAction: true,
+                callbackExpected: false,
+              })
+            }
           } else if (config.type !== 'sse' && config.type !== 'http') {
             sendControlResponseError(
               message,
@@ -3474,40 +3499,79 @@ function runHeadlessStreaming(
               const controller = new AbortController()
               activeOAuthFlows.set(serverName, controller)
 
-              // Capture the auth URL from the callback
-              let resolveAuthUrl: (url: string) => void
-              const authUrlPromise = new Promise<string>(resolve => {
-                resolveAuthUrl = resolve
-              })
-
-              // Start the OAuth flow in the background
-              const oauthPromise = performMCPOAuthFlow(
-                serverName,
-                config,
-                url => resolveAuthUrl!(url),
-                controller.signal,
-                {
-                  skipBrowserOpen: true,
-                  onWaitingForCallback: submit => {
-                    oauthCallbackSubmitters.set(serverName, submit)
+              const startOAuth = (customRedirectUri?: string) => {
+                let resolveAuthUrl: (url: string) => void
+                const authUrlPromise = new Promise<string>(resolve => {
+                  resolveAuthUrl = resolve
+                })
+                let callbackPort: number | undefined
+                let oauthState: string | undefined
+                const oauthPromise = performMCPOAuthFlow(
+                  serverName,
+                  config,
+                  url => resolveAuthUrl!(url),
+                  controller.signal,
+                  {
+                    skipBrowserOpen: true,
+                    redirectUri: customRedirectUri,
+                    onWaitingForCallback: (submit, port, state) => {
+                      oauthCallbackSubmitters.set(serverName, submit)
+                      callbackPort = port
+                      oauthState = state
+                    },
                   },
-                },
-              )
+                )
+                return {
+                  oauthPromise,
+                  raced: Promise.race([
+                    authUrlPromise,
+                    oauthPromise.then(() => null as string | null),
+                  ]).then(authUrl => ({
+                    authUrl,
+                    callbackPort,
+                    state: oauthState,
+                  })),
+                }
+              }
 
-              // Wait for the auth URL (or the flow to complete without needing redirect)
-              const authUrl = await Promise.race([
-                authUrlPromise,
-                oauthPromise.then(() => null as string | null),
-              ])
+              let redirectScheme = 'localhost'
+              let started = startOAuth(redirectUri)
+              let raced: {
+                authUrl: string | null
+                callbackPort: number | undefined
+                state: string | undefined
+              }
+              if (redirectUri) {
+                try {
+                  raced = await started.raced
+                  redirectScheme = 'custom'
+                } catch (error) {
+                  logForDebugging(
+                    `[mcp_authenticate] AS rejected custom redirectUri for ${serverName}; falling back to localhost: ${errorMessage(error)}`,
+                  )
+                  started = startOAuth()
+                  raced = await started.raced
+                }
+              } else {
+                raced = await started.raced
+              }
+
+              const oauthPromise = started.oauthPromise
+              const { authUrl, callbackPort, state } = raced
 
               if (authUrl) {
                 sendControlResponseSuccess(message, {
                   authUrl,
                   requiresUserAction: true,
+                  callbackExpected: true,
+                  redirectScheme,
+                  state,
+                  ...(redirectScheme === 'localhost' && { callbackPort }),
                 })
               } else {
                 sendControlResponseSuccess(message, {
                   requiresUserAction: false,
+                  callbackExpected: false,
                 })
               }
 
@@ -5086,7 +5150,7 @@ async function loadInitialMessages(
     forkSession: boolean | undefined
     outputFormat: string | undefined
     sessionStartHooksPromise?: ReturnType<typeof processSessionStartHooks>
-    restoredWorkerState: Promise<SessionExternalMetadata | null>
+    restoredWorkerState: Promise<RestoredWorkerState | null>
   },
 ): Promise<LoadInitialMessagesResult> {
   const persistSession = !isSessionPersistenceDisabled()
@@ -5265,10 +5329,14 @@ async function loadInitialMessages(
           hydrateFromCCRv2InternalEvents(parsedSessionId.sessionId),
           options.restoredWorkerState,
         ])
-        if (metadata) {
-          setAppState(externalMetadataToAppState(metadata))
-          if (typeof metadata.model === 'string') {
-            setMainLoopModelOverride(metadata.model)
+        if (metadata?.external || metadata?.internal) {
+          setAppState(prev =>
+            sessionAllowRulesToAppState(metadata.internal ?? {})(
+              externalMetadataToAppState(metadata.external ?? {})(prev),
+            ),
+          )
+          if (typeof metadata.external?.model === 'string') {
+            setMainLoopModelOverride(metadata.external.model)
           }
         }
       } else if (
@@ -5568,6 +5636,7 @@ export async function handleMcpSetServers(
   sdkState: SdkMcpState,
   dynamicState: DynamicMcpState,
   setAppState: (f: (prev: AppState) => AppState) => void,
+  caller = 'unknown',
 ): Promise<McpSetServersResult> {
   // Enforce enterprise MCP policy on process-based servers (stdio/http/sse).
   // Mirrors the --mcp-config filter in main.tsx — both user-controlled injection
@@ -5638,6 +5707,7 @@ export async function handleMcpSetServers(
     processServers,
     dynamicState,
     setAppState,
+    caller,
   )
 
   return {
@@ -5664,6 +5734,7 @@ export async function reconcileMcpServers(
   desiredConfigs: Record<string, McpServerConfigForProcessTransport>,
   currentState: DynamicMcpState,
   setAppState: (f: (prev: AppState) => AppState) => void,
+  caller = 'unknown',
 ): Promise<{
   response: SDKControlMcpSetServersResponse
   newState: DynamicMcpState
@@ -5682,6 +5753,16 @@ export async function reconcileMcpServers(
     if (!currentConfig || !desiredConfigRaw) return true
     const desiredConfig = toScopedConfig(desiredConfigRaw)
     return !areMcpConfigsEqual(currentConfig, desiredConfig)
+  })
+
+  logEvent('tengu_mcp_reconcile', {
+    caller:
+      caller as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
+    desiredCount: desiredNames.size,
+    currentCount: currentNames.size,
+    toRemoveCount: toRemove.length,
+    toAddCount: toAdd.length,
+    toReplaceCount: toReplace.length,
   })
 
   const removed: string[] = []

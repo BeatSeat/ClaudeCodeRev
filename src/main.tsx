@@ -36,7 +36,7 @@ import mapValues from 'lodash-es/mapValues.js'
 import pickBy from 'lodash-es/pickBy.js'
 import uniqBy from 'lodash-es/uniqBy.js'
 import React from 'react'
-import { getOauthConfig } from './constants/oauth.js'
+import { getOauthConfig, validateSdkUrl } from './constants/oauth.js'
 import { getRemoteSessionUrl } from './constants/product.js'
 import { getSystemContext, getUserContext } from './context.js'
 import { init, initializeTelemetryAfterTrust } from './entrypoints/init.js'
@@ -120,6 +120,7 @@ import { getBaseRenderOptions } from './utils/renderOptions.js'
 import { getSessionIngressAuthToken } from './utils/sessionIngressAuth.js'
 import { settingsChangeDetector } from './utils/settings/changeDetector.js'
 import { skillChangeDetector } from './utils/skills/skillChangeDetector.js'
+import { sleep } from './utils/sleep.js'
 import { jsonParse, writeFileSync_DEPRECATED } from './utils/slowOperations.js'
 import { computeInitialTeamContext } from './utils/swarm/reconnection.js'
 import { ensureAiAgentHarnessEnv } from './utils/userAgent.js'
@@ -158,6 +159,8 @@ import {
   logEvent,
 } from 'src/services/analytics/index.js'
 import { initializeAnalyticsGates } from 'src/services/analytics/sink.js'
+import { shutdownDatadog } from 'src/services/analytics/datadog.js'
+import { shutdown1PEventLogging } from 'src/services/analytics/firstPartyEventLogger.js'
 import {
   getOriginalCwd,
   setAdditionalDirectoriesForClaudeMd,
@@ -1423,7 +1426,7 @@ async function run(): Promise<CommanderCommand> {
     )
     .option(
       '-p, --print',
-      'Print response and exit (useful for pipes). Note: The workspace trust dialog is skipped when Claude is run with the -p mode. Only use this flag in directories you trust.',
+      'Print response and exit (useful for pipes). Note: The workspace trust dialog is skipped when Claude is run in non-interactive mode (via -p, or when stdout is not a TTY, e.g. piped or redirected output). Only use this in directories you trust.',
       () => true,
     )
     .option(
@@ -2802,6 +2805,33 @@ async function run(): Promise<CommanderCommand> {
           // biome-ignore lint/suspicious/noConsole:: intentional console output
           console.error(
             `Error: --sdk-url requires both --input-format=stream-json and --output-format=stream-json.`,
+          )
+          process.exit(1)
+        }
+        // Official 2.1.121: reject --sdk-url hosts that are not approved
+        // Anthropic endpoints. The flag is reserved for Remote Control worker
+        // processes connecting to Anthropic's backend (vD4 / tengu_sdk_url_host_rejected).
+        const sdkUrlRejection = validateSdkUrl(sdkUrl)
+        if (sdkUrlRejection !== null) {
+          logEvent('tengu_sdk_url_host_rejected', {})
+          // Flush in-flight analytics before exiting so the rejection event is
+          // not lost; race against a 500ms cap so a stuck flush never blocks exit.
+          await Promise.race([
+            Promise.all([shutdown1PEventLogging(), shutdownDatadog()]),
+            sleep(500, undefined, { unref: true }),
+          ]).catch(() => {})
+          // biome-ignore lint/suspicious/noConsole:: intentional console output
+          console.error(
+            `Error: --sdk-url rejected: ${sdkUrlRejection}. This flag is reserved for Remote Control worker processes connecting to Anthropic's backend.`,
+          )
+          process.exit(1)
+        }
+        // Remote Control policy gate (official 2.1.121 t3H + a4).
+        await waitForPolicyLimitsToLoad()
+        if (!isPolicyAllowed('allow_remote_control')) {
+          // biome-ignore lint/suspicious/noConsole:: intentional console output
+          console.error(
+            `Error: Remote Control is disabled by your organization's policy.`,
           )
           process.exit(1)
         }
@@ -6229,11 +6259,25 @@ async function run(): Promise<CommanderCommand> {
       '--keep-data',
       "Preserve the plugin's persistent data directory (~/.claude/plugins/data/{id}/)",
     )
+    .option(
+      '--prune',
+      'Also remove auto-installed dependencies that are no longer needed (requires -y in non-interactive contexts)',
+    )
+    .option(
+      '-y, --yes',
+      'Skip the --prune confirmation prompt (required when stdin is not a TTY)',
+    )
     .addOption(coworkOption())
     .action(
       async (
         plugin: string,
-        options: { scope?: string; cowork?: boolean; keepData?: boolean },
+        options: {
+          scope?: string
+          cowork?: boolean
+          keepData?: boolean
+          prune?: boolean
+          yes?: boolean
+        },
       ) => {
         const { pluginUninstallHandler } = await import(
           './cli/handlers/plugins.js'
@@ -6241,6 +6285,26 @@ async function run(): Promise<CommanderCommand> {
         await pluginUninstallHandler(plugin, options)
       },
     )
+
+  pluginCmd
+    .command('prune')
+    .alias('autoremove')
+    .description('Remove auto-installed dependencies that are no longer needed')
+    .option(
+      '-s, --scope <scope>',
+      'Prune at scope: user, project, or local',
+      'user',
+    )
+    .option('--dry-run', 'List what would be removed without removing')
+    .option(
+      '-y, --yes',
+      'Skip the confirmation prompt (required when stdin is not a TTY)',
+    )
+    .addOption(coworkOption())
+    .action(async (options: { scope?: string; cowork?: boolean; dryRun?: boolean; yes?: boolean }) => {
+      const { pluginPruneHandler } = await import('./cli/handlers/plugins.js')
+      await pluginPruneHandler(options)
+    })
 
   // Plugin enable command
   pluginCmd
