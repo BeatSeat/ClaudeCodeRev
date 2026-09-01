@@ -474,6 +474,14 @@ function getCustomHeaders(): Record<string, string> {
 
 export const CLIENT_REQUEST_ID_HEADER = 'x-client-request-id'
 
+/** Official 2.1.126 `Ei8`: stream idle floor Math.max(env||0, 300000). */
+export function getStreamIdleTimeoutMs(): number {
+  return Math.max(
+    Number(process.env.CLAUDE_STREAM_IDLE_TIMEOUT_MS) || 0,
+    300_000,
+  )
+}
+
 /**
  * Official 2.1.105 `WY_`: env override, else GrowthBook default-on.
  * `CLAUDE_ENABLE_BYTE_WATCHDOG=0` disables; `=1` forces on.
@@ -580,10 +588,7 @@ function buildFetch(
       response.headers.get('content-type')?.includes('text/event-stream') &&
       isByteLevelStreamWatchdogEnabled()
     ) {
-      const idleMs = Math.max(
-        parseInt(process.env.CLAUDE_STREAM_IDLE_TIMEOUT_MS || '', 10) || 90_000,
-        300_000,
-      )
+      const idleMs = getStreamIdleTimeoutMs()
       const wrapped = new Response(
         withByteLevelStreamIdleTimeout(response.body, idleMs),
         response,

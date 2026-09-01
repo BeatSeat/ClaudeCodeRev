@@ -374,6 +374,34 @@ export function hasMcpDiscoveryButNoToken(
 }
 
 /**
+ * Official 2.1.126 `xM7`: stored access token, no refresh token, already expired.
+ * Same XAA / custom-headers exemptions as `hasMcpDiscoveryButNoToken` (`fq8`).
+ */
+export function hasExpiredMcpAccessTokenNoRefresh(
+  serverName: string,
+  serverConfig: McpSSEServerConfig | McpHTTPServerConfig,
+): boolean {
+  if (isXaaEnabled() && serverConfig.oauth?.xaa) {
+    return false
+  }
+  if (
+    serverConfig.headersHelper ||
+    (serverConfig.headers && Object.keys(serverConfig.headers).length > 0)
+  ) {
+    return false
+  }
+  const serverKey = getServerKey(serverName, serverConfig)
+  const entry = getSecureStorage().read()?.mcpOAuth?.[serverKey]
+  return (
+    entry !== undefined &&
+    !!entry.accessToken &&
+    !entry.refreshToken &&
+    entry.expiresAt !== undefined &&
+    entry.expiresAt < Date.now()
+  )
+}
+
+/**
  * Revokes a single token on the OAuth server.
  *
  * Per RFC 7009, public clients (like Claude Code) should authenticate by including
