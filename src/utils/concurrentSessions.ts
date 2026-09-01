@@ -202,3 +202,68 @@ export async function countConcurrentSessions(): Promise<number> {
   }
   return count
 }
+
+export type LiveSession = {
+  pid: number
+  cwd: string
+  kind: SessionKind
+  startedAt: number
+  sessionId?: string
+  name?: string
+  status?: SessionStatus
+}
+
+/**
+ * Official 2.1.145 `ENH`: live interactive/bg sessions from the PID registry.
+ */
+export async function listLiveSessions(): Promise<LiveSession[]> {
+  const dir = getSessionsDir()
+  let files: string[]
+  try {
+    files = await readdir(dir)
+  } catch (e) {
+    if (!isFsInaccessible(e)) {
+      logForDebugging(`[concurrentSessions] readdir failed: ${errorMessage(e)}`)
+    }
+    return []
+  }
+
+  const out: LiveSession[] = []
+  for (const file of files) {
+    if (!/^\d+\.json$/.test(file)) continue
+    const pid = parseInt(file.slice(0, -5), 10)
+    const live = pid === process.pid || isProcessRunning(pid)
+    if (!live) {
+      if (getPlatform() !== 'wsl') {
+        void unlink(join(dir, file)).catch(() => {})
+      }
+      continue
+    }
+    try {
+      const data = jsonParse(await readFile(join(dir, file), 'utf8')) as {
+        pid?: number
+        cwd?: string
+        kind?: SessionKind
+        startedAt?: number
+        sessionId?: string
+        name?: string
+        status?: SessionStatus
+      }
+      if (typeof data.pid !== 'number' || typeof data.cwd !== 'string') {
+        continue
+      }
+      out.push({
+        pid: data.pid,
+        cwd: data.cwd,
+        kind: data.kind ?? 'interactive',
+        startedAt: data.startedAt ?? 0,
+        ...(data.sessionId && { sessionId: data.sessionId }),
+        ...(data.name && { name: data.name }),
+        ...(data.status && { status: data.status }),
+      })
+    } catch {
+      // ignore unreadable pid files
+    }
+  }
+  return out
+}

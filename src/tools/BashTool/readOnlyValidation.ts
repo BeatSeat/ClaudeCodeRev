@@ -21,8 +21,13 @@ import {
   RIPGREP_READ_ONLY_COMMANDS,
   validateFlags,
 } from '../../utils/shell/readOnlyCommandValidation.js'
+import { parseForSecurityFromAst } from '../../utils/bash/ast.js'
+import { getParserModule } from '../../utils/bash/bashParser.js'
 import type { BashTool } from './BashTool.js'
-import { isNormalizedGitCommand } from './bashPermissions.js'
+import {
+  hasNonAllowlistedBareAssignment,
+  isNormalizedGitCommand,
+} from './bashPermissions.js'
 import { bashCommandIsSafe_DEPRECATED } from './bashSecurity.js'
 import {
   COMMAND_OPERATION_TYPE,
@@ -1881,6 +1886,34 @@ export function checkReadOnlyConstraints(
   compoundCommandHasCd: boolean,
 ): PermissionResult {
   const { command } = input
+
+  // Official 2.1.145 `WK8`: tree-sitter parse first so bare `VAR=value`
+  // names are visible. `isReadOnly` used this path to auto-allow
+  // `UNSAFE=x && cat file` because the assignment is not in commands[].
+  const astRoot = getParserModule()?.parse(command)
+  const astResult = astRoot
+    ? parseForSecurityFromAst(command, astRoot)
+    : {
+        kind: 'simple' as const,
+        commands: [],
+        bareAssignmentNames: [],
+      }
+  if (astResult.kind === 'too-complex') {
+    return {
+      behavior: 'passthrough',
+      message: `Not a simple read-only command: ${astResult.reason}`,
+    }
+  }
+  if (
+    astResult.kind === 'simple' &&
+    hasNonAllowlistedBareAssignment(astResult.bareAssignmentNames)
+  ) {
+    return {
+      behavior: 'passthrough',
+      message:
+        'Bare assignment to a non-allowlisted environment variable can alter behavior of subsequent commands',
+    }
+  }
 
   // Detect if the command is not parseable and return early
   const result = tryParseShellCommand(command, env => `$${env}`)

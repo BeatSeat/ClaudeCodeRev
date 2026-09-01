@@ -52,7 +52,10 @@ import {
 } from '../../tasks/RemoteAgentTask/RemoteAgentTask.js'
 import { assembleToolPool } from '../../tools.js'
 import { asAgentId } from '../../types/ids.js'
-import { runWithAgentContext } from '../../utils/agentContext.js'
+import {
+  getAgentContext,
+  runWithAgentContext,
+} from '../../utils/agentContext.js'
 import { isAgentSwarmsEnabled } from '../../utils/agentSwarmsEnabled.js'
 import { getCwd, runWithCwdOverride } from '../../utils/cwd.js'
 import { logForDebugging } from '../../utils/debug.js'
@@ -1022,6 +1025,7 @@ export const AgentTool = buildTool({
         // For subagents from teammates: use team lead's session
         // For subagents from main REPL: undefined (no parent session)
         parentSessionId: getParentSessionId(),
+        parentAgentId: getAgentContext()?.agentId,
         agentType: 'subagent' as const,
         subagentName: selectedAgent.agentType,
         isBuiltIn: isBuiltInAgent(selectedAgent),
@@ -1090,6 +1094,7 @@ export const AgentTool = buildTool({
         // For subagents from teammates: use team lead's session
         // For subagents from main REPL: undefined (no parent session)
         parentSessionId: getParentSessionId(),
+        parentAgentId: getAgentContext()?.agentId,
         agentType: 'subagent' as const,
         subagentName: selectedAgent.agentType,
         isBuiltIn: isBuiltInAgent(selectedAgent),

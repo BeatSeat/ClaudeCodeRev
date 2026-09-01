@@ -255,6 +255,7 @@ export async function* runAgent({
   canShowPermissionPrompts,
   forkContextMessages,
   querySource,
+  spawnedBySkill,
   override,
   model,
   maxTurns,
@@ -279,6 +280,8 @@ export async function* runAgent({
   canShowPermissionPrompts?: boolean
   forkContextMessages?: Message[]
   querySource: QuerySource
+  /** Official 2.1.145: set when a `context: fork` skill spawned this agent. */
+  spawnedBySkill?: string
   override?: {
     userContext?: { [k: string]: string }
     systemContext?: { [k: string]: string }
@@ -710,6 +713,7 @@ export async function* runAgent({
     // reads undefined and only the message-scan fallback fires — which
     // autocompact defeats by replacing the fork-boilerplate message.
     ...(useExactTools && { querySource }),
+    spawnedBySkill,
   }
 
   // Create subagent context using shared helper
