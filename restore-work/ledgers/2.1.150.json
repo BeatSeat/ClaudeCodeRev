@@ -1,0 +1,14 @@
+{
+  "version": "2.1.150",
+  "fromVersion": "2.1.149",
+  "expectedFunctionCount": 0,
+  "functions": [],
+  "changelogCoverage": [
+    {
+      "item": "Internal infrastructure improvements (no user-facing changes)",
+      "status": "shared-logic",
+      "evidence": "astdiff +135 B; 2 genuine are memory-dream minify; tengu_heron_brook empty default — not landed"
+    }
+  ],
+  "notes": "NO_DELTA hop. Four-domain review PASS. Do not land tengu_heron_brook."
+}
