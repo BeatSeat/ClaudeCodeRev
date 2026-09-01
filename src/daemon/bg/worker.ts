@@ -479,7 +479,7 @@ export class BgWorker {
       K.tempo === 'blocked'
     ) {
       const A = Date.now() - Date.parse(K.createdAt)
-      if (A < EMPTY_IDLE_MS) return { retired: false, reason: 'empty_idle' }
+      if (A < EMPTY_IDLE_MS) return { retired: false, reason: 'empty-idle-grace' }
       if (!this.transitionTo({ kind: 'retiring', reason: 'grace' })) {
         return { retired: false, reason: 'in-progress' }
       }
