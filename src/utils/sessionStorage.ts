@@ -1223,6 +1223,12 @@ class Project {
       // Get slug if one exists for this session (used for plan files, etc.)
       const sessionId = getSessionId()
       const slug = getPlanSlugCache().get(sessionId)
+      // 122: skip live-parent check on sidechain / skipped persistence.
+      // sourceToolAssistantUUID not in the on-disk set is a phantom parent.
+      const liveParentSet =
+        isSidechain || this.shouldSkipPersistence()
+          ? null
+          : await getSessionMessages(sessionId)
 
       for (const message of messages) {
         const isCompactBoundary = isCompactBoundaryMessage(message)
@@ -1235,7 +1241,12 @@ class Project {
           'sourceToolAssistantUUID' in message &&
           message.sourceToolAssistantUUID
         ) {
-          effectiveParentUuid = message.sourceToolAssistantUUID
+          const sourceUuid = message.sourceToolAssistantUUID
+          if (liveParentSet === null || liveParentSet.has(sourceUuid)) {
+            effectiveParentUuid = sourceUuid
+          } else {
+            logEvent('tengu_phantom_parent_write', {})
+          }
         }
         if (effectiveParentUuid === message.uuid) {
           logEvent('tengu_chain_self_reference_write', {})
@@ -1643,6 +1654,13 @@ export async function recordTranscript(
   const cleanedMessages = cleanMessagesForLogging(messages, allMessages)
   const sessionId = getSessionId() as UUID
   const messageSet = await getSessionMessages(sessionId)
+  if (
+    startingParentUuidHint &&
+    !isSessionPersistenceDisabled() &&
+    !messageSet.has(startingParentUuidHint)
+  ) {
+    logEvent('tengu_phantom_parent_hint', {})
+  }
   const newMessages: typeof cleanedMessages = []
   let startingParentUuid: UUID | undefined = startingParentUuidHint
   let seenNewMessage = false
@@ -3753,7 +3771,15 @@ function walkChainBeforeParse(buf: Buffer): Buffer {
     const parentStart = msgIdx[slot + 2]!
     if (parentStart < 0) break
     const parent = buf.toString('latin1', parentStart, parentStart + UUID_LEN)
-    slot = uuidToSlot.get(parent)
+    const next = uuidToSlot.get(parent)
+    if (next === undefined) {
+      logEvent('tengu_transcript_phantom_parent', {
+        total_offsets: msgIdx.length / 3,
+        walked_slots: chain.size,
+      })
+      return buf
+    }
+    slot = next
   }
 
   // parseJSONL cost scales with bytes, not entry count. A session can have

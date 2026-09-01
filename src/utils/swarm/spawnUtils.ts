@@ -106,6 +106,7 @@ const TEAMMATE_ENV_VARS = [
   'ANTHROPIC_AWS_BASE_URL',
   'ANTHROPIC_AWS_WORKSPACE_ID',
   'ANTHROPIC_AWS_API_KEY',
+  'ANTHROPIC_BEDROCK_SERVICE_TIER',
   // Config directory override
   'CLAUDE_CONFIG_DIR',
   // CCR marker — teammates need this for CCR-aware code paths. Auth finds

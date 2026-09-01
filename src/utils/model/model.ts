@@ -19,6 +19,7 @@ import {
   modelSupports1M,
 } from '../context.js'
 import { isEnvTruthy } from '../envUtils.js'
+import { getCachedInferenceProfileBackingModel } from './bedrock.js'
 import { getModelStrings, resolveOverriddenModel } from './modelStrings.js'
 import { formatModelPricing, getOpus46CostTier } from '../modelCost.js'
 import {
@@ -306,9 +307,22 @@ export function firstPartyNameToCanonical(name: ModelName): ModelShortName {
  * @returns The short name (e.g., 'claude-3-5-haiku') if found, or the original name if no mapping exists
  */
 export function getCanonicalName(fullModelName: ModelName): ModelShortName {
-  // Resolve overridden model IDs (e.g. Bedrock ARNs) back to canonical names.
-  // resolved is always a 1P-format ID, so firstPartyNameToCanonical can handle it.
-  return firstPartyNameToCanonical(resolveOverriddenModel(fullModelName))
+  // Official 2.1.122 `F7`: modelOverrides first; else application-inference-profile
+  // ARNs resolve via the GetInferenceProfile backing-model cache so Effort /
+  // output_config.effort classify the real family.
+  const resolved = resolveOverriddenModel(fullModelName)
+  if (resolved !== fullModelName) {
+    return firstPartyNameToCanonical(resolved)
+  }
+  if (fullModelName.includes('application-inference-profile')) {
+    const backing = getCachedInferenceProfileBackingModel(
+      normalizeModelStringForAPI(fullModelName),
+    )
+    if (backing) {
+      return firstPartyNameToCanonical(backing)
+    }
+  }
+  return firstPartyNameToCanonical(resolved)
 }
 
 // @[MODEL LAUNCH]: Update the default model description strings shown to users.

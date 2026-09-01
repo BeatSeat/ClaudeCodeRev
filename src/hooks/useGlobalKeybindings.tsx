@@ -5,11 +5,14 @@
  * This component renders nothing - it just registers the keybinding handlers.
  */
 import { feature } from 'bun:bundle'
-import { useCallback } from 'react'
+import { useCallback, useEffect } from 'react'
 import instances from '../ink/instances.js'
 import { useKeybinding } from '../keybindings/useKeybinding.js'
 import type { Screen } from '../screens/REPL.js'
-import { getFeatureValue_CACHED_MAY_BE_STALE } from '../services/analytics/growthbook.js'
+import {
+  getFeatureValue_CACHED_MAY_BE_STALE,
+  onGrowthBookRefresh,
+} from '../services/analytics/growthbook.js'
 import {
   type AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
   logEvent,
@@ -95,6 +98,29 @@ export function GlobalKeybindingHandlers({
       ? // biome-ignore lint/correctness/useHookAtTopLevel: feature() is a compile-time constant
         useAppState(s => s.isBriefOnly)
       : false
+
+  // Official 122: GB kill-switch / stale view preference can leave
+  // isBriefOnly stuck on (blank filterForBriefTool assistant view). Clear
+  // on mount and on GrowthBook refresh, not only when the user hits ctrl+o.
+  if (feature('KAIROS') || feature('KAIROS_BRIEF')) {
+    // biome-ignore lint/correctness/useHookAtTopLevel: feature() is a compile-time constant
+    useEffect(() => {
+      /* eslint-disable @typescript-eslint/no-require-imports */
+      const { isBriefEnabled } =
+        require('../tools/BriefTool/BriefTool.js') as typeof import('../tools/BriefTool/BriefTool.js')
+      /* eslint-enable @typescript-eslint/no-require-imports */
+      const clearStaleBriefView = (): void => {
+        if (isBriefEnabled()) return
+        setAppState(prev => {
+          if (!prev.isBriefOnly) return prev
+          return { ...prev, isBriefOnly: false }
+        })
+      }
+      clearStaleBriefView()
+      return onGrowthBookRefresh(clearStaleBriefView)
+    }, [setAppState])
+  }
+
   const handleToggleTranscript = useCallback(() => {
     if (feature('KAIROS') || feature('KAIROS_BRIEF')) {
       // Escape hatch: GB kill-switch while defaultView=chat was persisted
