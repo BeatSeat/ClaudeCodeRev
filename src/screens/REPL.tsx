@@ -9,7 +9,7 @@ import {
 } from '../bootstrap/state.js'
 import { parseTokenBudget } from '../utils/tokenBudget.js'
 import { count } from '../utils/array.js'
-import { dirname, join } from 'path'
+import { basename, dirname, join } from 'path'
 import { tmpdir } from 'os'
 import figures from 'figures'
 // eslint-disable-next-line custom-rules/prefer-use-keybindings -- / n N Esc [ v are bare letters in transcript modal context, same class as g/G/j/k in ScrollKeybindingHandler
@@ -19,7 +19,10 @@ import { useTerminalSize } from '../hooks/useTerminalSize.js'
 import { useSearchHighlight } from '../ink/hooks/use-search-highlight.js'
 import type { JumpHandle } from '../components/VirtualMessageList.js'
 import { renderMessagesToPlainText } from '../utils/exportRenderer.js'
-import { openFileInExternalEditor } from '../utils/editor.js'
+import {
+  getExternalEditor,
+  openFileInExternalEditor,
+} from '../utils/editor.js'
 import { writeFile } from 'fs/promises'
 import {
   Box,
@@ -655,6 +658,15 @@ function TranscriptModeFooter({
     'Transcript',
     'ctrl+e',
   )
+  // Official 111 FmK: $VISUAL/$EDITOR basename, only if short enough to fit.
+  const editor = getExternalEditor()
+  const editorBase = editor
+    ? basename(editor.split(' ')[0] ?? '')
+    : undefined
+  const editorHint =
+    editorBase && editorBase.length <= 8
+      ? `open in ${editorBase}`
+      : 'open in editor'
   return (
     <Box
       noSelect
@@ -674,9 +686,9 @@ function TranscriptModeFooter({
         {searchBadge
           ? ' · n/N to navigate'
           : virtualScroll
-            ? ` · ${figures.arrowUp}${figures.arrowDown} scroll · home/end top/bottom`
+            ? ` · ${figures.arrowUp}${figures.arrowDown} scroll · [ to print output · v to ${editorHint}`
             : suppressShowAll
-              ? ''
+              ? ` · v to ${editorHint}`
               : ` · ${showAllShortcut} to ${showAllInTranscript ? 'collapse' : 'show all'}`}
       </Text>
       {status ? (
@@ -2311,12 +2323,28 @@ export function REPL({
     elicitation.queue.length > 0 ||
     workerSandboxPermissions.queue.length > 0
 
+  // Official 2.1.111 REPL order: post-compact first (no otherSurveyActive),
+  // then memory, then session — so dismissing one cannot immediately open
+  // the next.
+  const postCompactSurvey = usePostCompactSurvey(
+    messages,
+    isLoading,
+    hasActivePrompt,
+    { enabled: !isRemoteSession },
+  )
+
+  const memorySurvey = useMemorySurvey(messages, isLoading, hasActivePrompt, {
+    enabled: !isRemoteSession,
+    otherSurveyActive: postCompactSurvey.state !== 'closed',
+  })
+
   const feedbackSurveyOriginal = useFeedbackSurvey(
     messages,
     isLoading,
     submitCount,
     'session',
     hasActivePrompt,
+    postCompactSurvey.state !== 'closed' || memorySurvey.state !== 'closed',
   )
 
   const skillImprovementSurvey = useSkillImprovementSurvey(setMessages)
@@ -2345,20 +2373,6 @@ export function REPL({
     }),
     [feedbackSurveyOriginal],
   )
-
-  // Post-compact survey: shown after compaction if feature gate is enabled
-  const postCompactSurvey = usePostCompactSurvey(
-    messages,
-    isLoading,
-    hasActivePrompt,
-    { enabled: !isRemoteSession },
-  )
-
-  // Memory survey: shown when the assistant mentions memory and a memory file
-  // was read this conversation
-  const memorySurvey = useMemorySurvey(messages, isLoading, hasActivePrompt, {
-    enabled: !isRemoteSession,
-  })
 
   // Frustration detection: show transcript sharing prompt after detecting frustrated messages
   const frustrationDetection = useFrustrationDetection(

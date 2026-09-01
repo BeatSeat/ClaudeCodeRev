@@ -231,7 +231,7 @@ function MCPTextOutput({
               {unwrapped.extras.map(([k, v]) => `${k}: ${v}`).join(' · ')}
             </Text>
           )}
-          <OutputLine content={unwrapped.body} verbose={verbose} linkifyUrls />
+          <OutputLine content={unwrapped.body} verbose={verbose} />
         </Box>
       </MessageResponse>
     )
@@ -252,7 +252,7 @@ function MCPTextOutput({
       </MessageResponse>
     )
   }
-  return <OutputLine content={content} verbose={verbose} linkifyUrls />
+  return <OutputLine content={content} verbose={verbose} />
 }
 
 /**

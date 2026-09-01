@@ -20,7 +20,11 @@ import { getEnvironmentKind } from './filePersistence/outputsScanner.js'
 import { getFsImplementation } from './fsOperations.js'
 import { logError } from './log.js'
 import { getInitialSettings } from './settings/settings.js'
-import { generateWordSlug } from './words.js'
+import {
+  generateShortWordSlug,
+  generateWordSlug,
+  slugifyPrompt,
+} from './words.js'
 
 const MAX_SLUG_RETRIES = 10
 
@@ -29,15 +33,19 @@ const MAX_SLUG_RETRIES = 10
  * The slug is generated lazily on first access and cached for the session.
  * If a plan file with the generated slug already exists, retries up to 10 times.
  */
-export function getPlanSlug(sessionId?: SessionId): string {
+export function getPlanSlug(sessionId?: SessionId, seed?: string): string {
   const id = sessionId ?? getSessionId()
   const cache = getPlanSlugCache()
   let slug = cache.get(id)
   if (!slug) {
     const plansDir = getPlansDirectory()
-    // Try to find a unique slug that doesn't conflict with existing files
+    const promptSlug = seed ? slugifyPrompt(seed) : ''
+    // Official 2.1.111 g56: `{prompt-slug}-{adj-noun}` when seeded,
+    // otherwise the legacy adjective-verb-noun word slug.
     for (let i = 0; i < MAX_SLUG_RETRIES; i++) {
-      slug = generateWordSlug()
+      slug = promptSlug
+        ? `${promptSlug}-${generateShortWordSlug()}`
+        : generateWordSlug()
       const filePath = join(plansDir, `${slug}.md`)
       if (!getFsImplementation().existsSync(filePath)) {
         break

@@ -918,6 +918,7 @@ export function useTypeahead({
           parsedCommand &&
           parsedCommand.commandName === 'resume' &&
           parsedCommand.args !== undefined &&
+          parsedCommand.args.trim().length > 0 &&
           value.includes(' ')
         ) {
           const { args } = parsedCommand

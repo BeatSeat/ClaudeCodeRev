@@ -7,13 +7,16 @@ import { StatusIcon } from '../../design-system/StatusIcon.js'
 import { Spinner } from '../../Spinner.js'
 import { useWizard } from '../../wizard/index.js'
 import { WizardDialogLayout } from '../../wizard/WizardDialogLayout.js'
+import { modelSupports1M } from '../../../utils/context.js'
 import {
+  existingPinFromEnv,
   getDefaultModelCandidates,
   pickDefaultPinnedId,
   PIN_TIERS,
   probeModel,
   PROBE_REASON_LABELS,
   TIER_LABELS,
+  with1mSuffix,
 } from '../helpers.js'
 import type {
   BedrockWizardData,
@@ -31,10 +34,18 @@ export function PinModelsStep(): React.ReactNode {
     () => getDefaultModelCandidates(wizardData.region),
     [wizardData.region],
   )
+  const existingPins = useMemo(
+    () =>
+      Object.fromEntries(
+        PIN_TIERS.map(tier => [tier, existingPinFromEnv(tier)]),
+      ) as Record<ModelTier, string | undefined>,
+    [],
+  )
   const initialIds = () => ({
-    sonnet: pickDefaultPinnedId(profiles, defaults.sonnet),
-    opus: pickDefaultPinnedId(profiles, defaults.opus),
-    haiku: pickDefaultPinnedId(profiles, defaults.haiku),
+    sonnet:
+      existingPins.sonnet ?? pickDefaultPinnedId(profiles, defaults.sonnet),
+    opus: existingPins.opus ?? pickDefaultPinnedId(profiles, defaults.opus),
+    haiku: existingPins.haiku ?? pickDefaultPinnedId(profiles, defaults.haiku),
   })
   const [ids, setIds] = useState(initialIds)
   const [states, setStates] = useState<Record<ModelTier, ProbeState>>({
@@ -92,6 +103,7 @@ export function PinModelsStep(): React.ReactNode {
         profiles={profiles}
         fallback={defaults[tier].fallback}
         current={ids[tier]}
+        existingPin={existingPins[tier]}
         onPick={modelId => {
           setIds(prev => ({ ...prev, [tier]: modelId }))
           const index = PIN_TIERS.indexOf(tier)
@@ -106,6 +118,12 @@ export function PinModelsStep(): React.ReactNode {
   const canPin =
     PIN_TIERS.every(tier => states[tier] !== 'pending') &&
     PIN_TIERS.some(tier => states[tier] !== 'pending' && states[tier].ok)
+  const canPin1m =
+    canPin &&
+    PIN_TIERS.some(tier => {
+      const state = states[tier]
+      return state !== 'pending' && state.ok && modelSupports1M(ids[tier])
+    })
 
   return (
     <WizardDialogLayout subtitle="Pin model versions">
@@ -134,6 +152,14 @@ export function PinModelsStep(): React.ReactNode {
             ...(canPin
               ? [{ label: 'Pin the working models', value: 'pin' }]
               : []),
+            ...(canPin1m
+              ? [
+                  {
+                    label: 'Pin the working models with 1M context',
+                    value: 'pin1m',
+                  },
+                ]
+              : []),
             { label: 'Choose different models…', value: 'manual' },
             {
               label: 'Skip — use Claude Code defaults (auto-updates)',
@@ -145,10 +171,14 @@ export function PinModelsStep(): React.ReactNode {
               setView({ picking: 'sonnet' })
               return
             }
-            if (value === 'pin') {
+            if (value === 'pin' || value === 'pin1m') {
               const pick = (tier: ModelTier) => {
                 const state = states[tier]
-                return state !== 'pending' && state.ok ? ids[tier] : undefined
+                if (state === 'pending' || !state.ok) return
+                const id = ids[tier]
+                return value === 'pin1m' && modelSupports1M(id)
+                  ? with1mSuffix(id)
+                  : id
               }
               updateWizardData({
                 pinSonnet: pick('sonnet'),
@@ -177,6 +207,7 @@ function PinModelPicker({
   profiles,
   fallback,
   current,
+  existingPin,
   onPick,
   onCancel,
 }: {
@@ -185,6 +216,7 @@ function PinModelPicker({
   profiles: string[]
   fallback: string
   current: string
+  existingPin?: string
   onPick: (modelId: string) => void
   onCancel: () => void
 }): React.ReactNode {
@@ -195,14 +227,13 @@ function PinModelPicker({
         .sort()
         .reverse(),
     ]
-    if (!list.includes(fallback)) {
-      list.push(fallback)
-    }
-    if (!list.includes(current)) {
-      list.push(current)
+    for (const extra of [fallback, current, existingPin]) {
+      if (extra && !list.includes(extra)) {
+        list.push(extra)
+      }
     }
     return list
-  }, [profiles, tier, fallback, current])
+  }, [profiles, tier, fallback, current, existingPin])
 
   const [probeById, setProbeById] = useState<Record<string, ProbeState>>(() =>
     Object.fromEntries(candidates.map(id => [id, 'pending'])),

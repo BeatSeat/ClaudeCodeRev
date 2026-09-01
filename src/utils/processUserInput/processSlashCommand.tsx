@@ -1243,7 +1243,7 @@ async function getMessagesForPromptSlashCommand(
       [], // queuedCommands - handled by query.ts for mid-turn attachments
       context.messages,
       'repl_main_thread',
-      { skipSkillDiscovery: true },
+      { skipSkillDiscovery: true, planSlugSeed: args },
     ),
   )
 

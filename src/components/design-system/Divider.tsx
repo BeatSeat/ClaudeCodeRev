@@ -38,6 +38,13 @@ type DividerProps = {
    * <Divider title="Title" />
    */
   title?: string
+
+  /**
+   * Where to place the title along the rule.
+   * Official 111 `titleAlign:"start"` leaves a short leading rule then the label.
+   * @default 'center'
+   */
+  titleAlign?: 'center' | 'start'
 }
 
 /**
@@ -69,6 +76,7 @@ export function Divider({
   char = '─',
   padding = 0,
   title,
+  titleAlign = 'center',
 }: DividerProps): React.ReactNode {
   const { columns: terminalWidth } = useTerminalSize()
   const effectiveWidth = Math.max(0, (width ?? terminalWidth) - padding)
@@ -76,7 +84,10 @@ export function Divider({
   if (title) {
     const titleWidth = stringWidth(title) + 2 // +2 for spaces around title
     const sideWidth = Math.max(0, effectiveWidth - titleWidth)
-    const leftWidth = Math.floor(sideWidth / 2)
+    const leftWidth =
+      titleAlign === 'start'
+        ? Math.min(4, sideWidth)
+        : Math.floor(sideWidth / 2)
     const rightWidth = sideWidth - leftWidth
     return (
       <Text color={color} dimColor={!color}>

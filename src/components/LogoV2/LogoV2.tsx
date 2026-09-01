@@ -22,6 +22,7 @@ import {
   createWhatsNewFeed,
   createProjectOnboardingFeed,
   createGuestPassesFeed,
+  createOpus47LaunchFeed,
 } from './feedConfigs.js'
 import { getGlobalConfig, saveGlobalConfig } from 'src/utils/config.js'
 import { resolveThemeSetting } from 'src/utils/systemTheme.js'
@@ -78,6 +79,29 @@ import { useAppState } from '../../state/AppState.js'
 import { getEffortSuffix } from '../../utils/effort.js'
 import { useMainLoopModel } from '../../hooks/useMainLoopModel.js'
 import { renderModelSetting } from '../../utils/model/model.js'
+import { getAPIProvider } from '../../utils/model/providers.js'
+import { logEvent } from '../../services/analytics/index.js'
+
+/** Official 2.1.111 `tgY`. */
+const OPUS47_LAUNCH_MAX_SEEN = 12
+
+/** Official 2.1.111 `qUY` / `Gr8`. */
+function useShowOpus47LaunchFeed(): boolean {
+  const [show] = useState(() => {
+    if (getAPIProvider() !== 'firstParty') return false
+    return (getGlobalConfig().opus47LaunchSeenCount ?? 0) < OPUS47_LAUNCH_MAX_SEEN
+  })
+  return show
+}
+
+/** Official 2.1.111 `vr8`. */
+function incrementOpus47LaunchSeenCount(): void {
+  saveGlobalConfig(prev => ({
+    ...prev,
+    opus47LaunchSeenCount: (prev.opus47LaunchSeenCount ?? 0) + 1,
+  }))
+  logEvent('tengu_opus47_launch_shown', {})
+}
 
 const LEFT_PANEL_MAX_WIDTH = 50
 
@@ -90,6 +114,7 @@ export function LogoV2(): React.ReactNode {
   const showSandboxStatus = SandboxManager.isSandboxingEnabled()
   const showGuestPassesUpsell = useShowGuestPassesUpsell()
   const showOverageCreditUpsell = useShowOverageCreditUpsell()
+  const showOpus47LaunchFeed = useShowOpus47LaunchFeed()
   const agent = useAppState(s => s.agent)
   const effortValue = useAppState(s => s.effortValue)
 
@@ -137,6 +162,12 @@ export function LogoV2(): React.ReactNode {
     !hasReleaseNotes &&
     !showOnboarding &&
     !isEnvTruthy(process.env.CLAUDE_CODE_FORCE_FULL_LOGO)
+
+  useEffect(() => {
+    if (showOpus47LaunchFeed && !showOnboarding && !isCondensedMode) {
+      incrementOpus47LaunchSeenCount()
+    }
+  }, [showOpus47LaunchFeed, showOnboarding, isCondensedMode])
 
   useEffect(() => {
     if (showGuestPassesUpsell && !showOnboarding && !isCondensedMode) {
@@ -414,7 +445,12 @@ export function LogoV2(): React.ReactNode {
                         createProjectOnboardingFeed(getSteps()),
                         createRecentActivityFeed(activities),
                       ]
-                    : showGuestPassesUpsell
+                    : showOpus47LaunchFeed
+                      ? [
+                          createWhatsNewFeed(changelog),
+                          createOpus47LaunchFeed(),
+                        ]
+                      : showGuestPassesUpsell
                       ? [
                           createRecentActivityFeed(activities),
                           createGuestPassesFeed(),

@@ -1505,6 +1505,18 @@ export const SDKSystemMessageSchema = lazySchema(() =>
           ),
       }),
     ),
+    plugin_errors: z
+      .array(
+        z.object({
+          plugin: z.string(),
+          type: z.string(),
+          message: z.string(),
+        }),
+      )
+      .optional()
+      .describe(
+        '@internal Plugin load-time errors (e.g., unsatisfied dependency version). Affected plugins are demoted and absent from `plugins[]`. The key is omitted when there are no errors; CI can fail on `(plugin_errors?.length ?? 0) > 0`.',
+      ),
     fast_mode_state: FastModeStateSchema().optional(),
     uuid: UUIDPlaceholder(),
     session_id: z.string(),

@@ -2,7 +2,7 @@ import * as React from 'react'
 import { useMemo } from 'react'
 import { useTerminalSize } from '../../hooks/useTerminalSize.js'
 import { Ansi, Text } from '../../ink.js'
-import { createHyperlink } from '../../utils/hyperlink.js'
+import { createHyperlink, OSC8_START } from '../../utils/hyperlink.js'
 import { jsonParse, jsonStringify } from '../../utils/slowOperations.js'
 import { renderTruncatedContent } from '../../utils/terminal.js'
 import { MessageResponse } from '../MessageResponse.js'
@@ -46,7 +46,16 @@ export function tryJsonFormatContent(content: string): string {
 // no whitespace, no trailing comma/brace that'd be JSON structure.
 const URL_IN_JSON = /https?:\/\/[^\s"'<>\\]+/g
 
+const MAX_LINKIFY_LENGTH = 100_000
+
+/** Official 111 `O04`: skip huge / already-OSC-8 strings, else wrap every URL. */
 export function linkifyUrlsInText(content: string): string {
+  if (content.length > MAX_LINKIFY_LENGTH) {
+    return content
+  }
+  if (content.includes(OSC8_START)) {
+    return content
+  }
   return content.replace(URL_IN_JSON, url => createHyperlink(url))
 }
 
@@ -55,13 +64,11 @@ export function OutputLine({
   verbose,
   isError,
   isWarning,
-  linkifyUrls,
 }: {
   content: string
   verbose: boolean
   isError?: boolean
   isWarning?: boolean
-  linkifyUrls?: boolean
 }): React.ReactNode {
   const { columns } = useTerminalSize()
   // Context-based expansion for latest user shell output (from ! commands)
@@ -72,17 +79,14 @@ export function OutputLine({
   const shouldShowFull = verbose || expandShellOutput
 
   const formattedContent = useMemo(() => {
-    let formatted = tryJsonFormatContent(content)
-    if (linkifyUrls) {
-      formatted = linkifyUrlsInText(formatted)
-    }
+    const formatted = linkifyUrlsInText(tryJsonFormatContent(content))
     if (shouldShowFull) {
       return stripUnderlineAnsi(formatted)
     }
     return stripUnderlineAnsi(
       renderTruncatedContent(formatted, columns, inVirtualList),
     )
-  }, [content, shouldShowFull, columns, linkifyUrls, inVirtualList])
+  }, [content, shouldShowFull, columns, inVirtualList])
 
   const color = isError ? 'error' : isWarning ? 'warning' : undefined
 

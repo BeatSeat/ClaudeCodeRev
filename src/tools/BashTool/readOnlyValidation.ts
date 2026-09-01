@@ -1594,10 +1594,19 @@ const READONLY_COMMAND_REGEXES = new Set([
  * `$*`, `$#`, `$?`, `$!`, `$$`, `$-`, `$0`-`$9`. Does NOT match `${` or `$(` —
  * those are caught by COMMAND_SUBSTITUTION_PATTERNS in bashSecurity.ts.
  *
+ * Official 2.1.111: `$` still fails the read-only check before any allowlist.
+ * Unquoted globs no longer fail it for commands that match
+ * READONLY_COMMAND_REGEXES (e.g. `ls *.ts`). Flag-parsed COMMAND_ALLOWLIST
+ * commands still reject globs inside isCommandSafeViaFlagParsing.
+ *
  * @param command The command string to check
- * @returns true if the command contains unquoted glob or expandable `$`
+ * @param kinds Which expansion classes to detect. Defaults to both.
+ * @returns true if the command contains a matching unquoted expansion
  */
-function containsUnquotedExpansion(command: string): boolean {
+function containsUnquotedExpansion(
+  command: string,
+  kinds: { dollar?: boolean; glob?: boolean } = { dollar: true, glob: true },
+): boolean {
   // Track quote state to avoid false positives for patterns inside quoted strings
   let inSingleQuote = false
   let inDoubleQuote = false
@@ -1646,7 +1655,7 @@ function containsUnquotedExpansion(command: string): boolean {
 
     // Check `$` followed by variable-name or special-parameter character.
     // `$` expands inside double quotes AND unquoted (only SQ makes it literal).
-    if (currentChar === '$') {
+    if (kinds.dollar !== false && currentChar === '$') {
       const next = command[i + 1]
       if (next && /[A-Za-z_@*#?!$0-9-]/.test(next)) {
         return true
@@ -1660,7 +1669,7 @@ function containsUnquotedExpansion(command: string): boolean {
 
     // Check for glob characters outside all quotes.
     // These could expand to anything, including dangerous flags.
-    if (currentChar && /[?*[\]]/.test(currentChar)) {
+    if (kinds.glob !== false && currentChar && /[?*[\]]/.test(currentChar)) {
       return true
     }
   }
@@ -1691,19 +1700,13 @@ function isCommandReadOnly(command: string): boolean {
     return false
   }
 
-  // Check for unquoted glob characters and expandable `$` variables that could
-  // bypass our regex-based security checks. We can't know what these expand to
-  // at runtime, so we can't verify the command is read-only.
-  //
-  // Globs: `python *` could expand to `python --help` if such a file exists.
-  //
-  // Variables: `uniq --skip-chars=0$_` — bash expands `$_` at runtime to the
-  // last arg of the previous command. With IFS word splitting, this smuggles
-  // positional args past "flags-only" regexes like uniq's `\S+`. The `$` token
-  // check inside isCommandSafeViaFlagParsing only covers COMMAND_ALLOWLIST
-  // commands; hand-written regexes in READONLY_COMMAND_REGEXES (uniq, jq, cd)
-  // have no such guard. See containsUnquotedExpansion for full analysis.
-  if (containsUnquotedExpansion(testCommand)) {
+  // `$` expansions still block before any allowlist — they can smuggle
+  // positional args past flag-only regexes (see containsUnquotedExpansion).
+  // Official 2.1.111: unquoted globs no longer fail the read-only check for
+  // commands that already match READONLY_COMMAND_REGEXES (e.g. `ls *.ts`).
+  // Flag-parsed COMMAND_ALLOWLIST commands still reject globs internally, so
+  // `python *` / `find -?xec` stay conservative.
+  if (containsUnquotedExpansion(testCommand, { dollar: true, glob: false })) {
     return false
   }
 
