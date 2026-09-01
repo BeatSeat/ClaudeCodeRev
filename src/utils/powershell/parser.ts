@@ -1,4 +1,5 @@
 import { execa } from 'execa'
+import { getPlatform } from '../platform.js'
 import { logForDebugging } from '../debug.js'
 import { memoizeWithLRU } from '../memoize.js'
 import { getCachedPowerShellPath } from '../shell/powershellDetection.js'
@@ -1469,9 +1470,39 @@ const DIRECTORY_CHANGE_CMDLETS = new Set([
   'set-location',
   'push-location',
   'pop-location',
+  'new-psdrive',
 ])
 
 const DIRECTORY_CHANGE_ALIASES = new Set(['cd', 'sl', 'chdir', 'pushd', 'popd'])
+
+/**
+ * Official 2.1.149 `Y0$`. Detects directory-changing PowerShell names
+ * including glued builtins (`cd..`, `cd\`, `cd/`, `cd~`), drive-letter `X:`,
+ * New-PSDrive, and Windows `ndr`/`mount`.
+ */
+export function isPowerShellDirectoryChangeName(name: string): boolean {
+  const lower = name.toLowerCase()
+  if (
+    lower === 'cd..' ||
+    lower === 'cd\\' ||
+    lower === 'cd/' ||
+    lower === 'cd~' ||
+    /^[a-z]:$/.test(lower)
+  ) {
+    return true
+  }
+  if (DIRECTORY_CHANGE_ALIASES.has(lower)) {
+    return true
+  }
+  const canonical = (COMMON_ALIASES[lower] ?? name).toLowerCase()
+  if (DIRECTORY_CHANGE_CMDLETS.has(canonical)) {
+    return true
+  }
+  return (
+    getPlatform() === 'windows' &&
+    (canonical === 'ndr' || canonical === 'mount')
+  )
+}
 
 /**
  * Get all command names across all statements, pipeline segments, and nested commands.
@@ -1591,10 +1622,7 @@ export function hasCommandNamed(
 // exported for testing
 export function hasDirectoryChange(parsed: ParsedPowerShellCommand): boolean {
   for (const cmdName of getAllCommandNames(parsed)) {
-    if (
-      DIRECTORY_CHANGE_CMDLETS.has(cmdName) ||
-      DIRECTORY_CHANGE_ALIASES.has(cmdName)
-    ) {
+    if (isPowerShellDirectoryChangeName(cmdName)) {
       return true
     }
   }

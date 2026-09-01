@@ -24,6 +24,7 @@ import { isSettingSourceEnabled } from '../../utils/settings/constants.js'
 import { getManagedFilePath } from '../../utils/settings/managedPath.js'
 import { isRestrictedToPluginOnly } from '../../utils/settings/pluginOnlyPolicy.js'
 import {
+  getAllManagedSettingsSources,
   getInitialSettings,
   getSettingsForSource,
 } from '../../utils/settings/settings.js'
@@ -1340,8 +1341,9 @@ export async function getAllMcpConfigs(): Promise<{
   servers: Record<string, ScopedMcpServerConfig>
   errors: PluginError[]
 }> {
-  // In enterprise mode, don't load claude.ai servers (enterprise has exclusive control)
-  if (doesEnterpriseMcpConfigExist()) {
+  // Official 2.1.149 `CJ$`: enterprise exclusive-control unless
+  // allowAllClaudeAiMcps is set in any managed settings source.
+  if (shouldSuppressClaudeAiMcps()) {
     return getClaudeCodeMcpConfigs()
   }
 
@@ -1532,6 +1534,22 @@ export const doesEnterpriseMcpConfigExist = memoize((): boolean => {
   })
   return config !== null
 })
+
+/**
+ * Official 2.1.149 `CJ$`. True = suppress claude.ai MCP connectors:
+ * enterprise MCP exists AND no managed source set allowAllClaudeAiMcps.
+ */
+export function shouldSuppressClaudeAiMcps(): boolean {
+  if (!doesEnterpriseMcpConfigExist()) return false
+  if (
+    getAllManagedSettingsSources().some(
+      src => src.allowAllClaudeAiMcps === true,
+    )
+  ) {
+    return false
+  }
+  return true
+}
 
 /**
  * Check if MCP allowlist policy should only come from managed settings.

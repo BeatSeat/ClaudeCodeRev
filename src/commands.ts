@@ -64,6 +64,7 @@ import terminalSetup from './commands/terminalSetup/index.js'
 import theme from './commands/theme/index.js'
 import tui from './commands/tui/index.js'
 import focus from './commands/focus/index.js'
+import wellbeing from './commands/wellbeing/index.js'
 import update from './commands/update/index.js'
 import { feature } from 'bun:bundle'
 // Dead code elimination: conditional imports
@@ -222,6 +223,10 @@ import {
   isSkillHiddenFromModel,
 } from './utils/settings/skillOverrides.js'
 import {
+  getSyncedRemoteSkills,
+  isSkillsSyncEnabled,
+} from './utils/skills/skillsSync.js'
+import {
   type Command,
   getCommandName,
   isCommandEnabled,
@@ -300,6 +305,7 @@ const COMMANDS = memoize((): Command[] => [
   fast,
   files,
   focus,
+  wellbeing,
   heapDump,
   help,
   powerup,
@@ -595,7 +601,7 @@ export function getMcpSkillCommands(
 export const getSkillToolCommands = memoize(
   async (cwd: string): Promise<Command[]> => {
     const allCommands = await getCommands(cwd)
-    return allCommands.filter(
+    const local = allCommands.filter(
       cmd =>
         // Official 2.1.108 knY: builtins like /init /review are Skill-invocable.
         cmd.type === 'prompt' &&
@@ -608,6 +614,8 @@ export const getSkillToolCommands = memoize(
           cmd.hasUserSpecifiedDescription ||
           !!cmd.whenToUse),
     )
+    // Official 2.1.149 `tEH`/`Tr7`: concat remote synced skills when enabled.
+    return isSkillsSyncEnabled() ? local.concat(getSyncedRemoteSkills()) : local
   },
 )
 
