@@ -167,7 +167,9 @@ import { isClaudeAISubscriber } from 'src/utils/auth.js'
 import {
   getToolSearchBetaHeader,
   modelSupportsStructuredOutputs,
+  isThirdPartyAutoModeEnabled,
   shouldIncludeFirstPartyOnlyBetas,
+  shouldSendAutoModeAfkBeta,
   shouldUseGlobalCacheScope,
 } from 'src/utils/betas.js'
 import { CLAUDE_IN_CHROME_MCP_SERVER_NAME } from 'src/utils/claudeInChrome/common.js'
@@ -1455,7 +1457,7 @@ async function* queryModel(
     if (
       !afkHeaderLatched &&
       isAgenticQuery &&
-      shouldIncludeFirstPartyOnlyBetas() &&
+      shouldSendAutoModeAfkBeta() &&
       (autoModeStateModule?.isAutoModeActive() ?? false)
     ) {
       afkHeaderLatched = true
@@ -1589,12 +1591,26 @@ async function* queryModel(
     }
 
     // For Bedrock, include both model-based betas and dynamically-added tool search header
+    const sendAfkViaBedrockBody =
+      getAPIProvider() === 'bedrock' &&
+      Boolean(AFK_MODE_BETA_HEADER) &&
+      afkHeaderLatched &&
+      isAgenticQuery &&
+      isThirdPartyAutoModeEnabled()
+    if (sendAfkViaBedrockBody) {
+      logForDebugging(
+        `auto-mode 3P: sending afk-mode beta '${AFK_MODE_BETA_HEADER}' to bedrock via body.anthropic_beta`,
+      )
+    }
     const bedrockBetas =
       getAPIProvider() === 'bedrock'
         ? [
             ...getBedrockExtraBodyParamsBetas(retryContext.model),
             ...(toolSearchHeader ? [toolSearchHeader] : []),
             ...(cacheTtl === '1h' ? [EXTENDED_CACHE_TTL_BETA_HEADER] : []),
+            ...(sendAfkViaBedrockBody && AFK_MODE_BETA_HEADER
+              ? [AFK_MODE_BETA_HEADER]
+              : []),
           ]
         : []
     const extraBodyParams = getExtraBodyParams(bedrockBetas)
@@ -1712,11 +1728,16 @@ async function* queryModel(
     if (feature('TRANSCRIPT_CLASSIFIER')) {
       if (
         afkHeaderLatched &&
-        shouldIncludeFirstPartyOnlyBetas() &&
+        shouldSendAutoModeAfkBeta() &&
         isAgenticQuery &&
         !betasParams.includes(AFK_MODE_BETA_HEADER)
       ) {
         betasParams.push(AFK_MODE_BETA_HEADER)
+        if (isThirdPartyAutoModeEnabled()) {
+          logForDebugging(
+            `auto-mode 3P: sending afk-mode beta '${AFK_MODE_BETA_HEADER}' to ${getAPIProvider()} via betas header`,
+          )
+        }
       }
     }
 
