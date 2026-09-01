@@ -16,6 +16,8 @@ import { isChromeExtensionInstalled } from '../../utils/claudeInChrome/setup.js'
 import { getGlobalConfig, saveGlobalConfig } from '../../utils/config.js'
 import { env } from '../../utils/env.js'
 import { isRunningOnHomespace } from '../../utils/envUtils.js'
+import type { ConnectedMCPServer } from '../../services/mcp/types.js'
+import { ChromeBrowserPicker } from './ChromeBrowserPicker.js'
 
 const CHROME_EXTENSION_URL = 'https://claude.ai/chrome'
 const CHROME_PERMISSIONS_URL = 'https://clau.de/chrome/permissions'
@@ -26,6 +28,7 @@ type MenuAction =
   | 'reconnect'
   | 'manage-permissions'
   | 'toggle-default'
+  | 'select-browser'
 
 type Props = {
   onDone: (result?: string) => void
@@ -49,13 +52,17 @@ function ClaudeInChromeMenu({
   )
   const [showInstallHint, setShowInstallHint] = useState(false)
   const [isExtensionInstalled, setIsExtensionInstalled] = useState(installed)
+  const [view, setView] = useState<'menu' | 'select-browser'>('menu')
 
   const isHomespace = "external" === 'ant' && isRunningOnHomespace()
 
+  // Official 2.1.154 `MAz`: connected Chrome MCP client, not extension-installed
   const chromeClient = mcpClients.find(
-    c => c.name === CLAUDE_IN_CHROME_MCP_SERVER_NAME,
+    (c): c is ConnectedMCPServer =>
+      c.name === CLAUDE_IN_CHROME_MCP_SERVER_NAME && c.type === 'connected',
   )
-  const isConnected = chromeClient?.type === 'connected'
+  const isConnected = chromeClient !== undefined
+  const pairedDeviceName = getGlobalConfig().chromeExtension?.pairedDeviceName
 
   function openUrl(url: string): void {
     if (isHomespace) {
@@ -95,6 +102,9 @@ function ClaudeInChromeMenu({
         setEnabledByDefault(newValue)
         break
       }
+      case 'select-browser':
+        setView('select-browser')
+        break
     }
   }
 
@@ -107,6 +117,13 @@ function ClaudeInChromeMenu({
     options.push({
       label: 'Install Chrome extension',
       value: 'install-extension',
+    })
+  }
+
+  if (isConnected) {
+    options.push({
+      label: 'Select browser…',
+      value: 'select-browser',
     })
   }
 
@@ -185,14 +202,31 @@ function ClaudeInChromeMenu({
                     <Text color="warning">Not detected</Text>
                   )}
                 </Text>
+                {isConnected && pairedDeviceName ? (
+                  <Text>
+                    Browser:{' '}
+                    <Text color="success">{pairedDeviceName}</Text>
+                  </Text>
+                ) : null}
               </Box>
             )}
-            <Select
-              key={selectKey}
-              options={options}
-              onChange={handleAction}
-              hideIndexes
-            />
+            {view === 'select-browser' && chromeClient ? (
+              <ChromeBrowserPicker
+                chromeClient={chromeClient}
+                onDone={result => {
+                  setView('menu')
+                  setSelectKey(k => k + 1)
+                  if (result) onDone(result)
+                }}
+              />
+            ) : (
+              <Select
+                key={selectKey}
+                options={options}
+                onChange={handleAction}
+                hideIndexes
+              />
+            )}
 
             {showInstallHint && (
               <Text color="warning">

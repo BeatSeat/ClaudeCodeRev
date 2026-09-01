@@ -451,24 +451,53 @@ export type Screen = Size & {
   noSelect: Uint8Array
 
   /**
-   * Per-ROW packed soft-wrap Int32 (official lR1):
-   *   low 16 bits  = continuation start column (this row)
+   * Per-ROW packed soft-wrap Int32 (official 2.1.154 `UD6`):
    *   high 16 bits = previous line's content-end (exclusive)
+   *   low 15 bits  = continuation start column (this row)
+   *   bit 15       = `SW_ELIDED_SEP` — leading wrap separator was stripped
    * softWrap[r] !== 0 means row r is a word-wrap continuation of row r-1.
-   * Selection copy joins those rows without a newline or extra space, and
-   * reads softWrap[r+1] >>> 16 for this row's content-end so trailing
-   * padding is not copied. 0 means row r is not a continuation.
-   * Reset each frame; copied by blitRegion/shiftRows.
+   * Selection copy joins those rows (re-inserting the elided space when
+   * bit 15 is set), and reads softWrap[r+1] >>> 16 for this row's
+   * content-end so trailing padding is not copied. 0 means row r is not
+   * a continuation. Reset each frame; copied by blitRegion/shiftRows.
    */
   softWrap: Int32Array
 }
 
-/** Pack prev-line content-end (high 16) with this-line start col (low 16). */
+/**
+ * Official 2.1.154 `br`. Producer-side wrap provenance, parallel to
+ * wrapped lines. Packed onto `Screen.softWrap` by output.ts (`L|vdH`).
+ */
+export const SoftWrapKind = {
+  HardBreak: 0,
+  Continuation: 1,
+  ContinuationElidedSep: 2,
+} as const
+export type SoftWrapKind = (typeof SoftWrapKind)[keyof typeof SoftWrapKind]
+
+/** Official `vdH`. Bit 15 of packed softWrap marks an elided leading separator. */
+export const SW_ELIDED_SEP = 32768
+
+/**
+ * Official `UD6`: pack prev-line content-end (high 16) with this-line
+ * start col (low 15). Bit 15 is reserved for `SW_ELIDED_SEP`.
+ */
 export function packSoftWrap(
   prevContentEnd: number,
   startCol: number,
 ): number {
-  return (prevContentEnd << 16) | (startCol & 65535)
+  if (startCol > 32767) {
+    logForDebugging(
+      `packSoftWrap: start column ${startCol} exceeds the 15-bit field; bit 15 is reserved for SW_ELIDED_SEP and will be corrupted`,
+      { level: 'error' },
+    )
+  }
+  return (prevContentEnd << 16) | (startCol & 32767)
+}
+
+/** Official `cq8`: unpack the 15-bit start column (mask off `SW_ELIDED_SEP`). */
+export function unpackSoftWrapStart(packed: number): number {
+  return packed & 32767
 }
 
 function isEmptyCellByIndex(screen: Screen, index: number): boolean {

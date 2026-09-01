@@ -738,7 +738,7 @@ async function loadDiskWorkflows(cwd: string): Promise<DiscoveredWorkflow[]> {
       byName.set(workflow.name, workflow)
     }
   }
-  return [...byName.values()]
+  return [...byName.values()].sort((a, b) => a.name.localeCompare(b.name))
 }
 
 /**

@@ -6,7 +6,11 @@ import { plural } from '../stringUtils.js'
 import { validatePermissionRule } from './permissionValidation.js'
 import { generateSettingsJSONSchema } from './schemaOutput.js'
 import type { SettingsJson } from './types.js'
-import { SettingsSchema } from './types.js'
+import {
+  AllowedMcpServerEntrySchema,
+  DeniedMcpServerEntrySchema,
+  SettingsSchema,
+} from './types.js'
 import { getValidationTip } from './validationTips.js'
 
 const KNOWN_HOOK_EVENTS = new Set<string>(HOOK_EVENTS)
@@ -342,7 +346,59 @@ export function filterUnknownHookEvents(
   return warnings
 }
 
-/** Official 2.1.101 GC: permission-rule + unknown-hook prefilters. */
+/**
+ * Official 2.1.154 `V71`/`T71`/`NBH`. Drop invalid allowedMcpServers /
+ * deniedMcpServers entries so one bad managed-settings row does not fail
+ * the whole settings parse.
+ */
+function filterInvalidMcpServerPolicyEntries(
+  data: unknown,
+  filePath: string,
+): ValidationError[] {
+  if (!data || typeof data !== 'object') return []
+  const obj = data as Record<string, unknown>
+  const warnings: ValidationError[] = []
+  const fields = [
+    { key: 'allowedMcpServers', schema: AllowedMcpServerEntrySchema },
+    { key: 'deniedMcpServers', schema: DeniedMcpServerEntrySchema },
+  ] as const
+  for (const { key, schema } of fields) {
+    if (!(key in obj)) continue
+    const value = obj[key]
+    if (!Array.isArray(value)) {
+      delete obj[key]
+      warnings.push({
+        file: filePath,
+        path: key,
+        message: `"${key}" must be an array; received ${describeSettingsValue(value)}. This field was ignored.`,
+        severity: 'warning',
+        invalidValue: value,
+      })
+      continue
+    }
+    const kept: unknown[] = []
+    for (let i = 0; i < value.length; i++) {
+      const parsed = schema().safeParse(value[i])
+      if (parsed.success) {
+        kept.push(value[i])
+      } else {
+        warnings.push({
+          file: filePath,
+          path: `${key}[${i}]`,
+          message: `Invalid entry was ignored: ${parsed.error.issues[0]?.message ?? 'failed validation'}`,
+          severity: 'warning',
+          invalidValue: value[i],
+        })
+      }
+    }
+    if (kept.length < value.length) {
+      obj[key] = kept
+    }
+  }
+  return warnings
+}
+
+/** Official 2.1.101 GC + 2.1.154 V71: permission-rule + unknown-hook + MCP policy. */
 export function filterSettingsWarnings(
   data: unknown,
   filePath: string,
@@ -350,5 +406,6 @@ export function filterSettingsWarnings(
   return [
     ...filterInvalidPermissionRules(data, filePath),
     ...filterUnknownHookEvents(data, filePath),
+    ...filterInvalidMcpServerPolicyEntries(data, filePath),
   ]
 }

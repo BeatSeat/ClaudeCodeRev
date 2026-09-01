@@ -28,6 +28,20 @@ export function toRGBColor(color: RGBColorType): RGBColorString {
   return `rgb(${color.r},${color.g},${color.b})`
 }
 
+// Official 2.1.154 `OH7=8` / `Px` / `h78`: VS Code / xterm.js (256-color)
+// cannot show a smooth hue sweep, so snap to 8 distinct hues.
+export const HUE_QUANTUM = 8
+
+/** Official `Px`: snap a 0–1 unit onto `HUE_QUANTUM` steps. */
+export function quantizeHueUnit(unit: number): number {
+  return Math.round(unit * HUE_QUANTUM) / HUE_QUANTUM
+}
+
+/** Official `h78`: snap a 0–360 hue onto `HUE_QUANTUM` steps. */
+export function quantizeHue(hue: number): number {
+  return quantizeHueUnit(hue / 360) * 360
+}
+
 // HSL hue (0-360) to RGB, using voice-mode waveform parameters (s=0.7, l=0.6).
 export function hueToRgb(hue: number): RGBColorType {
   const h = ((hue % 360) + 360) % 360

@@ -5,6 +5,7 @@ import {
   logEvent,
 } from 'src/services/analytics/index.js'
 import { queryModelWithoutStreaming } from '../../services/api/claude.js'
+import { isPromptTooLongMessage } from '../../services/api/errors.js'
 import { groupMessagesByApiRound } from '../../services/compact/grouping.js'
 import { roughTokenCountEstimationForMessage } from '../../services/tokenEstimation.js'
 import type { ToolUseContext } from '../../Tool.js'
@@ -42,15 +43,18 @@ function estimateHookTranscriptGroupTokens(group: Message[]): number {
 /**
  * Official zQY: drop earlier API-round groups from the tail-kept transcript
  * so Stop / SubagentStop evaluators stay within ~70% of the model budget.
+ * The budget ratio is overridable so the 2.1.154 too-long retry can re-run
+ * at half the original budget.
  */
 function truncateHookTranscript(
   messages: Message[],
   evaluatorModel: string,
+  budgetRatio: number = HOOK_TRANSCRIPT_BUDGET_RATIO,
 ): Message[] {
   const window = has1mContext(evaluatorModel)
     ? 1_000_000
     : MODEL_CONTEXT_WINDOW_DEFAULT
-  const budget = Math.floor(window * HOOK_TRANSCRIPT_BUDGET_RATIO)
+  const budget = Math.floor(window * budgetRatio)
   if (tokenCountFromLastAPIResponse(messages) <= budget) {
     return messages
   }
@@ -130,7 +134,7 @@ export async function execPromptHook(
         : messages
 
     // Prepend conversation history if provided
-    const messagesToQuery =
+    let messagesToQuery =
       transcript && transcript.length > 0
         ? [...transcript, userMessage]
         : [userMessage]
@@ -147,8 +151,9 @@ export async function execPromptHook(
       createCombinedAbortSignal(signal, { timeoutMs: hookTimeoutMs })
 
     try {
-      const response = await queryModelWithoutStreaming({
-        messages: messagesToQuery,
+      const evaluate = (queryMessages: Message[]) =>
+        queryModelWithoutStreaming({
+        messages: queryMessages,
         systemPrompt: asSystemPrompt([
           isStopHook
             ? `You are evaluating a stop-condition hook in Claude Code. Read the conversation transcript carefully, then judge whether the user-provided condition is satisfied.
@@ -196,6 +201,36 @@ Always include a "reason" field.`,
           },
         },
       })
+
+      let response = await evaluate(messagesToQuery)
+
+      // Official 2.1.154 `H89`: the evaluator hit "prompt is too long". Rebuild
+      // the message list with half the transcript budget and query once more.
+      if (
+        isPromptTooLongMessage(response) &&
+        messages &&
+        messages.length > 0
+      ) {
+        logEvent('tengu_hook_prompt_too_long_retry', {
+          evaluatorModel:
+            evaluatorModel as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
+        })
+        // Mirrors the bundle's `X = J($89/2)`: re-truncate the transcript at
+        // half the original budget, then re-append the condition message.
+        const retracted = truncateHookTranscript(
+          messages,
+          evaluatorModel,
+          HOOK_TRANSCRIPT_BUDGET_RATIO / 2,
+        )
+        messagesToQuery = [
+          ...retracted,
+          userMessage,
+        ]
+        logForDebugging(
+          `Hooks: evaluator prompt too long; retrying with ${messagesToQuery.length} messages`,
+        )
+        response = await evaluate(messagesToQuery)
+      }
 
       cleanupSignal()
 

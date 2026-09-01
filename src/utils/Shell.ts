@@ -250,7 +250,7 @@ export async function exec(
   const { commandString: builtCommand, cwdFilePath } =
     await provider.buildExecCommand(command, {
       id,
-      sandboxTmpDir: shouldUseSandbox ? sandboxTmpDir : undefined,
+      sandboxTmpDir,
       useSandbox: shouldUseSandbox ?? false,
     })
 
@@ -328,26 +328,21 @@ export async function exec(
   const isSandboxedPowerShell = shouldUseSandbox && shellType === 'powershell'
   const sandboxBinShell = isSandboxedPowerShell ? '/bin/sh' : binShell
 
-  if (shouldUseSandbox) {
-    // The sandbox wrapper may probe its temp directory while constructing the
-    // wrapped command, so create it before wrapping. Concurrent calls share
-    // this directory; EEXIST is therefore the successful race outcome.
-    let sandboxTmpDirAvailable = false
-    try {
-      const fs = getFsImplementation()
-      await fs.mkdir(sandboxTmpDir, { mode: 0o700 })
-      sandboxTmpDirAvailable = true
-    } catch (error) {
-      if (getErrnoCode(error) === 'EEXIST') {
-        sandboxTmpDirAvailable = true
-      } else {
-        logForDebugging(`Failed to create ${sandboxTmpDir} directory: ${error}`)
-      }
+  // Official 2.1.154 R6H: VL() always materializes the per-uid tmp root
+  // and CLAUDE_TMPDIR is set whenever unset (sandbox wrap stays gated).
+  try {
+    const fs = getFsImplementation()
+    await fs.mkdir(sandboxTmpDir, { mode: 0o700 })
+  } catch (error) {
+    if (getErrnoCode(error) !== 'EEXIST') {
+      logForDebugging(`Failed to create ${sandboxTmpDir} directory: ${error}`)
     }
-    if (sandboxTmpDirAvailable && !process.env.CLAUDE_TMPDIR) {
-      process.env.CLAUDE_TMPDIR = sandboxTmpDir
-    }
+  }
+  if (!process.env.CLAUDE_TMPDIR) {
+    process.env.CLAUDE_TMPDIR = sandboxTmpDir
+  }
 
+  if (shouldUseSandbox) {
     const customConfig =
       isSubprocessEnvScrubEnabled() && isLinuxBwrapAvailable()
         ? mergeScrubSandboxConfig(

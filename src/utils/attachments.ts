@@ -200,6 +200,8 @@ import {
 } from './messages.js'
 import { isHumanTurn } from './messagePredicates.js'
 import { isEnvTruthy, getClaudeConfigHomeDir } from './envUtils.js'
+import { resolveAppliedEffort } from './effort.js'
+import { isWorkflowsEnabled } from './workflows/enabled.js'
 import { feature } from 'bun:bundle'
 /* eslint-disable @typescript-eslint/no-require-imports */
 const BRIEF_TOOL_NAME: string | null =
@@ -295,6 +297,12 @@ export const RELEVANT_MEMORIES_CONFIG = {
 
 export const VERIFY_PLAN_REMINDER_CONFIG = {
   TURNS_BETWEEN_REMINDERS: 10,
+} as const
+
+// Official 2.1.154 `Kw4`: emit a sparse ultra_effort maintenance reminder every
+// N human turns while active; the first attachment of a session is "full".
+export const ULTRA_EFFORT_MAINTENANCE_CONFIG = {
+  TURNS_BETWEEN_MAINTENANCE: 10,
 } as const
 
 export type FileAttachment = {
@@ -600,6 +608,14 @@ export type Attachment =
   | {
       type: 'auto_mode_exit'
     }
+  // Official 2.1.154: ultra_effort session-maintenance attachments.
+  | {
+      type: 'ultra_effort_enter'
+      reminderType: 'full' | 'sparse'
+    }
+  | {
+      type: 'ultra_effort_exit'
+    }
   | {
       type: 'critical_system_reminder'
       content: string
@@ -765,7 +781,11 @@ export async function getAttachments(
   queuedCommands: QueuedCommand[],
   messages?: Message[],
   querySource?: QuerySource,
-  options?: { skipSkillDiscovery?: boolean; planSlugSeed?: string },
+  options?: {
+    skipSkillDiscovery?: boolean
+    planSlugSeed?: string
+    isRegularUserPrompt?: boolean
+  },
 ): Promise<Attachment[]> {
   if (
     isEnvTruthy(process.env.CLAUDE_CODE_DISABLE_ATTACHMENTS) ||
@@ -967,6 +987,21 @@ export async function getAttachments(
   // Attachments which are semantically only for the main conversation or don't have concurrency-safe implementations
   const mainThreadAttachments = isMainThread
     ? [
+        // Official 2.1.154: ultra_effort session-maintenance attachments.
+        // Bundled at the front of the main-thread list (under the workflows
+        // gate); the provider no-ops unless this is a regular user prompt.
+        // The generator re-checks ultracode + xhigh internally (`ar`).
+        ...(isWorkflowsEnabled()
+          ? [
+              maybe('ultra_effort_enter', async () =>
+                Promise.resolve(
+                  options?.isRegularUserPrompt
+                    ? getUltraEffortAttachments(messages ?? [], toolUseContext)
+                    : [],
+                ),
+              ),
+            ]
+          : []),
         maybe('ide_selection', async () =>
           getSelectedLinesFromIDE(ideSelection, toolUseContext),
         ),
@@ -1425,6 +1460,87 @@ async function getAutoModeExitAttachment(
 
   setNeedsAutoModeExitAttachment(false)
   return [{ type: 'auto_mode_exit' }]
+}
+
+/**
+ * Official 2.1.154 `ar` — ultra_effort active iff the session is in ultracode,
+ * workflows are enabled, and the resolved effort is `xhigh`.
+ */
+function isUltraEffortActive(toolUseContext: ToolUseContext): boolean {
+  const appState = toolUseContext.getAppState()
+  if (appState.ultracode !== true) {
+    return false
+  }
+  if (!isWorkflowsEnabled()) {
+    return false
+  }
+  return (
+    resolveAppliedEffort(
+      toolUseContext.options.mainLoopModel,
+      appState.effortValue,
+    ) === 'xhigh'
+  )
+}
+
+/**
+ * Official 2.1.154 `_R_` — scan the conversation backwards for the most recent
+ * ultra_effort enter/exit attachment and count the human turns since it, then
+ * emit a maintenance attachment:
+ *  - not yet entered (or after an exit) → `ultra_effort_enter` "full"
+ *  - already entered and ≥ TURNS_BETWEEN_MAINTENANCE human turns since last →
+ *    `ultra_effort_enter` "sparse"
+ *  - entered and exited (ultra_effort off) → one-time `ultra_effort_exit`
+ */
+function getUltraEffortAttachments(
+  messages: Message[],
+  toolUseContext: ToolUseContext,
+): Attachment[] {
+  const active = isUltraEffortActive(toolUseContext)
+  let state: 'none' | 'enter' | 'exit' = 'none'
+  let turnsSinceLastAttachment = 0
+
+  if (messages) {
+    for (let i = messages.length - 1; i >= 0; i--) {
+      const message = messages[i]
+      if (message === undefined) {
+        continue
+      }
+      if (message.type === 'attachment') {
+        if (message.attachment.type === 'ultra_effort_enter') {
+          state = 'enter'
+          break
+        }
+        if (message.attachment.type === 'ultra_effort_exit') {
+          state = 'exit'
+          break
+        }
+      } else if (
+        message.type === 'user' &&
+        !message.isMeta &&
+        !hasToolResultContent(message.message.content)
+      ) {
+        turnsSinceLastAttachment++
+      }
+    }
+  }
+
+  if (active) {
+    if (state !== 'enter') {
+      logEvent('tengu_ultra_effort', { is_enter: true, is_full: true })
+      return [{ type: 'ultra_effort_enter', reminderType: 'full' }]
+    }
+    if (turnsSinceLastAttachment >= ULTRA_EFFORT_MAINTENANCE_CONFIG.TURNS_BETWEEN_MAINTENANCE) {
+      logEvent('tengu_ultra_effort', { is_enter: true, is_full: false })
+      return [{ type: 'ultra_effort_enter', reminderType: 'sparse' }]
+    }
+    return []
+  }
+
+  if (state === 'enter') {
+    logEvent('tengu_ultra_effort', { is_enter: false })
+    return [{ type: 'ultra_effort_exit' }]
+  }
+  return []
 }
 
 /**
@@ -3027,7 +3143,11 @@ export async function* getAttachmentMessages(
   queuedCommands: QueuedCommand[],
   messages?: Message[],
   querySource?: QuerySource,
-  options?: { skipSkillDiscovery?: boolean; planSlugSeed?: string },
+  options?: {
+    skipSkillDiscovery?: boolean
+    planSlugSeed?: string
+    isRegularUserPrompt?: boolean
+  },
 ): AsyncGenerator<AttachmentMessage, void> {
   // TODO: Compute this upstream
   const attachments = await getAttachments(

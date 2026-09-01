@@ -12,6 +12,7 @@ import type { BridgeState, ReplBridgeHandle } from '../bridge/replBridge.js'
 import { setReplBridgeHandle } from '../bridge/replBridgeHandle.js'
 import type { Command } from '../commands.js'
 import { getSlashCommandToolSkills, isRemoteControlCommand } from '../commands.js'
+import { setRemoteControlActive } from '../commands/bridge/index.js'
 import { getRemoteSessionUrl } from '../constants/product.js'
 import { useNotifications } from '../context/notifications.js'
 import type {
@@ -127,6 +128,10 @@ export function useReplBridge(
     ? // biome-ignore lint/correctness/useHookAtTopLevel: feature() is a compile-time constant
       useAppState(s => s.replBridgeInitialName)
     : undefined
+
+  useEffect(() => {
+    setRemoteControlActive(replBridgeEnabled)
+  }, [replBridgeEnabled])
 
   // Initialize/teardown bridge when enabled state changes.
   // Passes current messages as initialMessages so the remote session

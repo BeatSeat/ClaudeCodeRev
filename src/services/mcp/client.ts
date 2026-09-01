@@ -1008,6 +1008,8 @@ export const connectToServer = memoize(
           env: {
             ...subprocessEnv(),
             CLAUDE_PROJECT_DIR: getProjectRoot(),
+            CLAUDE_CODE_SESSION_ID: getSessionId(),
+            CLAUDECODE: '1',
             ...serverRef.env,
           } as Record<string, string>,
           stderr: 'pipe', // prevents error output from the MCP server from printing to the UI

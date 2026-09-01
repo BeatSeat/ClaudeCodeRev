@@ -387,8 +387,11 @@ export function isDangerousRemovalPath(resolvedPath: string): boolean {
     return true
   }
 
-  const normalizedHome = stripMacPrivate(homedir().replace(/[\\/]+/g, '/'))
-  if (normalizedPath === normalizedHome) {
+  const normalizedHome = stripMacPrivate(homedir().replace(/[\\/]+/g, '/')).replace(
+    /\/$/,
+    '',
+  )
+  if (normalizedPath.toLowerCase() === normalizedHome.toLowerCase()) {
     return true
   }
 

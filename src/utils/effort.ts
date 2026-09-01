@@ -21,25 +21,33 @@ export type EffortValue = EffortLevel | number
 
 // @[MODEL LAUNCH]: Add the new model to the allowlist if it supports the effort parameter.
 export function modelSupportsEffort(model: string): boolean {
-  const m = model.toLowerCase()
-  if (isEnvTruthy(process.env.CLAUDE_CODE_ALWAYS_ENABLE_EFFORT)) {
-    return true
-  }
   const supported3P = get3PModelCapabilityOverride(model, 'effort')
   if (supported3P !== undefined) {
     return supported3P
   }
-  // Supported by a subset of Claude 4 models
+  const q = model.toLowerCase()
+  // Official 2.1.154 A2: denylist first so ALWAYS_ENABLE cannot force
+  // effort onto models that reject the parameter (API 400).
   if (
-    m.includes('opus-4-7') ||
-    m.includes('opus-4-6') ||
-    m.includes('sonnet-4-6')
+    q.includes('claude-3-') ||
+    q.includes('claude-opus-4-0') ||
+    q.includes('claude-opus-4-1') ||
+    q.includes('claude-sonnet-4-0') ||
+    q.includes('claude-sonnet-4-5') ||
+    q.includes('claude-haiku-4-5')
   ) {
+    return false
+  }
+  if (isEnvTruthy(process.env.CLAUDE_CODE_ALWAYS_ENABLE_EFFORT)) {
     return true
   }
-  // Exclude any other known legacy models (haiku, older opus/sonnet variants)
-  if (m.includes('haiku') || m.includes('sonnet') || m.includes('opus')) {
-    return false
+  if (
+    q.includes('opus-4-8') ||
+    q.includes('opus-4-7') ||
+    q.includes('opus-4-6') ||
+    q.includes('sonnet-4-6')
+  ) {
+    return true
   }
 
   // IMPORTANT: Do not change the default effort support without notifying
@@ -82,7 +90,8 @@ export function modelSupportsXHighEffort(model: string): boolean {
   if (supported3P !== undefined) {
     return supported3P
   }
-  return model.toLowerCase().includes('opus-4-7')
+  const lower = model.toLowerCase()
+  return lower.includes('opus-4-8') || lower.includes('opus-4-7')
 }
 
 export function modelSupportsMaxEffort(model: string): boolean {
@@ -191,16 +200,14 @@ export function resolveAppliedEffort(
   appStateEffortValue: EffortValue | undefined,
 ): EffortValue | undefined {
   const envOverride = getEffortEnvOverride()
-  const pinOpus47Default =
-    model.toLowerCase().includes('opus-4-7') &&
-    !getGlobalConfig().unpinOpus47LaunchEffort
+  const pinLaunchDefault = isOpusLaunchEffortPinned(model)
   const modelDefault = getDefaultEffortForModel(model)
   if (envOverride === null) {
-    return pinOpus47Default ? modelDefault : undefined
+    return pinLaunchDefault ? modelDefault : undefined
   }
   const resolved =
     envOverride ??
-    (pinOpus47Default ? modelDefault : undefined) ??
+    (pinLaunchDefault ? modelDefault : undefined) ??
     appStateEffortValue ??
     modelDefault
   // API rejects 'max' / 'xhigh' on models that don't support them.
@@ -277,7 +284,7 @@ export function getEffortLevelDescription(level: EffortLevel): string {
     case 'high':
       return 'Comprehensive implementation with extensive testing and documentation'
     case 'xhigh':
-      return 'Deeper reasoning than high, just below maximum (Opus 4.7 only)'
+      return 'Deeper reasoning than high, just below maximum (Opus 4.8/4.7 only)'
     case 'max':
       return 'Maximum capability with deepest reasoning'
   }
@@ -369,15 +376,37 @@ export function applyEffortSelection(
 ): EffortValue | undefined {
   const parsed = parseEffortValue(value)
   if (parsed !== undefined) {
-    unpinOpus47LaunchEffort()
+    unpinOpusLaunchEffort()
   }
   return parsed ?? getInitialEffortSetting()
 }
 
+/** Official 2.1.154 AkH: pin opus-4-7 → xhigh and opus-4-8 → high until /effort. */
+export function isOpusLaunchEffortPinned(model: string): boolean {
+  const lower = model.toLowerCase()
+  const cfg = getGlobalConfig()
+  if (lower.includes('opus-4-7')) {
+    return !cfg.unpinOpus47LaunchEffort
+  }
+  if (lower.includes('opus-4-8')) {
+    return !cfg.unpinOpus48LaunchEffort
+  }
+  return false
+}
+
 export function unpinOpus47LaunchEffort(): void {
+  unpinOpusLaunchEffort()
+}
+
+/** Official 2.1.154 SI: write both unpin flags together. */
+export function unpinOpusLaunchEffort(): void {
   saveGlobalConfig(current =>
-    current.unpinOpus47LaunchEffort
+    current.unpinOpus47LaunchEffort && current.unpinOpus48LaunchEffort
       ? current
-      : { ...current, unpinOpus47LaunchEffort: true },
+      : {
+          ...current,
+          unpinOpus47LaunchEffort: true,
+          unpinOpus48LaunchEffort: true,
+        },
   )
 }
