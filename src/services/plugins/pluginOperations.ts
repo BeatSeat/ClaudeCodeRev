@@ -421,6 +421,7 @@ export async function installPluginOp(
             result.dep,
             result.ranges,
             result.why,
+            result.installed,
           ),
         }
         case 'no-matching-tag':

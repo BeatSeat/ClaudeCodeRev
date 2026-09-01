@@ -1304,6 +1304,12 @@ export type SessionCronTask = {
    * instead of the main REPL command queue. Session-only — never written to disk.
    */
   agentId?: string
+  /**
+   * Official 2.1.113 G91 / kind:"loop" — session-only dynamic /loop wakeup.
+   * Distinguishes self-paced wakeups from ordinary CronCreate jobs so Esc
+   * can cancel pending wakeups without deleting recurring /loop crons.
+   */
+  kind?: 'loop'
 }
 
 export function getSessionCronTasks(): SessionCronTask[] {

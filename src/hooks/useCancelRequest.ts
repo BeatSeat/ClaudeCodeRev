@@ -27,6 +27,7 @@ import {
   markAgentsNotified,
 } from '../tasks/LocalAgentTask/LocalAgentTask.js'
 import type { PromptInputMode, VimMode } from '../types/textInputTypes.js'
+import { cancelAllPendingLoopSessionCrons } from '../utils/cronTasks.js'
 import {
   clearCommandQueue,
   enqueuePendingNotification,
@@ -97,6 +98,7 @@ export function CancelRequestHandler(props: CancelRequestHandlerProps): null {
     if (abortSignal !== undefined && !abortSignal.aborted) {
       logEvent('tengu_cancel', cancelProps)
       setToolUseConfirmQueue(() => [])
+      cancelAllPendingLoopSessionCrons()
       onCancel()
       return
     }

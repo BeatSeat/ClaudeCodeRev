@@ -1,7 +1,7 @@
-import chalk from 'chalk'
 import React from 'react'
 import { useClipboardImageHint } from '../hooks/useClipboardImageHint.js'
 import { useVimInput } from '../hooks/useVimInput.js'
+import { rawInverse } from '../ink/colorize.js'
 import { Box, color, useTerminalFocus, useTheme } from '../ink.js'
 import type { VimTextInputProps } from '../types/textInputTypes.js'
 import type { TextHighlight } from '../utils/textHighlighting.js'
@@ -33,7 +33,7 @@ export default function VimTextInput(props: Props): React.ReactNode {
     multiline: props.multiline,
     cursorChar: props.showCursor ? ' ' : '',
     highlightPastedText: props.highlightPastedText,
-    invert: isTerminalFocused ? chalk.inverse : (text: string) => text,
+    invert: isTerminalFocused ? rawInverse : (text: string) => text,
     themeText: color('text', theme),
     columns: props.columns,
     maxVisibleLines: props.maxVisibleLines,

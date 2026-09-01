@@ -5,8 +5,32 @@
  * then interprets sequences as keypresses.
  */
 import { Buffer } from 'buffer'
+import {
+  isEnvDefinedFalsy,
+  isEnvTruthy,
+} from '../utils/envUtils.js'
 import { PASTE_END, PASTE_START } from './termio/csi.js'
 import { createTokenizer, type Tokenizer } from './termio/tokenize.js'
+
+/**
+ * Official 113 fF4 — Windows (not mintty/cygwin) sends Ctrl+Backspace as
+ * `\b` and regular Backspace as DEL. Treat `\b` as ctrl+backspace there.
+ * CLAUDE_CODE_BS_AS_CTRL_BACKSPACE overrides. Call with process.platform
+ * at runtime — do not bake in a compile-time OS string.
+ */
+export function shouldTreatBsAsCtrlBackspace(
+  platform: string,
+  env: NodeJS.ProcessEnv,
+): boolean {
+  const override = env.CLAUDE_CODE_BS_AS_CTRL_BACKSPACE
+  if (isEnvTruthy(override)) return true
+  if (isEnvDefinedFalsy(override)) return false
+  return (
+    platform === 'win32' &&
+    env.TERM_PROGRAM !== 'mintty' &&
+    env.TERM !== 'cygwin'
+  )
+}
 
 // eslint-disable-next-line no-control-regex
 const META_KEY_CODE_RE = /^(?:\x1b)([a-zA-Z0-9])$/
@@ -711,6 +735,9 @@ function parseKeypress(s: string = ''): ParsedKey {
   } else if (s === '\b' || s === '\x1b\b') {
     key.name = 'backspace'
     key.meta = s.charAt(0) === '\x1b'
+    if (shouldTreatBsAsCtrlBackspace(process.platform, process.env)) {
+      key.ctrl = true
+    }
   } else if (s === '\x7f' || s === '\x1b\x7f') {
     key.name = 'backspace'
     key.meta = s.charAt(0) === '\x1b'

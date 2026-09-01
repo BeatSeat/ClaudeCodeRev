@@ -57,7 +57,10 @@ import { truncate } from '../../utils/format.js'
 import { getFsImplementation } from '../../utils/fsOperations.js'
 import { lazySchema } from '../../utils/lazySchema.js'
 import { expandPath, toRelativePath } from '../../utils/path.js'
-import type { PermissionResult } from '../../utils/permissions/PermissionResult.js'
+import type {
+  PermissionDecisionReason,
+  PermissionResult,
+} from '../../utils/permissions/PermissionResult.js'
 import { maybeRecordPluginHint } from '../../utils/plugins/hintRecommendation.js'
 import { exec } from '../../utils/Shell.js'
 import type { ExecResult } from '../../utils/ShellCommand.js'
@@ -698,6 +701,19 @@ async function applySedEdit(
   }
 }
 
+/** Official 2.1.113 nP7: allow-from-rule should not re-prompt for unsandbox. */
+function isRuleBasedPermissionDecision(
+  reason: PermissionDecisionReason | undefined,
+): boolean {
+  if (reason?.type === 'rule') return true
+  if (reason?.type === 'subcommandResults') {
+    return [...reason.reasons.values()].every(result =>
+      isRuleBasedPermissionDecision(result.decisionReason),
+    )
+  }
+  return false
+}
+
 export const BashTool = buildTool({
   name: BASH_TOOL_NAME,
   searchHint: 'execute shell commands',
@@ -814,7 +830,28 @@ export const BashTool = buildTool({
     return { result: true }
   },
   async checkPermissions(input, context): Promise<PermissionResult> {
-    return bashToolHasPermission(input, context)
+    const result = await bashToolHasPermission(input, context)
+    // Official 2.1.113: dangerouslyDisableSandbox must still permission-prompt
+    // when the command would otherwise have been auto-allowed inside the
+    // sandbox. Skip when the allow already came from an explicit rule.
+    if (
+      input.dangerouslyDisableSandbox &&
+      result.behavior !== 'deny' &&
+      result.behavior !== 'ask' &&
+      !isRuleBasedPermissionDecision(result.decisionReason) &&
+      !shouldUseSandbox(input) &&
+      shouldUseSandbox({ ...input, dangerouslyDisableSandbox: false })
+    ) {
+      return {
+        behavior: 'ask',
+        decisionReason: {
+          type: 'sandboxOverride',
+          reason: 'dangerouslyDisableSandbox',
+        },
+        message: 'Run outside of the sandbox',
+      }
+    }
+    return result
   },
   renderToolUseMessage,
   renderToolUseProgressMessage,

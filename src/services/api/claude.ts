@@ -450,7 +450,14 @@ function configureEffortParams(
   betas: string[],
   model: string,
 ): void {
-  if (!modelSupportsEffort(model) || 'effort' in outputConfig) {
+  // Official 2.1.113 `nb5`: CLAUDE_CODE_EXTRA_BODY may already have copied
+  // output_config.effort onto this object. Drop it when the model (or Vertex
+  // 3P default) cannot accept effort — otherwise subagent/Vertex calls 400.
+  if (!modelSupportsEffort(model)) {
+    delete outputConfig.effort
+    return
+  }
+  if ('effort' in outputConfig) {
     return
   }
 
@@ -1610,10 +1617,13 @@ async function* queryModel(
     // IMPORTANT: Do not change the adaptive-vs-budget thinking selection below
     // without notifying the model launch DRI and research. This is a sensitive
     // setting that can greatly affect model quality and bashing.
-    if (hasThinking && modelSupportsThinking(options.model)) {
+    // Official 2.1.113: Bedrock Application Inference Profile ARNs do not
+    // contain opus-4-7, so thinking.type.enabled 400s unless we classify
+    // against the resolved backing model.
+    if (hasThinking && modelSupportsThinking(resolvedModel)) {
       if (
         !isEnvTruthy(process.env.CLAUDE_CODE_DISABLE_ADAPTIVE_THINKING) &&
-        modelSupportsAdaptiveThinking(options.model)
+        modelSupportsAdaptiveThinking(resolvedModel)
       ) {
         // For models that support adaptive thinking, always use adaptive
         // thinking without a budget.
@@ -1623,7 +1633,7 @@ async function* queryModel(
       } else {
         // For models that do not support adaptive thinking, use the default
         // thinking budget unless explicitly specified.
-        let thinkingBudget = getMaxThinkingTokensForModel(options.model)
+        let thinkingBudget = getMaxThinkingTokensForModel(resolvedModel)
         if (
           thinkingConfig.type === 'enabled' &&
           thinkingConfig.budgetTokens !== undefined

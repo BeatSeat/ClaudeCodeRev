@@ -176,6 +176,17 @@ export const McpJsonConfigSchema = lazySchema(() =>
 
 export type McpJsonConfig = z.infer<ReturnType<typeof McpJsonConfigSchema>>
 
+/** Official 2.1.113: per-call transport-loss watchdog. A message for one
+ * in-flight tool call must not disarm another call's timer. */
+export type MCPCallWatchdog = {
+  armedAt: number
+}
+
+export type MCPTransportErrorState = {
+  consecutiveErrors: number
+  activeCallWatchdogs: Set<MCPCallWatchdog>
+}
+
 // Server connection types
 export type ConnectedMCPServer = {
   client: Client
@@ -189,6 +200,7 @@ export type ConnectedMCPServer = {
   instructions?: string
   config: ScopedMcpServerConfig
   cleanup: () => Promise<void>
+  transportErrorState?: MCPTransportErrorState
 }
 
 export type FailedMCPServer = {

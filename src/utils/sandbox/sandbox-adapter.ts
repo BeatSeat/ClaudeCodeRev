@@ -242,6 +242,11 @@ export function convertToSandboxRuntimeConfig(
     }
   }
 
+  // Official 2.1.113: sandbox.network.deniedDomains is merged from all
+  // settings sources and applied before allowedDomains wildcards.
+  for (const domain of settings.sandbox?.network?.deniedDomains || []) {
+    deniedDomains.push(domain)
+  }
   for (const ruleString of permissions.deny || []) {
     const rule = permissionRuleValueFromString(ruleString)
     if (

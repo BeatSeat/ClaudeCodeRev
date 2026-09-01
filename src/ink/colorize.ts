@@ -91,6 +91,15 @@ export const CHALK_BOOSTED_FOR_XTERMJS = boostChalkLevelForXtermJs()
 export const CHALK_BOOSTED_FOR_TRUECOLOR_TERM = boostChalkLevelForTruecolorTerm()
 export const CHALK_CLAMPED_FOR_TMUX = clampChalkLevelForTmux()
 
+/**
+ * Official 113 NwH — emit SGR 7/27 directly. chalk.inverse is a no-op when
+ * NO_COLOR / FORCE_COLOR=0 sets chalk.level to 0, which made the prompt
+ * cursor (space + inverse) disappear.
+ */
+export function rawInverse(text: string): string {
+  return `\x1B[7m${text}\x1B[27m`
+}
+
 export type ColorType = 'foreground' | 'background'
 
 const RGB_REGEX = /^rgb\(\s?(\d+),\s?(\d+),\s?(\d+)\s?\)$/
@@ -213,7 +222,7 @@ export function applyTextStyles(text: string, styles: TextStyles): string {
   // So we apply: text modifiers first, then foreground, then background last.
 
   if (styles.inverse) {
-    result = chalk.inverse(result)
+    result = rawInverse(result)
   }
 
   if (styles.strikethrough) {

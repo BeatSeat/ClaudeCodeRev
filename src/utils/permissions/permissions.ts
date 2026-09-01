@@ -619,7 +619,8 @@ export const hasPermissionsToUseTool: CanUseToolFn = async (
         findSafetyCheckDecisionReason(
           result.decisionReason,
           check => !check.classifierApprovable,
-        )
+        ) ||
+        result.decisionReason?.type === 'sandboxOverride'
       ) {
         if (appState.toolPermissionContext.shouldAvoidPermissionPrompts) {
           return {
@@ -1240,9 +1241,11 @@ export async function checkRuleBasedPermissions(
   // 1g. Safety checks (e.g. .git/, .claude/, .vscode/, shell configs) are
   // bypass-immune — they must prompt even when a PreToolUse hook returned
   // allow. checkPathSafetyForAutoEdit returns {type:'safetyCheck'} for these.
+  // Official 2.1.113: sandboxOverride (dangerouslyDisableSandbox) is the same.
   if (
     toolPermissionResult?.behavior === 'ask' &&
-    findSafetyCheckDecisionReason(toolPermissionResult.decisionReason)
+    (findSafetyCheckDecisionReason(toolPermissionResult.decisionReason) ||
+      toolPermissionResult.decisionReason?.type === 'sandboxOverride')
   ) {
     return toolPermissionResult
   }
@@ -1347,9 +1350,11 @@ async function hasPermissionsToUseToolInner(
   // 1g. Safety checks (e.g. .git/, .claude/, .vscode/, shell configs) are
   // bypass-immune — they must prompt even in bypassPermissions mode.
   // checkPathSafetyForAutoEdit returns {type:'safetyCheck'} for these paths.
+  // Official 2.1.113: sandboxOverride is also bypass-immune.
   if (
     toolPermissionResult?.behavior === 'ask' &&
-    findSafetyCheckDecisionReason(toolPermissionResult.decisionReason)
+    (findSafetyCheckDecisionReason(toolPermissionResult.decisionReason) ||
+      toolPermissionResult.decisionReason?.type === 'sandboxOverride')
   ) {
     return toolPermissionResult
   }

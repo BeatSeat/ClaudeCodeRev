@@ -677,6 +677,7 @@ export const BRIDGE_SAFE_COMMANDS: Set<Command> = new Set(
     contextNonInteractive, // Official 2.1.110 — /context from RC
     exitNonInteractive, // Official 2.1.110 qaK — /exit from RC
     reloadPlugins, // Official 2.1.110 — /reload-plugins from RC
+    extraUsageNonInteractive, // Official 2.1.113 — /extra-usage from RC
   ].filter((c): c is Command => c !== null),
 )
 

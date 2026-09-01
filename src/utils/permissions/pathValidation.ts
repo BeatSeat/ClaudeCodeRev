@@ -337,8 +337,17 @@ export function isDangerousRemovalPath(resolvedPath: string): boolean {
     return true
   }
 
+  // Official 2.1.113 thH: on macOS, /private/{etc,var,tmp,home} is the
+  // realpath of /{etc,var,tmp,home}. Strip that prefix so Bash(rm:*)
+  // allow rules still treat them as dangerous root children / homedir.
+  const stripMacPrivate = (p: string): string =>
+    getPlatform() === 'macos'
+      ? p.replace(/^\/private\/(etc|var|tmp|home)(\/|$)/i, '/$1$2')
+      : p
+
+  const stripped = stripMacPrivate(forwardSlashed)
   const normalizedPath =
-    forwardSlashed === '/' ? forwardSlashed : forwardSlashed.replace(/\/$/, '')
+    stripped === '/' ? stripped : stripped.replace(/\/$/, '')
 
   if (normalizedPath === '/') {
     return true
@@ -348,7 +357,7 @@ export function isDangerousRemovalPath(resolvedPath: string): boolean {
     return true
   }
 
-  const normalizedHome = homedir().replace(/[\\/]+/g, '/')
+  const normalizedHome = stripMacPrivate(homedir().replace(/[\\/]+/g, '/'))
   if (normalizedPath === normalizedHome) {
     return true
   }

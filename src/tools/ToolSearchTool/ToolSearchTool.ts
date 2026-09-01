@@ -15,6 +15,7 @@ import {
 import { logForDebugging } from '../../utils/debug.js'
 import { lazySchema } from '../../utils/lazySchema.js'
 import { escapeRegExp } from '../../utils/stringUtils.js'
+import { mcpInfoFromString } from '../../services/mcp/mcpStringUtils.js'
 import { isToolSearchEnabledOptimistic } from '../../utils/toolSearch.js'
 import { getPrompt, isDeferredTool, TOOL_SEARCH_TOOL_NAME } from './prompt.js'
 
@@ -127,34 +128,40 @@ function buildSearchResult(
 
 /**
  * Parse tool name into searchable parts.
- * Handles both MCP tools (mcp__server__action) and regular tools (CamelCase).
+ * Official 2.1.113 D$7: keep coarse MCP server/tool tokens (and the full
+ * regular-tool name) so a pasted `mcp__slack__send_message` ranks the
+ * actual tool above description-matching siblings.
  */
-function parseToolName(name: string): {
+function parseToolName(tool: Pick<Tool, 'name' | 'mcpInfo'>): {
   parts: string[]
+  coarseParts: string[]
   full: string
   isMcp: boolean
 } {
-  // Check if it's an MCP tool
-  if (name.startsWith('mcp__')) {
-    const withoutPrefix = name.replace(/^mcp__/, '').toLowerCase()
-    const parts = withoutPrefix.split('__').flatMap(p => p.split('_'))
+  const mcp = tool.mcpInfo ?? mcpInfoFromString(tool.name)
+  if (mcp) {
+    const coarse = [mcp.serverName, mcp.toolName]
+      .filter((part): part is string => Boolean(part))
+      .map(part => part.toLowerCase())
+    const parts = coarse.flatMap(part => part.split(/[\s_.]+/)).filter(Boolean)
     return {
-      parts: parts.filter(Boolean),
-      full: withoutPrefix.replace(/__/g, ' ').replace(/_/g, ' '),
+      parts,
+      coarseParts: coarse,
+      full: parts.join(' '),
       isMcp: true,
     }
   }
 
-  // Regular tool - split by CamelCase and underscores
-  const parts = name
-    .replace(/([a-z])([A-Z])/g, '$1 $2') // CamelCase to spaces
-    .replace(/_/g, ' ')
+  const parts = tool.name
+    .replace(/([a-z])([A-Z])/g, '$1 $2')
+    .replaceAll('_', ' ')
     .toLowerCase()
     .split(/\s+/)
     .filter(Boolean)
 
   return {
     parts,
+    coarseParts: [tool.name.toLowerCase()],
     full: parts.join(' '),
     isMcp: false,
   }
@@ -237,7 +244,7 @@ async function searchToolsWithKeywords(
   if (requiredTerms.length > 0) {
     const matches = await Promise.all(
       deferredTools.map(async tool => {
-        const parsed = parseToolName(tool.name)
+        const parsed = parseToolName(tool)
         const description = await getToolDescriptionMemoized(tool.name, tools)
         const descNormalized = description.toLowerCase()
         const hintNormalized = tool.searchHint?.toLowerCase() ?? ''
@@ -246,6 +253,8 @@ async function searchToolsWithKeywords(
           return (
             parsed.parts.includes(term) ||
             parsed.parts.some(part => part.includes(term)) ||
+            parsed.coarseParts.includes(term) ||
+            parsed.coarseParts.some(part => part.includes(term)) ||
             pattern.test(descNormalized) ||
             (hintNormalized && pattern.test(hintNormalized))
           )
@@ -258,7 +267,7 @@ async function searchToolsWithKeywords(
 
   const scored = await Promise.all(
     candidateTools.map(async tool => {
-      const parsed = parseToolName(tool.name)
+      const parsed = parseToolName(tool)
       const description = await getToolDescriptionMemoized(tool.name, tools)
       const descNormalized = description.toLowerCase()
       const hintNormalized = tool.searchHint?.toLowerCase() ?? ''
@@ -272,6 +281,14 @@ async function searchToolsWithKeywords(
           score += parsed.isMcp ? 12 : 10
         } else if (parsed.parts.some(part => part.includes(term))) {
           score += parsed.isMcp ? 6 : 5
+        }
+
+        // Official 2.1.113: coarse tokens (server / tool name, or the full
+        // regular-tool name) so a pasted MCP name outranks description hits.
+        if (parsed.coarseParts.includes(term)) {
+          score += parsed.isMcp ? 12 : 10
+        } else if (parsed.coarseParts.some(part => part.includes(term))) {
+          score += parsed.isMcp ? 4 : 3
         }
 
         // Full name fallback (for edge cases)

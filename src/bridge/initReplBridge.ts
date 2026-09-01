@@ -86,6 +86,9 @@ export type InitBridgeOptions = {
   onSetPermissionMode?: (
     mode: PermissionMode,
   ) => { ok: true } | { ok: false; error: string }
+  onFileSuggestions?: (
+    query: string,
+  ) => Promise<Array<{ path: string }>>
   onStateChange?: (state: BridgeState, detail?: string) => void
   initialMessages?: Message[]
   // Explicit session name from `/remote-control <name>`. When set, overrides
@@ -122,6 +125,7 @@ export async function initReplBridge(
     onSetModel,
     onSetMaxThinkingTokens,
     onSetPermissionMode,
+    onFileSuggestions,
     onStateChange,
     initialMessages,
     getMessages,
@@ -472,6 +476,7 @@ export async function initReplBridge(
       onSetMaxThinkingTokens,
       onSetPermissionMode,
       onRenameSession,
+      onFileSuggestions,
       onStateChange,
       outboundOnly,
       tags,
@@ -567,6 +572,7 @@ export async function initReplBridge(
     onSetMaxThinkingTokens,
     onSetPermissionMode,
     onRenameSession,
+    onFileSuggestions,
     onStateChange,
     perpetual,
   })
