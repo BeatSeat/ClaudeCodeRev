@@ -43,6 +43,7 @@ import { getFsImplementation } from '../../utils/fsOperations.js'
 import {
   compressImageBufferWithTokenLimit,
   createImageMetadataText,
+  describeMislabelledImageBytes,
   detectImageFormatFromBuffer,
   type ImageDimensions,
   ImageResizeError,
@@ -1107,6 +1108,11 @@ export async function readImageWithTokenBudget(
   }
 
   const detectedMediaType = detectImageFormatFromBuffer(imageBuffer)
+  if (detectedMediaType === null) {
+    throw new Error(
+      `File has an image extension but its content is not a valid PNG/JPEG/GIF/WebP. Detected: ${describeMislabelledImageBytes(imageBuffer)}. This usually means a download saved an error/login page instead of the image. Use \`file "${filePath}"\` to confirm, or read it as text with ${FILE_READ_TOOL_NAME} (e.g. \`head -c 500\`).`,
+    )
+  }
   const detectedFormat = detectedMediaType.split('/')[1] || 'png'
 
   // Try standard resize

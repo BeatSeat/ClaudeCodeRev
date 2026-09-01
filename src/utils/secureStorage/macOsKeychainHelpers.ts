@@ -17,7 +17,7 @@
 import { createHash } from 'crypto'
 import { userInfo } from 'os'
 import { getOauthConfig } from 'src/constants/oauth.js'
-import { getClaudeConfigHomeDir } from '../envUtils.js'
+import { getSecureStorageConfigDir } from '../envUtils.js'
 import type { SecureStorageData } from './types.js'
 
 // Suffix distinguishing the OAuth credentials keychain entry from the legacy
@@ -29,11 +29,16 @@ export const CREDENTIALS_SERVICE_SUFFIX = '-credentials'
 export function getMacOsKeychainStorageServiceName(
   serviceSuffix: string = '',
 ): string {
-  const configDir = getClaudeConfigHomeDir()
-  const isDefaultDir = !process.env.CLAUDE_CONFIG_DIR
+  // Official 2.1.144 `ZqH`: empty CLAUDE_SECURESTORAGE_CONFIG_DIR means the
+  // default service name (no dir hash), same as unset CLAUDE_CONFIG_DIR.
+  const override = process.env.CLAUDE_SECURESTORAGE_CONFIG_DIR
+  const isDefaultDir =
+    override !== undefined ? !override : !process.env.CLAUDE_CONFIG_DIR
+  const configDir =
+    override !== undefined
+      ? override.normalize('NFC')
+      : getSecureStorageConfigDir()
 
-  // Use a hash of the config dir path to create a unique but stable suffix
-  // Only add suffix for non-default directories to maintain backwards compatibility
   const dirHash = isDefaultDir
     ? ''
     : `-${createHash('sha256').update(configDir).digest('hex').substring(0, 8)}`

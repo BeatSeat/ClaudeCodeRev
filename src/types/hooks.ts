@@ -67,6 +67,13 @@ export const syncHookResponseSchema = lazySchema(() =>
       .string()
       .describe('Warning message shown to the user')
       .optional(),
+    terminalSequence: z
+      .string()
+      .optional()
+      .describe(
+        'A terminal escape sequence (e.g. OSC 9 / OSC 777 desktop-notification) for Claude Code to emit, so hooks can ring a bell, set a window title, or show a desktop notification without a controlling terminal',
+      ),
+    metrics: z.record(z.string(), z.unknown()).optional(),
     hookSpecificOutput: z
       .union([
         z.object({

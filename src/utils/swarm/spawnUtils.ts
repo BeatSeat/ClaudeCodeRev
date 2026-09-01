@@ -154,5 +154,40 @@ export function buildInheritedEnvVars(): string {
     }
   }
 
+  // Official 2.1.144 `TX$`: empty string is a real override (default ~/.claude).
+  const secureStorageDir = process.env.CLAUDE_SECURESTORAGE_CONFIG_DIR
+  if (secureStorageDir !== undefined) {
+    envVars.push(
+      `CLAUDE_SECURESTORAGE_CONFIG_DIR=${quote([secureStorageDir])}`,
+    )
+  }
+
   return envVars.join(' ')
+}
+
+/**
+ * Official 2.1.144 `ay4`. Provider/config env forwarded to bg-job spawn.
+ * Empty CLAUDE_SECURESTORAGE_CONFIG_DIR is preserved (unlike the truthy
+ * keys). Pd() bg spawn that consumes this is deferred-large-infra.
+ */
+export function getBgSpawnProviderEnv(): Record<string, string> {
+  const env: Record<string, string> = {}
+  for (const key of [
+    'CLAUDE_CONFIG_DIR',
+    'CLAUDE_INTERNAL_FC_OVERRIDES',
+    'AWS_REGION',
+    'AWS_DEFAULT_REGION',
+    'AWS_PROFILE',
+    'GOOGLE_APPLICATION_CREDENTIALS',
+    'GOOGLE_CLOUD_PROJECT',
+    'GCLOUD_PROJECT',
+  ] as const) {
+    const value = process.env[key]
+    if (value) env[key] = value
+  }
+  const override = process.env.CLAUDE_SECURESTORAGE_CONFIG_DIR
+  if (override !== undefined) {
+    env.CLAUDE_SECURESTORAGE_CONFIG_DIR = override
+  }
+  return env
 }

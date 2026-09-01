@@ -131,7 +131,6 @@ import {
 import type { EffortLevel } from '../../utils/effort.js'
 import { env } from '../../utils/env.js'
 import { errorMessage } from '../../utils/errors.js'
-import { isBilledAsExtraUsage } from '../../utils/extraUsage.js'
 import {
   getFastModeUnavailableReason,
   isFastModeAvailable,
@@ -2677,13 +2676,7 @@ function PromptInput({
         }
       })
       setShowModelPicker(false)
-      const effectiveFastMode = (isFastMode ?? false) && !wasFastModeDisabled
       let message = `Model set to ${modelDisplayString(model)}`
-      if (
-        isBilledAsExtraUsage(model, effectiveFastMode, isOpus1mMergeEnabled())
-      ) {
-        message += ' · Billed as extra usage'
-      }
       if (wasFastModeDisabled) {
         message += ' · Fast mode OFF'
       }

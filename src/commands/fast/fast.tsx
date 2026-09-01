@@ -139,7 +139,7 @@ export function FastModePicker({
   return (
     <Dialog
       title={title}
-      subtitle={`High-speed mode for ${FAST_MODE_MODEL_DISPLAY}. Billed as extra usage at a premium rate. Separate rate limits apply.`}
+      subtitle={`High-speed mode for ${FAST_MODE_MODEL_DISPLAY}. Draws from usage credits at a higher rate. Separate rate limits apply.`}
       onCancel={handleCancel}
       color="fastMode"
       inputGuide={exitState =>
