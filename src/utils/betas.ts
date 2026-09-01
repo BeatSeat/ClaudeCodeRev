@@ -25,7 +25,6 @@ import { OAUTH_BETA_HEADER } from '../constants/oauth.js'
 import {
   getAnthropicApiKey,
   isClaudeAISubscriber,
-  isMaxSubscriber,
 } from './auth.js'
 import { has1mContext } from './context.js'
 import { isEnvDefinedFalsy, isEnvTruthy } from './envUtils.js'
@@ -173,13 +172,22 @@ export function modelSupportsRequestTemperature(model: string): boolean {
 }
 
 // @[MODEL LAUNCH]: Add the new model if it supports auto mode (specifically PI probes) — ask in #proj-claude-code-safety-research.
+/** Official 2.1.158 `cH8` — 1P/anthropicAws always; other providers need the env opt-in. */
+export function isAutoModeEnabledForProvider(
+  provider: ReturnType<typeof getAPIProvider>,
+): boolean {
+  if (provider === 'firstParty' || provider === 'anthropicAws') {
+    return true
+  }
+  return isEnvTruthy(process.env.CLAUDE_CODE_ENABLE_AUTO_MODE)
+}
+
 export function modelSupportsAutoMode(model: string): boolean {
   if (feature('TRANSCRIPT_CLASSIFIER')) {
     const m = getCanonicalName(model)
-    // External: firstParty-only at launch (PI probes not wired for
-    // Bedrock/Vertex/Foundry yet). Checked before allowModels so the GB
-    // override can't enable auto mode on unsupported providers.
-    if (process.env.USER_TYPE !== 'ant' && getAPIProvider() !== 'firstParty') {
+    const provider = getAPIProvider()
+    // Official 2.1.158 iQH: Bedrock/Vertex/Foundry require CLAUDE_CODE_ENABLE_AUTO_MODE=1
+    if (process.env.USER_TYPE !== 'ant' && !isAutoModeEnabledForProvider(provider)) {
       return false
     }
     // GrowthBook override: tengu_auto_mode_config.allowModels force-enables
@@ -204,13 +212,26 @@ export function modelSupportsAutoMode(model: string): boolean {
       if (/claude-(opus|sonnet|haiku)-4(?!-[6-9])/.test(m)) return false
       return true
     }
-    // External allowlist (firstParty already checked above).
-    // Official 2.1.111: Max subscribers get auto mode on Opus 4.7 only;
-    // other first-party users keep 4.6 plus Opus 4.7.
-    if (isMaxSubscriber()) {
-      return /^claude-opus-4-7/.test(m)
+    // Official 2.1.158 `iQH` model denylist + 3P Opus-4.7/4.8-only filter.
+    if (
+      m.includes('claude-3-') ||
+      m === 'claude-opus-4-0' ||
+      m === 'claude-opus-4-1' ||
+      m === 'claude-opus-4-5' ||
+      m === 'claude-sonnet-4-0' ||
+      m === 'claude-sonnet-4-5' ||
+      m === 'claude-haiku-4-5'
+    ) {
+      return false
     }
-    return /^claude-(opus|sonnet)-4-6/.test(m) || /^claude-opus-4-7/.test(m)
+    if (
+      provider !== 'firstParty' &&
+      provider !== 'anthropicAws' &&
+      (m === 'claude-opus-4-6' || m.includes('sonnet') || m.includes('haiku'))
+    ) {
+      return false
+    }
+    return true
   }
   return false
 }
@@ -248,6 +269,21 @@ export function shouldIncludeFirstPartyOnlyBetas(): boolean {
     isFirstPartyBetaProvider() &&
     !isEnvTruthy(process.env.CLAUDE_CODE_DISABLE_EXPERIMENTAL_BETAS)
   )
+}
+
+/** Official 2.1.158 `lH8` — 3P provider with CLAUDE_CODE_ENABLE_AUTO_MODE. */
+export function isThirdPartyAutoModeEnabled(): boolean {
+  const provider = getAPIProvider()
+  return (
+    provider !== 'firstParty' &&
+    provider !== 'anthropicAws' &&
+    isAutoModeEnabledForProvider(provider)
+  )
+}
+
+/** Official 2.1.158 `o36` — 1P betas or 3P auto-mode opt-in. */
+export function shouldSendAutoModeAfkBeta(): boolean {
+  return shouldIncludeFirstPartyOnlyBetas() || isThirdPartyAutoModeEnabled()
 }
 
 /**

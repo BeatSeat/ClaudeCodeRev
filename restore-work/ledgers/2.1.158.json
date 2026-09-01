@@ -1,0 +1,12 @@
+{
+  "version": "2.1.158",
+  "from": "2.1.157",
+  "astdiff": "failed-parse",
+  "items": [
+    {
+      "item": "Auto mode is now available on Bedrock, Vertex, and Foundry for Opus 4.7 and Opus 4.8. Opt in by setting CLAUDE_CODE_ENABLE_AUTO_MODE=1",
+      "status": "located",
+      "evidence": "cH8/lH8/o36/iQH + claude.ts AFK latch/header/Bedrock extra-body; CLAUDE_CODE_ENABLE_AUTO_MODE and auto-mode 3P tokens in dist"
+    }
+  ]
+}
