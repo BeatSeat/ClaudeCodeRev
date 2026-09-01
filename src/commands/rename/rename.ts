@@ -9,7 +9,6 @@ import type {
   LocalJSXCommandContext,
   LocalJSXCommandOnDone,
 } from '../../types/command.js'
-import { getMessagesAfterCompactBoundary } from '../../utils/messages.js'
 import {
   getTranscriptPath,
   saveAgentName,
@@ -34,8 +33,10 @@ export async function call(
 
   let newName: string
   if (!args || args.trim() === '') {
+    // Official 2.1.128: pass the full transcript. After-boundary-only
+    // slices are empty when resume lands on a compact_boundary.
     const generated = await generateSessionName(
-      getMessagesAfterCompactBoundary(context.messages),
+      context.messages,
       context.abortController.signal,
     )
     if (!generated) {

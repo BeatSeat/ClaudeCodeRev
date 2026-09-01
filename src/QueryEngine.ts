@@ -103,6 +103,7 @@ import {
 } from './utils/messages/mappers.js'
 import {
   buildSystemInitMessage,
+  isStreamJsonInitPluginError,
   sdkCompatToolName,
 } from './utils/messages/systemInit.js'
 import {
@@ -668,7 +669,7 @@ export class QueryEngine {
       agents,
       skills,
       plugins: enabledPlugins,
-      pluginErrors,
+      pluginErrors: pluginErrors.filter(isStreamJsonInitPluginError),
       fastMode: initialAppState.fastMode,
     })
 

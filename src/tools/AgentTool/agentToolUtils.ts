@@ -520,7 +520,9 @@ export async function runAsyncAgentLifecycle({
   taskId: string
   abortController: AbortController
   makeStream: (
-    onCacheSafeParams: ((p: CacheSafeParams) => void) | undefined,
+    onCacheSafeParams:
+      | ((p: CacheSafeParams, getMessages: () => MessageType[]) => void)
+      | undefined,
   ) => AsyncGenerator<MessageType, void>
   metadata: Parameters<typeof finalizeAgentTool>[2]
   description: string
@@ -590,11 +592,12 @@ export async function runAsyncAgentLifecycle({
       toolUseContext.options.tools,
     )
     const onCacheSafeParams = enableSummarization
-      ? (params: CacheSafeParams) => {
+      ? (params: CacheSafeParams, getMessages: () => MessageType[]) => {
           const { stop } = startAgentSummarization(
             taskId,
             asAgentId(taskId),
             params,
+            getMessages,
             rootSetAppState,
           )
           stopSummarization = stop

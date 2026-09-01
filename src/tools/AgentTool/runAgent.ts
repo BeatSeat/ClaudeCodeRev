@@ -302,7 +302,10 @@ export async function* runAgent({
   /** Optional callback invoked with CacheSafeParams after constructing the agent's
    * system prompt, context, and tools. Used by background summarization to fork
    * the agent's conversation for periodic progress summaries. */
-  onCacheSafeParams?: (params: CacheSafeParams) => void
+  onCacheSafeParams?: (
+    params: CacheSafeParams,
+    getMessages: () => Message[],
+  ) => void
   /** Replacement state reconstructed from a resumed sidechain transcript so
    * the same tool results are re-replaced (prompt cache stability). When
    * omitted, createSubagentContext clones the parent's state. */
@@ -737,15 +740,22 @@ export async function* runAgent({
     agentToolUseContext.preserveToolUseResults = true
   }
 
+  // Live transcript for agent_summary (#34/#36). Same prefix as the agent
+  // request so the summary fork can hit the prompt cache.
+  const liveMessages: Message[] = [...initialMessages]
+
   // Expose cache-safe params for background summarization (prompt cache sharing)
   if (onCacheSafeParams) {
-    onCacheSafeParams({
-      systemPrompt: agentSystemPrompt,
-      userContext: resolvedUserContext,
-      systemContext: resolvedSystemContext,
-      toolUseContext: agentToolUseContext,
-      forkContextMessages: initialMessages,
-    })
+    onCacheSafeParams(
+      {
+        systemPrompt: agentSystemPrompt,
+        userContext: resolvedUserContext,
+        systemContext: resolvedSystemContext,
+        toolUseContext: agentToolUseContext,
+        forkContextMessages: initialMessages,
+      },
+      () => liveMessages,
+    )
   }
 
   // Record initial messages before the query loop starts, plus the agentType
@@ -832,6 +842,7 @@ export async function* runAgent({
       }
 
       if (isRecordableMessage(message)) {
+        liveMessages.push(message)
         // Record only the new message with correct parent (O(1) per message)
         await recordSidechainTranscript(
           [message],
