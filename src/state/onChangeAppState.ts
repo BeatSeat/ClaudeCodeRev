@@ -13,9 +13,11 @@ import {
   toExternalPermissionMode,
 } from '../utils/permissions/PermissionMode.js'
 import {
+  notifyInternalMetadataChanged,
   notifyPermissionModeChanged,
   notifySessionMetadataChanged,
   type SessionExternalMetadata,
+  type SessionInternalMetadata,
 } from '../utils/sessionState.js'
 import {
   getSettingsForSource,
@@ -41,6 +43,29 @@ export function externalMetadataToAppState(
     ...(typeof metadata.is_ultraplan_mode === 'boolean'
       ? { isUltraplanMode: metadata.is_ultraplan_mode }
       : {}),
+  })
+}
+
+/** Official 2.1.121 eD4 — restore session always-allow rules from internal_metadata. */
+export function sessionAllowRulesToAppState(
+  metadata: SessionInternalMetadata,
+): (prev: AppState) => AppState {
+  const raw = metadata.session_allow_rules
+  if (!Array.isArray(raw)) return prev => prev
+  const rules = raw.filter(
+    (rule): rule is string =>
+      typeof rule === 'string' && !rule.startsWith('mcp__'),
+  )
+  if (rules.length === 0) return prev => prev
+  return prev => ({
+    ...prev,
+    toolPermissionContext: {
+      ...prev.toolPermissionContext,
+      alwaysAllowRules: {
+        ...prev.toolPermissionContext.alwaysAllowRules,
+        session: rules,
+      },
+    },
   })
 }
 
@@ -93,6 +118,17 @@ export function onChangeAppState({
       })
     }
     notifyPermissionModeChanged(newMode)
+  }
+
+  // Official 2.1.121 J7H: persist session "Always allow" rules (minus mcp__)
+  // so remote-session worker restarts restore them via eD4.
+  const prevSessionAllow = oldState.toolPermissionContext.alwaysAllowRules.session
+  const nextSessionAllow = newState.toolPermissionContext.alwaysAllowRules.session
+  if (prevSessionAllow !== nextSessionAllow) {
+    const rules = nextSessionAllow?.filter(rule => !rule.startsWith('mcp__'))
+    notifyInternalMetadataChanged({
+      session_allow_rules: rules?.length ? rules : null,
+    })
   }
 
   // Official 2.1.117: persist /model to userSettings, and to localSettings

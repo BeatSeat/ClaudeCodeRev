@@ -5,6 +5,7 @@ import type { DOMElement } from '../dom.js'
 import type { ClickEvent } from '../events/click-event.js'
 import type { FocusEvent } from '../events/focus-event.js'
 import type { KeyboardEvent } from '../events/keyboard-event.js'
+import type { PasteEvent } from '../events/paste-event.js'
 import type { Styles } from '../styles.js'
 import * as warn from '../warn.js'
 
@@ -34,6 +35,8 @@ export type Props = Except<Styles, 'textWrap'> & {
   onBlurCapture?: (event: FocusEvent) => void
   onKeyDown?: (event: KeyboardEvent) => void
   onKeyDownCapture?: (event: KeyboardEvent) => void
+  onPaste?: (event: PasteEvent) => void
+  onPasteCapture?: (event: PasteEvent) => void
   /**
    * Fired when the mouse moves into this Box's rendered rect. Like DOM
    * `mouseenter`, does NOT bubble — moving between children does not
@@ -66,6 +69,8 @@ function Box({
   onMouseLeave,
   onKeyDown,
   onKeyDownCapture,
+  onPaste,
+  onPasteCapture,
   ...style
 }: PropsWithChildren<Props>): React.ReactNode {
   // Warn if spacing values are not integers to prevent fractional layout dimensions
@@ -101,6 +106,8 @@ function Box({
       onMouseLeave={onMouseLeave}
       onKeyDown={onKeyDown}
       onKeyDownCapture={onKeyDownCapture}
+      onPaste={onPaste}
+      onPasteCapture={onPasteCapture}
       style={{
         flexWrap,
         flexDirection,

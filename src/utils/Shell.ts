@@ -2,7 +2,7 @@ import { execFileSync, spawn, type StdioOptions } from 'child_process'
 import { constants as fsConstants, readFileSync, unlinkSync } from 'fs'
 import { type FileHandle, mkdir, open, realpath } from 'fs/promises'
 import memoize from 'lodash-es/memoize.js'
-import { tmpdir as osTmpdir } from 'os'
+import { homedir, tmpdir as osTmpdir } from 'os'
 import { isAbsolute, resolve } from 'path'
 import { join as posixJoin } from 'path/posix'
 import { logEvent } from 'src/services/analytics/index.js'
@@ -256,24 +256,44 @@ export async function exec(
 
   let cwd = pwd()
 
-  // Recover if the current working directory no longer exists on disk.
-  // This can happen when a command deletes its own CWD (e.g., temp dir cleanup).
+  // Official 2.1.121 _s: if the shell cwd was deleted/moved, try originalCwd,
+  // then homedir, then CLAUDE_CODE_TMPDIR || os.tmpdir() (121 wk). Recovering
+  // to a non-original path applies the new cwd and fails *this* command so
+  // the next one can run — 120 only tried originalCwd and left Bash stuck.
   try {
     await realpath(cwd)
   } catch {
-    const fallback = getOriginalCwd()
-    logForDebugging(
-      `Shell CWD "${cwd}" no longer exists, recovering to "${fallback}"`,
-    )
-    try {
-      await realpath(fallback)
-      applyCwd(fallback)
-      cwd = fallback
-    } catch {
+    const candidates = [
+      getOriginalCwd(),
+      homedir(),
+      process.env.CLAUDE_CODE_TMPDIR || osTmpdir(),
+    ]
+    let recovered: string | null = null
+    let recoveredIdx = -1
+    for (const [i, candidate] of candidates.entries()) {
+      try {
+        recovered = await realpath(candidate)
+        recoveredIdx = i
+        break
+      } catch {
+        // try next fallback
+      }
+    }
+    if (recovered === null) {
       return createFailedCommand(
         `Working directory "${cwd}" no longer exists. Please restart Claude from an existing directory.`,
       )
     }
+    logForDebugging(
+      `Shell CWD "${cwd}" no longer exists, recovering to "${recovered}"`,
+    )
+    applyCwd(recovered)
+    if (recoveredIdx > 0) {
+      return createFailedCommand(
+        `Working directory "${cwd}" was deleted; shell cwd recovered to "${recovered}". Re-issue your command (it will run from the recovered directory).`,
+      )
+    }
+    cwd = recovered
   }
 
   // If already aborted, don't spawn the process at all

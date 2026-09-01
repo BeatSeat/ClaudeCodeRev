@@ -13,6 +13,7 @@ import {
   type AnalyticsMetadata_I_VERIFIED_THIS_IS_PII_TAGGED,
   logEvent,
 } from '../../services/analytics/index.js'
+import { getOriginalCwd } from '../../bootstrap/state.js'
 import { getCwd } from '../cwd.js'
 import { toError } from '../errors.js'
 import { getFsImplementation } from '../fsOperations.js'
@@ -23,13 +24,16 @@ import {
   updateSettingsForSource,
 } from '../settings/settings.js'
 import { buildPluginTelemetryFields } from '../telemetry/pluginTelemetry.js'
-import { clearAllCaches } from './cacheUtils.js'
+import { clearAllCaches, markPluginVersionOrphaned } from './cacheUtils.js'
 import {
+  findOrphanedAutoDeps,
   formatDependencyCountSuffix,
   formatNoMatchingTagError,
+  formatOrphanPruneHint,
   formatVersionRequirementError,
   getEnabledPluginIdsForScope,
   intersectConstraints,
+  type OrphanAutoScan,
   pluginVersionSatisfies,
   qualifyDependency,
   type ResolutionResult,
@@ -39,7 +43,11 @@ import {
 import {
   addInstalledPlugin,
   getGitCommitSha,
+  loadInstalledPluginsV2,
+  removePluginInstallation,
 } from './installedPluginsManager.js'
+import { deletePluginDataDir } from './pluginDirectories.js'
+import { deletePluginOptions } from './pluginOptionsStorage.js'
 import { getManagedPluginNames } from './managedPlugins.js'
 import { isSourceAllowedByPolicy } from './marketplaceHelpers.js'
 import {
@@ -56,6 +64,7 @@ import {
   cachePlugin,
   getVersionedCachePath,
   getVersionedZipCachePath,
+  loadAllPlugins,
   loadAllPluginsCacheOnly,
 } from './pluginLoader.js'
 import { isPluginBlockedByPolicy } from './pluginPolicy.js'
@@ -166,6 +175,7 @@ export async function cacheAndRegisterPlugin(
   scope: PluginScope = 'user',
   projectPath?: string,
   localSourcePath?: string,
+  auto = false,
 ): Promise<{
   path: string
   dependencies?: string[]
@@ -260,6 +270,7 @@ export async function cacheAndRegisterPlugin(
       lastUpdated: now,
       installPath: finalPath,
       gitCommitSha,
+      ...(auto && { auto: true }),
     },
     scope,
     projectPath,
@@ -686,6 +697,7 @@ export async function installResolvedPlugin({
       scope,
       projectPath,
       localSourcePath,
+      id !== pluginId,
     )
     if (id === pluginId) {
       rootManifestDeps = cached.dependencies
@@ -952,3 +964,70 @@ export async function installPluginFromMarketplace({
     return { success: false, error: `Failed to install: ${errorMessage}` }
   }
 }
+
+function projectPathForScope(scope: PluginScope): string | undefined {
+  return scope === 'project' || scope === 'local' ? getOriginalCwd() : undefined
+}
+
+export async function scanOrphanedAutoDeps(
+  scope: PluginScope,
+): Promise<OrphanAutoScan> {
+  const projectPath = projectPathForScope(scope)
+  const { enabled, disabled } = await loadAllPlugins()
+  return findOrphanedAutoDeps(
+    loadInstalledPluginsV2().plugins,
+    [...enabled, ...disabled],
+    scope,
+    projectPath,
+  )
+}
+
+/**
+ * Official 2.1.121 `aFK`. Remove auto-installed orphans at one scope.
+ */
+export async function pruneOrphanedAutoDeps(
+  orphans: ReadonlySet<string>,
+  scope: PluginScope,
+  projectPath: string | undefined,
+  { deleteDataDir = true }: { deleteDataDir?: boolean } = {},
+): Promise<string[]> {
+  if (orphans.size === 0) return []
+  const installed = loadInstalledPluginsV2().plugins
+  const lastScope: Array<{ id: string; installPath: string }> = []
+  const removed: string[] = []
+  for (const id of orphans) {
+    const entries = installed[id]
+    const entry = entries?.find(
+      e => e.scope === scope && e.projectPath === projectPath,
+    )
+    if (!entry) continue
+    removePluginInstallation(id, scope, projectPath)
+    removed.push(id)
+    if ((entries?.length ?? 0) <= 1) {
+      lastScope.push({ id, installPath: entry.installPath })
+    }
+  }
+  if (removed.length === 0) return []
+  const settingSource = scopeToSettingSource(scope)
+  const enabledPlugins: Record<string, boolean | string[] | undefined> = {
+    ...getSettingsForSource(settingSource)?.enabledPlugins,
+  }
+  for (const id of removed) {
+    enabledPlugins[id] = undefined
+  }
+  const { error } = updateSettingsForSource(settingSource, { enabledPlugins })
+  if (error) {
+    logForDebugging(
+      `pruneOrphanedAutoDeps: settings write failed at ${scope}: ${error.message}`,
+    )
+  }
+  clearAllCaches()
+  for (const { id, installPath } of lastScope) {
+    await markPluginVersionOrphaned(installPath)
+    deletePluginOptions(id)
+    if (deleteDataDir) await deletePluginDataDir(id)
+  }
+  return removed
+}
+
+export { formatOrphanPruneHint }

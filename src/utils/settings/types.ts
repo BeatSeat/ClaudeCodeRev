@@ -489,6 +489,13 @@ export const SettingsSchema = lazySchema(() =>
         .boolean()
         .optional()
         .describe('Disable all hooks and statusLine execution'),
+      // Official 2.1.121: disable claude agents / --bg / /background / on-demand daemon
+      disableBackgroundAgents: z
+        .boolean()
+        .optional()
+        .describe(
+          'Disable the background-agents fleet (`claude agents`, `--bg`, /background, the on-demand daemon). Typically set in managed settings. Equivalent to CLAUDE_CODE_DISABLE_AGENTS_FLEET=1.',
+        ),
       disableSkillShellExecution: z
         .boolean()
         .optional()

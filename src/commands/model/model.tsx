@@ -2,7 +2,10 @@ import chalk from 'chalk'
 import * as React from 'react'
 import type { CommandResultDisplay } from '../../commands.js'
 import { ModelPicker } from '../../components/ModelPicker.js'
-import { getTotalOutputTokens } from '../../bootstrap/state.js'
+import {
+  getIsRemoteMode,
+  getTotalOutputTokens,
+} from '../../bootstrap/state.js'
 import { CacheMissWarningDialog } from './CacheMissWarningDialog.js'
 import { COMMON_HELP_ARGS, COMMON_INFO_ARGS } from '../../constants/xml.js'
 import {
@@ -419,6 +422,14 @@ export const call: LocalJSXCommandCall = async (onDone, _context, args) => {
       args: args as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
     })
     return <SetModelAndClose args={args} onDone={onDone} />
+  }
+
+  if (getIsRemoteMode()) {
+    onDone(
+      'Model picker shows local options in remote sessions \u2014 pass a model name, e.g. /model sonnet',
+      { display: 'system' },
+    )
+    return
   }
 
   return <ModelPickerWrapper onDone={onDone} />

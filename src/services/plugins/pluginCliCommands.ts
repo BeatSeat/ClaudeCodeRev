@@ -7,12 +7,21 @@
  * For the core operations (without CLI side effects), see pluginOperations.ts
  */
 import figures from 'figures'
+import { createInterface } from 'readline'
 import { errorMessage } from '../../utils/errors.js'
 import { gracefulShutdown } from '../../utils/gracefulShutdown.js'
 import { logError } from '../../utils/log.js'
 import { getManagedPluginNames } from '../../utils/plugins/managedPlugins.js'
 import { parsePluginIdentifier } from '../../utils/plugins/pluginIdentifier.js'
+import {
+  formatOrphanPruneHint,
+  pruneOrphanedAutoDeps,
+  scanOrphanedAutoDeps,
+} from '../../utils/plugins/pluginInstallationHelpers.js'
+import { loadInstalledPluginsV2 } from '../../utils/plugins/installedPluginsManager.js'
 import type { PluginScope } from '../../utils/plugins/schemas.js'
+import { getProjectPathForScope } from './pluginOperations.js'
+import { plural } from '../../utils/stringUtils.js'
 import { writeToStdout } from '../../utils/process.js'
 import {
   buildPluginTelemetryFields,
@@ -44,6 +53,7 @@ type PluginCliCommand =
   | 'disable'
   | 'disable-all'
   | 'update'
+  | 'prune'
 
 /**
  * Generic error handler for plugin CLI commands. Emits
@@ -154,7 +164,9 @@ export async function uninstallPlugin(
   plugin: string,
   scope: InstallableScope = 'user',
   keepData = false,
-): Promise<void> {
+  prune = false,
+  yes = false,
+): Promise<string> {
   try {
     const result = await uninstallPluginOp(plugin, scope, !keepData)
 
@@ -162,28 +174,126 @@ export async function uninstallPlugin(
       throw new Error(result.message)
     }
 
-    // biome-ignore lint/suspicious/noConsole:: intentional console output
-    console.log(`${figures.tick} ${result.message}`)
-
-    const { name, marketplace } = parsePluginIdentifier(
-      result.pluginId || plugin,
-    )
     logEvent('tengu_plugin_uninstalled_cli', {
-      _PROTO_plugin_name:
-        name as AnalyticsMetadata_I_VERIFIED_THIS_IS_PII_TAGGED,
-      ...(marketplace && {
-        _PROTO_marketplace_name:
-          marketplace as AnalyticsMetadata_I_VERIFIED_THIS_IS_PII_TAGGED,
-      }),
+      ...(() => {
+        const { name, marketplace } = parsePluginIdentifier(
+          result.pluginId || plugin,
+        )
+        return {
+          _PROTO_plugin_name:
+            name as AnalyticsMetadata_I_VERIFIED_THIS_IS_PII_TAGGED,
+          ...(marketplace && {
+            _PROTO_marketplace_name:
+              marketplace as AnalyticsMetadata_I_VERIFIED_THIS_IS_PII_TAGGED,
+          }),
+          ...buildPluginTelemetryFields(
+            name,
+            marketplace,
+            getManagedPluginNames(),
+          ),
+        }
+      })(),
       scope: (result.scope ||
         scope) as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-      ...buildPluginTelemetryFields(name, marketplace, getManagedPluginNames()),
     })
 
-    // eslint-disable-next-line custom-rules/no-process-exit
-    process.exit(0)
+    let pruned = false
+    try {
+      const scan = await scanOrphanedAutoDeps(scope)
+      if (prune) {
+        // biome-ignore lint/suspicious/noConsole:: intentional console output
+        console.log(`${figures.tick} ${result.message}`)
+        pruned = true
+        return await runOrphanPrune(scan, scope, {
+          dryRun: false,
+          yes,
+          deleteDataDir: !keepData,
+        })
+      }
+      return result.message + formatOrphanPruneHint(scan.orphans, scope)
+    } catch (error) {
+      logError(error)
+      const suffix = `(${prune ? 'prune' : 'orphan scan'} failed: ${errorMessage(error)})`
+      if (pruned) return suffix
+      return `${prune ? `${figures.tick} ${result.message}` : result.message}\n${suffix}`
+    }
   } catch (error) {
     handlePluginCommandError(error, 'uninstall', plugin)
+  }
+}
+
+async function confirmPruneYes(): Promise<boolean> {
+  const rl = createInterface({ input: process.stdin })
+  try {
+    for await (const line of rl) {
+      return /^y(es)?$/i.test(line.trim())
+    }
+    return false
+  } finally {
+    rl.close()
+  }
+}
+
+/**
+ * Official 2.1.121 `_E4`. Confirm and remove orphaned auto-deps.
+ */
+export async function runOrphanPrune(
+  scan: Awaited<ReturnType<typeof scanOrphanedAutoDeps>>,
+  scope: InstallableScope,
+  opts: { dryRun?: boolean; yes?: boolean; deleteDataDir?: boolean },
+): Promise<string> {
+  if (scan.unloadable.length > 0) {
+    return `Skipped — cannot determine orphans: ${scan.unloadable.join(', ')} failed to load. Fix or uninstall, then retry.`
+  }
+  if (scan.orphans.size === 0) {
+    return scan.autoCount === 0
+      ? `Nothing to prune (no auto-installed plugins at ${scope} scope).`
+      : `Nothing to prune (${scan.autoCount} auto-installed ${plural(scan.autoCount, 'plugin')} at ${scope} scope, all still needed).`
+  }
+  const installed = loadInstalledPluginsV2().plugins
+  const projectPath = getProjectPathForScope(scope)
+  const lines = [...scan.orphans].map(id => {
+    const entry = installed[id]?.find(
+      e => e.scope === scope && e.projectPath === projectPath,
+    )
+    return `  ${id}${entry?.version ? ` (${entry.version})` : ''}`
+  })
+  const summary = `${scan.orphans.size} auto-installed ${plural(scan.orphans.size, 'plugin')} no longer needed at ${scope} scope:\n${lines.join('\n')}`
+  if (opts.dryRun) {
+    return `${summary}\n(dry run — nothing removed)`
+  }
+  if (!opts.yes) {
+    if (!process.stdin.isTTY || !process.stdout.isTTY) {
+      const scopeFlag = scope === 'user' ? '' : ` --scope ${scope}`
+      return `${summary}\nNot a TTY — run \`claude plugin prune${scopeFlag} -y\` to remove.`
+    }
+    // biome-ignore lint/suspicious/noConsole:: intentional console output
+    console.log(`${summary}\nRemove? [y/N] `)
+    if (!(await confirmPruneYes())) return 'Aborted.'
+  }
+  const removed = await pruneOrphanedAutoDeps(scan.orphans, scope, projectPath, {
+    deleteDataDir: opts.deleteDataDir ?? true,
+  })
+  logEvent('tengu_plugin_prune_cli', {
+    scope: scope as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
+    removed_count: removed.length,
+  })
+  return `Removed ${removed.length} auto-installed ${plural(removed.length, 'plugin')}: ${removed.map(id => parsePluginIdentifier(id).name).join(', ')}`
+}
+
+export async function prunePlugin(
+  scope: InstallableScope = 'user',
+  opts: { dryRun?: boolean; yes?: boolean } = {},
+): Promise<string> {
+  try {
+    const scan = await scanOrphanedAutoDeps(scope)
+    return await runOrphanPrune(scan, scope, {
+      dryRun: opts.dryRun,
+      yes: opts.yes,
+      deleteDataDir: true,
+    })
+  } catch (error) {
+    handlePluginCommandError(error, 'prune')
   }
 }
 

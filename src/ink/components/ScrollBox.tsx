@@ -167,6 +167,17 @@ function ScrollBox({
         const el = domRef.current
         if (!el) return
         el.pendingScrollDelta = undefined
+        // Official 121: stickyScroll={false} jumps without re-pinning so
+        // typing in a non-sticky box does not yank the viewport to the end.
+        if (stickyScroll === false) {
+          el.scrollAnchor = undefined
+          el.scrollTop = Math.max(
+            0,
+            (el.scrollHeight ?? 0) - (el.scrollViewportHeight ?? 0),
+          )
+          scrollMutated(el)
+          return
+        }
         el.stickyScroll = true
         markDirty(el)
         notify()
@@ -215,10 +226,9 @@ function ScrollBox({
       },
     }),
     // notify/scrollMutated are inline (no useCallback) but only close over
-    // refs + imports — stable. Empty deps avoids rebuilding the handle on
-    // every render (which re-registers the ref = churn).
+    // refs + imports — stable. stickyScroll is the 121 scrollToBottom gate.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [],
+    [stickyScroll],
   )
 
   // Structure: outer viewport (overflow:scroll, constrained height) >

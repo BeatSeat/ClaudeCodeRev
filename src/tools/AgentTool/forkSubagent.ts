@@ -32,12 +32,12 @@ import type { BuiltInAgentDefinition } from './loadAgentsDir.js'
  * orchestration role and has its own delegation model.
  */
 export function isForkSubagentEnabled(): boolean {
-  // 117 MG: non-interactive (R6) always off. KEEP coordinator +
-  // compile-time FORK_SUBAGENT. External builds also honor
-  // CLAUDE_CODE_FORK_SUBAGENT=1 and GrowthBook tengu_copper_fox.
+  // 121 zE_: coordinator first, then env, then non-interactive (I6).
+  // 120 LN1 checked y6() before env, which blocked CLAUDE_CODE_FORK_SUBAGENT=1
+  // in -p / SDK. KEEP compile-time FORK_SUBAGENT + tengu_copper_fox.
   if (isCoordinatorMode()) return false
-  if (getIsNonInteractiveSession()) return false
   if (isEnvTruthy(process.env.CLAUDE_CODE_FORK_SUBAGENT)) return true
+  if (getIsNonInteractiveSession()) return false
   if (feature('FORK_SUBAGENT')) return true
   return getFeatureValue_CACHED_MAY_BE_STALE('tengu_copper_fox', false)
 }

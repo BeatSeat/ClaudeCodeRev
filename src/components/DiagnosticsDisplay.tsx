@@ -4,7 +4,6 @@ import { Box, Text } from '../ink.js'
 import { DiagnosticTrackingService } from '../services/diagnosticTracking.js'
 import type { Attachment } from '../utils/attachments.js'
 import { getCwd } from '../utils/cwd.js'
-import { CtrlOToExpand } from './CtrlOToExpand.js'
 import { MessageResponse } from './MessageResponse.js'
 
 type DiagnosticsAttachment = Extract<Attachment, { type: 'diagnostics' }>
@@ -12,11 +11,13 @@ type DiagnosticsAttachment = Extract<Attachment, { type: 'diagnostics' }>
 type DiagnosticsDisplayProps = {
   attachment: DiagnosticsAttachment
   verbose: boolean
+  isTranscriptMode?: boolean
 }
 
 export function DiagnosticsDisplay({
   attachment,
   verbose,
+  isTranscriptMode,
 }: DiagnosticsDisplayProps): React.ReactNode {
   // Only show if there are diagnostics to report
   if (attachment.files.length === 0) return null
@@ -29,8 +30,8 @@ export function DiagnosticsDisplay({
 
   const fileCount = attachment.files.length
 
-  if (verbose) {
-    // Show all diagnostics in verbose mode (ctrl+o)
+  if (verbose || isTranscriptMode) {
+    // Show all diagnostics in verbose / transcript mode (ctrl+o)
     return (
       <Box flexDirection="column">
         {attachment.files.map((file, fileIndex) => (
@@ -83,7 +84,7 @@ export function DiagnosticsDisplay({
         <Text dimColor wrap="wrap">
           Found <Text bold>{totalIssues}</Text> new diagnostic{' '}
           {totalIssues === 1 ? 'issue' : 'issues'} in {fileCount}{' '}
-          {fileCount === 1 ? 'file' : 'files'} <CtrlOToExpand />
+          {fileCount === 1 ? 'file' : 'files'} (ctrl+o to expand)
         </Text>
       </MessageResponse>
     )

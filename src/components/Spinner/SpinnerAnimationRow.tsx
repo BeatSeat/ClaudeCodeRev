@@ -4,6 +4,7 @@ import { useMemo, useRef } from 'react'
 import { stringWidth } from '../../ink/stringWidth.js'
 import { Box, Text, useAnimationFrame } from '../../ink.js'
 import type { InProcessTeammateTaskState } from '../../tasks/InProcessTeammateTask/types.js'
+import { logEvent } from '../../services/analytics/index.js'
 import { formatDuration, formatNumber } from '../../utils/format.js'
 import { toInkColor } from '../../utils/ink.js'
 import type { Theme } from '../../utils/theme.js'
@@ -40,6 +41,9 @@ const THINKING_INACTIVE = { r: 153, g: 153, b: 153 }
 const THINKING_INACTIVE_SHIMMER = { r: 185, g: 185, b: 185 }
 const THINKING_DELAY_MS = 3000
 const THINKING_GLOW_PERIOD_S = 2
+
+// Official 121 bj1 — stall telemetry thresholds (10s / 45s / 5m).
+const STALL_TELEMETRY_THRESHOLDS_MS = [10_000, 45_000, 300_000] as const
 
 export type SpinnerAnimationRowProps = {
   // Animation inputs
@@ -138,12 +142,49 @@ export function SpinnerAnimationRow({
   // hasActiveTools both track leader state. When viewing an active teammate
   // while leader is idle, they'd otherwise flag a false stall after 3s.
   // Treating leaderIsIdle like hasActiveTools resets the stall timer.
-  const { isStalled, stalledIntensity } = useStalledAnimation(
-    time,
-    currentResponseLength,
-    hasActiveTools || leaderIsIdle,
-    reducedMotion,
-  )
+  const { isStalled, stalledIntensity, timeSinceLastToken } =
+    useStalledAnimation(
+      time,
+      currentResponseLength,
+      hasActiveTools || leaderIsIdle,
+      reducedMotion,
+    )
+
+  const stallThresholdsFired = useRef(new Set<number>())
+  const maxStallMs = useRef(0)
+  if (timeSinceLastToken === 0) {
+    if (stallThresholdsFired.current.size > 0) {
+      logEvent('tengu_spinner_stall_cleared', {
+        max_stall_ms: Math.round(maxStallMs.current),
+        mode,
+        override_color: overrideColor != null,
+        response_length: currentResponseLength,
+        thresholds_fired: stallThresholdsFired.current.size,
+      })
+      stallThresholdsFired.current = new Set()
+      maxStallMs.current = 0
+    }
+  } else {
+    if (timeSinceLastToken > maxStallMs.current) {
+      maxStallMs.current = timeSinceLastToken
+    }
+    for (const thresholdMs of STALL_TELEMETRY_THRESHOLDS_MS) {
+      if (
+        timeSinceLastToken >= thresholdMs &&
+        !stallThresholdsFired.current.has(thresholdMs)
+      ) {
+        stallThresholdsFired.current.add(thresholdMs)
+        logEvent('tengu_spinner_stalled_ui', {
+          threshold_ms: thresholdMs,
+          mode,
+          override_color: overrideColor != null,
+          time_since_last_token_ms: Math.round(timeSinceLastToken),
+          response_length: currentResponseLength,
+          render_loop_dark: timeSinceLastToken - thresholdMs > 5000,
+        })
+      }
+    }
+  }
 
   const frame = reducedMotion ? 0 : Math.floor(time / 120)
 

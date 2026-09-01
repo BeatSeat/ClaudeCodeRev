@@ -16,6 +16,20 @@ import { logEvent } from '../analytics/index.js'
 
 export type SecurityCheckResult = 'approved' | 'rejected' | 'no_check_needed'
 
+type ManagedSettingsSecurityHandler = (
+  settings: SettingsJson,
+) => Promise<SecurityCheckResult>
+
+let managedSettingsSecurityHandler: ManagedSettingsSecurityHandler | null =
+  null
+
+/** 121 `ZA6` — REPL/SDK can approve without a second Ink root (apply-and-continue). */
+export function setManagedSettingsSecurityHandler(
+  handler: ManagedSettingsSecurityHandler | null,
+): void {
+  managedSettingsSecurityHandler = handler
+}
+
 /**
  * Check if new remote managed settings contain dangerous settings that require user approval.
  * Shows a blocking dialog if dangerous settings have changed or been added.
@@ -48,6 +62,17 @@ export async function checkManagedSettingsSecurity(
 
   // Log that dialog is being shown
   logEvent('tengu_managed_settings_security_dialog_shown', {})
+
+  if (managedSettingsSecurityHandler) {
+    const result = await managedSettingsSecurityHandler(newSettings)
+    logEvent(
+      result === 'approved'
+        ? 'tengu_managed_settings_security_dialog_accepted'
+        : 'tengu_managed_settings_security_dialog_rejected',
+      {},
+    )
+    return result
+  }
 
   // Show blocking dialog
   return new Promise<SecurityCheckResult>(resolve => {

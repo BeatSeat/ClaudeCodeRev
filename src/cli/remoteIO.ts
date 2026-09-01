@@ -14,6 +14,7 @@ import { logError } from '../utils/log.js'
 import { writeToStdout } from '../utils/process.js'
 import { getSessionIngressAuthToken } from '../utils/sessionIngressAuth.js'
 import {
+  setSessionInternalMetadataChangedListener,
   setSessionMetadataChangedListener,
   setSessionStateChangedListener,
 } from '../utils/sessionState.js'
@@ -164,6 +165,9 @@ export class RemoteIO extends StructuredIO {
       })
       setSessionMetadataChangedListener(metadata => {
         this.ccrClient?.reportMetadata(metadata)
+      })
+      setSessionInternalMetadataChangedListener(metadata => {
+        this.ccrClient?.reportInternalMetadata(metadata)
       })
     }
 

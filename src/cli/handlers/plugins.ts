@@ -16,6 +16,7 @@ import {
   disablePlugin,
   enablePlugin,
   installPlugin,
+  prunePlugin,
   uninstallPlugin,
   updatePluginCli,
   VALID_INSTALLABLE_SCOPES,
@@ -797,7 +798,13 @@ export async function pluginInstallHandler(
 // plugin uninstall (lines 5738–5769)
 export async function pluginUninstallHandler(
   plugin: string,
-  options: { scope?: string; cowork?: boolean; keepData?: boolean },
+  options: {
+    scope?: string
+    cowork?: boolean
+    keepData?: boolean
+    prune?: boolean
+    yes?: boolean
+  },
 ): Promise<void> {
   if (options.cowork) setUseCoworkPlugins(true)
   const scope = options.scope || 'user'
@@ -823,11 +830,47 @@ export async function pluginUninstallHandler(
     scope: scope as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
   })
 
-  await uninstallPlugin(
+  const message = await uninstallPlugin(
     plugin,
     scope as 'user' | 'project' | 'local',
     options.keepData,
+    options.prune,
+    options.yes,
   )
+  // biome-ignore lint/suspicious/noConsole:: intentional console output
+  console.log(options.prune ? message : `${figures.tick} ${message}`)
+}
+
+export async function pluginPruneHandler(options: {
+  scope?: string
+  cowork?: boolean
+  dryRun?: boolean
+  yes?: boolean
+}): Promise<void> {
+  if (options.cowork) setUseCoworkPlugins(true)
+  const scope = options.scope || 'user'
+  if (options.cowork && scope !== 'user') {
+    cliError('--cowork can only be used with user scope')
+  }
+  if (
+    !VALID_INSTALLABLE_SCOPES.includes(
+      scope as (typeof VALID_INSTALLABLE_SCOPES)[number],
+    )
+  ) {
+    cliError(
+      `Invalid scope: ${scope}. Must be one of: ${VALID_INSTALLABLE_SCOPES.join(', ')}.`,
+    )
+  }
+  logEvent('tengu_plugin_prune_command', {
+    scope: scope as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
+    dry_run: options.dryRun ?? false,
+  })
+  const message = await prunePlugin(scope as 'user' | 'project' | 'local', {
+    dryRun: options.dryRun,
+    yes: options.yes,
+  })
+  // biome-ignore lint/suspicious/noConsole:: intentional console output
+  console.log(message)
 }
 
 // plugin enable (lines 5783–5818)

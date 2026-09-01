@@ -107,12 +107,16 @@ export const ThinkingConfigSchema = lazySchema(() =>
 // MCP Server Config Types (serializable only)
 // ============================================================================
 
+const MCP_ALWAYS_LOAD_DESCRIBE =
+  'When true, all tools from this server are always included in the prompt and never deferred behind tool search. Equivalent to setting defer_loading: false on the API. Default: tools are deferred when tool search is enabled.'
+
 export const McpStdioServerConfigSchema = lazySchema(() =>
   z.object({
     type: z.literal('stdio').optional(), // Optional for backwards compatibility
     command: z.string(),
     args: z.array(z.string()).optional(),
     env: z.record(z.string(), z.string()).optional(),
+    alwaysLoad: z.boolean().optional().describe(MCP_ALWAYS_LOAD_DESCRIBE),
   }),
 )
 
@@ -121,6 +125,7 @@ export const McpSSEServerConfigSchema = lazySchema(() =>
     type: z.literal('sse'),
     url: z.string(),
     headers: z.record(z.string(), z.string()).optional(),
+    alwaysLoad: z.boolean().optional().describe(MCP_ALWAYS_LOAD_DESCRIBE),
   }),
 )
 
@@ -129,6 +134,7 @@ export const McpHttpServerConfigSchema = lazySchema(() =>
     type: z.literal('http'),
     url: z.string(),
     headers: z.record(z.string(), z.string()).optional(),
+    alwaysLoad: z.boolean().optional().describe(MCP_ALWAYS_LOAD_DESCRIBE),
   }),
 )
 
@@ -136,6 +142,7 @@ export const McpSdkServerConfigSchema = lazySchema(() =>
   z.object({
     type: z.literal('sdk'),
     name: z.string(),
+    alwaysLoad: z.boolean().optional(),
   }),
 )
 
@@ -153,6 +160,7 @@ export const McpClaudeAIProxyServerConfigSchema = lazySchema(() =>
     type: z.literal('claudeai-proxy'),
     url: z.string(),
     id: z.string(),
+    alwaysLoad: z.boolean().optional(),
   }),
 )
 
@@ -862,7 +870,16 @@ export const PostToolUseHookSpecificOutputSchema = lazySchema(() =>
   z.object({
     hookEventName: z.literal('PostToolUse'),
     additionalContext: z.string().optional(),
-    updatedMCPToolOutput: z.unknown().optional(),
+    updatedToolOutput: z
+      .unknown()
+      .optional()
+      .describe('Replaces the tool output before it is sent to the model'),
+    updatedMCPToolOutput: z
+      .unknown()
+      .optional()
+      .describe(
+        'Replaces the output for MCP tools only. Prefer updatedToolOutput, which works for all tools',
+      ),
   }),
 )
 

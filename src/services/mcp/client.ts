@@ -119,6 +119,8 @@ import {
 } from './elicitationHandler.js'
 import { buildMcpToolName } from './mcpStringUtils.js'
 import { normalizeNameForMCP } from './normalization.js'
+import { sanitizeToolNameForAnalytics } from '../analytics/metadata.js'
+import { isOfficialMcpUrl } from './officialRegistry.js'
 import { getLoggingSafeMcpBaseUrl } from './utils.js'
 
 /* eslint-disable @typescript-eslint/no-require-imports */
@@ -1923,6 +1925,7 @@ export const fetchToolsForClient = memoizeWithLRU(
   async (client: MCPServerConnection): Promise<Tool[]> => {
     if (client.type !== 'connected') return []
 
+    const listStartedAt = Date.now()
     try {
       if (!client.capabilities?.tools) {
         return []
@@ -1943,7 +1946,7 @@ export const fetchToolsForClient = memoizeWithLRU(
         isEnvTruthy(process.env.CLAUDE_AGENT_SDK_MCP_NO_PREFIX)
 
       // Convert MCP tools to our Tool format
-      return toolsToProcess
+      const mappedTools = toolsToProcess
         .map((tool): Tool => {
           const fullyQualifiedName = buildMcpToolName(client.name, tool.name)
           const rawMaxResultSize = tool._meta?.['anthropic/maxResultSizeChars']
@@ -1967,7 +1970,9 @@ export const fetchToolsForClient = memoizeWithLRU(
                     .replace(/\s+/g, ' ')
                     .trim() || undefined
                 : undefined,
-            alwaysLoad: tool._meta?.['anthropic/alwaysLoad'] === true,
+            alwaysLoad:
+              client.config.alwaysLoad === true ||
+              tool._meta?.['anthropic/alwaysLoad'] === true,
             async description() {
               return tool.description ?? ''
             },
@@ -2182,6 +2187,21 @@ export const fetchToolsForClient = memoizeWithLRU(
           }
         })
         .filter(isIncludedMcpTool)
+
+      const urlAnalytics = mcpBaseUrlAnalytics(client.config)
+      logEvent('tengu_mcp_tools_listed', {
+        transportType: (client.config.type ??
+          'stdio') as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
+        listDurationMs: Date.now() - listStartedAt,
+        toolCount: mappedTools.length,
+        alwaysLoadCount: count(mappedTools, t => t.alwaysLoad === true),
+        ...urlAnalytics,
+        ...(urlAnalytics.mcpServerBaseUrl &&
+          isOfficialMcpUrl(urlAnalytics.mcpServerBaseUrl) && {
+            mcpServerName: sanitizeToolNameForAnalytics(client.name),
+          }),
+      })
+      return mappedTools
     } catch (error) {
       logMCPError(client.name, `Failed to fetch tools: ${errorMessage(error)}`)
       return []

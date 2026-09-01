@@ -1003,19 +1003,28 @@ export default class Ink {
    * was cleared externally (macOS Cmd+K) and Ink's diff engine thinks
    * unchanged cells don't need repainting. Scrollback is preserved.
    */
-  forceRedraw(): void {
-    if (!this.options.stdout.isTTY || this.isUnmounted || this.isPaused) return
-    this.options.stdout.write(ERASE_SCREEN + CURSOR_HOME)
+  forceRedraw(): boolean {
+    if (!this.options.stdout.isTTY || this.isUnmounted || this.isPaused) {
+      return false
+    }
+    if (
+      (this.options.stdout.columns || 80) !== this.terminalColumns ||
+      (this.options.stdout.rows || 24) !== this.terminalRows
+    ) {
+      this.handleResize()
+      return true
+    }
     if (this.altScreenActive) {
+      this.options.stdout.write(ERASE_SCREEN + CURSOR_HOME)
       this.resetFramesForAltScreen()
     } else {
-      this.repaint()
-      // repaint() resets frontFrame to 0×0. Without this flag the next
-      // frame's blit optimization copies from that empty screen and the
-      // diff sees no content. onRender resets the flag at frame end.
+      // Official 121: do not write ERASE_SCREEN on the main screen — that
+      // duplicated tmux / GNOME / WT / Konsole scrollback on Ctrl+L.
+      this.log.forceFullReset()
       this.prevFrameContaminated = true
     }
     this.onRender()
+    return true
   }
 
   /**

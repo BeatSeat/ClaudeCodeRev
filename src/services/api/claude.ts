@@ -123,6 +123,7 @@ import {
   getPromptCache1hAllowlist,
   getSessionId,
   getThinkingClearLatched,
+  getThinkingTypeOverride,
   setAfkModeHeaderLatched,
   setCacheEditingHeaderLatched,
   setFastModeHeaderLatched,
@@ -709,6 +710,8 @@ export type Options = {
   agents: AgentDefinition[]
   allowedAgentTypes?: string[]
   hasAppendSystemPrompt: boolean
+  /** Combined --system-prompt / --append-system-prompt for OTEL user_system_prompt */
+  userSystemPrompt?: string
   fetchOverride?: ClientOptions['fetch']
   enablePromptCaching?: boolean
   skipCacheWrite?: boolean
@@ -1516,6 +1519,7 @@ async function* queryModel(
   const newContext: LLMRequestNewContext | undefined = isBetaTracingEnabled()
     ? {
         systemPrompt: systemPrompt.join('\n\n'),
+        userSystemPrompt: options.userSystemPrompt,
         querySource: options.querySource,
         tools: jsonStringify(allTools),
       }
@@ -1633,12 +1637,16 @@ async function* queryModel(
     // contain opus-4-7, so thinking.type.enabled 400s unless we classify
     // against the resolved backing model.
     if (hasThinking && modelSupportsThinking(resolvedModel)) {
+      const thinkingTypeOverride = getThinkingTypeOverride(options.model)
       if (
-        !isEnvTruthy(process.env.CLAUDE_CODE_DISABLE_ADAPTIVE_THINKING) &&
-        modelSupportsAdaptiveThinking(resolvedModel)
+        thinkingTypeOverride !== undefined
+          ? thinkingTypeOverride === 'adaptive'
+          : !isEnvTruthy(process.env.CLAUDE_CODE_DISABLE_ADAPTIVE_THINKING) &&
+            modelSupportsAdaptiveThinking(resolvedModel)
       ) {
         // For models that support adaptive thinking, always use adaptive
-        // thinking without a budget.
+        // thinking without a budget. 121 override flips enabled↔adaptive
+        // after Bedrock profile ARNs reject the first type.
         thinking = {
           type: 'adaptive',
         } satisfies BetaMessageStreamParams['thinking']

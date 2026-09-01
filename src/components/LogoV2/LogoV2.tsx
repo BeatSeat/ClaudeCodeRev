@@ -9,7 +9,6 @@ import {
   calculateOptimalLeftWidth,
   formatWelcomeMessage,
   truncatePath,
-  getRecentActivitySync,
   getRecentReleaseNotesSync,
   getLogoDisplayData,
 } from '../../utils/logoV2Utils.js'
@@ -18,7 +17,6 @@ import { getDisplayPath } from '../../utils/file.js'
 import { Clawd } from './Clawd.js'
 import { FeedColumn } from './FeedColumn.js'
 import {
-  createRecentActivityFeed,
   createWhatsNewFeed,
   createProjectOnboardingFeed,
   createGuestPassesFeed,
@@ -108,7 +106,6 @@ function incrementOpus47LaunchSeenCount(): void {
 const LEFT_PANEL_MAX_WIDTH = 50
 
 export function LogoV2(): React.ReactNode {
-  const activities = getRecentActivitySync()
   const username = getGlobalConfig().oauthAccount?.displayName ?? ''
 
   const { columns } = useTerminalSize()
@@ -442,14 +439,14 @@ export function LogoV2(): React.ReactNode {
               />
             )}
 
-            {/* Right Panel - Project Onboarding or Recent Activity and What's New */}
+            {/* Right Panel — What's new (121 dropped Recent activity) */}
             {layoutMode === 'horizontal' && (
               <FeedColumn
                 feeds={
                   showOnboarding
                     ? [
                         createProjectOnboardingFeed(getSteps()),
-                        createRecentActivityFeed(activities),
+                        createWhatsNewFeed(changelog),
                       ]
                     : showOpus47LaunchFeed
                       ? [
@@ -457,19 +454,13 @@ export function LogoV2(): React.ReactNode {
                           createOpus47LaunchFeed(),
                         ]
                       : showGuestPassesUpsell
-                      ? [
-                          createRecentActivityFeed(activities),
-                          createGuestPassesFeed(),
-                        ]
+                      ? [createWhatsNewFeed(changelog), createGuestPassesFeed()]
                       : showOverageCreditUpsell
                         ? [
-                            createRecentActivityFeed(activities),
+                            createWhatsNewFeed(changelog),
                             createOverageCreditFeed(),
                           ]
-                        : [
-                            createRecentActivityFeed(activities),
-                            createWhatsNewFeed(changelog),
-                          ]
+                        : [createWhatsNewFeed(changelog)]
                 }
                 maxWidth={rightWidth}
               />

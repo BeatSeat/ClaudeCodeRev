@@ -42,6 +42,8 @@ const NEWLINE = { type: 'stdout', content: '\n' } as const
 
 export class LogUpdate {
   private state: State
+  /** Official 121: Ctrl+L / forceRedraw requests a clear-path full reset. */
+  private forceReset = false
 
   constructor(private readonly options: Options) {
     this.state = {
@@ -60,6 +62,11 @@ export class LogUpdate {
   // Called when process resumes from suspension (SIGCONT) to prevent clobbering terminal content
   reset(): void {
     this.state.previousOutput = ''
+    this.forceReset = false
+  }
+
+  forceFullReset(): void {
+    this.forceReset = true
   }
 
   private renderFullFrame(frame: Frame): Diff {
@@ -135,6 +142,18 @@ export class LogUpdate {
     const cursorAtBottom = prev.cursor.y >= prev.screen.height
     const prevHadScrollback =
       cursorAtBottom && prev.screen.height >= prev.viewport.height
+
+    // Official 121 forceFullReset — main-screen Ctrl+L uses the clear path
+    // instead of writing ERASE_SCREEN (which duplicated scrollback).
+    if (this.forceReset) {
+      this.forceReset = false
+      return fullResetSequence_CAUSES_FLICKER(
+        next,
+        'clear',
+        stylePool,
+        altScreen,
+      )
+    }
 
     // Width changes rewrap content, and height changes invalidate cursor
     // placement when rows have already entered scrollback. A full reset is

@@ -8,6 +8,10 @@ import {
 import type { QuerySource } from 'src/constants/querySource.js'
 import type { SystemAPIErrorMessage } from 'src/types/message.js'
 import { isAwsCredentialsProviderError } from 'src/utils/aws.js'
+import {
+  getThinkingTypeOverride,
+  setThinkingTypeOverride,
+} from 'src/bootstrap/state.js'
 import { logForDebugging } from 'src/utils/debug.js'
 import { logError } from 'src/utils/log.js'
 import { createSystemAPIErrorMessage } from 'src/utils/messages.js'
@@ -311,6 +315,23 @@ export async function* withRetry<T>(
         handleFastModeRejectedByAPI()
         retryContext.fastMode = false
         continue
+      }
+
+      // 121: Bedrock application-inference-profile ARNs 400
+      // thinking.type.enabled / adaptive; flip and retry once per type.
+      const rejectedThinkingType = parseThinkingTypeNotSupported(error)
+      if (rejectedThinkingType) {
+        const nextType =
+          rejectedThinkingType === 'enabled' ? 'adaptive' : 'enabled'
+        if (getThinkingTypeOverride(retryContext.model) !== nextType) {
+          setThinkingTypeOverride(retryContext.model, nextType)
+          logForDebugging(
+            `[thinking] model rejected thinking.type=${rejectedThinkingType}; retrying with ${nextType}. For Bedrock application-inference-profile ARNs with bearer-token auth, granting bedrock:GetInferenceProfile to the token avoids this round-trip.`,
+            { level: 'warn' },
+          )
+          attempt--
+          continue
+        }
       }
 
       // Non-foreground sources bail immediately on 529 — no retry amplification
@@ -698,6 +719,19 @@ function handleGcpCredentialError(error: unknown): boolean {
     return true
   }
   return false
+}
+
+function parseThinkingTypeNotSupported(
+  error: unknown,
+): 'enabled' | 'adaptive' | null {
+  if (!(error instanceof APIError) || error.status !== 400) {
+    return null
+  }
+  const match = /thinking\.type[^a-z]{1,8}(enabled|adaptive)[^]*?not supported/i.exec(
+    error.message,
+  )
+  const type = match?.[1]?.toLowerCase()
+  return type === 'enabled' || type === 'adaptive' ? type : null
 }
 
 function shouldRetry(error: APIError): boolean {

@@ -44,6 +44,18 @@ export type SessionExternalMetadata = {
   task_summary?: string | null
 }
 
+// Official 2.1.121 eD4 / J7H — internal_metadata survives worker restarts.
+// session_allow_rules is the "Always allow" session list minus mcp__ entries.
+export type SessionInternalMetadata = {
+  session_allow_rules?: string[] | null
+}
+
+/** Worker GET /worker restore shape (121 getWorkerState). */
+export type RestoredWorkerState = {
+  external: SessionExternalMetadata | null
+  internal: SessionInternalMetadata | null
+}
+
 type SessionStateChangedListener = (
   state: SessionState,
   details?: RequiresActionDetails,
@@ -51,10 +63,15 @@ type SessionStateChangedListener = (
 type SessionMetadataChangedListener = (
   metadata: SessionExternalMetadata,
 ) => void
+type SessionInternalMetadataChangedListener = (
+  metadata: SessionInternalMetadata,
+) => void
 type PermissionModeChangedListener = (mode: PermissionMode) => void
 
 let stateListener: SessionStateChangedListener | null = null
 let metadataListener: SessionMetadataChangedListener | null = null
+let internalMetadataListener: SessionInternalMetadataChangedListener | null =
+  null
 let permissionModeListener: PermissionModeChangedListener | null = null
 
 export function setSessionStateChangedListener(
@@ -67,6 +84,12 @@ export function setSessionMetadataChangedListener(
   cb: SessionMetadataChangedListener | null,
 ): void {
   metadataListener = cb
+}
+
+export function setSessionInternalMetadataChangedListener(
+  cb: SessionInternalMetadataChangedListener | null,
+): void {
+  internalMetadataListener = cb
 }
 
 /**
@@ -137,6 +160,12 @@ export function notifySessionMetadataChanged(
   metadata: SessionExternalMetadata,
 ): void {
   metadataListener?.(metadata)
+}
+
+export function notifyInternalMetadataChanged(
+  metadata: SessionInternalMetadata,
+): void {
+  internalMetadataListener?.(metadata)
 }
 
 /**

@@ -246,6 +246,9 @@ type State = {
   // benefit to keeping thinking). Once latched, stays on so the newly-warmed
   // thinking-cleared cache isn't busted by flipping back to keep:'all'.
   thinkingClearLatched: boolean | null
+  // Per-model flip after the API 400s thinking.type.enabled / .adaptive
+  // (Bedrock application-inference-profile ARNs). 121 `thinkingTypeOverrides`.
+  thinkingTypeOverrides: Map<string, 'enabled' | 'adaptive'>
   // Current prompt ID (UUID) correlating a user prompt with subsequent OTel events
   promptId: string | null
   // Last API requestId for the main conversation chain (not subagents).
@@ -425,6 +428,7 @@ function getInitialState(): State {
     fastModeHeaderLatched: null,
     cacheEditingHeaderLatched: null,
     thinkingClearLatched: null,
+    thinkingTypeOverrides: new Map(),
     // Current prompt ID
     promptId: null,
     lastMainRequestId: undefined,
@@ -1783,6 +1787,19 @@ export function getThinkingClearLatched(): boolean | null {
 
 export function setThinkingClearLatched(v: boolean): void {
   STATE.thinkingClearLatched = v
+}
+
+export function getThinkingTypeOverride(
+  model: string,
+): 'enabled' | 'adaptive' | undefined {
+  return STATE.thinkingTypeOverrides.get(model)
+}
+
+export function setThinkingTypeOverride(
+  model: string,
+  type: 'enabled' | 'adaptive',
+): void {
+  STATE.thinkingTypeOverrides.set(model, type)
 }
 
 /**

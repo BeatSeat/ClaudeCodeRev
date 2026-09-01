@@ -27,7 +27,10 @@
 
 import type { Span } from '@opentelemetry/api'
 import { createHash } from 'crypto'
-import { getIsNonInteractiveSession } from '../../bootstrap/state.js'
+import {
+  getIsNonInteractiveSession,
+  getSessionId,
+} from '../../bootstrap/state.js'
 import { getFeatureValue_CACHED_MAY_BE_STALE } from '../../services/analytics/growthbook.js'
 import {
   isToolContentLoggingEnabled,
@@ -50,6 +53,7 @@ type APIMessage = UserMessage | AssistantMessage
  * only log the full content once per unique hash.
  */
 const seenHashes = new Set<string>()
+let lastUserSystemPromptSessionId: string | undefined
 
 /**
  * Track the last reported message hash per querySource (agent) for incremental context.
@@ -214,6 +218,8 @@ function formatMessagesForContext(messages: UserMessage[]): FormattedMessages {
 export interface LLMRequestNewContext {
   /** System prompt (typically only on first request or if changed) */
   systemPrompt?: string
+  /** User-authored --system-prompt / --append-system-prompt (not the built-in prompt) */
+  userSystemPrompt?: string
   /** Query source identifying the agent/purpose (e.g., 'repl_main_thread', 'agent:builtin') */
   querySource?: string
   /** Tool schemas sent with the request */
@@ -287,6 +293,22 @@ export function addBetaLLMRequestAttributes(
         system_prompt: truncatedPrompt,
         system_prompt_length: String(newContext.systemPrompt.length),
         ...(truncated && { system_prompt_truncated: 'true' }),
+      })
+    }
+  }
+
+  if (newContext?.userSystemPrompt && canLogUserPrompts) {
+    const sessionId = getSessionId()
+    if (lastUserSystemPromptSessionId !== sessionId) {
+      lastUserSystemPromptSessionId = sessionId
+      const { content, truncated } = truncateContent(newContext.userSystemPrompt)
+      span.setAttributes({
+        user_system_prompt: content,
+        ...(truncated && {
+          user_system_prompt_truncated: true,
+          user_system_prompt_original_length:
+            newContext.userSystemPrompt.length,
+        }),
       })
     }
   }

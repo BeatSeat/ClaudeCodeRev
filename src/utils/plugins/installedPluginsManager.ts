@@ -882,6 +882,13 @@ export function addInstalledPlugin(
   projectPath?: string,
 ): void {
   const v2Data = loadInstalledPluginsFromDisk()
+  const installations = v2Data.plugins[pluginId] || []
+  const existingIndex = installations.findIndex(
+    entry => entry.scope === scope && entry.projectPath === projectPath,
+  )
+  const existingIsManual =
+    existingIndex >= 0 && installations[existingIndex]?.auto !== true
+  const writeAuto = metadata.auto === true && !existingIsManual
   const v2Entry: PluginInstallationEntry = {
     scope,
     installPath: metadata.installPath,
@@ -891,15 +898,8 @@ export function addInstalledPlugin(
     gitCommitSha: metadata.gitCommitSha,
     resolvedVersion: metadata.resolvedVersion,
     ...(projectPath && { projectPath }),
+    ...(writeAuto && { auto: true }),
   }
-
-  // Get or create array for this plugin (preserves other scope installations)
-  const installations = v2Data.plugins[pluginId] || []
-
-  // Find existing entry for this scope+projectPath
-  const existingIndex = installations.findIndex(
-    entry => entry.scope === scope && entry.projectPath === projectPath,
-  )
 
   const isUpdate = existingIndex >= 0
   if (isUpdate) {

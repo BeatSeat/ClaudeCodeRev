@@ -5,7 +5,7 @@ import {
   type AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
   logEvent,
 } from 'src/services/analytics/index.js'
-import { getClaudeAIOAuthTokens } from 'src/utils/auth.js'
+import { getClaudeAIOAuthTokens, getOauthAccountInfo } from 'src/utils/auth.js'
 import { getGlobalConfig, saveGlobalConfig } from 'src/utils/config.js'
 import { logForDebugging } from 'src/utils/debug.js'
 import { isEnvDefinedFalsy } from 'src/utils/envUtils.js'
@@ -151,6 +151,27 @@ export function clearClaudeAIMcpConfigsCache(): void {
  * worth surfacing; an org-configured connector that's been needs-auth since
  * it showed up is one the user has demonstrably ignored.
  */
+/**
+ * Direct claude.ai connector auth URL (121 `TFH`).
+ * Returns null when org or server id is missing.
+ */
+export function buildClaudeAiConnectorAuthUrl(config: {
+  id?: string
+}): string | null {
+  const org = getOauthAccountInfo()?.organizationUuid
+  if (!org || !config.id) {
+    return null
+  }
+  const origin = getOauthConfig().CLAUDE_AI_ORIGIN
+  const id = config.id.startsWith('mcprs')
+    ? 'mcpsrv' + config.id.slice(5)
+    : config.id
+  const surface = encodeURIComponent(
+    process.env.CLAUDE_CODE_ENTRYPOINT || 'cli',
+  )
+  return `${origin}/api/organizations/${org}/mcp/start-auth/${id}?product_surface=${surface}`
+}
+
 export function markClaudeAiMcpConnected(name: string): void {
   saveGlobalConfig(current => {
     const seen = current.claudeAiMcpEverConnected ?? []
