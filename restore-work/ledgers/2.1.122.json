@@ -1,0 +1,27 @@
+{
+  "version": "2.1.122",
+  "fromVersion": "2.1.121",
+  "expectedFunctionCount": 0,
+  "functions": [],
+  "changelogCoverage": [
+    {"item": "ANTHROPIC_BEDROCK_SERVICE_TIER → X-Amzn-Bedrock-Service-Tier", "status": "located", "evidence": "raw env header + /status Bedrock service tier"},
+    {"item": "Paste PR URL into /resume search finds session", "status": "deferred", "evidence": "shared/logic-only; resume search bodies equal"},
+    {"item": "/mcp shows hidden same-URL claude.ai connectors + hint", "status": "located", "evidence": "hidden — same URL as your server + remove duplicate"},
+    {"item": "Clarified /mcp unauthorized after browser sign-in", "status": "located", "evidence": "still unauthorized + Make sure the browser sign-in completed"},
+    {"item": "OTEL api_request/api_error numeric attrs as numbers", "status": "located", "evidence": "dropped String() wraps on token/cost/duration/status_code"},
+    {"item": "OTEL claude_code.at_mention log event", "status": "located", "evidence": "logOTelAtMention + mentionType + directory error"},
+    {"item": "/branch forks tool_use without tool_result (rewound)", "status": "located", "evidence": "createFork filters live message UUIDs"},
+    {"item": "/model Effort for Bedrock ARNs + output_config.effort", "status": "located", "evidence": "getCanonicalName ARN backing-model cache"},
+    {"item": "Vertex/Bedrock output_config Extra inputs session-title", "status": "located", "evidence": "omit output_config.format when structured outputs unsupported"},
+    {"item": "Vertex count_tokens 400 behind proxy", "status": "located", "evidence": "count_tokens always filters beta allowlist"},
+    {"item": "spinnerTipsOverride.excludeDefault time-based tips", "status": "located", "evidence": "Eq8 excludeDefault && tips.length>0"},
+    {"item": "ToolSearch missing MCP after start nonblocking", "status": "located", "evidence": "ToolSearch call refreshTools?.() ?? tools"},
+    {"item": "!exit / !quit in bash mode terminating CLI", "status": "located", "evidence": "handlePromptSubmit mode !== 'bash'"},
+    {"item": "Images resized 2576 instead of 2000px", "status": "located", "evidence": "opus-4-7 map 2000; TS already IMAGE_MAX 2000"},
+    {"item": "Remote idle redraw 2/sec flooding tmux -CC", "status": "deferred", "evidence": "shared/logic-only; latch host is bridge not TUI"},
+    {"item": "Assistant messages blank stale view preference", "status": "located", "evidence": "clear stale isBriefOnly on GB refresh"},
+    {"item": "Malformed hooks entry invalidates entire settings.json", "status": "located", "evidence": "hooks must be object mapping + This field was ignored"},
+    {"item": "Voice Caps Lock keybindings error", "status": "located", "evidence": "capslock reserved; Caps Lock is not delivered"}
+  ],
+  "notes": "astdiff cometix 121→122: similarity 99.42%, 906 struct-real, 122 added-product, 99 genuine-structural. Native Linux astdiff. P1–P9 / bfs/ugrep not landed. AST-only phantom parent / auto-compact breaker / NEW_INIT / INVESTIGATE_FIRST / cowork memory index / drop pewter_ledger landed. Four-domain reviews PASS. Did not start 2.1.123."
+}

@@ -63,6 +63,8 @@ export type ValidationError = {
   suggestion?: string
   /** Link to relevant documentation */
   docLink?: string
+  /** 122 malformed-hooks: warning keeps the file, field is deleted */
+  severity?: 'warning'
   /** MCP-specific metadata - only present for MCP configuration errors */
   mcpErrorMetadata?: {
     /** Which configuration scope this error came from */
@@ -267,9 +269,19 @@ export function filterInvalidPermissionRules(
   return warnings
 }
 
+/** Official 2.1.122 `peH`: describe a rejected hooks value for the warning. */
+function describeSettingsValue(value: unknown): string {
+  if (value === null) return 'null'
+  if (value === undefined) return 'undefined'
+  if (Array.isArray(value)) return 'array'
+  return typeof value
+}
+
 /**
- * Official 2.1.101 QQ5: drop unknown hook event names so one typo does not
- * fail the entire settings.json parse (HooksSchema is a partialRecord enum).
+ * Official 2.1.101 QQ5 + 2.1.122 gO9: drop unknown hook event names so one
+ * typo does not fail the entire settings.json parse. 122 also ignores a
+ * non-object `hooks` field (delete + warning, file kept) and non-array
+ * matcher entries.
  */
 export function filterUnknownHookEvents(
   data: unknown,
@@ -277,21 +289,52 @@ export function filterUnknownHookEvents(
 ): ValidationError[] {
   if (!data || typeof data !== 'object') return []
   const obj = data as Record<string, unknown>
-  if (!obj.hooks || typeof obj.hooks !== 'object' || Array.isArray(obj.hooks)) {
-    return []
+  if (!('hooks' in obj)) return []
+  if (
+    obj.hooks === null ||
+    typeof obj.hooks !== 'object' ||
+    Array.isArray(obj.hooks)
+  ) {
+    const received = describeSettingsValue(obj.hooks)
+    delete obj.hooks
+    return [
+      {
+        file: filePath,
+        path: 'hooks',
+        message: `"hooks" must be an object mapping event names to matcher arrays; received ${received}. This field was ignored.`,
+        severity: 'warning',
+        invalidValue: received,
+        docLink: 'https://code.claude.com/docs/en/hooks',
+      },
+    ]
   }
   const hooks = obj.hooks as Record<string, unknown>
   const warnings: ValidationError[] = []
   for (const eventName of Object.keys(hooks)) {
-    if (KNOWN_HOOK_EVENTS.has(eventName)) continue
-    delete hooks[eventName]
-    warnings.push({
-      file: filePath,
-      path: `hooks.${eventName}`,
-      message: `Unknown hook event "${eventName}" was ignored. Valid events: ${HOOK_EVENTS.join(', ')}`,
-      invalidValue: eventName,
-      docLink: 'https://code.claude.com/docs/en/hooks',
-    })
+    if (!KNOWN_HOOK_EVENTS.has(eventName)) {
+      delete hooks[eventName]
+      warnings.push({
+        file: filePath,
+        path: `hooks.${eventName}`,
+        message: `Unknown hook event "${eventName}" was ignored. Valid events: ${HOOK_EVENTS.join(', ')}`,
+        severity: 'warning',
+        invalidValue: eventName,
+        docLink: 'https://code.claude.com/docs/en/hooks',
+      })
+      continue
+    }
+    if (!Array.isArray(hooks[eventName])) {
+      const received = describeSettingsValue(hooks[eventName])
+      delete hooks[eventName]
+      warnings.push({
+        file: filePath,
+        path: `hooks.${eventName}`,
+        message: `Hook event "${eventName}" must be an array of matchers; received ${received}. This entry was ignored.`,
+        severity: 'warning',
+        invalidValue: received,
+        docLink: 'https://code.claude.com/docs/en/hooks',
+      })
+    }
   }
   if (warnings.length > 0 && Object.keys(hooks).length === 0) {
     delete obj.hooks

@@ -221,6 +221,15 @@ export async function getAnthropicClient({
     )
     const { value: existingAuthorization, rest: headersWithoutAuth } =
       splitAuthorizationHeader(ARGS.defaultHeaders)
+    // 122: raw ANTHROPIC_BEDROCK_SERVICE_TIER (default/flex/priority) →
+    // product X-Amzn-Bedrock-Service-Tier. Do not vendor-dump AWS smithy shapes.
+    const bedrockServiceTier = process.env.ANTHROPIC_BEDROCK_SERVICE_TIER
+    const bedrockHeaders = bedrockServiceTier
+      ? {
+          ...headersWithoutAuth,
+          'X-Amzn-Bedrock-Service-Tier': bedrockServiceTier,
+        }
+      : headersWithoutAuth
     const authorization = process.env.AWS_BEARER_TOKEN_BEDROCK
       ? `Bearer ${process.env.AWS_BEARER_TOKEN_BEDROCK}`
       : skipBedrockAuth
@@ -238,14 +247,14 @@ export async function getAnthropicClient({
       // SigV4 must sign a clean header set. In particular, custom
       // Authorization headers from ANTHROPIC_CUSTOM_HEADERS must not reach
       // the signer, and the base SDK must not synthesize an API key header.
-      defaultHeaders: headersWithoutAuth,
+      defaultHeaders: bedrockHeaders,
       awsRegion,
       apiKey: null,
       ...(skipBedrockAuth && !authorization && { skipAuth: true }),
       ...(authorization && {
         apiKey: authorization.match(/^Bearer (.+)$/i)?.[1] ?? authorization,
         defaultHeaders: {
-          ...headersWithoutAuth,
+          ...bedrockHeaders,
           Authorization: authorization,
         },
       }),

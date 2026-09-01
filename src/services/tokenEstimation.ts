@@ -164,10 +164,10 @@ export async function countMessagesTokensWithAPI(
         source: 'count_tokens',
       })
 
-      const filteredBetas =
-        getAPIProviderForModel(model) === 'vertex'
-          ? betas.filter(b => VERTEX_COUNT_TOKENS_ALLOWED_BETAS.has(b))
-          : betas
+      // 122: always filter — Vertex count_tokens 400 behind proxy when extra betas leak.
+      const filteredBetas = betas.filter(b =>
+        VERTEX_COUNT_TOKENS_ALLOWED_BETAS.has(b),
+      )
 
       const response = await anthropic.beta.messages.countTokens({
         model: normalizeModelStringForAPI(model),
@@ -292,12 +292,10 @@ export async function countTokensViaHaikuFallback(
       : [{ role: 'user', content: 'count' }]
 
   const betas = getModelBetas(model)
-  // Filter betas for Vertex - some betas (like web-search) cause 400 errors
-  // on certain Vertex endpoints. See issue #10789.
-  const filteredBetas =
-    getAPIProviderForModel(model) === 'vertex'
-      ? betas.filter(b => VERTEX_COUNT_TOKENS_ALLOWED_BETAS.has(b))
-      : betas
+  // 122: always filter — same allowlist as countTokens (proxy 400).
+  const filteredBetas = betas.filter(b =>
+    VERTEX_COUNT_TOKENS_ALLOWED_BETAS.has(b),
+  )
 
   // biome-ignore lint/plugin: token counting needs specialized parameters (thinking, betas) that sideQuery doesn't support
   const response = await anthropic.beta.messages.create({

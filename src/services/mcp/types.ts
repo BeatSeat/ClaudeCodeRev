@@ -247,6 +247,13 @@ export type MCPServerConnection =
   | DisabledMCPServer
 
 // Resource types
+/** Claude.ai connector hidden in /mcp because a same-URL manual/plugin server won. Official 122. */
+export type SuppressedClaudeAiConnector = {
+  name: string
+  duplicateOf: string
+  duplicateOfScope?: ConfigScope
+}
+
 export type ServerResource = Resource & { server: string }
 
 export type ServerResourceTemplate = {

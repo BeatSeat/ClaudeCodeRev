@@ -138,20 +138,34 @@ export async function createBedrockRuntimeClient() {
   return new BedrockRuntimeClient(clientConfig)
 }
 
+/** Official 2.1.122 `F$.inferenceProfileBackingModels` — sync cache for F7. */
+const inferenceProfileBackingModels = new Map<string, string | null>()
+
+export function getCachedInferenceProfileBackingModel(
+  profileId: string,
+): string | null | undefined {
+  return inferenceProfileBackingModels.get(profileId)
+}
+
 export const getInferenceProfileBackingModel = memoize(async function (
   profileId: string,
 ): Promise<string | null> {
+  const cacheKey = profileId.replace(/\[(1|2)m\]/gi, '')
+  let backing: string | null = null
   try {
     const [client, { GetInferenceProfileCommand }] = await Promise.all([
       createBedrockClient(),
       import('@aws-sdk/client-bedrock'),
     ])
     const command = new GetInferenceProfileCommand({
-      inferenceProfileIdentifier: profileId,
+      inferenceProfileIdentifier: cacheKey,
     })
-    const response = await client.send(command)
+    const response = await client.send(command, {
+      abortSignal: AbortSignal.timeout(8000),
+    })
 
     if (!response.models || response.models.length === 0) {
+      inferenceProfileBackingModels.set(cacheKey, null)
       return null
     }
 
@@ -160,20 +174,24 @@ export const getInferenceProfileBackingModel = memoize(async function (
     // similar models with the same cost structure
     const primaryModel = response.models[0]
     if (!primaryModel?.modelArn) {
+      inferenceProfileBackingModels.set(cacheKey, null)
       return null
     }
 
     // Extract model name from ARN
     // ARN format: arn:aws:bedrock:region:account:foundation-model/model-name
     const lastSlashIndex = primaryModel.modelArn.lastIndexOf('/')
-    return lastSlashIndex >= 0
-      ? primaryModel.modelArn.substring(lastSlashIndex + 1)
-      : primaryModel.modelArn
+    backing =
+      lastSlashIndex >= 0
+        ? primaryModel.modelArn.substring(lastSlashIndex + 1)
+        : primaryModel.modelArn
   } catch (error) {
     logError(error as Error)
-    return null
+    backing = null
   }
-})
+  inferenceProfileBackingModels.set(cacheKey, backing)
+  return backing
+}, (profileId: string) => profileId.replace(/\[(1|2)m\]/gi, ''))
 
 /**
  * Check if a model ID is a foundation model (e.g., "anthropic.claude-sonnet-4-5-20250929-v1:0")

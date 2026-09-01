@@ -376,6 +376,14 @@ export function buildAPIProviderProperties(): Property[] {
       value: getAWSRegion(),
     })
 
+    const bedrockServiceTier = process.env.ANTHROPIC_BEDROCK_SERVICE_TIER
+    if (bedrockServiceTier) {
+      properties.push({
+        label: 'Bedrock service tier',
+        value: bedrockServiceTier,
+      })
+    }
+
     if (isEnvTruthy(process.env.CLAUDE_CODE_SKIP_BEDROCK_AUTH)) {
       properties.push({
         value: 'AWS auth skipped',

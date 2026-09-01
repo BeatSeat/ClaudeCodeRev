@@ -135,8 +135,12 @@ export function MCPSettings({ onComplete }: Props): React.ReactNode {
       return
     }
 
-    // Only show "no servers" message if no regular servers AND no agent servers
-    if (servers.length === 0 && agentMcpServers.length === 0) {
+    // Only show "no servers" if no regular, agent, or same-URL-hidden connectors
+    if (
+      servers.length === 0 &&
+      agentMcpServers.length === 0 &&
+      (mcp.suppressedClaudeAiConnectors?.length ?? 0) === 0
+    ) {
       onComplete(
         'No MCP servers configured. Please run /doctor if this is unexpected. Otherwise, run `claude mcp --help` or visit https://code.claude.com/docs/en/mcp to learn more.',
       )
@@ -145,6 +149,7 @@ export function MCPSettings({ onComplete }: Props): React.ReactNode {
     servers.length,
     filteredClients.length,
     agentMcpServers.length,
+    mcp.suppressedClaudeAiConnectors,
     onComplete,
   ])
 
@@ -153,6 +158,7 @@ export function MCPSettings({ onComplete }: Props): React.ReactNode {
       return (
         <MCPListPanel
           servers={servers}
+          suppressedClaudeAiConnectors={mcp.suppressedClaudeAiConnectors}
           agentServers={agentMcpServers}
           onSelectServer={server =>
             setViewState({ type: 'server-menu', server })

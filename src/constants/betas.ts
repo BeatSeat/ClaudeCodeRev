@@ -1,4 +1,5 @@
 import { feature } from 'bun:bundle'
+import { OAUTH_BETA_HEADER } from './oauth.js'
 
 export const CLAUDE_CODE_20250219_BETA_HEADER = 'claude-code-20250219'
 export const INTERLEAVED_THINKING_BETA_HEADER =
@@ -42,11 +43,13 @@ export const BEDROCK_EXTRA_PARAMS_HEADERS = new Set([
 ])
 
 /**
- * Betas allowed on Vertex countTokens API.
- * Other betas will cause 400 errors.
+ * Betas allowed on countTokens. 122 always filters (not Vertex-only) so a
+ * proxy in front of Vertex does not 400 on unknown betas. Includes
+ * oauth-2025-04-20 (122 WB8).
  */
 export const VERTEX_COUNT_TOKENS_ALLOWED_BETAS = new Set([
   CLAUDE_CODE_20250219_BETA_HEADER,
   INTERLEAVED_THINKING_BETA_HEADER,
   CONTEXT_MANAGEMENT_BETA_HEADER,
+  OAUTH_BETA_HEADER,
 ])

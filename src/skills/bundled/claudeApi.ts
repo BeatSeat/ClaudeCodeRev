@@ -1,4 +1,5 @@
 import { readdir } from 'fs/promises'
+import { logEvent } from '../../services/analytics/index.js'
 import { getCwd } from '../../utils/cwd.js'
 import { registerBundledSkill } from '../bundledSkills.js'
 
@@ -192,6 +193,16 @@ export function registerClaudeApiSkill(): void {
     async getPromptForCommand(args) {
       const content = await import('./claudeApiContent.js')
       const lang = await detectLanguage()
+      const first = args.trim().toLowerCase().split(/\s+/)[0] ?? ''
+      const subcommand =
+        first === 'migrate' || first === 'managed-agents-onboard'
+          ? first
+          : 'none'
+      logEvent('tengu_claude_api_skill_loaded', {
+        detected_lang: lang ?? 'none',
+        subcommand,
+        has_args: args.trim().length > 0,
+      })
       const prompt = buildPrompt(lang, args, content)
       return [{ type: 'text', text: prompt }]
     },

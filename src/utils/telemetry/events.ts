@@ -20,7 +20,7 @@ export function redactIfDisabled(content: string): string {
 
 export async function logOTelEvent(
   eventName: string,
-  metadata: { [key: string]: string | undefined } = {},
+  metadata: { [key: string]: string | number | boolean | undefined } = {},
 ): Promise<void> {
   const eventLogger = getEventLogger()
   if (!eventLogger) {
@@ -60,7 +60,8 @@ export async function logOTelEvent(
     attributes['workspace.host_paths'] = workspaceDir.split('|')
   }
 
-  // Add metadata as attributes - all values are already strings
+  // Add metadata as attributes. 122 api_request/api_error emit raw numbers
+  // (tokens/cost/duration/status_code) instead of String() wraps.
   for (const [key, value] of Object.entries(metadata)) {
     if (value !== undefined) {
       attributes[key] = value
@@ -71,5 +72,16 @@ export async function logOTelEvent(
   eventLogger.emit({
     body: `claude_code.${eventName}`,
     attributes,
+  })
+}
+
+/** Official 2.1.122 `uk`: OTEL `claude_code.at_mention`. */
+export function logOTelAtMention(params: {
+  mentionType: string
+  success: boolean
+}): void {
+  void logOTelEvent('at_mention', {
+    mention_type: params.mentionType,
+    success: String(params.success),
   })
 }

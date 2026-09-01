@@ -44,6 +44,7 @@ import {
   getTurnOutputTokens,
 } from '../bootstrap/state.js'
 
+import { hasExcludeDefaultSpinnerTips } from '../services/tips/tipRegistry.js'
 import { TeammateSpinnerTree } from './Spinner/TeammateSpinnerTree.js'
 import { useAnimationFrame } from '../ink.js'
 import { getGlobalConfig } from '../utils/config.js'
@@ -342,11 +343,13 @@ function SpinnerWithVerbInner({
 
   const effectiveTip = contextTipsActive
     ? undefined
-    : showClearTip && !nextTask
-      ? 'Use /clear to start fresh when switching topics and free up context'
-      : showBtwTip && !nextTask
-        ? "Use /btw to ask a quick side question without interrupting Claude's current work"
-        : spinnerTip
+    : hasExcludeDefaultSpinnerTips(settings.spinnerTipsOverride)
+      ? spinnerTip
+      : showClearTip && !nextTask
+        ? 'Use /clear to start fresh when switching topics and free up context'
+        : showBtwTip && !nextTask
+          ? "Use /btw to ask a quick side question without interrupting Claude's current work"
+          : spinnerTip
 
   // Budget text (ant-only) — shown above the tip line
   let budgetText: string | null = null

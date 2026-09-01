@@ -1,7 +1,15 @@
-import { feature } from 'bun:bundle'
 import type { Command } from '../commands.js'
 import { maybeMarkProjectOnboardingComplete } from '../projectOnboardingState.js'
+import { getFeatureValue_CACHED_MAY_BE_STALE } from '../services/analytics/growthbook.js'
 import { isEnvTruthy } from '../utils/envUtils.js'
+
+/** 122 `Vr7` — env or GB `tengu_new_init` (default-false). */
+function isNewInitEnabled(): boolean {
+  return (
+    isEnvTruthy(process.env.CLAUDE_CODE_NEW_INIT) ||
+    getFeatureValue_CACHED_MAY_BE_STALE('tengu_new_init', false)
+  )
+}
 
 const OLD_INIT_PROMPT = `Please analyze this codebase and create a CLAUDE.md file, which will be given to future instances of Claude Code to operate in this repository.
 
@@ -227,9 +235,7 @@ const command = {
   type: 'prompt',
   name: 'init',
   get description() {
-    return feature('NEW_INIT') &&
-      (process.env.USER_TYPE === 'ant' ||
-        isEnvTruthy(process.env.CLAUDE_CODE_NEW_INIT))
+    return isNewInitEnabled()
       ? 'Initialize new CLAUDE.md file(s) and optional skills/hooks with codebase documentation'
       : 'Initialize a new CLAUDE.md file with codebase documentation'
   },
@@ -243,11 +249,7 @@ const command = {
       {
         type: 'text',
         text:
-          feature('NEW_INIT') &&
-          (process.env.USER_TYPE === 'ant' ||
-            isEnvTruthy(process.env.CLAUDE_CODE_NEW_INIT))
-            ? NEW_INIT_PROMPT
-            : OLD_INIT_PROMPT,
+          isNewInitEnabled() ? NEW_INIT_PROMPT : OLD_INIT_PROMPT,
       },
     ]
   },

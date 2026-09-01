@@ -67,10 +67,7 @@ import {
   restoreDangerousPermissions,
   stripDangerousPermissionsForAutoMode,
 } from '../../../utils/permissions/permissionSetup.js'
-import {
-  getPewterLedgerVariant,
-  isPlanModeInterviewPhaseEnabled,
-} from '../../../utils/planModeV2.js'
+import { isPlanModeInterviewPhaseEnabled } from '../../../utils/planModeV2.js'
 import { getPlan, getPlanFilePath } from '../../../utils/plans.js'
 import {
   editFileInEditor,
@@ -309,16 +306,6 @@ export function ExitPlanModePermissionRequest({
   const rawPlan = inputPlan ?? getPlan()
   const isEmpty = !rawPlan || rawPlan.trim() === ''
 
-  // Capture the variant once on mount. GrowthBook reads from a disk cache
-  // so the value is stable across a single planning session. undefined =
-  // control arm. The variant is a fixed 3-value enum of short literals,
-  // not user input.
-  const [planStructureVariant] = useState(
-    () =>
-      (getPewterLedgerVariant() ??
-        undefined) as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-  )
-
   const [currentPlan, setCurrentPlan] = useState(() => {
     if (inputPlan) return inputPlan
     const plan = getPlan()
@@ -404,7 +391,6 @@ export function ExitPlanModePermissionRequest({
         outcome:
           'ultraplan' as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
         interviewPhaseEnabled: isPlanModeInterviewPhaseEnabled(),
-        planStructureVariant,
       })
       onDone()
       onReject()
@@ -495,7 +481,6 @@ export function ExitPlanModePermissionRequest({
           value as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
         clearContext: true,
         interviewPhaseEnabled: isPlanModeInterviewPhaseEnabled(),
-        planStructureVariant,
         hasFeedback: !!acceptFeedback,
       })
 
@@ -557,7 +542,6 @@ export function ExitPlanModePermissionRequest({
           value as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
         clearContext: false,
         interviewPhaseEnabled: isPlanModeInterviewPhaseEnabled(),
-        planStructureVariant,
         hasFeedback: !!acceptFeedback,
       })
       setHasExitedPlanMode(true)
@@ -599,7 +583,6 @@ export function ExitPlanModePermissionRequest({
           value as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
         clearContext: false,
         interviewPhaseEnabled: isPlanModeInterviewPhaseEnabled(),
-        planStructureVariant,
         hasFeedback: !!acceptFeedback,
       })
       setHasExitedPlanMode(true)
@@ -625,7 +608,6 @@ export function ExitPlanModePermissionRequest({
         outcome:
           value as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
         interviewPhaseEnabled: isPlanModeInterviewPhaseEnabled(),
-        planStructureVariant,
         hasFeedback: !!acceptFeedback,
       })
       setHasExitedPlanMode(true)
@@ -651,7 +633,6 @@ export function ExitPlanModePermissionRequest({
         outcome:
           'no' as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
         interviewPhaseEnabled: isPlanModeInterviewPhaseEnabled(),
-        planStructureVariant,
       })
 
       // Convert pasted images to ImageBlockParam[] with resizing
@@ -701,7 +682,6 @@ export function ExitPlanModePermissionRequest({
       outcome:
         'no' as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
       interviewPhaseEnabled: isPlanModeInterviewPhaseEnabled(),
-      planStructureVariant,
     })
     onDone()
     onReject()
@@ -773,7 +753,6 @@ export function ExitPlanModePermissionRequest({
           outcome:
             'yes-default' as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
           interviewPhaseEnabled: isPlanModeInterviewPhaseEnabled(),
-          planStructureVariant,
         })
         if (feature('TRANSCRIPT_CLASSIFIER')) {
           const autoWasUsedDuringPlan =
@@ -802,7 +781,6 @@ export function ExitPlanModePermissionRequest({
           outcome:
             'no' as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
           interviewPhaseEnabled: isPlanModeInterviewPhaseEnabled(),
-          planStructureVariant,
         })
         onDone()
         onReject()
@@ -831,7 +809,6 @@ export function ExitPlanModePermissionRequest({
                   outcome:
                     'no' as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
                   interviewPhaseEnabled: isPlanModeInterviewPhaseEnabled(),
-                  planStructureVariant,
                 })
                 onDone()
                 onReject()

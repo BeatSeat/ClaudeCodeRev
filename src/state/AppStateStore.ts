@@ -8,6 +8,7 @@ import type {
   MCPServerConnection,
   ServerResource,
   ServerResourceTemplate,
+  SuppressedClaudeAiConnector,
 } from '../services/mcp/types.js'
 import { isAwaySummaryEnabled } from '../services/awaySummary.js'
 import { shouldEnablePromptSuggestion } from '../services/PromptSuggestion/promptSuggestion.js'
@@ -194,6 +195,8 @@ export type AppState = DeepImmutable<{
     commands: Command[]
     resources: Record<string, ServerResource[]>
     resourceTemplates: Record<string, ServerResourceTemplate[]>
+    /** Official 122 — same-URL claude.ai connectors shown as hidden in /mcp. */
+    suppressedClaudeAiConnectors: SuppressedClaudeAiConnector[]
     /**
      * Incremented by /reload-plugins to trigger MCP effects to re-run
      * and pick up newly-enabled plugin MCP servers. Effects read this
@@ -544,6 +547,7 @@ export function getDefaultAppState(): AppState {
       commands: [],
       resources: {},
       resourceTemplates: {},
+      suppressedClaudeAiConnectors: [],
       pluginReconnectKey: 0,
     },
     plugins: {

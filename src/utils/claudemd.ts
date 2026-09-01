@@ -976,17 +976,34 @@ export const getMemoryFiles = memoize(
       }
     }
 
-    // Memdir entrypoint (memory.md) - only if feature is on and file exists
+    // Memdir entrypoint (memory.md) - only if feature is on and file exists.
+    // 122: CLAUDE_COWORK_MEMORY_INDEX_CONTENT="" skips; set uses env body;
+    // unset falls back to disk. Drops 121 CLAUDE_COWORK_MEMORY_SKIP_DEFAULT_ENTRYPOINT.
     if (isAutoMemoryEnabled()) {
-      const { info: memdirEntry } = await safelyReadMemoryFileAsync(
-        getAutoMemEntrypoint(),
-        'AutoMem',
-      )
-      if (memdirEntry) {
-        const normalizedPath = normalizePathForComparison(memdirEntry.path)
-        if (!processedPaths.has(normalizedPath)) {
-          processedPaths.add(normalizedPath)
-          result.push(memdirEntry)
+      const indexContent = process.env.CLAUDE_COWORK_MEMORY_INDEX_CONTENT
+      if (indexContent !== '') {
+        let memdirEntry: MemoryFileInfo | null
+        if (indexContent !== undefined) {
+          const { content } = truncateEntrypointContent(indexContent)
+          memdirEntry = {
+            path: getAutoMemEntrypoint(),
+            type: 'AutoMem',
+            content,
+            contentDiffersFromDisk: true,
+            rawContent: indexContent,
+          }
+        } else {
+          ;({ info: memdirEntry } = await safelyReadMemoryFileAsync(
+            getAutoMemEntrypoint(),
+            'AutoMem',
+          ))
+        }
+        if (memdirEntry) {
+          const normalizedPath = normalizePathForComparison(memdirEntry.path)
+          if (!processedPaths.has(normalizedPath)) {
+            processedPaths.add(normalizedPath)
+            result.push(memdirEntry)
+          }
         }
       }
     }

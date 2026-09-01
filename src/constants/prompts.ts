@@ -44,7 +44,7 @@ import {
   isScratchpadEnabled,
   getScratchpadDir,
 } from '../utils/permissions/filesystem.js'
-import { isEnvTruthy } from '../utils/envUtils.js'
+import { isEnvDefinedFalsy, isEnvTruthy } from '../utils/envUtils.js'
 import { isReplModeEnabled } from '../tools/REPLTool/constants.js'
 import { feature } from 'bun:bundle'
 import { getFeatureValue_CACHED_MAY_BE_STALE } from 'src/services/analytics/growthbook.js'
@@ -255,7 +255,35 @@ function getSimpleDoingTasksSection(): string {
   return [`# Doing tasks`, ...prependBullets(items)].join(`\n`)
 }
 
-function getActionsSection(): string {
+type InvestigateFirstMode = 'additive' | 'compact' | 'off'
+
+/** 122 `TS6` — opus-4-7 only; env then GB `tengu_slate_harrier` default-off. */
+function getInvestigateFirstMode(model: string): InvestigateFirstMode {
+  if (!model || getCanonicalName(model) !== 'claude-opus-4-7') return 'off'
+  const env = process.env.CLAUDE_CODE_INVESTIGATE_FIRST
+  if (env === 'additive' || env === 'compact') return env
+  if (isEnvTruthy(env)) return 'additive'
+  if (env === 'off' || isEnvDefinedFalsy(env)) return 'off'
+  const gb = getFeatureValue_CACHED_MAY_BE_STALE<string>(
+    'tengu_slate_harrier',
+    'off',
+  )
+  return gb === 'additive' || gb === 'compact' ? gb : 'off'
+}
+
+/** 122 `zw5` */
+function getInvestigateFirstSection(model: string): string | null {
+  if (getInvestigateFirstMode(model) === 'off') return null
+  return 'Asking the user a clarifying question has a cost: it interrupts them, and often they could have answered it themselves with a grep. Before asking, spend up to a minute on read-only investigation (grep the codebase, check docs, search memory) so your question is specific. "I found tunnels X and Y in the config — which one?" beats "what tunnel?"'
+}
+
+function getActionsSection(model: string): string {
+  // 122 `UD5` compact arm when investigate-first is compact.
+  if (getInvestigateFirstMode(model) === 'compact') {
+    return `# Executing actions with care
+
+Read, search, and investigate freely — looking is not acting. For actions that are hard to reverse, affect shared systems, or are otherwise risky (deleting data, force-pushing, sending messages, modifying shared infrastructure), confirm with the user before proceeding unless durably authorized. Approval in one context doesn't extend to the next.`
+  }
   return `# Executing actions with care
 
 Carefully consider the reversibility and blast radius of actions. Generally you can freely take local, reversible actions like editing files or running tests. But for actions that are hard to reverse, affect shared systems beyond your local environment, or could otherwise be risky or destructive, check with the user before proceeding. The cost of pausing to confirm is low, while the cost of an unwanted action (lost work, unintended messages sent, deleted branches) can be very high. For actions like these, consider the context, the action, and user instructions, and by default transparently communicate the action and ask for confirmation before proceeding. This default can be changed by user instructions - if explicitly asked to operate more autonomously, then you may proceed without confirmation, but still attend to the risks and consequences when taking actions. A user approving an action (like a git push) once does NOT mean that they approve it in all contexts, so unless actions are authorized in advance in durable instructions like CLAUDE.md files, always confirm first. Authorization stands for the scope specified, not beyond. Match the scope of your actions to what was actually requested.
@@ -471,6 +499,10 @@ ${CYBER_RISK_INSTRUCTION}`,
     // Official 2.1.107 NeY — after anti_verbosity (still ember-gated in
     // 100/108; do not pull 108's later heading), before session_guidance.
     // Null when FH7/loud_sugary_rock is off.
+    systemPromptSection(
+      `investigate_first:${getInvestigateFirstMode(model)}`,
+      () => getInvestigateFirstSection(model),
+    ),
     systemPromptSection('thinking_guidance', () =>
       getThinkingGuidanceSection(model),
     ),
@@ -557,7 +589,7 @@ ${CYBER_RISK_INSTRUCTION}`,
     outputStyleConfig.keepCodingInstructions === true
       ? getSimpleDoingTasksSection()
       : null,
-    getActionsSection(),
+    getActionsSection(model),
     getUsingYourToolsSection(enabledTools),
     getSimpleToneAndStyleSection(),
     // Official 2.1.100 dropped static gnY (# Output efficiency / ant-only
