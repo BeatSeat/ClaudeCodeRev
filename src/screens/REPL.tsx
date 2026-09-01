@@ -833,31 +833,6 @@ const TITLE_ANIMATION_FRAMES = ['⠂', '⠐']
 const TITLE_STATIC_PREFIX = '✳'
 const TITLE_ANIMATION_INTERVAL_MS = 960
 
-// Official 2.1.101 five-stage sequence. Later versions retain the copy but
-// shorten the delays; keep the 2.1.101 timings for this restoration hop.
-const THINKING_ENCOURAGEMENT = [
-  {
-    afterMs: 30_000,
-    text: 'Thinking a bit longer… still working on it…',
-  },
-  {
-    afterMs: 60_000,
-    text: 'Hang tight… really working through this one…',
-  },
-  {
-    afterMs: 90_000,
-    text: 'This is a harder one… it might take another minute…',
-  },
-  {
-    afterMs: 150_000,
-    text: 'Still going… thanks for hanging in there…',
-  },
-  {
-    afterMs: 240_000,
-    text: 'Taking the time to get this right… thanks for your patience…',
-  },
-]
-
 /**
  * Sets the terminal tab title, with an animated prefix glyph while a query
  * is running. Isolated from REPL so the 960ms animation tick re-renders only
@@ -2253,21 +2228,6 @@ export function REPL({
       return () => clearTimeout(timer)
     }
   }, [toolPermissionContext.mode, setMessages])
-
-  const [thinkingEncouragementIndex, setThinkingEncouragementIndex] =
-    useState(-1)
-  useEffect(() => {
-    if (streamMode !== 'thinking' || !isLoading) {
-      setThinkingEncouragementIndex(-1)
-      return
-    }
-    const timers = THINKING_ENCOURAGEMENT.map((step, i) =>
-      setTimeout(setThinkingEncouragementIndex, step.afterMs, i),
-    )
-    return () => {
-      for (const timer of timers) clearTimeout(timer)
-    }
-  }, [streamMode, isLoading])
 
   // If worktree creation was slow and sparse-checkout isn't configured,
   // nudge the user toward settings.worktree.sparsePaths.
@@ -6287,6 +6247,8 @@ export function REPL({
                 streamingText={
                   isLoading && !viewedAgentTask ? visibleStreamingText : null
                 }
+                showThinkingHint={!viewedAgentTask}
+                isThinking={streamMode === 'thinking'}
                 isBriefOnly={viewedAgentTask ? false : isBriefOnly}
                 unseenDivider={viewedAgentTask ? undefined : unseenDivider}
                 scrollRef={isFullscreenEnvEnabled() ? scrollRef : undefined}
@@ -6308,16 +6270,6 @@ export function REPL({
                   verbose={verbose}
                 />
               )}
-              {showSpinner &&
-                thinkingEncouragementIndex >= 0 &&
-                streamMode === 'thinking' && (
-                  <Box marginTop={1} paddingLeft={2}>
-                    <Text dimColor>
-                      {figures.pointerSmall}{' '}
-                      {THINKING_ENCOURAGEMENT[thinkingEncouragementIndex]?.text}
-                    </Text>
-                  </Box>
-                )}
               {toolJSX &&
                 !(toolJSX.isLocalJSXCommand && toolJSX.isImmediate) &&
                 !toolJsxCentered && (
