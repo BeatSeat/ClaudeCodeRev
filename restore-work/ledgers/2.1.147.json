@@ -35,28 +35,5 @@
       "evidence": "No 146→147 unique product string. Default-false GB (chert_bezel, marble_lark, rename_full_session_fork) not landed."
     }
   ],
-  "notes": "Ast-only: DfA CLAUDE_BG_MEMORY_TOGGLED_OFF consume+strip; CLAUDE_BRIDGE_REATTACH_OUTBOUND_ONLY REPL flags + delete. Spawn writers deferred with fC4. Four-domain review PASS.",
-  "astdiff": {
-    "version": "2.1.147",
-    "from": "2.1.146",
-    "from_bundle": "/root/projects/ClaudeCodeRev/restore-work/artifacts/cometix/2.1.146/cli.js",
-    "to_bundle": "/root/projects/ClaudeCodeRev/restore-work/artifacts/cometix/2.1.147/cli.js",
-    "from_sha256": "538bdd13b939b0d31f716401f4a383a658d45fadfa4ca1fa9d7a7bfb718e9ba1",
-    "to_sha256": "3a81815aee342811c998bebc7c6ca0e4ad8082b5711be90f5ed194b0904c0f8a",
-    "method": "astdiff-v0.2.0+tree-sitter0.25",
-    "parser": "tree-sitter 0.25 / tree-sitter-javascript 0.25",
-    "similarity": 99.3,
-    "matched_declarations": 23687,
-    "total_declarations_from": 23747,
-    "total_declarations_to": 23851,
-    "change_total": 10265,
-    "added": 164,
-    "removed": 60,
-    "structural": 10013,
-    "string_only": 28,
-    "command": "astdiff /root/projects/ClaudeCodeRev/restore-work/artifacts/cometix/2.1.146/cli.js /root/projects/ClaudeCodeRev/restore-work/artifacts/cometix/2.1.147/cli.js --format json",
-    "full_json": "/root/projects/Zhiman/projects/ccr-swarm/integration/astdiff-full/using/2.1.147.json",
-    "elapsed_seconds": 14.4,
-    "generated_at": "2026-11-14T15:06:31Z"
-  }
+  "notes": "Ast-only: DfA CLAUDE_BG_MEMORY_TOGGLED_OFF consume+strip; CLAUDE_BRIDGE_REATTACH_OUTBOUND_ONLY REPL flags + delete. Spawn writers deferred with fC4. Four-domain review PASS."
 }

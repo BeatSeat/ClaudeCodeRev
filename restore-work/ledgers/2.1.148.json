@@ -1,0 +1,37 @@
+{
+  "version": "2.1.148",
+  "fromVersion": "2.1.147",
+  "expectedFunctionCount": 0,
+  "functions": [],
+  "changelogCoverage": [
+    {
+      "item": "Bash tool exit code 127 regression from 2.1.147",
+      "status": "shared-logic",
+      "evidence": "astdiff similarity 1.0, 0 genuine, −212 B, 0 new unique tokens. Not invented."
+    }
+  ],
+  "notes": "NO_DELTA hop. Four-domain review PASS. Do not pull 149 product forward.",
+  "astdiff": {
+    "version": "2.1.148",
+    "from": "2.1.147",
+    "from_bundle": "/root/projects/ClaudeCodeRev/restore-work/artifacts/cometix/2.1.147/cli.js",
+    "to_bundle": "/root/projects/ClaudeCodeRev/restore-work/artifacts/cometix/2.1.148/cli.js",
+    "from_sha256": "3a81815aee342811c998bebc7c6ca0e4ad8082b5711be90f5ed194b0904c0f8a",
+    "to_sha256": "9922adafd123816ffa598068c6840993f02d381ea1f519fb8c1cc745c3a38268",
+    "method": "astdiff-v0.2.0+tree-sitter0.25",
+    "parser": "tree-sitter 0.25 / tree-sitter-javascript 0.25",
+    "similarity": 100.0,
+    "matched_declarations": 23851,
+    "total_declarations_from": 23851,
+    "total_declarations_to": 23851,
+    "change_total": 93,
+    "added": 0,
+    "removed": 0,
+    "structural": 0,
+    "string_only": 93,
+    "command": "astdiff /root/projects/ClaudeCodeRev/restore-work/artifacts/cometix/2.1.147/cli.js /root/projects/ClaudeCodeRev/restore-work/artifacts/cometix/2.1.148/cli.js --format json",
+    "full_json": "/root/projects/Zhiman/projects/ccr-swarm/integration/astdiff-full/using/2.1.148.json",
+    "elapsed_seconds": 12.9,
+    "generated_at": "2026-11-14T15:06:43Z"
+  }
+}
