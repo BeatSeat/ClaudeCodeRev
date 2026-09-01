@@ -12,6 +12,13 @@ import {
   type AutoCompactTrackingState,
 } from './services/compact/autoCompact.js'
 import { buildPostCompactMessages } from './services/compact/compact.js'
+import {
+  buildPrecomputedSwapMessages,
+  isReactiveFallbackEnabled,
+  shouldStartPrecomputedCompact,
+  startPrecomputedCompact,
+  tryPrecomputedSwap,
+} from './services/compact/precomputedCompact.js'
 /* eslint-disable @typescript-eslint/no-require-imports */
 const reactiveCompact = feature('REACTIVE_COMPACT')
   ? (require('./services/compact/reactiveCompact.js') as typeof import('./services/compact/reactiveCompact.js'))
@@ -569,6 +576,36 @@ async function* queryLoop(
         ...(tracking ?? { compacted: false, turnId: '', turnCounter: 0 }),
         consecutiveFailures,
       }
+    }
+
+    // Official 2.1.132 precomputed-compact scheduling (bundle `BsK`/`psK`):
+    // when the context is in the compact/blocked band and the reactive
+    // fallback is armed, kick off a background precomputed compact so a
+    // prompt-too-long can swap in a ready result instead of paying the full
+    // reactive-compact latency. Skipped when a compact just fired/failed.
+    if (
+      shouldStartPrecomputedCompact({
+        compactionResult,
+        consecutiveFailures,
+        hasAttemptedReactiveCompact,
+        lastTransitionReason: state.transition?.reason,
+        isReactiveFallbackEnabled: isReactiveFallbackEnabled(),
+        contextTokens:
+          tokenCountWithEstimation(messagesForQuery) - snipTokensFreed,
+        model: toolUseContext.options.mainLoopModel,
+      })
+    ) {
+      startPrecomputedCompact({
+        querySource,
+        messages: messagesForQuery,
+        cacheSafeParams: {
+          systemPrompt,
+          userContext,
+          systemContext,
+          toolUseContext,
+          forkContextMessages: messagesForQuery,
+        },
+      })
     }
 
     //TODO: no need to set toolUseContext.messages during set-up since it is updated here
@@ -1154,6 +1191,60 @@ async function* queryLoop(
         }
       }
       if ((isWithheld413 || isWithheldMedia) && reactiveCompact) {
+        // Official 2.1.132 precomputed-compact swap (bundle `UsK`): before the
+        // reactive fallback, try to swap in a ready precomputed compact so the
+        // PTL turn is covered without paying the full reactive-compact latency.
+        // The decision is gated on isWithheld413 (PTL) inside tryPrecomputedSwap,
+        // so media-error recovery falls straight through to reactive compact.
+        const { swap: precomputedSwap, emittedEarlyCompactStart } =
+          await tryPrecomputedSwap({
+            toolUseContext,
+            messages: messagesForQuery,
+            isWithheld413,
+            hasAttemptedReactiveCompact,
+            ptlDetectedAt: performance.now(),
+          })
+
+        if (precomputedSwap) {
+          // task_budget: same carryover as the reactive path below.
+          if (params.taskBudget) {
+            const preCompactContext =
+              finalContextTokensFromLastResponse(messagesForQuery)
+            taskBudgetRemaining = Math.max(
+              0,
+              (taskBudgetRemaining ?? params.taskBudget.total) -
+                preCompactContext,
+            )
+          }
+          const postCompactMessages = buildPrecomputedSwapMessages(
+            precomputedSwap,
+          )
+          for (const msg of postCompactMessages) {
+            yield msg
+          }
+          const next: State = {
+            messages: postCompactMessages,
+            toolUseContext,
+            autoCompactTracking: undefined,
+            maxOutputTokensRecoveryCount,
+            hasAttemptedReactiveCompact: true,
+            maxOutputTokensOverride: undefined,
+            pendingToolUseSummary: undefined,
+            stopHookActive: undefined,
+            turnCount,
+            transition: { reason: 'precomputed_compact_swap' },
+          }
+          state = next
+          continue
+        }
+
+        // No swap — close the early compact_start bracket (bundle `UsK` emits
+        // compact_end when the early start fired but no ready result swapped in).
+        if (emittedEarlyCompactStart) {
+          toolUseContext.onCompactProgress?.({ type: 'compact_end' })
+          toolUseContext.setSDKStatus?.(null)
+        }
+
         const compacted = await reactiveCompact.tryReactiveCompact({
           hasAttempted: hasAttemptedReactiveCompact,
           querySource,

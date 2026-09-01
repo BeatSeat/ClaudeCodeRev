@@ -115,6 +115,11 @@ export function _resetTmuxControlModeProbeForTesting(): void {
 export function isFullscreenEnvEnabled(): boolean {
   // Explicit user opt-out always wins.
   if (isEnvDefinedFalsy(process.env.CLAUDE_CODE_NO_FLICKER)) return false
+  // 2.1.132: CLAUDE_CODE_DISABLE_ALTERNATE_SCREEN=1 opts out of the
+  // fullscreen alt-screen renderer and keeps native scrollback (official
+  // We8(): v4(NO_FLICKER)||hH(DISABLE_ALTERNATE_SCREEN)).
+  if (isEnvTruthy(process.env.CLAUDE_CODE_DISABLE_ALTERNATE_SCREEN))
+    return false
   // Explicit opt-in overrides auto-detection (escape hatch).
   if (isEnvTruthy(process.env.CLAUDE_CODE_NO_FLICKER)) return true
   // Auto-disable under tmux -CC: alt-screen + mouse tracking corrupts
