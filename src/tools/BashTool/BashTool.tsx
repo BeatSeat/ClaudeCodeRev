@@ -41,6 +41,7 @@ import {
 import { extractClaudeCodeHints } from '../../utils/claudeCodeHints.js'
 import { detectCodeIndexingFromCommand } from '../../utils/codeIndexing.js'
 import { isEnvTruthy } from '../../utils/envUtils.js'
+import { getDisplayedEffortLevel } from '../../utils/effort.js'
 import { isENOENT, ShellError } from '../../utils/errors.js'
 import {
   detectFileEncoding,
@@ -1007,6 +1008,13 @@ export const BashTool = buildTool({
         toolUseId: toolUseContext.toolUseId,
         agentId: toolUseContext.agentId,
         sessionEnvVars: toolUseContext.sessionEnvVars,
+        getEffortValue: toolUseContext.getEffortValue
+          ? () =>
+              getDisplayedEffortLevel(
+                toolUseContext.options.mainLoopModel,
+                toolUseContext.getEffortValue?.(),
+              )
+          : undefined,
       })
 
       // Consume the generator and capture the return value
@@ -1259,6 +1267,7 @@ async function* runShellCommand({
   toolUseId,
   agentId,
   sessionEnvVars,
+  getEffortValue,
 }: {
   input: BashToolInput
   abortController: AbortController
@@ -1269,6 +1278,7 @@ async function* runShellCommand({
   toolUseId?: string
   agentId?: AgentId
   sessionEnvVars?: ReadonlyMap<string, string>
+  getEffortValue?: () => string | undefined
 }): AsyncGenerator<
   {
     type: 'progress'
@@ -1326,6 +1336,9 @@ async function* runShellCommand({
     shouldUseSandbox: shouldUseSandbox(input),
     shouldAutoBackground,
     sessionEnvVars,
+    extraEnv: getEffortValue
+      ? { CLAUDE_EFFORT: getEffortValue() ?? '' }
+      : undefined,
   })
 
   // Start the command execution

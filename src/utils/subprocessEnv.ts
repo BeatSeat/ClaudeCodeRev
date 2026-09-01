@@ -3,6 +3,10 @@ import { dirname, join } from 'path'
 import { getOriginalCwd } from '../bootstrap/state.js'
 import { uniq } from './array.js'
 import { isEnvTruthy } from './envUtils.js'
+import {
+  getManagedSandboxBwrapPath,
+  resolveSandboxBwrapPath,
+} from './sandbox/sandbox-adapter.js'
 import { whichSync } from './which.js'
 
 /**
@@ -158,7 +162,7 @@ export function isLinuxBwrapAvailable(): boolean {
   if (linuxBwrapCache !== undefined) {
     return linuxBwrapCache
   }
-  return process.platform === 'linux' && !!whichSync('bwrap')
+  return process.platform === 'linux' && resolveSandboxBwrapPath() !== null
 }
 
 export type ScrubSandboxFilesystemPolicy = {
@@ -256,7 +260,8 @@ export async function initSubprocessEnvScrubIsolation(): Promise<void> {
   }
   const home = homedir()
   const cwd = getOriginalCwd()
-  linuxBwrapCache = process.platform === 'linux' && !!whichSync('bwrap')
+  linuxBwrapCache =
+    process.platform === 'linux' && resolveSandboxBwrapPath() !== null
   isolationSnapshot = {
     home,
     originalCwd: cwd,
@@ -272,9 +277,12 @@ export async function initSubprocessEnvScrubIsolation(): Promise<void> {
   if (process.platform !== 'linux') {
     return
   }
-  if (!whichSync('bwrap')) {
+  if (resolveSandboxBwrapPath() === null) {
+    const managed = getManagedSandboxBwrapPath()
     throw new Error(
-      'bubblewrap is required for subprocess env scrubbing and isolation. Install with: sudo apt-get install -y bubblewrap, or set CLAUDE_CODE_SUBPROCESS_ENV_SCRUB=0 to disable (loses subprocess isolation).',
+      managed
+        ? `sandbox.bwrapPath is set to ${managed} but it is not an executable file. Fix the path in managed settings, or set CLAUDE_CODE_SUBPROCESS_ENV_SCRUB=0 to disable (loses subprocess isolation).`
+        : 'bubblewrap is required for subprocess env scrubbing and isolation. Install with: sudo apt-get install -y bubblewrap, set sandbox.bwrapPath in managed settings, or set CLAUDE_CODE_SUBPROCESS_ENV_SCRUB=0 to disable (loses subprocess isolation).',
     )
   }
   const { appendFile, mkdir, open } = await import('fs/promises')
