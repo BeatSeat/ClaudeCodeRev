@@ -214,6 +214,10 @@ import oauthRefresh from './commands/oauth-refresh/index.js'
 import debugToolCall from './commands/debug-tool-call/index.js'
 import { getSettingSourceName } from './utils/settings/constants.js'
 import {
+  isSkillDisabled,
+  isSkillHiddenFromModel,
+} from './utils/settings/skillOverrides.js'
+import {
   type Command,
   getCommandName,
   isCommandEnabled,
@@ -585,9 +589,9 @@ export const getSkillToolCommands = memoize(
     return allCommands.filter(
       cmd =>
         // Official 2.1.108 knY: builtins like /init /review are Skill-invocable.
-        // sh8 skillOverrides is a stub that always returns "on" — do not gate.
         cmd.type === 'prompt' &&
         !cmd.disableModelInvocation &&
+        !isSkillHiddenFromModel(cmd) &&
         (cmd.source === 'builtin' ||
           cmd.loadedFrom === 'bundled' ||
           cmd.loadedFrom === 'skills' ||
@@ -609,6 +613,7 @@ export const getSlashCommandToolSkills = memoize(
         cmd =>
           cmd.type === 'prompt' &&
           cmd.source !== 'builtin' &&
+          !isSkillDisabled(cmd) &&
           (cmd.hasUserSpecifiedDescription || cmd.whenToUse) &&
           (cmd.loadedFrom === 'skills' ||
             cmd.loadedFrom === 'plugin' ||

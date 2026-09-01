@@ -144,6 +144,7 @@ import {
   EFFORT_BETA_HEADER,
   FAST_MODE_BETA_HEADER,
   CACHE_DIAGNOSIS_BETA_HEADER,
+  EXTENDED_CACHE_TTL_BETA_HEADER,
   PROMPT_CACHING_SCOPE_BETA_HEADER,
   REDACT_THINKING_BETA_HEADER,
   STRUCTURED_OUTPUTS_BETA_HEADER,
@@ -1617,6 +1618,7 @@ async function* queryModel(
         ? [
             ...getBedrockExtraBodyParamsBetas(retryContext.model),
             ...(toolSearchHeader ? [toolSearchHeader] : []),
+            ...(cacheTtl === '1h' ? [EXTENDED_CACHE_TTL_BETA_HEADER] : []),
           ]
         : []
     const extraBodyParams = getExtraBodyParams(bedrockBetas)
@@ -1772,6 +1774,17 @@ async function* queryModel(
       !betasParams.includes(CACHE_DIAGNOSIS_BETA_HEADER)
     ) {
       betasParams.push(CACHE_DIAGNOSIS_BETA_HEADER)
+    }
+
+    // Official 2.1.129: a 1h cache_control ttl is silently downgraded to 5
+    // minutes unless this beta rides along. Bedrock takes it through
+    // extraBodyParams (bedrockBetas above) instead of the betas array.
+    if (
+      cacheTtl === '1h' &&
+      getAPIProvider() !== 'bedrock' &&
+      !betasParams.includes(EXTENDED_CACHE_TTL_BETA_HEADER)
+    ) {
+      betasParams.push(EXTENDED_CACHE_TTL_BETA_HEADER)
     }
 
     // Only send temperature when thinking is disabled — the API requires
@@ -2378,6 +2391,7 @@ async function* queryModel(
               partialMessage && 'stop_details' in partialMessage
                 ? partialMessage.stop_details
                 : undefined,
+              streamRequestId ?? undefined,
             )
             if (refusalMessage) {
               yield refusalMessage

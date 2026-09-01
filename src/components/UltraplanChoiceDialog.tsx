@@ -30,6 +30,7 @@ type Props = {
   readFileState: FileStateCache
   getAppState: () => AppState
   setConversationId: (id: `${string}-${string}-${string}-${string}-${string}`) => void
+  resetTerminalTitle?: () => void
 }
 
 const MAX_PREVIEW_ROWS = 24
@@ -44,6 +45,7 @@ export function UltraplanChoiceDialog({
   readFileState,
   getAppState,
   setConversationId,
+  resetTerminalTitle,
 }: Props): React.ReactNode {
   const setAppState = useSetAppState()
   const { rows, columns } = useTerminalSize()
@@ -130,6 +132,7 @@ export function UltraplanChoiceDialog({
           setAppState,
           setConversationId,
         })
+        resetTerminalTitle?.()
         if (saved) {
           setMessages(prev => [
             ...prev,

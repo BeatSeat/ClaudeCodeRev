@@ -71,7 +71,7 @@ type Props = {
   debug: boolean
   verbose: boolean
   messages: Message[]
-  onAutoUpdaterResult: (result: AutoUpdaterResult) => void
+  onAutoUpdaterResult: (result: AutoUpdaterResult | null) => void
   onChangeIsUpdating: (isUpdating: boolean) => void
   ideSelection: IDESelection | undefined
   mcpClients?: MCPServerConnection[]
@@ -275,7 +275,7 @@ function NotificationContent({
   autoUpdaterResult: AutoUpdaterResult | null
   isAutoUpdating: boolean
   isShowingCompactMessage: boolean
-  onAutoUpdaterResult: (result: AutoUpdaterResult) => void
+  onAutoUpdaterResult: (result: AutoUpdaterResult | null) => void
   onChangeIsUpdating: (isUpdating: boolean) => void
 }): ReactNode {
   const [uncachedHint, setUncachedHint] = useState<string | null>(null)

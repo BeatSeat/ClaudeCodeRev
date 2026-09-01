@@ -29,6 +29,12 @@ const MARKETPLACE_ONLY_MANIFEST_FIELDS = new Set([
   'id',
 ])
 
+/**
+ * Official 2.1.129 `MK5`: components that moved under `experimental`. The
+ * loader still reads the top-level spelling, so this is a warning only.
+ */
+const EXPERIMENTAL_MANIFEST_COMPONENTS = ['monitors', 'themes']
+
 export type ValidationResult = {
   success: boolean
   errors: ValidationError[]
@@ -237,6 +243,38 @@ export async function validatePluginManifest(
         })
       }
       toValidate = stripped
+    }
+
+    for (const component of EXPERIMENTAL_MANIFEST_COMPONENTS) {
+      if (component in obj) {
+        warnings.push({
+          path: component,
+          message:
+            `'${component}' is an experimental component; declare it under ` +
+            `'experimental.${component}' instead of at the top level. ` +
+            `Top-level still loads for now but will be removed in a future release.`,
+        })
+      }
+    }
+
+    if (
+      'experimental' in obj &&
+      (typeof obj.experimental !== 'object' ||
+        obj.experimental === null ||
+        Array.isArray(obj.experimental))
+    ) {
+      const got =
+        obj.experimental === null
+          ? 'null'
+          : Array.isArray(obj.experimental)
+            ? 'array'
+            : typeof obj.experimental
+      warnings.push({
+        path: 'experimental',
+        message:
+          `'experimental' must be an object containing component declarations; ` +
+          `got ${got}. It will be ignored at load time.`,
+      })
     }
   }
 

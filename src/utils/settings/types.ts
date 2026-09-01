@@ -806,6 +806,18 @@ export const SettingsSchema = lazySchema(() =>
         .describe(
           'When true, fast mode does not persist across sessions. Each session starts with fast mode off.',
         ),
+      skillOverrides: z
+        .record(
+          z.string(),
+          z.enum(['on', 'off', 'user-invocable-only', 'name-only']),
+        )
+        .optional()
+        .describe(
+          'Per-skill availability, keyed by skill name. "off" hides the skill from ' +
+            'the model and from /slash-commands, "user-invocable-only" keeps the ' +
+            'slash command but hides the skill from the model, and "name-only" ' +
+            'exposes the name without the description.',
+        ),
       promptSuggestionEnabled: z
         .boolean()
         .optional()

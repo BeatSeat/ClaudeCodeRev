@@ -17,6 +17,9 @@ export const EFFORT_BETA_HEADER = 'effort-2025-11-24'
 export const TASK_BUDGETS_BETA_HEADER = 'task-budgets-2026-03-13'
 export const PROMPT_CACHING_SCOPE_BETA_HEADER =
   'prompt-caching-scope-2026-01-05'
+// Official 2.1.129 `egq`: without this header the API silently downgrades a
+// 1-hour cache_control ttl to 5 minutes.
+export const EXTENDED_CACHE_TTL_BETA_HEADER = 'extended-cache-ttl-2025-04-11'
 export const FAST_MODE_BETA_HEADER = 'fast-mode-2026-02-01'
 export const REDACT_THINKING_BETA_HEADER = 'redact-thinking-2026-02-12'
 export const TOKEN_EFFICIENT_TOOLS_BETA_HEADER =

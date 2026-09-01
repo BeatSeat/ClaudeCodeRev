@@ -1,0 +1,144 @@
+{
+  "version": "2.1.129",
+  "fromVersion": "2.1.128",
+  "expectedFunctionCount": 0,
+  "functions": [],
+  "changelogCoverage": [
+    {
+      "item": "Added `--plugin-url` to fetch a plugin `.zip` from a URL for the current session (repeatable)",
+      "status": "located",
+      "evidence": "Official dW8/qi (`inlinePluginUrls`) → src/bootstrap/state.ts set/getInlinePluginUrls. main.tsx `.option('--plugin-url <url>', 'Fetch a plugin .zip from a URL for this session only (repeatable: --plugin-url A --plugin-url B)')` + preAction setInlinePluginUrls. pluginLoader loadSessionOnlyPlugins now takes SessionPluginSource {kind:'path'|'url'} and runs Promise.all; url branch = official jr1 (30s timeout, 268435456 byte cap on content-length AND stream, `.part` + rename, cached-archive fallback on re-fetch failure, query string redacted from logs). /plugin status copy 'Session-only plugins (--plugin-dir / --plugin-url)'. --plugin-url forwarded by spawnUtils + spawnMultiAgent."
+    },
+    {
+      "item": "Added `CLAUDE_CODE_FORCE_SYNC_OUTPUT=1` to force synchronized output (Emacs eat)",
+      "status": "located",
+      "evidence": "src/ink/terminal.ts isSynchronizedOutputSupported: `if (isEnvTruthy(process.env.CLAUDE_CODE_FORCE_SYNC_OUTPUT)) return true` inserted after the TMUX bail and before the TERM_PROGRAM list = official rB (128 EB, astdiff 93.3%)."
+    },
+    {
+      "item": "Added `CLAUDE_CODE_PACKAGE_MANAGER_AUTO_UPDATE` for Homebrew/WinGet background upgrade + restart prompt",
+      "status": "located",
+      "evidence": "src/components/PackageManagerAutoUpdater.tsx = official M04. 128 only printed the hint; 129 adds getUpgradeArgv (official VV5: brew upgrade --cask <cask>; %LOCALAPPDATA%/Microsoft/WindowsApps/winget.exe upgrade --id Anthropic.ClaudeCode --exact --silent --disable-interactivity), env-gated execution via execFileNoThrowWithCwd (cwd: homedir(), 300s timeout, HOMEBREW_NO_AUTO_UPDATE='' for brew), tengu_pkg_manager_auto_updater_{start,success,fail} with pm_homebrew/pm_winget, module-scope 30-min install_failed cooldown (official A04/z04), and the new render branches '✓ Update installed via X · Restart to apply' / 'Updating via X…' / '(auto-update failed)'. Official vV5 also adds the `mise upgrade claude` hint. A maxVersion-capped target is never auto-installed. onAutoUpdaterResult widened to accept null across the AutoUpdater prop chain so the cooldown can clear install_failed (official kV5). Pre-commit review caught and fixed one major here: the first landing used execFileNoThrow({useCwd:false}), which resolves to cwd:undefined (process cwd) rather than official's f04.homedir()."
+    },
+    {
+      "item": "Plugin manifests should declare `themes`/`monitors` under `experimental`; top-level still works and `plugin validate` warns",
+      "status": "partial",
+      "evidence": "schemas.ts PluginManifestExperimentalSchema adds `experimental.monitors`; pluginMonitors.ts reads `manifest.experimental?.monitors ?? manifest.monitors`. validatePlugin.ts EXPERIMENTAL_MANIFEST_COMPONENTS = ['monitors','themes'] emits official copy \"'X' is an experimental component; declare it under 'experimental.X' instead of at the top level. Top-level still loads for now but will be removed in a future release.\" plus the non-object `experimental` warning. GAP (pre-existing, not 129): this tree has no plugin `themes` component at all, so `experimental?.themes ?? themes` has no loader to land in."
+    },
+    {
+      "item": "Gateway `/v1/models` discovery is now opt-in via `CLAUDE_CODE_ENABLE_GATEWAY_MODEL_DISCOVERY=1` (was automatic in 126–128)",
+      "status": "located",
+      "evidence": "src/utils/model/gatewayModels.ts isGatewayModelDiscoveryEligible prepends `if (!isEnvTruthy(process.env.CLAUDE_CODE_ENABLE_GATEWAY_MODEL_DISCOVERY)) return false` = official br7 (128 ji7, astdiff 79.5%)."
+    },
+    {
+      "item": "Ctrl+R history picker defaults to all prompts from all projects again; Ctrl+S narrows to the current project",
+      "status": "located",
+      "evidence": "Shared/logic-only (no unique token). src/components/HistorySearchDialog.tsx + src/history.ts default scope 'all', Ctrl+S narrows."
+    },
+    {
+      "item": "Third-party deployments no longer see spinner tips pointing at first-party Anthropic features",
+      "status": "shared-logic",
+      "evidence": "No unique token (spinnerTipsOverride 5/5, spinnerTipsEnabled 10/10, excludeDefault 4/4). Not landed this hop."
+    },
+    {
+      "item": "`skillOverrides` `off` / `user-invocable-only` / `name-only` now works",
+      "status": "located",
+      "evidence": "128 shipped `function qfH(H){return \"on\"}` — a literal stub. New src/utils/settings/skillOverrides.ts = official na/yL5/kw8/xR5/RA5/CA5 + settings schema `skillOverrides` record. Consumers: commands.ts getSkillToolCommands (!isSkillHiddenFromModel) and getSlashCommandToolSkills (!isSkillDisabled); commandSuggestions.ts typeahead (empty-query list + fuse results); SkillTool validateInput errorCode 7 'is disabled for model invocation in skillOverrides settings'; SkillTool/prompt.ts listing emits `- name` for name-only. SkillsMenu.tsx became the editor (official m94): space cycles on→name-only→user-invocable-only→off, enter saves to localSettings via updateSettingsForSource (value === project/user value is written as undefined so it is deleted, not duplicated), 'Failed to save skill overrides: …' / 'Updated N skill override(s)' / 'No changes', policy/flag/author/plugin locks render 🔒 + '· locked by X'."
+    },
+    {
+      "item": "`claude_code.pull_request.count` OTel counts PRs/MRs created via MCP tools, not just shell",
+      "status": "shared-logic",
+      "evidence": "No unique token (claude_code.pull_request.count 1/1). Not landed this hop."
+    },
+    {
+      "item": "Policy refusal errors now include the API Request ID",
+      "status": "located",
+      "evidence": "src/services/api/errors.ts getErrorMessageIfRefusal takes requestId, appends `\\n\\nRequest ID: ${requestId}`, sets message.requestId, and adds request_id to tengu_refusal_api_response. claude.ts passes streamRequestId."
+    },
+    {
+      "item": "Fixed unrecognized 400 errors showing raw JSON instead of the message",
+      "status": "shared-logic",
+      "evidence": "No unique token (raw JSON hits are SDK/docs). Not landed this hop."
+    },
+    {
+      "item": "Fixed `/clear` not resetting the terminal tab title",
+      "status": "located",
+      "evidence": "resetTerminalTitle threaded through ToolUseContext (src/Tool.ts), REPL.tsx, clear.ts and UltraplanChoiceDialog = official 129 resetTerminalTitle 0→6."
+    },
+    {
+      "item": "Fixed the `/rename` session title chip disappearing while a dialog is open",
+      "status": "shared-logic",
+      "evidence": "No unique token (customTitle 54/54, sessionTitle 12/12). Not landed this hop."
+    },
+    {
+      "item": "Fixed the agent panel being hidden while subagents are running (2.1.122 regression)",
+      "status": "shared-logic",
+      "evidence": "No unique token (inProgressToolCallCount 11/11). Not landed this hop."
+    },
+    {
+      "item": "Fixed external-editor Ctrl+G blanking history",
+      "status": "shared-logic",
+      "evidence": "No unique token (externalEditor 23/23). Not landed this hop."
+    },
+    {
+      "item": "Fixed `/context` dumping the ASCII grid into the conversation (~1.6k tokens)",
+      "status": "shared-logic",
+      "evidence": "No unique token (ASCII 32/32, isMeta:!0 100/100). Not landed this hop."
+    },
+    {
+      "item": "Fixed the `/agents` Library arrow-key highlighted agent scrolling out of view",
+      "status": "shared-logic",
+      "evidence": "No unique token (visibleOptionCount 43/43). Not landed this hop."
+    },
+    {
+      "item": "Fixed `/branch` success message missing the new branch session id for `/resume`",
+      "status": "shared-logic",
+      "evidence": "No unique token. Not landed this hop."
+    },
+    {
+      "item": "Fixed bold headers with keycap/ZWJ/skin-tone emoji losing trailing characters in fullscreen",
+      "status": "shared-logic",
+      "evidence": "No unique token (\\u200D 90/90, \\uFE0F 32/32, \\u20E3 1/1). Not landed this hop."
+    },
+    {
+      "item": "Fixed server-managed settings policy not applying without the `user:inference` OAuth scope",
+      "status": "shared-logic",
+      "evidence": "No unique token (user:inference 5/5, policySettings 98/98). Not landed this hop."
+    },
+    {
+      "item": "Fixed an OAuth refresh race after wake-from-sleep logging sessions out",
+      "status": "shared-logic",
+      "evidence": "No unique token (on(\"suspend\") 1/1, refresh_token 95/95). Not landed this hop."
+    },
+    {
+      "item": "Fixed 1-hour prompt cache TTL being silently downgraded to 5 minutes",
+      "status": "located",
+      "evidence": "src/constants/betas.ts EXTENDED_CACHE_TTL_BETA_HEADER = 'extended-cache-ttl-2025-04-11' (official egq); claude.ts appends it to betas when cacheTtl === '1h' and provider is not bedrock (bedrock carries it via extraBodyParams) = official J0(\"extended_cache_ttl\", …) inserted after prompt-caching-scope."
+    },
+    {
+      "item": "Fixed a spurious cache-miss warning after `/clear` or compact when changing `/effort` or `/model`",
+      "status": "shared-logic",
+      "evidence": "No unique token (tengu_cache_eviction_hint 3/3). Not landed this hop."
+    },
+    {
+      "item": "Fixed `Bash(mkdir *)` / `Bash(touch *)` allow rules not being honored for in-project paths",
+      "status": "located",
+      "evidence": "isInWorkingDir propagated through src/utils/permissions/pathValidation.ts; PermissionAskDecision gains bashAllowRuleOverridable (official l9_/WH8). BashTool/pathValidation defers an in-project rule-less ask instead of short-circuiting; bashPermissions returns it only after the exact-match and allow-rule steps have had their turn (also in the pipe-segment and subresult paths)."
+    },
+    {
+      "item": "Fixed `deniedMcpServers` `*://` scheme wildcard not matching mixed-case hostnames",
+      "status": "shared-logic",
+      "evidence": "No unique token (deniedMcpServers 7/7, hostname.toLowerCase 5/5). Not landed this hop."
+    },
+    {
+      "item": "Fixed a harmless WebSocket warning being logged as an error in `--debug` voice mode",
+      "status": "shared-logic",
+      "evidence": "No unique token. Not landed this hop."
+    },
+    {
+      "item": "[VSCode] Fixed `/clear` not clearing the conversation",
+      "status": "absent-in-bundle",
+      "evidence": "Extension-host change; no unique token in the Node cli.js."
+    }
+  ],
+  "notes": "astdiff 2.1.128→2.1.129 (Cometix): similarity 0.994, +63896 bytes, 218 genuine-structural / 1015 false-rename, added-product 131, string-product 60. 10 changelog rows carry 129-unique tokens and all 10 landed; 16 rows are shared/logic-only with no unique string; 1 row is VSCode-only. Build gate: dist/cli.js contains CLAUDE_CODE_PACKAGE_MANAGER_AUTO_UPDATE, HOMEBREW_NO_AUTO_UPDATE, tengu_pkg_manager_auto_updater_start, --plugin-url, 'Fetch a plugin .zip from a URL', extended-cache-ttl-2025-04-11, CLAUDE_CODE_ENABLE_GATEWAY_MODEL_DISCOVERY, 'Failed to save skill overrides', 'is an experimental component', CLAUDE_CODE_FORCE_SYNC_OUTPUT, bashAllowRuleOverridable. Two ast-only product changes NOT in the official changelog were landed with #8 because they only became observable once skillOverrides stopped being a stub: the usage-score branch in the skill-listing budget (official n_6 third arg — 128 passed the scorer but ignored it; 129 spends the budget on the highest-scoring skills and drops the rest to name-only) and `mise upgrade claude` in the package-manager hint. Deliberately NOT landed: P1–P9 bunfs/bfs/ugrep/EMBEDDED_SEARCH_TOOLS, the 218-item genuine-structural rename sweep, Windows Git Bash q9/f$H/Bx (no 129 Windows row — do not invent a Linux PowerShell rewrite), default-false Growthbook flags (tengu_sedge_lantern_holdback, tengu_kairos_loop_persistent), and 2.1.131. Known pre-existing gaps surfaced while landing #8 and #4, left for a backfill pass: SkillTool has no skills-allowlist check (errorCode 8) and no skill_invoke telemetry on any validateInput branch, REPL has no skillTruncationStats name-only set (official xR5's only call site), the tree has no plugin `themes` component, getAllModelBetas has no c9K third-party SDK-beta drop filter (so 129's addition of extended-cache-ttl to that allowlist has no landing site), and PackageManagerAutoUpdater resolves the homebrew latest version via getLatestVersionFromGcs instead of official's per-manager dq8/U3$ split (already collapsed in 128). Pre-commit review: the four dispatched reviewer subagents all died with deadline_exceeded, so all four domains were reviewed manually by the main agent and written to restore-work/diffs/2.1.129-{core,tools,services,ui}-review.md. Verdicts: tools clean, ui clean, services clean, core fix-before-commit (one major, the execFileNoThrow cwd above, fixed and re-verified). Gates after the fix: typecheck delta vs clean-HEAD baseline is -2 (PackageManagerAutoUpdater went from 2 pre-existing errors to 0, no new errors anywhere), build green, and all 13 checked unique tokens present in dist/cli.js."
+}
