@@ -1,0 +1,19 @@
+{
+  "version": "2.1.131",
+  "fromVersion": "2.1.129",
+  "expectedFunctionCount": 0,
+  "functions": [],
+  "changelogCoverage": [
+    {
+      "item": "Fixed VS Code extension failing to activate on Windows due to a hardcoded build path in the bundled SDK (`createRequire` polyfill bug)",
+      "status": "absent-in-bundle",
+      "evidence": "createRequire 3/3, first-hit window ident-equal. Node Cometix bundle has no 131-unique path. VSCode-only; do-not-land."
+    },
+    {
+      "item": "Fixed Mantle endpoint authentication failing with missing `x-api-key` header",
+      "status": "located",
+      "evidence": "Bundled SDK PQ8→ng8 authHeaders: 129 Authorization Bearer → 131 super.authHeaders (parent X-Api-Key). Factory around CLAUDE_CODE_SKIP_MANTLE_AUTH ident-equal. src/services/api/client.ts Mantle ctor aligned with official factory: strip Authorization, skipAuth only when SKIP_MANTLE_AUTH and no extracted header, pass apiKey from Bearer, AWS_BEARER_TOKEN_BEDROCK no longer skipAuth+Bearer (blocks authHeaders)."
+    }
+  ],
+  "notes": "Correct astdiff-hop.sh rewrite pipeline (using→const). similarity 0.9989, +9 added-product, pass2 65 genuine / 605 false-rename. Replaces CNB b3f6bc6 (0 src lines). Typecheck client.ts 4→3 vs 129 baseline. Ast-only added-product are minify splits. Pre-existing: Mantle awsRegion ignores ANTHROPIC_SMALL_FAST_MODEL_AWS_REGION; TS still passes baseURL because published SDK has no AnthropicBedrockMantle."
+}
