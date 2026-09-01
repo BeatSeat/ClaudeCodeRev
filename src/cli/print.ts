@@ -454,6 +454,36 @@ export function canBatchWith(
   )
 }
 
+/** Official _H5: wait briefly for async MCP clients before the first ask(). */
+async function waitForHeadlessMcpTools(
+  getAppState: () => AppState,
+  timeoutMs = 2000,
+): Promise<void> {
+  const mcp = getAppState().mcp
+  const pendingBefore = mcp.clients.filter(c => c.type === 'pending').length
+  const toolsBefore = mcp.tools.length
+  if (pendingBefore === 0 || toolsBefore > 0) {
+    return
+  }
+  const started = Date.now()
+  const deadline = started + timeoutMs
+  while (Date.now() < deadline) {
+    if (getAppState().mcp.clients.every(c => c.type !== 'pending')) {
+      break
+    }
+    await sleep(50)
+  }
+  const after = getAppState().mcp
+  logEvent('tengu_headless_mcp_prewait', {
+    pendingBefore,
+    toolsBefore,
+    waitedMs: Date.now() - started,
+    pendingAfter: after.clients.filter(c => c.type === 'pending').length,
+    toolsAfter: after.tools.length,
+    mcpNonBlocking: isEnvTruthy(process.env.MCP_CONNECTION_NONBLOCKING),
+  })
+}
+
 export async function runHeadless(
   inputPrompt: string | AsyncIterable<string>,
   getAppState: () => AppState,
@@ -1922,6 +1952,8 @@ function runHeadlessStreaming(
       )
       setupPluginHookHotReload()
     }
+
+    await waitForHeadlessMcpTools(getAppState)
 
     // Only main-thread commands (agentId===undefined) — subagent
     // notifications are drained by the subagent's mid-turn gate in query.ts.

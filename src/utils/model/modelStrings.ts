@@ -5,7 +5,13 @@ import {
 import { logError } from '../log.js'
 import { sequential } from '../sequential.js'
 import { getInitialSettings } from '../settings/settings.js'
-import { findFirstMatch, getBedrockInferenceProfiles } from './bedrock.js'
+import { getAWSRegion } from '../envUtils.js'
+import {
+  applyBedrockRegionPrefix,
+  type BedrockRegionPrefix,
+  findFirstMatch,
+  getBedrockInferenceProfiles,
+} from './bedrock.js'
 import {
   ALL_MODEL_CONFIGS,
   CANONICAL_ID_TO_KEY,
@@ -22,11 +28,26 @@ export type ModelStrings = Record<ModelKey, string>
 
 const MODEL_KEYS = Object.keys(ALL_MODEL_CONFIGS) as ModelKey[]
 
+/** Official wZ8: map AWS_REGION to a Bedrock inference-profile prefix. */
+function bedrockRegionPrefixFromAwsRegion(
+  region: string,
+): BedrockRegionPrefix {
+  if (region.startsWith('us-') && !region.startsWith('us-gov-')) return 'us'
+  if (region.startsWith('eu-')) return 'eu'
+  if (region.startsWith('ap-')) return 'apac'
+  return 'global'
+}
+
 function getBuiltinModelStrings(provider: APIProvider): ModelStrings {
   const cloud = provider === 'mantle' ? 'bedrock' : provider
+  const prefix =
+    provider === 'bedrock'
+      ? bedrockRegionPrefixFromAwsRegion(getAWSRegion())
+      : undefined
   const out = {} as ModelStrings
   for (const key of MODEL_KEYS) {
-    out[key] = ALL_MODEL_CONFIGS[key][cloud]
+    const id = ALL_MODEL_CONFIGS[key][cloud]
+    out[key] = prefix ? applyBedrockRegionPrefix(id, prefix) : id
   }
   return out
 }

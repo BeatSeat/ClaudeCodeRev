@@ -333,6 +333,9 @@ export function createCronScheduler(
         // inFlight guards against double-fire during the async
         // removeCronTasks + chokidar reload.
         inFlight.add(t.id)
+        // Official: Infinity tombstone so a missed unlink cannot re-seed
+        // nextFireAt from createdAt and re-fire the one-shot.
+        nextFireAt.set(t.id, Infinity)
         void removeCronTasks([t.id], dir)
           .catch(e =>
             logForDebugging(
@@ -340,7 +343,6 @@ export function createCronScheduler(
             ),
           )
           .finally(() => inFlight.delete(t.id))
-        nextFireAt.delete(t.id)
       }
     }
 

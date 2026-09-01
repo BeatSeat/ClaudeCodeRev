@@ -132,6 +132,43 @@ export function getErrnoCode(e: unknown): string | undefined {
   return undefined
 }
 
+/** Official GKz — connection errors that should surface immediately, not hide behind a spinner. */
+const IMMEDIATE_NETWORK_CODES = new Set([
+  'ECONNREFUSED',
+  'ENOTFOUND',
+  'ENETUNREACH',
+  'ENETDOWN',
+  'EHOSTUNREACH',
+  'EHOSTDOWN',
+  'EAI_AGAIN',
+  'FailedToOpenSocket',
+])
+
+/** Official Ws: walk the cause chain for a .code */
+export function getErrorCauseCode(error: unknown): string | undefined {
+  let current: unknown = error
+  const seen = new Set<unknown>()
+  while (current && typeof current === 'object' && !seen.has(current)) {
+    seen.add(current)
+    const code = getErrnoCode(current)
+    if (code) {
+      return code
+    }
+    if ('cause' in current && (current as { cause: unknown }).cause !== current) {
+      current = (current as { cause: unknown }).cause
+    } else {
+      break
+    }
+  }
+  return undefined
+}
+
+/** Official lf4 */
+export function isImmediateNetworkError(error: unknown): boolean {
+  const code = getErrorCauseCode(error)
+  return code !== undefined && IMMEDIATE_NETWORK_CODES.has(code)
+}
+
 /**
  * True if the error is ENOENT (file or directory does not exist).
  * Replaces `(e as NodeJS.ErrnoException).code === 'ENOENT'`.

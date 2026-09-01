@@ -2976,7 +2976,11 @@ function PromptInput({
   )
 
   return (
-    <Box flexDirection="column" marginTop={briefOwnsGap ? 0 : 1}>
+    <Box
+      flexDirection="column"
+      flexShrink={0}
+      marginTop={briefOwnsGap ? 0 : 1}
+    >
       {!isFullscreenEnvEnabled() && <PromptInputQueuedCommands />}
       {hasSuppressedDialogs && (
         <Box marginTop={1} marginLeft={2}>

@@ -16,37 +16,62 @@ import { logForDebugging } from '../../utils/debug.js'
 import { toError } from '../../utils/errors.js'
 import { truncate } from '../../utils/format.js'
 import { logError } from '../../utils/log.js'
+import { getInitialSettings } from '../../utils/settings/settings.js'
 
 // Skill listing gets 1% of the context window (in characters)
 export const SKILL_BUDGET_CONTEXT_PERCENT = 0.01
 export const CHARS_PER_TOKEN = 4
 export const DEFAULT_CHAR_BUDGET = 8_000 // Fallback: 1% of 200k × 4
 
-// Per-entry hard cap. The listing is for discovery only — the Skill tool loads
-// full content on invoke, so verbose whenToUse strings waste turn-1 cache_creation
-// tokens without improving match rate. Applies to all entries, including bundled,
-// since the cap is generous enough to preserve the core use case.
-export const MAX_LISTING_DESC_CHARS = 250
+// Official 2.1.105 `X7z` — raised from 250.
+export const MAX_LISTING_DESC_CHARS = 1536
+
+function getListingMaxDescChars(): number {
+  return getInitialSettings().skillListingMaxDescChars ?? MAX_LISTING_DESC_CHARS
+}
+
+function getListingBudgetFraction(): number {
+  return (
+    getInitialSettings().skillListingBudgetFraction ??
+    SKILL_BUDGET_CONTEXT_PERCENT
+  )
+}
+
+let didWarnTruncatedSkillDesc = false
 
 export function getCharBudget(contextWindowTokens?: number): number {
   if (Number(process.env.SLASH_COMMAND_TOOL_CHAR_BUDGET)) {
     return Number(process.env.SLASH_COMMAND_TOOL_CHAR_BUDGET)
   }
+  const fraction = getListingBudgetFraction()
   if (contextWindowTokens) {
-    return Math.floor(
-      contextWindowTokens * CHARS_PER_TOKEN * SKILL_BUDGET_CONTEXT_PERCENT,
+    return Math.max(
+      1,
+      Math.floor(contextWindowTokens * CHARS_PER_TOKEN * fraction),
     )
   }
-  return DEFAULT_CHAR_BUDGET
+  return Math.max(
+    1,
+    Math.floor(DEFAULT_CHAR_BUDGET * (fraction / SKILL_BUDGET_CONTEXT_PERCENT)),
+  )
 }
 
 function getCommandDescription(cmd: Command): string {
   const desc = cmd.whenToUse
     ? `${cmd.description} - ${cmd.whenToUse}`
     : cmd.description
-  return desc.length > MAX_LISTING_DESC_CHARS
-    ? desc.slice(0, MAX_LISTING_DESC_CHARS - 1) + '\u2026'
-    : desc
+  const cap = getListingMaxDescChars()
+  if (desc.length > cap) {
+    if (!didWarnTruncatedSkillDesc) {
+      didWarnTruncatedSkillDesc = true
+      logForDebugging(
+        `Skill descriptions longer than ${cap} characters are truncated in the listing sent to Claude. Raise skillListingMaxDescChars in settings.json to opt in to higher per-turn context cost.`,
+        { level: 'warn' },
+      )
+    }
+    return desc.slice(0, cap - 1) + '\u2026'
+  }
+  return desc
 }
 
 function formatCommandDescription(cmd: Command): string {

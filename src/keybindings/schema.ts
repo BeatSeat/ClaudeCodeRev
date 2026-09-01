@@ -29,6 +29,7 @@ export const KEYBINDING_CONTEXTS = [
   'ModelPicker',
   'Select',
   'Plugin',
+  'Doctor',
 ] as const
 
 /**
@@ -56,6 +57,7 @@ export const KEYBINDING_CONTEXT_DESCRIPTIONS: Record<
   ModelPicker: 'When the model picker is open',
   Select: 'When a select/list component is focused',
   Plugin: 'When the plugin dialog is open',
+  Doctor: 'When the /doctor diagnostics screen is open',
 }
 
 /**
@@ -161,6 +163,7 @@ export const KEYBINDING_ACTIONS = [
   // Plugin dialog actions
   'plugin:toggle',
   'plugin:install',
+  'doctor:fix',
   // Permission dialog actions
   'permission:toggleDebug',
   // Settings config panel actions

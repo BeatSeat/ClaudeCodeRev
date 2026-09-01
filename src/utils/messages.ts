@@ -712,10 +712,14 @@ export function isNotEmptyMessage(message: Message): boolean {
     return true
   }
 
+  const text = message.message.content[0]!.text
+  if (typeof text !== 'string') {
+    return false
+  }
   return (
-    message.message.content[0]!.text.trim().length > 0 &&
-    message.message.content[0]!.text !== NO_CONTENT_MESSAGE &&
-    message.message.content[0]!.text !== INTERRUPT_MESSAGE_FOR_TOOL_USE
+    text.trim().length > 0 &&
+    text !== NO_CONTENT_MESSAGE &&
+    text !== INTERRUPT_MESSAGE_FOR_TOOL_USE
   )
 }
 

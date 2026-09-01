@@ -93,14 +93,17 @@ function logCustomBindingsLoadedOncePerDay(userBindingCount: number): void {
 /**
  * Type guard to check if an object is a valid KeybindingBlock.
  */
+function isBindingsRecord(bindings: unknown): boolean {
+  if (typeof bindings !== 'object' || bindings === null) return false
+  return Object.values(bindings as Record<string, unknown>).every(
+    value => value === null || typeof value === 'string',
+  )
+}
+
 function isKeybindingBlock(obj: unknown): obj is KeybindingBlock {
   if (typeof obj !== 'object' || obj === null) return false
   const b = obj as Record<string, unknown>
-  return (
-    typeof b.context === 'string' &&
-    typeof b.bindings === 'object' &&
-    b.bindings !== null
-  )
+  return typeof b.context === 'string' && isBindingsRecord(b.bindings)
 }
 
 /**
@@ -174,7 +177,7 @@ export async function loadKeybindings(): Promise<KeybindingsLoadResult> {
         : 'keybindings.json contains invalid block structure'
       const suggestion = !Array.isArray(userBlocks)
         ? 'Set "bindings" to an array of keybinding blocks'
-        : 'Each block must have "context" (string) and "bindings" (object)'
+        : 'Each block must have "context" (string) and "bindings" (object mapping keys to a string action or null)'
       logForDebugging(`[keybindings] Invalid keybindings.json: ${errorMessage}`)
       return {
         bindings: defaultBindings,
@@ -303,7 +306,7 @@ export function loadKeybindingsSyncWithWarnings(): KeybindingsLoadResult {
         : 'keybindings.json contains invalid block structure'
       const suggestion = !Array.isArray(userBlocks)
         ? 'Set "bindings" to an array of keybinding blocks'
-        : 'Each block must have "context" (string) and "bindings" (object)'
+        : 'Each block must have "context" (string) and "bindings" (object mapping keys to a string action or null)'
       cachedBindings = defaultBindings
       cachedWarnings = [
         {

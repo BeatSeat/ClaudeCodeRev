@@ -2,6 +2,7 @@ import * as React from 'react'
 import { useState } from 'react'
 import { Box, Text } from 'src/ink.js'
 import { formatAPIError } from 'src/services/api/errorUtils.js'
+import { isImmediateNetworkError } from 'src/utils/errors.js'
 import type { SystemAPIErrorMessage } from 'src/types/message.js'
 import { useInterval } from 'usehooks-ts'
 import { CtrlOToExpand } from '../CtrlOToExpand.js'
@@ -20,7 +21,10 @@ export function SystemAPIErrorMessage({
 }: Props): React.ReactNode {
   // Hidden for early retries on external builds to avoid noise. Compute before
   // useInterval so we never register a timer that just drives a null render.
-  const hidden = "external" === 'external' && retryAttempt < 4
+  const hidden =
+    "external" === 'external' &&
+    retryAttempt < 4 &&
+    !isImmediateNetworkError(error)
 
   const [countdownMs, setCountdownMs] = useState(0)
   const done = countdownMs >= retryInMs

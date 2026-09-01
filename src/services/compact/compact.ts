@@ -384,6 +384,37 @@ export function mergeHookInstructions(
  * Creates a compact version of a conversation by summarizing older messages
  * and preserving recent conversation history.
  */
+/** Official 2.1.105 `LC6` — PreCompact hook blocked compaction. */
+export const COMPACTION_BLOCKED_BY_PRECOMPACT_HOOK =
+  'Compaction blocked by PreCompact hook'
+
+export class CompactionBlockedError extends Error {
+  constructor(blockedBy: string) {
+    super(`${COMPACTION_BLOCKED_BY_PRECOMPACT_HOOK}: ${blockedBy}`)
+    this.name = 'CompactionBlockedError'
+  }
+}
+
+/** Official 2.1.105 `Gl8`. */
+export function throwIfPreCompactBlocked(
+  hookResult: { blockedBy?: string },
+  context: ToolUseContext,
+  options?: { suppressNotification?: boolean },
+): void {
+  if (!hookResult.blockedBy) {
+    return
+  }
+  if (!options?.suppressNotification) {
+    context.addNotification?.({
+      key: 'compaction-blocked-by-hook',
+      text: 'compaction blocked by PreCompact hook',
+      priority: 'immediate',
+      color: 'warning',
+    })
+  }
+  throw new CompactionBlockedError(hookResult.blockedBy)
+}
+
 export async function compactConversation(
   messages: Message[],
   context: ToolUseContext,
@@ -417,6 +448,9 @@ export async function compactConversation(
       },
       context.abortController.signal,
     )
+    throwIfPreCompactBlocked(hookResult, context, {
+      suppressNotification: isAutoCompact,
+    })
     customInstructions = mergeHookInstructions(
       customInstructions,
       hookResult.newCustomInstructions,
@@ -822,6 +856,7 @@ export async function partialCompactConversation(
       },
       context.abortController.signal,
     )
+    throwIfPreCompactBlocked(hookResult, context)
 
     // Merge hook instructions with user feedback
     let customInstructions: string | undefined

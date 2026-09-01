@@ -36,14 +36,17 @@ export type KeybindingWarning = {
 /**
  * Type guard to check if an object is a valid KeybindingBlock.
  */
+function isBindingsRecord(bindings: unknown): boolean {
+  if (typeof bindings !== 'object' || bindings === null) return false
+  return Object.values(bindings as Record<string, unknown>).every(
+    value => value === null || typeof value === 'string',
+  )
+}
+
 function isKeybindingBlock(obj: unknown): obj is KeybindingBlock {
   if (typeof obj !== 'object' || obj === null) return false
   const b = obj as Record<string, unknown>
-  return (
-    typeof b.context === 'string' &&
-    typeof b.bindings === 'object' &&
-    b.bindings !== null
-  )
+  return typeof b.context === 'string' && isBindingsRecord(b.bindings)
 }
 
 /**
@@ -76,6 +79,7 @@ const VALID_CONTEXTS: KeybindingContextName[] = [
   'ModelPicker',
   'Select',
   'Plugin',
+  'Doctor',
 ]
 
 /**

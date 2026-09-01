@@ -1,4 +1,5 @@
 import { getGlobalConfig, saveGlobalConfig } from '../config.js'
+import { notifySkillInvoked } from '../plugins/pluginMonitors.js'
 
 const SKILL_USAGE_DEBOUNCE_MS = 60_000
 
@@ -11,6 +12,9 @@ const lastWriteBySkill = new Map<string, number>()
  * Updates both usage count and last used timestamp.
  */
 export function recordSkillUsage(skillName: string): void {
+  // Official VU8: Hq7.emit runs before the usage-write debounce so
+  // on-skill-invoke monitors still arm on a repeated invoke.
+  notifySkillInvoked(skillName)
   const now = Date.now()
   const lastWrite = lastWriteBySkill.get(skillName)
   // The ranking algorithm uses a 7-day half-life, so sub-minute granularity
