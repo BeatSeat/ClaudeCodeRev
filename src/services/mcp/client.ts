@@ -1,6 +1,5 @@
 import { feature } from 'bun:bundle'
 import type {
-  Base64ImageSource,
   ContentBlockParam,
   MessageParam,
 } from '@anthropic-ai/sdk/resources/index.mjs'
@@ -78,7 +77,7 @@ import {
 } from '../../utils/errors.js'
 import { getMCPUserAgent } from '../../utils/http.js'
 import { maybeNotifyIDEConnected } from '../../utils/ide.js'
-import { maybeResizeAndDownsampleImageBuffer } from '../../utils/imageResizer.js'
+import { maybeResizeAndDownsampleImage } from '../../utils/imageResizer.js'
 import { logMCPDebug, logMCPError } from '../../utils/log.js'
 import {
   computeMcpOutputLineStats,
@@ -2870,25 +2869,11 @@ export async function transformResultContent(
       )
     }
     case 'image': {
-      // Resize and compress image data, enforcing API dimension limits
-      const imageBuffer = Buffer.from(String(resultContent.data), 'base64')
-      const ext = resultContent.mimeType?.split('/')[1] || 'png'
-      const resized = await maybeResizeAndDownsampleImageBuffer(
-        imageBuffer,
-        imageBuffer.length,
-        ext,
-      )
-      return [
-        {
-          type: 'image',
-          source: {
-            data: resized.buffer.toString('base64'),
-            media_type:
-              `image/${resized.mediaType}` as Base64ImageSource['media_type'],
-            type: 'base64',
-          },
-        },
-      ]
+      const { block } = await maybeResizeAndDownsampleImage({
+        data: String(resultContent.data),
+        mediaType: resultContent.mimeType,
+      })
+      return [block]
     }
     case 'resource': {
       const resource = resultContent.resource
@@ -2905,14 +2890,10 @@ export async function transformResultContent(
         const isImage = IMAGE_MIME_TYPES.has(resource.mimeType ?? '')
 
         if (isImage) {
-          // Resize and compress image blob, enforcing API dimension limits
-          const imageBuffer = Buffer.from(resource.blob, 'base64')
-          const ext = resource.mimeType?.split('/')[1] || 'png'
-          const resized = await maybeResizeAndDownsampleImageBuffer(
-            imageBuffer,
-            imageBuffer.length,
-            ext,
-          )
+          const { block } = await maybeResizeAndDownsampleImage({
+            data: resource.blob,
+            mediaType: resource.mimeType,
+          })
           const content: MessageParam['content'] = []
           if (prefix) {
             content.push({
@@ -2920,15 +2901,7 @@ export async function transformResultContent(
               text: prefix,
             })
           }
-          content.push({
-            type: 'image',
-            source: {
-              data: resized.buffer.toString('base64'),
-              media_type:
-                `image/${resized.mediaType}` as Base64ImageSource['media_type'],
-              type: 'base64',
-            },
-          })
+          content.push(block)
           return content
         } else {
           return await persistBlobToTextBlock(

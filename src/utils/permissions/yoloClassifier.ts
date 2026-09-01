@@ -1073,6 +1073,48 @@ async function classifyYoloActionXml(
   }
 }
 
+/** Official 2.1.157 `irH` — classify a sandbox network host via auto-mode. */
+export async function classifySandboxNetworkAccess(
+  host: string,
+  port: number | undefined,
+  messages: Message[],
+  tools: Tools,
+  context: ToolPermissionContext,
+  signal: AbortSignal,
+): Promise<boolean> {
+  const action = formatActionForClassifier('SandboxNetworkAccess', {
+    host,
+    port,
+  })
+  const stub: Tool = {
+    name: 'SandboxNetworkAccess',
+    toAutoClassifierInput: input => input,
+  } as Tool
+  const result = await classifyYoloAction(
+    messages,
+    action,
+    [...tools, stub],
+    context,
+    signal,
+  )
+  const allow = result.unavailable
+    ? !getFeatureValue_CACHED_MAY_BE_STALE('tengu_iron_gate_closed', true)
+    : !result.shouldBlock
+  if (result.unavailable) {
+    logForDebugging(
+      `Sandbox network classifier unavailable for ${host}; iron_gate → ${allow ? 'allow' : 'deny'}`,
+      { level: 'warn' },
+    )
+  }
+  if (!allow) {
+    logForDebugging(
+      `Auto mode classifier blocked sandbox network access to ${host}: ${result.reason}`,
+      { level: 'warn' },
+    )
+  }
+  return allow
+}
+
 /**
  * Use Opus to classify whether an agent action should be allowed or blocked.
  * Returns a YoloClassifierResult indicating the decision.

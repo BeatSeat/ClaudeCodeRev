@@ -57,49 +57,10 @@ export function useIDEStatusIndicator({
     !shouldShowConnected &&
     !shouldShowIdeSelection
 
-  // Show the /ide command hint if running from an external terminal and found running IDE(s)
-  // Delay showing hint to avoid brief flash during auto-connect startup
+  // Official 2.1.157: "/ide for …" startup hint toast removed.
   useEffect(() => {
-    if (getIsRemoteMode()) return
-    if (isSupportedTerminal() || ideStatus !== null || showJetBrainsInfo) {
-      removeNotification('ide-status-hint')
-      return
-    }
-    // Wait a bit to let auto-connect happen first, avoiding brief hint flash
-    if (
-      hasShownHintRef.current ||
-      (getGlobalConfig().ideHintShownCount ?? 0) >= MAX_IDE_HINT_SHOW_COUNT
-    ) {
-      return
-    }
-    const timeoutId = setTimeout(
-      (hasShownHintRef, addNotification) => {
-        void detectIDEs(true).then(infos => {
-          const ideName = infos[0]?.name
-          if (ideName && !hasShownHintRef.current) {
-            hasShownHintRef.current = true
-            saveGlobalConfig(current => ({
-              ...current,
-              ideHintShownCount: (current.ideHintShownCount ?? 0) + 1,
-            }))
-            addNotification({
-              key: 'ide-status-hint',
-              jsx: (
-                <Text dimColor>
-                  /ide for <Text color="ide">{ideName}</Text>
-                </Text>
-              ),
-              priority: 'low',
-            })
-          }
-        })
-      },
-      3000,
-      hasShownHintRef,
-      addNotification,
-    )
-    return () => clearTimeout(timeoutId)
-  }, [addNotification, removeNotification, ideStatus, showJetBrainsInfo])
+    removeNotification('ide-status-hint')
+  }, [removeNotification])
 
   // Show IDE disconnected/failed notification when status is disconnected
   useEffect(() => {

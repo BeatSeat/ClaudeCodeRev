@@ -4343,6 +4343,15 @@ You have exited auto mode. The user may now want to interact more directly. You 
         }),
       ])
     }
+    case 'workflow_keyword_request': {
+      return wrapMessagesInSystemReminder([
+        createUserMessage({
+          content:
+            'The user included the keyword "workflow" or "workflows", which means you should use the Workflow tool to fulfill their request.',
+          isMeta: true,
+        }),
+      ])
+    }
     case 'deferred_tools_delta': {
       const parts: string[] = []
       if (attachment.addedLines.length > 0) {

@@ -13,7 +13,16 @@ import {
   setScheduledTasksEnabled,
   switchSession,
 } from '../bootstrap/state.js'
+import {
+  OUTPUT_FILE_TAG,
+  STATUS_TAG,
+  SUMMARY_TAG,
+  TASK_ID_TAG,
+  TASK_NOTIFICATION_TAG,
+} from '../constants/xml.js'
 import { clearSystemPromptSections } from '../constants/systemPromptSections.js'
+import type { AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS } from '../services/analytics/index.js'
+import { logEvent } from '../services/analytics/index.js'
 import { restoreCostStateForSession } from '../cost-tracker.js'
 import {
   isRestrictedToPluginOnly,
@@ -55,6 +64,7 @@ import { getCronJitterConfig } from './cronJitterConfig.js'
 import { oneShotJitteredNextCronRunMs } from './cronTasks.js'
 import { logForDebugging } from './debug.js'
 import { logError } from './log.js'
+import { enqueuePendingNotification } from './messageQueueManager.js'
 import type { FileHistorySnapshot } from './fileHistory.js'
 import { fileHistoryRestoreStateFromLog } from './fileHistory.js'
 import { createSystemMessage } from './messages.js'
@@ -70,6 +80,7 @@ import {
   saveWorktreeState,
 } from './sessionStorage.js'
 import { isTodoV2Enabled } from './tasks.js'
+import { escapeXml } from './xml.js'
 import type { TodoList } from './todo/types.js'
 import { TodoListSchema } from './todo/types.js'
 import type { ContentReplacementRecord } from './toolResultStorage.js'
@@ -594,6 +605,12 @@ function isPlainObject(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null
 }
 
+type ExtractedAsyncAgent = {
+  agentId: string
+  description: string
+  outputFile?: string
+}
+
 type ExtractedCronCalls = {
   calls: Array<{
     toolUseId: string
@@ -602,16 +619,47 @@ type ExtractedCronCalls = {
   }>
   results: Map<string, Record<string, unknown>>
   deletedCronIds: Set<string>
+  asyncAgents: Map<string, ExtractedAsyncAgent>
+  notifiedTaskIds: Set<string>
+}
+
+const TASK_NOTIFICATION_OPEN = `<${TASK_NOTIFICATION_TAG}>`
+const TASK_ID_RE = new RegExp(
+  `<${TASK_ID_TAG}>([^<]+)</${TASK_ID_TAG}>`,
+  'g',
+)
+
+function messageContentToText(
+  content: string | Array<{ type?: string; text?: string }>,
+): string {
+  if (typeof content === 'string') return content
+  return content
+    .map(block =>
+      typeof block === 'object' && block && typeof block.text === 'string'
+        ? block.text
+        : '',
+    )
+    .join('\n')
+}
+
+/** Official 2.1.157 `fX9` — collect `<task-id>` from task-notification XML. */
+function collectNotifiedTaskIds(text: string, into: Set<string>): void {
+  if (!text.includes(TASK_NOTIFICATION_OPEN)) return
+  for (const match of text.matchAll(TASK_ID_RE)) {
+    if (match[1]) into.add(match[1])
+  }
 }
 
 /**
- * Official 2.1.110 Z_A — scan a resumed transcript for session-only
- * CronCreate/CronDelete tool_use so unexpired jobs can be resurrected.
+ * Official 2.1.157 `TCz` — scan a resumed transcript for session-only
+ * CronCreate/CronDelete tool_use and async_launched background agents.
  */
 function extractSessionCronCalls(messages: Message[]): ExtractedCronCalls {
   const calls: ExtractedCronCalls['calls'] = []
   const results = new Map<string, Record<string, unknown>>()
   const deletedCronIds = new Set<string>()
+  const asyncAgents = new Map<string, ExtractedAsyncAgent>()
+  const notifiedTaskIds = new Set<string>()
   for (const msg of messages) {
     if (msg.type === 'assistant') {
       const content = msg.message.content
@@ -627,6 +675,10 @@ function extractSessionCronCalls(messages: Message[]): ExtractedCronCalls {
         }
       }
     } else if (msg.type === 'user') {
+      collectNotifiedTaskIds(
+        messageContentToText(msg.message.content),
+        notifiedTaskIds,
+      )
       const content = msg.message.content
       if (!Array.isArray(content)) continue
       const toolUseResult = msg.toolUseResult
@@ -636,9 +688,29 @@ function extractSessionCronCalls(messages: Message[]): ExtractedCronCalls {
           results.set(block.tool_use_id, toolUseResult)
         }
       }
+      if (
+        toolUseResult.status === 'async_launched' &&
+        typeof toolUseResult.agentId === 'string' &&
+        typeof toolUseResult.description === 'string'
+      ) {
+        asyncAgents.set(toolUseResult.agentId, {
+          agentId: toolUseResult.agentId,
+          description: toolUseResult.description,
+          outputFile:
+            typeof toolUseResult.outputFile === 'string'
+              ? toolUseResult.outputFile
+              : undefined,
+        })
+      }
+    } else if (
+      msg.type === 'attachment' &&
+      msg.attachment.type === 'queued_command' &&
+      typeof msg.attachment.prompt === 'string'
+    ) {
+      collectNotifiedTaskIds(msg.attachment.prompt, notifiedTaskIds)
     }
   }
-  return { calls, results, deletedCronIds }
+  return { calls, results, deletedCronIds, asyncAgents, notifiedTaskIds }
 }
 
 /**
@@ -696,12 +768,57 @@ function applyExtractedSessionCronTasks({
 }
 
 /**
- * Official 2.1.110 dM7 — --resume/--continue resurrects unexpired
- * session-only scheduled tasks from the transcript.
+ * Official 2.1.157 `vCz` — notify that in-process background agents were
+ * orphaned when the previous Claude Code process exited.
  */
-export function resurrectSessionCronTasks(messages: Message[]): void {
+function notifyOrphanedBackgroundAgents(
+  { asyncAgents, notifiedTaskIds }: ExtractedCronCalls,
+  liveTasks?: Record<string, unknown>,
+): void {
+  let orphaned = 0
+  for (const agent of asyncAgents.values()) {
+    if (notifiedTaskIds.has(agent.agentId) || liveTasks?.[agent.agentId]) {
+      continue
+    }
+    orphaned++
+    const outputFile = agent.outputFile
+      ? `\n<${OUTPUT_FILE_TAG}>${escapeXml(agent.outputFile)}</${OUTPUT_FILE_TAG}>`
+      : ''
+    enqueuePendingNotification({
+      value: `<${TASK_NOTIFICATION_TAG}>
+<${TASK_ID_TAG}>${escapeXml(agent.agentId)}</${TASK_ID_TAG}>${outputFile}
+<${STATUS_TAG}>failed</${STATUS_TAG}>
+<${SUMMARY_TAG}>Background agent "${escapeXml(agent.description)}" was running when the previous Claude Code process exited and did not complete. Its in-process state was lost. Check its worktree/output for partial work before assuming the task landed.</${SUMMARY_TAG}>
+</${TASK_NOTIFICATION_TAG}>`,
+      mode: 'task-notification',
+      priority: 'next',
+    })
+  }
+  if (orphaned > 0) {
+    logEvent('tengu_feature_sad', {
+      feature_name:
+        'task_local_agent' as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
+      error_code:
+        'orphaned_on_resume' as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
+    })
+    logForDebugging(
+      `resume: ${orphaned} background agent(s) orphaned by previous process exit`,
+    )
+  }
+}
+
+/**
+ * Official 2.1.157 `D_q` — --resume/--continue resurrects unexpired
+ * session-only scheduled tasks and reports orphaned background subagents.
+ */
+export function resurrectSessionCronTasks(
+  messages: Message[],
+  liveTasks?: Record<string, unknown>,
+): void {
   try {
-    applyExtractedSessionCronTasks(extractSessionCronCalls(messages))
+    const extracted = extractSessionCronCalls(messages)
+    applyExtractedSessionCronTasks(extracted)
+    notifyOrphanedBackgroundAgents(extracted, liveTasks)
   } catch (err) {
     logError(err)
   }

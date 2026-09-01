@@ -116,14 +116,17 @@ export async function setupTerminal(theme: ThemeName): Promise<string> {
     case 'vscode':
       result = await installBindingsForVSCodeTerminal('VSCode', theme)
       result += await configureEditorScrollSensitivity('VSCode', theme)
+      result += await configureEditorGpuAcceleration('VSCode', theme)
       break
     case 'cursor':
       result = await installBindingsForVSCodeTerminal('Cursor', theme)
       result += await configureEditorScrollSensitivity('Cursor', theme)
+      result += await configureEditorGpuAcceleration('Cursor', theme)
       break
     case 'windsurf':
       result = await installBindingsForVSCodeTerminal('Windsurf', theme)
       result += await configureEditorScrollSensitivity('Windsurf', theme)
+      result += await configureEditorGpuAcceleration('Windsurf', theme)
       break
     case 'alacritty':
       result = await installBindingsForAlacritty(theme)
@@ -383,6 +386,92 @@ async function configureEditorScrollSensitivity(
     )(
       `Set ${editor} terminal scroll sensitivity to ${EDITOR_SCROLL_SENSITIVITY}`,
     )}${EOL}${chalk.dim(`See ${formatPathLink(settingsPath)}`)}${EOL}`
+  } catch (error) {
+    logError(error)
+    return `${color(
+      'warning',
+      theme,
+    )(`Couldn't update ${editor} settings.json.`)}${EOL}${hint}${EOL}`
+  }
+}
+
+const EDITOR_GPU_ACCEL_KEY = 'terminal.integrated.gpuAcceleration'
+const EDITOR_GPU_ACCEL_OFF = 'off'
+
+/** Official 2.1.157 `p78`. */
+async function configureEditorGpuAcceleration(
+  editor: 'VSCode' | 'Cursor' | 'Windsurf',
+  theme: ThemeName,
+): Promise<string> {
+  const hint = chalk.dim(
+    `To fix garbled text, set "${EDITOR_GPU_ACCEL_KEY}": "${EDITOR_GPU_ACCEL_OFF}" in ${editor} settings (undo: set it back to "auto").`,
+  )
+  if (isVSCodeRemoteSSH()) {
+    return `${hint}${EOL}`
+  }
+  const settingsPath = join(getEditorUserDir(editor), 'settings.json')
+  try {
+    let content = '{}'
+    let fileExists = false
+    try {
+      content = await readFile(settingsPath, { encoding: 'utf-8' })
+      fileExists = true
+    } catch (e: unknown) {
+      if (!isFsInaccessible(e)) throw e
+    }
+    const parsed = safeParseJSONC(content)
+    if (parsed === null || typeof parsed !== 'object' || Array.isArray(parsed)) {
+      return `${color(
+        'warning',
+        theme,
+      )(
+        `${editor} settings.json isn't a JSON object; not modifying it.`,
+      )}${EOL}${hint}${EOL}`
+    }
+    if (
+      (parsed as Record<string, unknown>)[EDITOR_GPU_ACCEL_KEY] ===
+      EDITOR_GPU_ACCEL_OFF
+    ) {
+      return `${color(
+        'success',
+        theme,
+      )(
+        `${editor} GPU acceleration already off; leaving as-is`,
+      )}${EOL}${chalk.dim(`See ${formatPathLink(settingsPath)}`)}${EOL}`
+    }
+    const updated = setJSONCProperty(
+      content,
+      EDITOR_GPU_ACCEL_KEY,
+      EDITOR_GPU_ACCEL_OFF,
+    )
+    if (updated === content) {
+      return `${color(
+        'warning',
+        theme,
+      )(`Couldn't update ${editor} settings.json.`)}${EOL}${hint}${EOL}`
+    }
+    if (fileExists) {
+      const backupPath = `${settingsPath}.${randomBytes(4).toString('hex')}.bak`
+      try {
+        await copyFile(settingsPath, backupPath)
+      } catch {
+        return `${color(
+          'warning',
+          theme,
+        )(
+          `Couldn't back up ${editor} settings.json; not modifying it.`,
+        )}${EOL}${hint}${EOL}`
+      }
+    } else {
+      await mkdir(dirname(settingsPath), { recursive: true })
+    }
+    await writeFile(settingsPath, updated, { encoding: 'utf-8' })
+    return `${color(
+      'success',
+      theme,
+    )(
+      `Turned off ${editor} GPU acceleration to fix garbled text`,
+    )}${EOL}${chalk.dim(`Reload the ${editor} window to apply. Undo: set "${EDITOR_GPU_ACCEL_KEY}" back to "auto".`)}${EOL}${chalk.dim(`See ${formatPathLink(settingsPath)}`)}${EOL}`
   } catch (error) {
     logError(error)
     return `${color(

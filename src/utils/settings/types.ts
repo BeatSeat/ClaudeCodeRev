@@ -529,6 +529,12 @@ export const SettingsSchema = lazySchema(() =>
         .describe(
           'Enable or disable the Workflows feature for this user. Unset = default by plan once the feature is available.',
         ),
+      workflowKeywordTriggerEnabled: z
+        .boolean()
+        .optional()
+        .describe(
+          'Enable the "workflow"/"workflows" keyword trigger that opts a prompt into the Workflow tool. Set to false to type the word without triggering a workflow. Default: true.',
+        ),
       disableSkillShellExecution: z
         .boolean()
         .optional()

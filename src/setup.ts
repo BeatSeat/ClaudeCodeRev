@@ -234,7 +234,10 @@ export async function setup(
         getSessionId(),
         slug,
         tmuxSessionName,
-        worktreePRNumber ? { prNumber: worktreePRNumber } : undefined,
+        {
+          fromCwd: getCwd(),
+          ...(worktreePRNumber ? { prNumber: worktreePRNumber } : {}),
+        },
       )
     } catch (error) {
       process.stderr.write(

@@ -20,7 +20,7 @@ import {
   SandboxRuntimeConfigSchema,
   SandboxViolationStore,
 } from '@anthropic-ai/sandbox-runtime'
-import { accessSync, constants, rmSync, statSync } from 'fs'
+import { accessSync, constants, lstatSync, rmSync, statSync } from 'fs'
 import { open, readFile } from 'fs/promises'
 import { memoize } from 'lodash-es'
 import { isAbsolute, join, resolve, sep } from 'path'
@@ -91,6 +91,9 @@ import { isInBundledMode } from '../bundledMode.js'
 import { getClaudeTempDir } from '../permissions/filesystem.js'
 import type { PermissionRuleValue } from '../permissions/PermissionRule.js'
 import { ripgrepCommand } from '../ripgrep.js'
+
+/** Official 2.1.157 `W18` — agentId → pinned worktree cwd for sandbox write access. */
+const agentSandboxCwdById = new Map<string, string>()
 
 /** Official 2.1.92: inherit `/proc/self/exe` on stdio fd 3 for apply-seccomp. */
 const EMBEDDED_APPLY_SECCOMP_FD = 3
@@ -372,6 +375,26 @@ export function convertToSandboxRuntimeConfig(
     ...getAdditionalDirectoriesForClaudeMd(),
   ])
   allowWrite.push(...additionalDirs)
+
+  // Official 2.1.157 `W18` — pinned-cwd EnterWorktree switches add the
+  // agent's worktree as writable and lock down its .claude / .git pointer.
+  for (const agentCwd of agentSandboxCwdById.values()) {
+    allowWrite.push(agentCwd)
+    denyWrite.push(resolve(agentCwd, '.claude', 'settings.json'))
+    denyWrite.push(resolve(agentCwd, '.claude', 'settings.local.json'))
+    denyWrite.push(resolve(agentCwd, '.claude', 'skills'))
+    denyWrite.push(resolve(agentCwd, '.claude', 'agents'))
+    denyWrite.push(resolve(agentCwd, '.claude', 'commands'))
+    denyWrite.push(resolve(agentCwd, '.claude', 'hooks'))
+    const gitPointer = resolve(agentCwd, '.git')
+    try {
+      if (lstatSync(gitPointer).isFile()) {
+        denyWrite.push(gitPointer)
+      }
+    } catch {
+      // no .git pointer
+    }
+  }
 
   // Iterate through each settings source to resolve paths correctly
   // Path patterns like `/foo` are relative to the settings file directory,
@@ -889,6 +912,13 @@ function refreshConfig(): void {
   BaseSandboxManager.updateConfig(newConfig)
 }
 
+/** Official 2.1.157 `ve7`/`e26` — pin this agent's sandbox cwd and refresh SRT. */
+export function setSandboxAgentCwd(cwd: string, agentId: string): void {
+  if (agentSandboxCwdById.get(agentId) === cwd) return
+  agentSandboxCwdById.set(agentId, cwd)
+  refreshConfig()
+}
+
 /**
  * Reset sandbox state and clear memoized values
  */
@@ -898,6 +928,7 @@ async function reset(): Promise<void> {
   settingsSubscriptionCleanup = undefined
   worktreeMainRepoPath = undefined
   bareGitRepoScrubPaths.length = 0
+  agentSandboxCwdById.clear()
 
   // Clear memoized caches
   checkDependencies.cache.clear?.()

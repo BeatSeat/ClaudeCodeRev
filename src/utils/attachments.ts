@@ -699,6 +699,9 @@ export type Attachment =
       level: 'high'
     }
   | {
+      type: 'workflow_keyword_request'
+    }
+  | {
       type: 'deferred_tools_delta'
       addedNames: string[]
       addedLines: string[]
@@ -1126,7 +1129,7 @@ export function getAgentPendingMessageAttachments(
 
 async function buildImageContentBlocks(
   pastedContents: Record<number, PastedContent> | undefined,
-): Promise<ImageBlockParam[]> {
+): Promise<ContentBlockParam[]> {
   if (!pastedContents) {
     return []
   }

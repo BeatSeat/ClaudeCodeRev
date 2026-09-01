@@ -1,5 +1,6 @@
 import type {
   Base64ImageSource,
+  ContentBlockParam,
   ImageBlockParam,
 } from '@anthropic-ai/sdk/resources/messages.mjs'
 import {
@@ -449,38 +450,48 @@ export async function maybeResizeAndDownsampleImageBuffer(
 }
 
 export interface ImageBlockWithDimensions {
-  block: ImageBlockParam
+  block: ContentBlockParam
   dimensions?: ImageDimensions
   tokenCompressed?: boolean
 }
 
 /**
- * Resizes an image content block if needed
- * Takes an image ImageBlockParam and returns a resized version if necessary
- * Also returns dimension information for coordinate mapping
+ * Official 2.1.157 `Ev` — resize raw image bytes. Catches `ImageResizeError`
+ * and returns a text placeholder so MCP / dialog / paste callers share the
+ * unprocessable-image path (156 threw from `Vv`).
  */
-export async function maybeResizeAndDownsampleImageBlock(
-  imageBlock: ImageBlockParam,
-): Promise<ImageBlockWithDimensions> {
-  // Only process base64 images
-  if (imageBlock.source.type !== 'base64') {
-    return { block: imageBlock }
+export async function maybeResizeAndDownsampleImage({
+  data,
+  mediaType,
+}: {
+  data: Buffer | string
+  mediaType?: string
+}): Promise<ImageBlockWithDimensions> {
+  const imageBuffer = Buffer.isBuffer(data) ? data : Buffer.from(data, 'base64')
+  const ext = mediaType?.includes('/')
+    ? mediaType.split('/')[1] || 'png'
+    : mediaType || 'png'
+
+  let resized
+  try {
+    resized = await maybeResizeAndDownsampleImageBuffer(
+      imageBuffer,
+      imageBuffer.length,
+      ext,
+    )
+  } catch (error) {
+    if (error instanceof ImageResizeError) {
+      logEvent('tengu_image_resize_degraded', {})
+      return {
+        block: {
+          type: 'text',
+          text: `[Image could not be processed: ${error.message}]`,
+        },
+      }
+    }
+    throw error
   }
 
-  // Decode base64 to buffer
-  const imageBuffer = Buffer.from(imageBlock.source.data, 'base64')
-  const originalSize = imageBuffer.length
-
-  // Extract extension from media type
-  const sourceMediaType = imageBlock.source.media_type
-  const ext = sourceMediaType?.split('/')[1] || 'png'
-
-  // Resize if needed
-  const resized = await maybeResizeAndDownsampleImageBuffer(
-    imageBuffer,
-    originalSize,
-    ext,
-  )
   const base64 = resized.buffer.toString('base64')
   const resizedMediaType =
     `image/${resized.mediaType}` as Base64ImageSource['media_type']
@@ -511,7 +522,6 @@ export async function maybeResizeAndDownsampleImageBlock(
     }
   }
 
-  // Return resized image block with dimension info
   return {
     block: {
       type: 'image',
@@ -523,6 +533,21 @@ export async function maybeResizeAndDownsampleImageBlock(
     },
     dimensions: resized.dimensions,
   }
+}
+
+/**
+ * Official 2.1.157 `qH7` — ImageBlockParam wrapper around `Ev`.
+ */
+export async function maybeResizeAndDownsampleImageBlock(
+  imageBlock: ImageBlockParam,
+): Promise<ImageBlockWithDimensions> {
+  if (imageBlock.source.type !== 'base64') {
+    return { block: imageBlock }
+  }
+  return maybeResizeAndDownsampleImage({
+    data: imageBlock.source.data,
+    mediaType: imageBlock.source.media_type,
+  })
 }
 
 /**

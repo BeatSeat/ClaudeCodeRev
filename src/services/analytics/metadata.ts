@@ -87,6 +87,66 @@ export function isToolDetailsLoggingEnabled(): boolean {
   return isEnvTruthy(process.env.OTEL_LOG_TOOL_DETAILS)
 }
 
+/** Official 2.1.157 `cM$` — tool_decision tool_parameters when OTEL_LOG_TOOL_DETAILS=1. */
+export function collectToolDecisionParameters(
+  toolName: string,
+  input: unknown,
+): Record<string, unknown> {
+  const out: Record<string, unknown> = {}
+  if (!isToolDetailsLoggingEnabled()) return out
+  if (
+    toolName === 'Bash' &&
+    input !== null &&
+    typeof input === 'object' &&
+    'command' in input &&
+    typeof (input as { command: unknown }).command === 'string'
+  ) {
+    const bash = input as {
+      command: string
+      timeout?: number
+      description?: string
+      dangerouslyDisableSandbox?: boolean
+    }
+    const parts = bash.command.trim().split(/\s+/)
+    out.bash_command = parts[0] || ''
+    out.full_command = bash.command
+    if (bash.timeout !== undefined) out.timeout = bash.timeout
+    if (bash.description !== undefined) out.description = bash.description
+    if ('dangerouslyDisableSandbox' in bash) {
+      out.dangerouslyDisableSandbox = bash.dangerouslyDisableSandbox
+    }
+  } else if (
+    toolName === 'mcp__workspace__bash' &&
+    input !== null &&
+    typeof input === 'object' &&
+    'command' in input &&
+    typeof (input as { command: unknown }).command === 'string'
+  ) {
+    const ws = input as { command: string; timeout_ms?: number }
+    const parts = ws.command.trim().split(/\s+/)
+    out.bash_command = parts[0] || ''
+    out.full_command = ws.command
+    if (ws.timeout_ms !== undefined) out.timeout = ws.timeout_ms
+  }
+  const mcp = extractMcpToolDetails(toolName)
+  if (mcp) {
+    out.mcp_server_name = mcp.serverName
+    out.mcp_tool_name = mcp.mcpToolName
+  }
+  const skill = extractSkillName(toolName, input)
+  if (skill) out.skill_name = skill
+  if (
+    (toolName === 'Agent' || toolName === 'Task') &&
+    input !== null &&
+    typeof input === 'object' &&
+    'subagent_type' in input &&
+    typeof (input as { subagent_type: unknown }).subagent_type === 'string'
+  ) {
+    out.subagent_type = (input as { subagent_type: string }).subagent_type
+  }
+  return out
+}
+
 /**
  * Check whether tool result content may be included in OpenTelemetry output.
  * This is separate from tool details because results can contain source code,

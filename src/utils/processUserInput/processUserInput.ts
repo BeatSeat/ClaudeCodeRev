@@ -46,7 +46,6 @@ import {
 } from '../hooks.js'
 import {
   createImageMetadataText,
-  ImageResizeError,
   maybeResizeAndDownsampleImageBlock,
 } from '../imageResizer.js'
 import { storeImages } from '../imageStore.js'
@@ -62,6 +61,15 @@ import {
   hasUltraplanKeyword,
   replaceUltraplanKeyword,
 } from '../ultraplan/keyword.js'
+import {
+  hasWorkflowKeyword,
+  isWorkflowKeywordIgnored,
+  workflowKeywordRequestAttachment,
+} from '../workflows/keyword.js'
+import {
+  isWorkflowKeywordTriggerEnabled,
+  isWorkflowsEnabled,
+} from '../workflows/enabled.js'
 import { processTextPrompt } from './processTextPrompt.js'
 import {
   isThinkingGuidanceEnabled,
@@ -331,27 +339,15 @@ async function processUserInputBase(
     const processedBlocks: ContentBlockParam[] = []
     for (const block of input) {
       if (block.type === 'image') {
-        try {
-          const resized = await maybeResizeAndDownsampleImageBlock(block)
-          // Collect image metadata for isMeta message
-          if (resized.dimensions) {
-            const metadataText = createImageMetadataText(resized.dimensions)
-            if (metadataText) {
-              imageMetadataTexts.push(metadataText)
-            }
-          }
-          processedBlocks.push(resized.block)
-        } catch (error) {
-          if (error instanceof ImageResizeError) {
-            logEvent('tengu_image_resize_degraded', {})
-            processedBlocks.push({
-              type: 'text',
-              text: `[Image could not be processed: ${error.message}]`,
-            })
-          } else {
-            throw error
+        const resized = await maybeResizeAndDownsampleImageBlock(block)
+        // Collect image metadata for isMeta message
+        if (resized.dimensions) {
+          const metadataText = createImageMetadataText(resized.dimensions)
+          if (metadataText) {
+            imageMetadataTexts.push(metadataText)
           }
         }
+        processedBlocks.push(resized.block)
       } else {
         processedBlocks.push(block)
       }
@@ -534,6 +530,19 @@ async function processUserInputBase(
     return addImageMetadataMessage(slashResult, imageMetadataTexts)
   }
 
+  const workflowSource = preExpansionInput ?? inputString
+  const workflowKeywordHit =
+    mode === 'prompt' &&
+    !context.options.isNonInteractiveSession &&
+    inputString !== null &&
+    !effectiveSkipSlash &&
+    !inputString.startsWith('/') &&
+    isWorkflowsEnabled() &&
+    isWorkflowKeywordTriggerEnabled() &&
+    !isWorkflowKeywordIgnored() &&
+    typeof workflowSource === 'string' &&
+    hasWorkflowKeyword(workflowSource)
+
   // For slash commands, attachments will be extracted within getMessagesForSlashCommand.
   // Official 2.1.89+: image-only / image-last SDK payloads have inputString === null
   // but still need skill reminders and other attachments.
@@ -555,6 +564,11 @@ async function processUserInputBase(
       )
     : []
   queryCheckpoint('query_attachment_loading_end')
+  if (workflowKeywordHit) {
+    for (const att of workflowKeywordRequestAttachment(workflowSource!)) {
+      attachmentMessages.push(createAttachmentMessage(att))
+    }
+  }
 
   // Bash commands
   if (inputString !== null && mode === 'bash') {

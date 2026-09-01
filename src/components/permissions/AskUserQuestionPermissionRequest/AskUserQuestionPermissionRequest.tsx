@@ -1,5 +1,6 @@
 import type {
   Base64ImageSource,
+  ContentBlockParam,
   ImageBlockParam,
 } from '@anthropic-ai/sdk/resources/messages.mjs'
 import React, {
@@ -586,7 +587,7 @@ Questions asked and answers provided:\n${questionsWithAnswers}`
 
 async function convertImagesToBlocks(
   images: PastedContent[],
-): Promise<ImageBlockParam[] | undefined> {
+): Promise<ContentBlockParam[] | undefined> {
   if (images.length === 0) return undefined
   return Promise.all(
     images.map(async img => {

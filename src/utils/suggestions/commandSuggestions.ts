@@ -5,6 +5,7 @@ import {
   getCommand,
   getCommandName,
 } from '../../commands.js'
+import type { CommandArgumentCompletion } from '../../types/command.js'
 import type { SuggestionItem } from '../../components/PromptInput/PromptInputFooterSuggestions.js'
 import { getSkillUsageScore } from './skillUsageTracking.js'
 import { isSkillDisabled } from '../settings/skillOverrides.js'
@@ -106,6 +107,70 @@ function isCommandMetadata(metadata: unknown): metadata is Command {
     typeof (metadata as { name: unknown }).name === 'string' &&
     'type' in metadata
   )
+}
+
+/** Official 2.1.157 m59 / B59: slash-argument suggestion id prefix. */
+export const COMMAND_ARG_SUGGESTION_PREFIX = 'command-arg-'
+
+/**
+ * Official 2.1.157 qoH: replacement metadata written by B59.
+ */
+function getReplacementMetadata(metadata: unknown): {
+  replacement: string
+  partial: boolean
+} | null {
+  if (
+    typeof metadata === 'object' &&
+    metadata !== null &&
+    'replacement' in metadata &&
+    typeof (metadata as { replacement: unknown }).replacement === 'string' &&
+    'partial' in metadata &&
+    typeof (metadata as { partial: unknown }).partial === 'boolean'
+  ) {
+    return {
+      replacement: (metadata as { replacement: string }).replacement,
+      partial: (metadata as { partial: boolean }).partial,
+    }
+  }
+  return null
+}
+
+/**
+ * Official 2.1.157 B59: map getArgumentCompletions rows onto typeahead items.
+ */
+export async function getCommandArgumentCompletions(
+  rawPrompt: string,
+  getArgumentCompletions: (
+    completed: string[],
+    partial: string,
+  ) => Promise<CommandArgumentCompletion[]>,
+): Promise<SuggestionItem[]> {
+  const spaceIndex = rawPrompt.indexOf(' ')
+  if (!rawPrompt.startsWith('/') || spaceIndex === -1) {
+    return []
+  }
+  const commandName = rawPrompt.slice(1, spaceIndex)
+  const argsText = rawPrompt.slice(spaceIndex + 1)
+  const tokens = argsText.split(/\s+/).filter(Boolean)
+  const atBoundary = argsText === '' || /\s$/.test(argsText)
+  const partial = atBoundary ? '' : (tokens.at(-1) ?? '')
+  const completed = atBoundary ? tokens : tokens.slice(0, -1)
+  const completions = await getArgumentCompletions(completed, partial)
+  const prefix = [`/${commandName}`, ...completed].join(' ')
+  return completions.slice(0, 12).map(item => {
+    const isFinal =
+      item.isFinal === true || item.value.toLowerCase() === partial.toLowerCase()
+    return {
+      id: `${COMMAND_ARG_SUGGESTION_PREFIX}${item.value}`,
+      displayText: item.value,
+      description: item.description,
+      query: partial === '' ? undefined : partial.toLowerCase(),
+      metadata: {
+        replacement: `${prefix} ${item.value}${isFinal ? '' : ' '}`,
+        partial: !isFinal,
+      },
+    }
+  })
 }
 
 /**
@@ -547,7 +612,9 @@ export function generateCommandSuggestions(
 }
 
 /**
- * Apply selected command to input
+ * Apply selected command to input.
+ * Official 2.1.157 v9q: replacement metadata (B59) wins, and partial
+ * completions ask the typeahead to re-run (`reSuggest`).
  */
 export function applyCommandSuggestion(
   suggestion: string | SuggestionItem,
@@ -556,7 +623,22 @@ export function applyCommandSuggestion(
   onInputChange: (value: string) => void,
   setCursorOffset: (offset: number) => void,
   onSubmit: (value: string, isSubmittingSlashCommand?: boolean) => void,
-): void {
+): { newInput: string; reSuggest: boolean } | null {
+  if (typeof suggestion !== 'string') {
+    const replacement = getReplacementMetadata(suggestion.metadata)
+    if (replacement) {
+      onInputChange(replacement.replacement)
+      setCursorOffset(replacement.replacement.length)
+      if (shouldExecute && !replacement.partial) {
+        onSubmit(replacement.replacement.trim(), true)
+      }
+      return {
+        newInput: replacement.replacement,
+        reSuggest: replacement.partial,
+      }
+    }
+  }
+
   // Extract command name and object from string or SuggestionItem metadata
   let commandName: string
   let commandObj: Command | undefined
@@ -565,7 +647,7 @@ export function applyCommandSuggestion(
     commandObj = shouldExecute ? getCommand(commandName, commands) : undefined
   } else {
     if (!isCommandMetadata(suggestion.metadata)) {
-      return // Invalid suggestion, nothing to apply
+      return null
     }
     commandName = suggestion.metadata.name
     commandObj = suggestion.metadata
@@ -585,6 +667,7 @@ export function applyCommandSuggestion(
       onSubmit(newInput, /* isSubmittingSlashCommand */ true)
     }
   }
+  return { newInput, reSuggest: false }
 }
 
 // Helper function at bottom of file per CLAUDE.md

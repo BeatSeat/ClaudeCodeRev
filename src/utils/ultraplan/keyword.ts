@@ -43,7 +43,7 @@ const OPEN_TO_CLOSE: Record<string, string> = {
  * Shape matches findThinkingTriggerPositions (thinking.ts) so
  * PromptInput treats both trigger types uniformly.
  */
-function findKeywordTriggerPositions(
+export function findKeywordTriggerPositions(
   text: string,
   keyword: string,
 ): TriggerPosition[] {

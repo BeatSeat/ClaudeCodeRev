@@ -93,6 +93,7 @@ const autoModeStateModule = feature('TRANSCRIPT_CLASSIFIER')
 
 import type {
   Base64ImageSource,
+  ContentBlockParam,
   ImageBlockParam,
 } from '@anthropic-ai/sdk/resources/messages.mjs'
 /* eslint-enable @typescript-eslint/no-require-imports */
@@ -635,8 +636,8 @@ export function ExitPlanModePermissionRequest({
         interviewPhaseEnabled: isPlanModeInterviewPhaseEnabled(),
       })
 
-      // Convert pasted images to ImageBlockParam[] with resizing
-      let imageBlocks: ImageBlockParam[] | undefined
+      // Convert pasted images via Ev — may degrade to a text placeholder
+      let imageBlocks: ContentBlockParam[] | undefined
       if (hasImages) {
         imageBlocks = await Promise.all(
           imageAttachments.map(async img => {

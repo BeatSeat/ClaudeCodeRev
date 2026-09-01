@@ -343,6 +343,7 @@ import {
   restoreAgentFromSession,
   restoreSessionStateFromLog,
 } from 'src/utils/sessionRestore.js'
+import { wrapSandboxAskCallback } from 'src/utils/permissions/PermissionMode.js'
 import { SandboxManager } from 'src/utils/sandbox/sandbox-adapter.js'
 import {
   headlessProfilerStartTurn,
@@ -656,6 +657,9 @@ export async function runHeadless(
   }
 
   const structuredIO = getStructuredIO(inputPrompt, options)
+  // Official 2.1.157 `X` / `L` — classifier transcript + tool list for `nT9`/`irH`.
+  const sandboxClassifierMessages: { current: Message[] } = { current: [] }
+  const sandboxClassifierTools: { current: Tools } = { current: tools }
   if (
     isEnvTruthy(process.env.CLAUDE_CODE_SDK_HAS_OAUTH_REFRESH) &&
     SDK_OAUTH_REFRESH_ENTRYPOINTS.has(
@@ -708,11 +712,17 @@ export async function runHeadless(
         `  Commands will run WITHOUT sandboxing. Network and filesystem restrictions will NOT be enforced.\n\n`,
     )
   } else if (SandboxManager.isSandboxingEnabled()) {
-    // Initialize sandbox with a callback that forwards network permission
-    // requests to the SDK host via the can_use_tool control_request protocol.
-    // This must happen after structuredIO is created so we can send requests.
+    // Official 2.1.157 `nT9`: wrap the SDK ask callback with QBH so auto
+    // classifies and bypass/plan-bypass allow, instead of always prompting.
     try {
-      await SandboxManager.initialize(structuredIO.createSandboxAskCallback())
+      await SandboxManager.initialize(
+        wrapSandboxAskCallback(
+          structuredIO.createSandboxAskCallback(),
+          () => getAppState().toolPermissionContext,
+          () => sandboxClassifierMessages.current,
+          () => sandboxClassifierTools.current,
+        ),
+      )
     } catch (err) {
       process.stderr.write(`\n❌ Sandbox Error: ${errorMessage(err)}\n`)
       gracefulShutdownSync(1, 'other')
@@ -789,6 +799,7 @@ export async function runHeadless(
     sessionStartHooksPromise: options.sessionStartHooksPromise,
     restoredWorkerState: structuredIO.restoredWorkerState,
   })
+  sandboxClassifierMessages.current = initialMessages
 
   // SessionStart hooks can emit initialUserMessage — the first user turn for
   // headless orchestrator sessions where stdin is empty and additionalContext
@@ -894,6 +905,7 @@ export async function runHeadless(
     appState.toolPermissionContext,
   )
   let filteredTools = [...tools, ...allowedMcpTools]
+  sandboxClassifierTools.current = filteredTools
 
   // When using SDK URL, always use stdio permission prompting to delegate to the SDK
   const effectivePermissionPromptToolName = options.sdkUrl

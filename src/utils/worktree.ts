@@ -1,5 +1,3 @@
-import { orphanedWorktreeRemoteFailed } from './worktreeOrphan.js'
-void orphanedWorktreeRemoteFailed
 import { feature } from 'bun:bundle'
 import chalk from 'chalk'
 import { spawnSync } from 'child_process'
@@ -18,8 +16,10 @@ import { realpath } from 'fs/promises'
 import { basename, dirname, isAbsolute, join, resolve, sep } from 'path'
 import { saveCurrentProjectConfig } from './config.js'
 import { getCwd } from './cwd.js'
+import { ownProcStart, pidStartMatchesAsync } from '../daemon/bg/procStart.js'
 import { getBgSpawnProviderEnv } from './swarm/spawnUtils.js'
 import { logForDebugging } from './debug.js'
+import { isProcessRunning } from './genericProcessUtils.js'
 import { errorMessage, getErrnoCode } from './errors.js'
 import { execFileNoThrow, execFileNoThrowWithCwd } from './execFileNoThrow.js'
 import { parseGitConfigValue } from './git/gitConfigParser.js'
@@ -412,7 +412,7 @@ async function removeOrphanedWorktreeDirectoryIfSafe(
 async function getOrCreateWorktree(
   repoRoot: string,
   slug: string,
-  options?: { prNumber?: number; fromHead?: boolean },
+  options?: { prNumber?: number; fromHead?: boolean; fromCwd?: string },
 ): Promise<WorktreeCreateResult> {
   const worktreePath = worktreePathFor(repoRoot, slug)
   const worktreeBranch = worktreeBranchName(slug)
@@ -423,6 +423,9 @@ async function getOrCreateWorktree(
   // task, and the await yield lets background spawnSyncs pile on (seen at 55ms).
   const existingHead = await readWorktreeHeadSha(worktreePath)
   if (existingHead) {
+    // Official 2.1.157 N7q existed arm: bump mtime (not kSH resume utimes).
+    const now = new Date()
+    await utimes(worktreePath, now, now).catch(() => {})
     return {
       worktreePath,
       worktreeBranch,
@@ -495,7 +498,7 @@ async function getOrCreateWorktree(
     const { stdout, code: shaCode } = await execFileNoThrowWithCwd(
       gitExe(),
       ['rev-parse', baseBranch],
-      { cwd: repoRoot },
+      { cwd: options?.fromCwd ?? repoRoot },
     )
     if (shaCode !== 0) {
       throw new Error(
@@ -889,6 +892,38 @@ export async function killTmuxSession(sessionName: string): Promise<boolean> {
 type ListedWorktree = {
   worktreePath: string
   worktreeBranch?: string
+  lockReason?: string
+  prunable?: boolean
+}
+
+/** Official 2.1.157 `jn` — case-fold path prefix compares (Windows). */
+function pathKey(p: string): string {
+  return p.toLowerCase()
+}
+
+/** Official 2.1.157 `pS8` — `gitdir:` pointer from a worktree `.git` file. */
+async function readWorktreeGitdirPointer(
+  worktreePath: string,
+): Promise<string | null> {
+  try {
+    const contents = (await readFile(join(worktreePath, '.git'), 'utf-8')).trim()
+    if (!contents.startsWith('gitdir:')) return null
+    return resolve(worktreePath, contents.slice('gitdir:'.length).trim())
+  } catch {
+    return null
+  }
+}
+
+/** Official 2.1.157 `kLH` — unlock so a later dirty abort leaves the tree unlocked. */
+async function unlockAgentWorktree(
+  worktreePath: string,
+  gitRoot: string,
+): Promise<void> {
+  await execFileNoThrowWithCwd(
+    gitExe(),
+    ['worktree', 'unlock', worktreePath],
+    { cwd: gitRoot },
+  )
 }
 
 /** Official 2.1.105 `LeK` — porcelain worktree list with branch. */
@@ -911,30 +946,41 @@ async function listGitWorktrees(repoRoot: string): Promise<ListedWorktree[]> {
       current = { worktreePath: line.slice('worktree '.length) }
     } else if (line.startsWith('branch ') && current) {
       current.worktreeBranch = line.slice('branch '.length).replace(/^refs\/heads\//, '')
+    } else if ((line === 'locked' || line.startsWith('locked ')) && current) {
+      current.lockReason = line.slice('locked'.length).trim()
+    } else if ((line === 'prunable' || line.startsWith('prunable ')) && current) {
+      current.prunable = true
     }
   }
   if (current) listed.push(current)
   return listed
 }
 
+export type EnterExistingWorktreeOptions = {
+  /** Official 2.1.157 `requireManagedLocation` — target must be a linked worktree under `.claude/worktrees/`. */
+  requireManagedLocation?: boolean
+  /** Official 2.1.157 `requireCwdInsideRepo` — cwd must already be inside a worktree of this repo. */
+  requireCwdInsideRepo?: boolean
+}
+
 /**
- * Switch the session into an existing linked worktree (official 2.1.105 `C57`).
+ * Official 2.1.157 `hG8` — resolve and gate an existing linked worktree.
+ * `Bg6` wraps this into a session (`requireManagedLocation` when already in one).
  */
-export async function enterExistingWorktreeForSession(
-  sessionId: string,
+export async function resolveExistingWorktree(
   pathInput: string,
-): Promise<WorktreeSession> {
-  const originalCwd = getCwd()
-  const gitRoot = findCanonicalGitRoot(originalCwd) ?? findGitRoot(originalCwd)
+  options: EnterExistingWorktreeOptions = {},
+): Promise<{ worktreePath: string; worktreeBranch?: string }> {
+  const { requireManagedLocation, requireCwdInsideRepo = false } = options
+  const cwd = getCwd()
+  const gitRoot = findCanonicalGitRoot(cwd) ?? findGitRoot(cwd)
   if (!gitRoot) {
     throw new Error(
       'Cannot enter an existing worktree: the current directory is not in a git repository.',
     )
   }
 
-  const resolvedInput = isAbsolute(pathInput)
-    ? pathInput
-    : resolve(originalCwd, pathInput)
+  const resolvedInput = isAbsolute(pathInput) ? pathInput : resolve(cwd, pathInput)
 
   let targetPath: string
   let mainPath: string
@@ -943,7 +989,7 @@ export async function enterExistingWorktreeForSession(
     ;[targetPath, mainPath, cwdPath] = await Promise.all([
       realpath(resolvedInput),
       realpath(gitRoot),
-      realpath(originalCwd),
+      realpath(cwd),
     ])
   } catch (error) {
     throw new Error(`Cannot enter worktree: ${pathInput}: ${errorMessage(error)}`)
@@ -958,6 +1004,62 @@ export async function enterExistingWorktreeForSession(
     throw new Error(
       `Cannot enter worktree: ${pathInput} is the current working directory.`,
     )
+  }
+
+  if (requireCwdInsideRepo && !pathKey(cwdPath).startsWith(pathKey(mainPath + sep))) {
+    throw new Error(
+      pathKey(cwdPath) === pathKey(mainPath)
+        ? `Cannot enter worktree: the current working directory ${cwd} is the repository root, not an isolated worktree \u2014 switching is only available to sessions whose working directory is inside a worktree of this repository.`
+        : `Cannot enter worktree: the current working directory ${cwd} is not inside the repository at ${gitRoot}.`,
+    )
+  }
+
+  if (requireManagedLocation) {
+    const managedDir = worktreesDir(mainPath)
+    let managedReal: string
+    try {
+      managedReal = await realpath(managedDir)
+    } catch {
+      throw new Error(
+        `Cannot enter worktree: ${managedDir} does not exist, so ${pathInput} cannot be a worktree managed by Claude Code.`,
+      )
+    }
+    if (pathKey(managedReal) !== pathKey(managedDir)) {
+      throw new Error(
+        `Cannot enter worktree: ${managedDir} resolves to ${managedReal}; the managed worktrees directory must not be a symlink.`,
+      )
+    }
+    if (!pathKey(targetPath).startsWith(pathKey(managedDir + sep))) {
+      throw new Error(
+        `Cannot enter worktree: ${pathInput} is not under ${managedDir}. Switching from this session is limited to worktrees managed by Claude Code (created under .claude/worktrees/ of this repository).`,
+      )
+    }
+    const adminParent = join(mainPath, '.git', 'worktrees')
+    const gitdirPointer = await readWorktreeGitdirPointer(targetPath)
+    let adminReal: string | null = null
+    let backPointerReal: string | null = null
+    if (gitdirPointer) {
+      try {
+        adminReal = await realpath(gitdirPointer)
+        const gitdirFile = (
+          await readFile(join(adminReal, 'gitdir'), 'utf-8')
+        ).trim()
+        backPointerReal = await realpath(resolve(adminReal, gitdirFile))
+      } catch {
+        adminReal = null
+        backPointerReal = null
+      }
+    }
+    if (
+      !adminReal ||
+      !backPointerReal ||
+      pathKey(dirname(adminReal)) !== pathKey(adminParent) ||
+      pathKey(backPointerReal) !== pathKey(join(targetPath, '.git'))
+    ) {
+      throw new Error(
+        `Cannot enter worktree: ${pathInput} is not a linked worktree of ${gitRoot}.`,
+      )
+    }
   }
 
   const listed = await listGitWorktrees(gitRoot)
@@ -977,12 +1079,54 @@ export async function enterExistingWorktreeForSession(
       `Cannot enter worktree: ${pathInput} is not a registered worktree of ${gitRoot}. Run 'git -C ${gitRoot} worktree list' to see registered worktrees.`,
     )
   }
+  if (match.prunable) {
+    throw new Error(
+      `Cannot enter worktree: ${pathInput} is marked prunable by git (its directory or administrative files are missing or broken).`,
+    )
+  }
+  const lockMatch = match.lockReason?.match(
+    /^claude agent .+ \(pid (\d+)(?: start (.+))?\)$/,
+  )
+  if (lockMatch) {
+    const lockPid = Number(lockMatch[1])
+    if (
+      lockPid !== process.pid &&
+      isProcessRunning(lockPid) &&
+      (await pidStartMatchesAsync(lockPid, lockMatch[2]))
+    ) {
+      throw new Error(
+        `Cannot enter worktree: ${pathInput} belongs to another running Claude Code agent (locked: ${match.lockReason}). Wait for that agent to finish or choose a different worktree.`,
+      )
+    }
+  }
+  return { worktreePath: targetPath, worktreeBranch: match.worktreeBranch }
+}
+
+/**
+ * Switch the session into an existing linked worktree (official 2.1.157 `Bg6` + `hG8`).
+ * When a session worktree already exists, require a managed linked worktree.
+ */
+export async function enterExistingWorktreeForSession(
+  sessionId: string,
+  pathInput: string,
+  options?: EnterExistingWorktreeOptions,
+): Promise<WorktreeSession> {
+  const existing = getCurrentWorktreeSession()
+  const originalCwd = existing?.originalCwd ?? getCwd()
+  const { worktreePath, worktreeBranch } = await resolveExistingWorktree(
+    pathInput,
+    {
+      requireManagedLocation:
+        options?.requireManagedLocation ?? existing != null,
+      requireCwdInsideRepo: options?.requireCwdInsideRepo,
+    },
+  )
 
   currentWorktreeSession = {
     originalCwd,
-    worktreePath: targetPath,
-    worktreeName: basename(targetPath),
-    worktreeBranch: match.worktreeBranch,
+    worktreePath,
+    worktreeName: basename(worktreePath),
+    worktreeBranch,
     sessionId,
     enteredExisting: true,
   }
@@ -997,7 +1141,7 @@ export async function createWorktreeForSession(
   sessionId: string,
   slug: string,
   tmuxSessionName?: string,
-  options?: { prNumber?: number; fromHead?: boolean },
+  options?: { prNumber?: number; fromHead?: boolean; fromCwd?: string },
 ): Promise<WorktreeSession> {
   // Must run before the hook branch below — hooks receive the raw slug as an
   // argument, and the git branch builds a path from it via path.join.
@@ -1233,12 +1377,25 @@ export async function createAgentWorktree(slug: string): Promise<{
       `Created agent worktree at: ${worktreePath} on branch: ${worktreeBranch}`,
     )
     await performPostCreationSetup(gitRoot, worktreePath)
+    // Official 2.1.157 `kSH`: lock with pid + /proc start so a reused PID
+    // after sleep/wake is not treated as live.
+    const start = await ownProcStart()
+    const reason = start
+      ? `claude agent ${slug} (pid ${process.pid} start ${start})`
+      : `claude agent ${slug} (pid ${process.pid})`
+    const lock = await execFileNoThrowWithCwd(
+      gitExe(),
+      ['worktree', 'lock', '--reason', reason, worktreePath],
+      { cwd: gitRoot },
+    )
+    if (lock.code !== 0) {
+      logForDebugging(
+        `[worktree] failed to lock ${worktreePath}: ${lock.stderr.trim()}`,
+      )
+    }
   } else {
-    // Bump mtime so the periodic stale-worktree cleanup doesn't consider this
-    // worktree stale — the fast-resume path is read-only and leaves the original
-    // creation-time mtime intact, which can be past the 30-day cutoff.
-    const now = new Date()
-    await utimes(worktreePath, now, now)
+    // 157 drops the 156 resume utimes — wall-clock bump after sleep/wake
+    // was the stale-PID bug. Lock start time is the live check instead.
     logForDebugging(`Resuming existing agent worktree at: ${worktreePath}`)
   }
 
@@ -1257,6 +1414,7 @@ export async function removeAgentWorktree(
   worktreeBranch?: string,
   gitRoot?: string,
   hookBased?: boolean,
+  source = 'unknown',
 ): Promise<boolean> {
   if (hookBased) {
     const hookRan = await executeWorktreeRemoveHook(worktreePath)
@@ -1275,6 +1433,32 @@ export async function removeAgentWorktree(
     logForDebugging('Cannot remove agent worktree: no git root provided', {
       level: 'error',
     })
+    return false
+  }
+
+  // Official 2.1.157 `ia`/`kLH`: unlock BEFORE the dirty abort so a kept
+  // worktree is not left locked after the agent finishes.
+  await unlockAgentWorktree(worktreePath, gitRoot)
+
+  const porcelain = await execFileNoThrowWithCwd(
+    gitExe(),
+    ['status', '--porcelain'],
+    { cwd: worktreePath },
+  )
+  const changedFiles =
+    porcelain.code === 0 && porcelain.stdout.trim()
+      ? porcelain.stdout.trim().split('\n').length
+      : 0
+  if (
+    changedFiles > 0 &&
+    source !== 'exit_tool' &&
+    source !== 'exit_dialog' &&
+    source !== 'job_delete_force'
+  ) {
+    logForDebugging(
+      `removeAgentWorktree: aborted ${source} removal \u2014 ${changedFiles} changed file(s) would be lost, kept ${worktreePath}`,
+      { level: 'warn' },
+    )
     return false
   }
 
@@ -1414,6 +1598,107 @@ async function isSquashMergedIntoDefault(
   return unique.code === 0 && unique.stdout.trim().length === 0
 }
 
+/** Official 2.1.157 `Eq9` — porcelain clean and no unique unpushed commits. */
+async function isWorktreeCleanForRetention(
+  worktreePath: string,
+  defaultBranch: string | null,
+): Promise<boolean> {
+  const [status, unpushed] = await Promise.all([
+    execFileNoThrowWithCwd(
+      gitExe(),
+      ['--no-optional-locks', 'status', '--porcelain'],
+      { cwd: worktreePath },
+    ),
+    execFileNoThrowWithCwd(
+      gitExe(),
+      ['rev-list', '--max-count=1', 'HEAD', '--not', '--remotes'],
+      { cwd: worktreePath },
+    ),
+  ])
+  if (status.code !== 0 || status.stdout.trim().length > 0) {
+    return false
+  }
+  if (unpushed.code !== 0) {
+    return false
+  }
+  if (unpushed.stdout.trim().length === 0) {
+    return true
+  }
+  return (
+    defaultBranch !== null &&
+    (await isSquashMergedIntoDefault(worktreePath, defaultBranch))
+  )
+}
+
+/**
+ * Official 2.1.157 `C7q` — sweep one job worktree after the 30-day job
+ * retention walker. Caller is job-retention, not the directory slug scan.
+ */
+export async function maybeSweepJobWorktree(
+  worktreePath: string,
+  worktreeBranch: string | undefined,
+  originCwd: string | undefined,
+  hookBased: boolean | undefined,
+  cutoffDate: Date,
+): Promise<boolean> {
+  if (hookBased) {
+    return false
+  }
+  const gitRoot = findCanonicalGitRoot(originCwd ?? worktreePath)
+  if (
+    !gitRoot ||
+    resolve(dirname(worktreePath)) !== resolve(worktreesDir(gitRoot))
+  ) {
+    return false
+  }
+  let mtimeMs: number
+  try {
+    mtimeMs = (await stat(worktreePath)).mtimeMs
+  } catch {
+    return false
+  }
+  if (mtimeMs >= cutoffDate.getTime()) {
+    return false
+  }
+  const targetReal = await realpath(worktreePath).catch(() => worktreePath)
+  const currentPath = currentWorktreeSession?.worktreePath
+  if (
+    currentPath &&
+    targetReal === (await realpath(currentPath).catch(() => currentPath))
+  ) {
+    return false
+  }
+  const listed = await listGitWorktrees(gitRoot).catch(() => null)
+  let match: ListedWorktree | undefined
+  for (const entry of listed ?? []) {
+    if (
+      targetReal ===
+      (await realpath(entry.worktreePath).catch(() => entry.worktreePath))
+    ) {
+      match = entry
+      break
+    }
+  }
+  if (match && match.worktreeBranch !== worktreeBranch) {
+    return false
+  }
+  if (
+    !(await isWorktreeCleanForRetention(
+      worktreePath,
+      await getDefaultRemoteBranch(gitRoot),
+    ))
+  ) {
+    return false
+  }
+  return removeAgentWorktree(
+    worktreePath,
+    worktreeBranch,
+    gitRoot,
+    false,
+    'job_retention_sweep',
+  )
+}
+
 export async function cleanupStaleAgentWorktrees(
   cutoffDate: Date,
 ): Promise<number> {
@@ -1455,34 +1740,8 @@ export async function cleanupStaleAgentWorktrees(
       continue
     }
 
-    // Both checks must succeed with empty output. Non-zero exit (corrupted
-    // worktree, git not recognizing it, etc.) means skip — we don't know
-    // what's in there.
-    const [status, unpushed] = await Promise.all([
-      execFileNoThrowWithCwd(
-        gitExe(),
-        ['--no-optional-locks', 'status', '--porcelain', '-uno'],
-        { cwd: worktreePath },
-      ),
-      execFileNoThrowWithCwd(
-        gitExe(),
-        ['rev-list', '--max-count=1', 'HEAD', '--not', '--remotes'],
-        { cwd: worktreePath },
-      ),
-    ])
-    if (status.code !== 0 || status.stdout.trim().length > 0) {
+    if (!(await isWorktreeCleanForRetention(worktreePath, defaultBranch))) {
       continue
-    }
-    if (unpushed.code !== 0) {
-      continue
-    }
-    if (unpushed.stdout.trim().length > 0) {
-      if (
-        defaultBranch === null ||
-        !(await isSquashMergedIntoDefault(worktreePath, defaultBranch))
-      ) {
-        continue
-      }
     }
 
     if (
@@ -1654,10 +1913,11 @@ export async function execIntoTmuxWorktree(args: string[]): Promise<{
 
     // Create or resume worktree
     try {
+      const fromCwd = getCwd()
       const result = await getOrCreateWorktree(
         repoRoot,
         worktreeName,
-        prNumber !== null ? { prNumber } : undefined,
+        prNumber !== null ? { prNumber, fromCwd } : { fromCwd },
       )
       if (!result.existed) {
         // biome-ignore lint/suspicious/noConsole: intentional console output

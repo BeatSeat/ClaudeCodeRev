@@ -1,3 +1,4 @@
+import { sep } from 'path'
 import { z } from 'zod/v4'
 import { getSessionId, setOriginalCwd } from '../../bootstrap/state.js'
 import { clearSystemPromptSections } from '../../constants/systemPromptSections.js'
@@ -5,16 +6,24 @@ import { logEvent } from '../../services/analytics/index.js'
 import type { Tool } from '../../Tool.js'
 import { buildTool, type ToolDef } from '../../Tool.js'
 import { clearMemoryFileCaches } from '../../utils/claudemd.js'
-import { getCwd } from '../../utils/cwd.js'
-import { findCanonicalGitRoot } from '../../utils/git.js'
+import { getCwd, hasCwdOverride, setCwd as applyPinnedCwd } from '../../utils/cwd.js'
+import { logForDebugging } from '../../utils/debug.js'
+import { errorMessage } from '../../utils/errors.js'
+import { findCanonicalGitRoot, findGitRoot } from '../../utils/git.js'
 import { lazySchema } from '../../utils/lazySchema.js'
 import { getPlanSlug, getPlansDirectory } from '../../utils/plans.js'
+import { setSandboxAgentCwd } from '../../utils/sandbox/sandbox-adapter.js'
 import { setCwd } from '../../utils/Shell.js'
-import { saveWorktreeState } from '../../utils/sessionStorage.js'
+import {
+  readAgentMetadata,
+  saveWorktreeState,
+  writeAgentMetadata,
+} from '../../utils/sessionStorage.js'
 import {
   createWorktreeForSession,
   enterExistingWorktreeForSession,
   getCurrentWorktreeSession,
+  resolveExistingWorktree,
   validateWorktreeSlug,
 } from '../../utils/worktree.js'
 import { ENTER_WORKTREE_TOOL_NAME } from './constants.js'
@@ -85,9 +94,84 @@ export const EnterWorktreeTool: Tool<InputSchema, Output> = buildTool({
   },
   renderToolUseMessage,
   renderToolResultMessage,
-  async call(input) {
-    // Validate not already in a worktree created by this session
-    if (getCurrentWorktreeSession()) {
+  async validateInput(input) {
+    if (hasCwdOverride()) {
+      if (input.path) return { result: true }
+      const cwd = getCwd()
+      const gitRoot = findCanonicalGitRoot(cwd) ?? findGitRoot(cwd)
+      return {
+        result: false,
+        message:
+          `EnterWorktree cannot create a worktree from a subagent with a cwd override (isolation: "worktree" or explicit cwd) — it would mutate the parent session's process-wide working directory. ` +
+          (gitRoot != null && cwd !== gitRoot && cwd.startsWith(gitRoot + sep)
+            ? 'To switch this agent into an existing worktree managed by Claude Code (under .claude/worktrees/ of this repository), call EnterWorktree with `path`. To work in any other directory, spawn an Agent with `cwd` set to it.'
+            : 'To work in a different directory (including a worktree), spawn an Agent with `cwd` set to it.'),
+        errorCode: 1,
+      }
+    }
+    if (getCurrentWorktreeSession() && !input.path) {
+      return {
+        result: false,
+        message:
+          'Already in a worktree session. Pass `path` to switch into another existing worktree, or use ExitWorktree to leave this one before creating a new worktree.',
+        errorCode: 2,
+      }
+    }
+    return { result: true }
+  },
+  async call(input, context) {
+    // Official 2.1.157 `kGH` arm — pinned-cwd subagent switches this agent
+    // only (no parent chdir).
+    if (hasCwdOverride()) {
+      if (!input.path) {
+        throw new Error(
+          'EnterWorktree from a session with a pinned working directory requires `path`.',
+        )
+      }
+      const resolved = await resolveExistingWorktree(input.path, {
+        requireManagedLocation: true,
+        requireCwdInsideRepo: true,
+      })
+      applyPinnedCwd(resolved.worktreePath)
+      setSandboxAgentCwd(
+        resolved.worktreePath,
+        context.agentId ?? getSessionId(),
+      )
+      if (context.agentId) {
+        try {
+          const meta = await readAgentMetadata(context.agentId)
+          if (meta) {
+            await writeAgentMetadata(context.agentId, {
+              ...meta,
+              cwd: resolved.worktreePath,
+            })
+          }
+        } catch (error) {
+          logForDebugging(
+            `Failed to update agent metadata cwd after worktree switch: ${errorMessage(error)}`,
+          )
+        }
+      }
+      logEvent('tengu_worktree_entered_existing', {
+        mid_session: true,
+        cwd_override: true,
+      })
+      const branchInfo = resolved.worktreeBranch
+        ? ` on branch ${resolved.worktreeBranch}`
+        : ''
+      return {
+        data: {
+          worktreePath: resolved.worktreePath,
+          worktreeBranch: resolved.worktreeBranch,
+          message: `Entered worktree at ${resolved.worktreePath}${branchInfo}. This agent's working directory and write access now point at the worktree; the previous directory was left untouched.`,
+        },
+        contextLayers: [
+          { kind: 'working_directory', directory: resolved.worktreePath },
+        ],
+      }
+    }
+
+    if (getCurrentWorktreeSession() && !input.path) {
       throw new Error('Already in a worktree session')
     }
 
