@@ -1198,7 +1198,8 @@ export const connectToServer = memoize(
 
       // Register default elicitation handler that returns cancel during the
       // window before registerElicitationHandler overwrites it in
-      // onConnectionAttempt (useManageMCPConnections).
+      // onConnectionAttempt (useManageMCPConnections). Official 117 still
+      // always registers this; do not gate on non-interactive.
       client.setRequestHandler(ElicitRequestSchema, async request => {
         logMCPDebug(
           name,

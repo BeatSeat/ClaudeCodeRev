@@ -48,6 +48,7 @@ import {
   isDetailedProfilingEnabled,
 } from 'src/utils/startupProfiler.js'
 import { EmergencyTip } from './EmergencyTip.js'
+import { ModelPinHeader } from './ModelPinHeader.js'
 import { VoiceModeNotice } from './VoiceModeNotice.js'
 import { Opus1mMergeNotice } from './Opus1mMergeNotice.js'
 import { PromptCachingDisabledNotice } from './PromptCachingDisabledNotice.js'
@@ -221,6 +222,7 @@ export function LogoV2(): React.ReactNode {
         <Opus1mMergeNotice />
         <PromptCachingDisabledNotice />
         {ChannelsNoticeModule && <ChannelsNoticeModule.ChannelsNotice />}
+        <ModelPinHeader />
         {isDebugMode() && (
           <Box paddingLeft={2} flexDirection="column">
             <Text color="warning">Debug mode enabled</Text>
@@ -341,6 +343,7 @@ export function LogoV2(): React.ReactNode {
         <Opus1mMergeNotice />
         <PromptCachingDisabledNotice />
         {ChannelsNoticeModule && <ChannelsNoticeModule.ChannelsNotice />}
+        <ModelPinHeader />
         {showSandboxStatus && (
           <Box marginTop={1} flexDirection="column">
             <Text color="warning">
@@ -475,6 +478,7 @@ export function LogoV2(): React.ReactNode {
       <Opus1mMergeNotice />
       <PromptCachingDisabledNotice />
       {ChannelsNoticeModule && <ChannelsNoticeModule.ChannelsNotice />}
+      <ModelPinHeader />
       {isDebugMode() && (
         <Box paddingLeft={2} flexDirection="column">
           <Text color="warning">Debug mode enabled</Text>

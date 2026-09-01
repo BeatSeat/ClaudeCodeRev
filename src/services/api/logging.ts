@@ -251,6 +251,7 @@ export function logAPIError({
   llmSpan,
   fastMode,
   previousRequestId,
+  effort,
 }: {
   error: unknown
   model: string
@@ -271,6 +272,7 @@ export function logAPIError({
   llmSpan?: Span
   fastMode?: boolean
   previousRequestId?: string | null
+  effort?: string | null
 }): void {
   const gateway = detectGateway({
     headers:
@@ -373,6 +375,7 @@ export function logAPIError({
     duration_ms: String(durationMs),
     attempt: String(attempt),
     speed: fastMode ? 'fast' : 'normal',
+    ...(effort && { effort }),
   })
 
   // Pass the span to correctly match responses to requests when beta tracing is enabled
@@ -605,6 +608,7 @@ export function logAPISuccessAndDuration({
   fastMode,
   previousRequestId,
   betas,
+  effort,
 }: {
   model: string
   preNormalizedModel: string
@@ -638,6 +642,7 @@ export function logAPISuccessAndDuration({
   /** Request ID from the previous API call in this session */
   previousRequestId?: string | null
   betas?: string[]
+  effort?: string | null
 }): void {
   const gateway = detectGateway({
     headers,
@@ -726,6 +731,7 @@ export function logAPISuccessAndDuration({
     duration_ms: String(durationMs),
     request_id: requestId ?? undefined,
     speed: fastMode ? 'fast' : 'normal',
+    ...(effort && { effort }),
   })
   logRawApiResponseBody(newMessages, {
     model,

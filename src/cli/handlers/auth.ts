@@ -79,6 +79,12 @@ export async function installOAuthTokens(tokens: OAuthTokens): Promise<void> {
   const storageResult = saveOAuthTokensIfNeeded(tokens)
   clearOAuthTokenCache()
 
+  // Official 2.1.117 aJH: /login must overwrite a stale CLAUDE_CODE_OAUTH_TOKEN
+  // so subsequent API calls use the newly issued access token.
+  if (process.env.CLAUDE_CODE_OAUTH_TOKEN) {
+    process.env.CLAUDE_CODE_OAUTH_TOKEN = tokens.accessToken
+  }
+
   if (storageResult.warning) {
     logEvent('tengu_oauth_storage_warning', {
       warning:

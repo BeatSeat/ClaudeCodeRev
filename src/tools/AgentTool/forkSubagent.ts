@@ -7,11 +7,13 @@ import {
   FORK_DIRECTIVE_PREFIX,
 } from '../../constants/xml.js'
 import { isCoordinatorMode } from '../../coordinator/coordinatorMode.js'
+import { getFeatureValue_CACHED_MAY_BE_STALE } from '../../services/analytics/growthbook.js'
 import type {
   AssistantMessage,
   Message as MessageType,
 } from '../../types/message.js'
 import { logForDebugging } from '../../utils/debug.js'
+import { isEnvTruthy } from '../../utils/envUtils.js'
 import { createUserMessage } from '../../utils/messages.js'
 import type { BuiltInAgentDefinition } from './loadAgentsDir.js'
 
@@ -30,12 +32,14 @@ import type { BuiltInAgentDefinition } from './loadAgentsDir.js'
  * orchestration role and has its own delegation model.
  */
 export function isForkSubagentEnabled(): boolean {
-  if (feature('FORK_SUBAGENT')) {
-    if (isCoordinatorMode()) return false
-    if (getIsNonInteractiveSession()) return false
-    return true
-  }
-  return false
+  // 117 MG: non-interactive (R6) always off. KEEP coordinator +
+  // compile-time FORK_SUBAGENT. External builds also honor
+  // CLAUDE_CODE_FORK_SUBAGENT=1 and GrowthBook tengu_copper_fox.
+  if (isCoordinatorMode()) return false
+  if (getIsNonInteractiveSession()) return false
+  if (isEnvTruthy(process.env.CLAUDE_CODE_FORK_SUBAGENT)) return true
+  if (feature('FORK_SUBAGENT')) return true
+  return getFeatureValue_CACHED_MAY_BE_STALE('tengu_copper_fox', false)
 }
 
 /** Synthetic agent type name used for analytics when the fork path fires. */

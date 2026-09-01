@@ -285,14 +285,25 @@ export function getWebSocketProxyUrl(url: string): string | undefined {
  *   requests get misrouted to api.anthropic.com. Only the Anthropic SDK client
  *   should pass `true` here.
  */
-export function getProxyFetchOptions(opts?: { forAnthropicAPI?: boolean }): {
+export function getProxyFetchOptions(opts?: {
+  forAnthropicAPI?: boolean
+  url?: string
+}): {
   tls?: TLSConfig
   dispatcher?: undici.Dispatcher
   proxy?: string
   unix?: string
   keepalive?: false
+  timeout?: false
 } {
-  const base = keepAliveDisabled ? ({ keepalive: false } as const) : {}
+  const base = {
+    ...(keepAliveDisabled ? ({ keepalive: false } as const) : {}),
+    ...(opts?.forAnthropicAPI &&
+    typeof Bun !== 'undefined' &&
+    !isEnvTruthy(process.env.API_FORCE_IDLE_TIMEOUT)
+      ? ({ timeout: false } as const)
+      : {}),
+  }
 
   // ANTHROPIC_UNIX_SOCKET tunnels through the `claude ssh` auth proxy, which
   // hardcodes the upstream to the Anthropic API. Scope to the Anthropic API
@@ -309,6 +320,10 @@ export function getProxyFetchOptions(opts?: { forAnthropicAPI?: boolean }): {
   // If we have a proxy, use the proxy agent (which includes mTLS config)
   if (proxyUrl) {
     if (typeof Bun !== 'undefined') {
+      // Official 117 mp: skip Bun `proxy` when the caller URL is in NO_PROXY.
+      if (opts?.url && shouldBypassProxy(opts.url)) {
+        return { ...base, ...getTLSFetchOptions() }
+      }
       return { ...base, proxy: proxyUrl, ...getTLSFetchOptions() }
     }
     return { ...base, dispatcher: getProxyAgent(proxyUrl) }

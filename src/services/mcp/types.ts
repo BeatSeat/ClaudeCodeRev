@@ -16,6 +16,7 @@ export const ConfigScopeSchema = lazySchema(() =>
     'enterprise',
     'claudeai',
     'managed',
+    'agent',
   ]),
 )
 export type ConfigScope = z.infer<ReturnType<typeof ConfigScopeSchema>>
