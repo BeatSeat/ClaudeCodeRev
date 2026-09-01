@@ -33,6 +33,7 @@ import {
 } from './bridgeApi.js'
 import { formatDuration } from './bridgeStatusUtil.js'
 import { createBridgeLogger } from './bridgeUI.js'
+import { isCcrV2SendEventsEnabled } from './bridgeEnabled.js'
 import { createCapacityWake } from './capacityWake.js'
 import { describeAxiosError } from './debugUtils.js'
 import { createTokenRefreshScheduler } from './jwtUtils.js'
@@ -2393,6 +2394,7 @@ export async function bridgeMain(args: string[]): Promise<void> {
     onDebug: logForDebugging,
     onAuth401: handleOAuth401Error,
     getTrustedDeviceToken,
+    useCcrV2Routing: isCcrV2SendEventsEnabled,
   })
 
   // When resuming a session via --session-id, fetch it to learn its
@@ -2945,6 +2947,7 @@ export async function runBridgeHeadless(
     onDebug: log,
     onAuth401: opts.onAuth401,
     getTrustedDeviceToken,
+    useCcrV2Routing: isCcrV2SendEventsEnabled,
   })
 
   let environmentId: string

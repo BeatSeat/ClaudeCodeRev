@@ -226,6 +226,7 @@ type State = {
   maxOutputTokensOverride: number | undefined
   pendingToolUseSummary: Promise<ToolUseSummaryMessage | null> | undefined
   stopHookActive: boolean | undefined
+  stopHookBlockingCount: number
   turnCount: number
   // Why the previous iteration continued. Undefined on first iteration.
   // Lets tests assert recovery paths fired without inspecting message contents.
@@ -287,6 +288,7 @@ async function* queryLoop(
     maxOutputTokensOverride: params.maxOutputTokensOverride,
     autoCompactTracking: undefined,
     stopHookActive: undefined,
+    stopHookBlockingCount: 0,
     maxOutputTokensRecoveryCount: 0,
     hasAttemptedReactiveCompact: false,
     turnCount: 1,
@@ -333,6 +335,7 @@ async function* queryLoop(
       maxOutputTokensOverride,
       pendingToolUseSummary,
       stopHookActive,
+      stopHookBlockingCount,
       turnCount,
     } = state
 
@@ -1179,6 +1182,7 @@ async function* queryLoop(
               maxOutputTokensOverride: undefined,
               pendingToolUseSummary: undefined,
               stopHookActive: undefined,
+              stopHookBlockingCount: 0,
               turnCount,
               transition: {
                 reason: 'collapse_drain_retry',
@@ -1286,6 +1290,7 @@ async function* queryLoop(
             maxOutputTokensOverride: undefined,
             pendingToolUseSummary: undefined,
             stopHookActive: undefined,
+            stopHookBlockingCount: 0,
             turnCount,
             transition: { reason: 'reactive_compact_retry' },
           }
@@ -1341,6 +1346,7 @@ async function* queryLoop(
             maxOutputTokensOverride: ESCALATED_MAX_TOKENS,
             pendingToolUseSummary: undefined,
             stopHookActive: undefined,
+            stopHookBlockingCount: 0,
             turnCount,
             transition: { reason: 'max_output_tokens_escalate' },
           }
@@ -1369,6 +1375,7 @@ async function* queryLoop(
             maxOutputTokensOverride: undefined,
             pendingToolUseSummary: undefined,
             stopHookActive: undefined,
+            stopHookBlockingCount: 0,
             turnCount,
             transition: {
               reason: 'max_output_tokens_recovery',
@@ -1470,6 +1477,30 @@ async function* queryLoop(
         : stopHookResult.blockingErrors
 
       if (blockingErrors.length > 0) {
+        // 2.1.143: cap repeated stop-hook blocks so a hook that blocks
+        // forever doesn't spin the turn infinitely. Default cap is 8;
+        // raise with CLAUDE_CODE_STOP_HOOK_BLOCK_CAP (0 disables).
+        const nextBlockCount = stopHookBlockingCount + 1
+        const parsedCap = parseInt(
+          process.env.CLAUDE_CODE_STOP_HOOK_BLOCK_CAP ?? '',
+          10,
+        )
+        const blockCap = Number.isNaN(parsedCap) ? 8 : parsedCap
+        if (blockCap > 0 && nextBlockCount > blockCap) {
+          logEvent('tengu_stop_hook_block_count', {
+            count: nextBlockCount,
+            is_subagent: Boolean(toolUseContext.agentId),
+            hit_max_turns: false,
+            hit_cap: true,
+          })
+          yield createSystemMessage(
+            `A hook blocked the turn from ending ${nextBlockCount} consecutive times — overriding and ending turn. ` +
+              "For Stop/SubagentStop hooks, check stop_hook_active in the input and return success while it's true. " +
+              'Set CLAUDE_CODE_STOP_HOOK_BLOCK_CAP to raise this limit.',
+            'warning',
+          )
+          return { type: 'terminal', reason: 'completed' }
+        }
         const next: State = {
           messages: [
             ...messagesForQuery,
@@ -1488,6 +1519,7 @@ async function* queryLoop(
           maxOutputTokensOverride: undefined,
           pendingToolUseSummary: undefined,
           stopHookActive: true,
+          stopHookBlockingCount: nextBlockCount,
           turnCount,
           transition: {
             reason: briefEnforcementMessage
@@ -1497,6 +1529,15 @@ async function* queryLoop(
         }
         state = next
         continue
+      }
+
+      if (stopHookBlockingCount > 0) {
+        logEvent('tengu_stop_hook_block_count', {
+          count: stopHookBlockingCount,
+          is_subagent: Boolean(toolUseContext.agentId),
+          hit_max_turns: false,
+          hit_cap: false,
+        })
       }
 
       if (feature('TOKEN_BUDGET')) {
@@ -1528,6 +1569,7 @@ async function* queryLoop(
             maxOutputTokensOverride: undefined,
             pendingToolUseSummary: undefined,
             stopHookActive: undefined,
+            stopHookBlockingCount: 0,
             turnCount,
             transition: { reason: 'token_budget_continuation' },
           }
@@ -1908,6 +1950,12 @@ async function* queryLoop(
 
     // Check if we've reached the max turns limit
     if (maxTurns && nextTurnCount > maxTurns) {
+      logEvent('tengu_stop_hook_block_count', {
+        count: stopHookBlockingCount,
+        is_subagent: Boolean(toolUseContext.agentId),
+        hit_max_turns: true,
+        hit_cap: false,
+      })
       yield createAttachmentMessage({
         type: 'max_turns_reached',
         maxTurns,

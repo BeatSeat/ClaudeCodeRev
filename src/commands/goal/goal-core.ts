@@ -353,6 +353,16 @@ export function applyGoalHookBlocked(
     lastReason: stopReason,
   }
   writeActiveGoal(context.setAppState, next)
+  const iterations = next.iterations
+  const durationMs = Date.now() - goal.setAt
+  const tokens = getTotalOutputTokens() - goal.tokensAtStart
+  logEvent('tengu_goal_failed', {
+    promptLength: goal.condition.length,
+    reasonLength: stopReason?.length ?? 0,
+    iterations,
+    durationMs,
+    tokens,
+  })
   return createGoalStatusAttachment(false, goal.condition, {
     sentinel: false,
     reason: stopReason,

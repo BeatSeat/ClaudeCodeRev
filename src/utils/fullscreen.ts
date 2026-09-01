@@ -10,6 +10,8 @@ let loggedTmuxCcDisable = false
 let checkedTmuxMouseHint = false
 /** Official dq() caches tengu_pewter_brook so settings/GB aren't re-read every render. */
 let gbGateCached: boolean | undefined
+/** Official 2.1.143 `Nl.downsellGateCached` / `tengu_amber_creek`. */
+let downsellGateCached: boolean | undefined
 
 /**
  * Cached result from `tmux display-message -p '#{client_control_mode}'`.
@@ -112,6 +114,47 @@ export function _resetTmuxControlModeProbeForTesting(): void {
  * Official dq(): env opt-out/in, tmux -CC disable, then settings.tui,
  * then tengu_pewter_brook. `/tui fullscreen|default` persists via userSettings.
  */
+/**
+ * Official 2.1.143 `ffH`: why the current renderer was chosen. Fed to
+ * `gk5` opt-out telemetry as `from_entry_path`.
+ */
+export function getTuiEntryPath(): string {
+  if (isEnvDefinedFalsy(process.env.CLAUDE_CODE_NO_FLICKER)) return 'env_off'
+  if (isEnvTruthy(process.env.CLAUDE_CODE_DISABLE_ALTERNATE_SCREEN)) {
+    return 'env_off'
+  }
+  if (isEnvTruthy(process.env.CLAUDE_CODE_NO_FLICKER)) return 'env_on'
+  if (isTmuxControlMode()) return 'tmux_cc_auto_off'
+  if (process.env.CLAUDE_CODE_SESSION_KIND === 'bg') return 'bg_forced_on'
+  switch (getInitialSettings().tui) {
+    case 'fullscreen':
+      return 'settings_on'
+    case 'default':
+      return 'settings_off'
+  }
+  if (
+    (downsellGateCached ??= getFeatureValue_CACHED_MAY_BE_STALE(
+      'tengu_amber_creek',
+      false,
+    ))
+  ) {
+    return 'downsell_on'
+  }
+  return (gbGateCached ??= getFeatureValue_CACHED_MAY_BE_STALE(
+    'tengu_pewter_brook',
+    false,
+  ))
+    ? 'gb_on'
+    : 'gb_off'
+}
+
+export function isTuiDownsellGate(): boolean {
+  return (downsellGateCached ??= getFeatureValue_CACHED_MAY_BE_STALE(
+    'tengu_amber_creek',
+    false,
+  ))
+}
+
 export function isFullscreenEnvEnabled(): boolean {
   // Explicit user opt-out always wins.
   if (isEnvDefinedFalsy(process.env.CLAUDE_CODE_NO_FLICKER)) return false
@@ -217,4 +260,5 @@ export function _resetForTesting(): void {
   loggedTmuxCcDisable = false
   checkedTmuxMouseHint = false
   gbGateCached = undefined
+  downsellGateCached = undefined
 }
