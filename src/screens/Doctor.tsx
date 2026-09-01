@@ -38,6 +38,7 @@ import {
   type DiagnosticInfo,
   getDoctorDiagnostic,
 } from '../utils/doctorDiagnostic.js'
+import { formatLastUpdateResult } from '../utils/lastUpdateResult.js'
 import { validateBoundedIntEnvVar } from '../utils/envValidation.js'
 import { pathExists } from '../utils/file.js'
 import {
@@ -448,6 +449,10 @@ export function Doctor({ onDone }: Props): React.ReactNode {
           </Text>
         )}
         <Text>└ Auto-update channel: {autoUpdatesChannel}</Text>
+        <Text>
+          Last update attempt:{' '}
+          {formatLastUpdateResult(diagnostic.lastUpdateResult)}
+        </Text>
         <Suspense fallback={null}>
           <DistTagsDisplay promise={distTagsPromise} />
         </Suspense>

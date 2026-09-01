@@ -12,10 +12,12 @@ import {
   forceDowngradeShouldApply,
   getLatestVersion,
   getMaxVersionConfig,
+  getUpdateApplyRestoreFailed,
   type InstallStatus,
   installGlobalPackage,
   shouldSkipVersion,
 } from '../utils/autoUpdater.js'
+import { recordUpdateResult } from '../utils/lastUpdateResult.js'
 import { getGlobalConfig, isAutoUpdaterDisabled } from '../utils/config.js'
 import { logForDebugging } from '../utils/debug.js'
 import { getCurrentInstallationType } from '../utils/doctorDiagnostic.js'
@@ -197,6 +199,21 @@ export function AutoUpdater({
       }
 
       onChangeIsUpdating(false)
+
+      if (installStatus !== 'in_progress') {
+        void recordUpdateResult({
+          timestamp: new Date().toISOString(),
+          path: updateMethod === 'local' ? 'npm-local' : 'npm-global',
+          outcome: installStatus === 'success' ? 'success' : 'failed',
+          status: installStatus,
+          version_from: currentVersion,
+          version_to: latestVersion,
+          error_code:
+            installStatus === 'install_failed' && getUpdateApplyRestoreFailed()
+              ? 'update_apply_restore_failed'
+              : null,
+        })
+      }
 
       if (installStatus === 'success') {
         logEvent('tengu_auto_updater_success', {

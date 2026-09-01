@@ -1,0 +1,256 @@
+{
+  "version": "2.1.153",
+  "fromVersion": "2.1.152",
+  "expectedFunctionCount": 12,
+  "functions": [
+    {
+      "id": "skipLfs/_q1/G_$/nh_",
+      "name": "skipLfs marketplace source",
+      "status": "located",
+      "evidence": "schemas.ts MarketplaceSourceSchema github/git only + marketplaceManager gitPull/gitClone/reconcileSparseCheckout GIT_LFS_SKIP_SMUDGE=1"
+    },
+    {
+      "id": "iw9/lw9",
+      "name": "sudo-npm-install notice",
+      "status": "located",
+      "evidence": "useSudoNpmInstallNotice + Doctor + lastUpdateResult; dist sudo-npm-install 1 / can't auto-update 1"
+    },
+    {
+      "id": "Dh8",
+      "name": "execCommandHook COLUMNS/LINES",
+      "status": "located",
+      "evidence": "hooks.ts execCommandHook assigns process.stdout.columns/rows when truthy"
+    },
+    {
+      "id": "iyz",
+      "name": "FleetView PR #N / N PRs",
+      "status": "partial",
+      "evidence": "152 tree has no FleetView host; helper would DCE. Official iyz not landed"
+    },
+    {
+      "id": "Oy4/fy4",
+      "name": "doctor last update attempt",
+      "status": "located",
+      "evidence": "lastUpdateResult.ts + Doctor.tsx + autoUpdater/NativeAutoUpdater writers; dist Last update attempt: 1 / none recorded 1"
+    },
+    {
+      "id": "UJz/L89",
+      "name": "ClaudeCode.app LSUIElement",
+      "status": "located",
+      "evidence": "macosTccDisclaim.ts ensureClaudeCodeAppExecPath + await disclaimMacOSTccResponsibility; dist LSUIElement 1"
+    },
+    {
+      "id": "Vv_/tq$/Bz4",
+      "name": "Agent frontmatter MCP strict/bare/remote/enterprise",
+      "status": "located",
+      "evidence": "initializeAgentMcpServers reason ladder + mergeAgentFrontmatterMcpConfig flagSettings exception + agent-mcp-blocked notice"
+    },
+    {
+      "id": "zH9",
+      "name": "bg CLAUDE_JOB_DIR internal-path allow",
+      "status": "located",
+      "evidence": "filesystem.ts isCurrentBgJobDirPath write+read; dist Job directory files for current bg session 1+1"
+    },
+    {
+      "id": "uB8/rxH/xB8",
+      "name": "stream-json stdin close",
+      "status": "located",
+      "evidence": "process.ts iterateStreamUntilClose + registerProcessIOErrorHandlers; main.tsx getInputPrompt; gracefulShutdown stdin_at_eof/ppid_changed"
+    },
+    {
+      "id": "SE$/gdH/oRH",
+      "name": "modelPicker thisSessionOnly",
+      "status": "located",
+      "evidence": "persistModelAsDefault + ModelPicker onSetDefault / s=session; setAsDefault 3→0; dist modelPicker:thisSessionOnly 3"
+    },
+    {
+      "id": "settleCwdGone",
+      "name": "bg deleted-cwd recover",
+      "status": "partial",
+      "evidence": "daemon worker class not in src/; deferred"
+    }
+  ],
+  "changelogCoverage": [
+    {
+      "item": "Added skipLfs option to github/git plugin marketplace sources to skip Git LFS downloads during clone and update",
+      "status": "located",
+      "evidence": "skipLfs Zod + GIT_LFS_SKIP_SMUDGE on gitPull/gitClone/sparse; npm schema unchanged"
+    },
+    {
+      "item": "Claude Code now shows a one-time notice when your npm global install can't auto-update; /doctor lists the fixes",
+      "status": "located",
+      "evidence": "iw9 useSudoNpmInstallNotice + Doctor Can't auto-update: npm global folder isn't writable"
+    },
+    {
+      "item": "Status line commands now receive COLUMNS and LINES environment variables so scripts can size output to the terminal width",
+      "status": "located",
+      "evidence": "Dh8 execCommandHook; statusLine already calls execCommandHook"
+    },
+    {
+      "item": "claude agents: autocomplete in the dispatch input now suggests native slash commands and bundled skills, not just project skills",
+      "status": "shared-logic",
+      "evidence": "no hop-unique extractable string"
+    },
+    {
+      "item": "claude agents: PR column now shows PR #N for a single PR or N PRs for multiple",
+      "status": "partial",
+      "evidence": "official iyz; 152 tree has no FleetView — not landed (would DCE)"
+    },
+    {
+      "item": "claude doctor now shows the result of your last update attempt",
+      "status": "located",
+      "evidence": "Oy4/fy4 lastUpdateResult + Doctor Last update attempt:"
+    },
+    {
+      "item": "Combined the separate needs authentication startup notifications for MCP servers and connectors into a single message",
+      "status": "shared-logic",
+      "evidence": "needs authentication 2→2"
+    },
+    {
+      "item": "macOS: background agents now appear as Claude Code in Privacy & Security and keep their permission grants across upgrades",
+      "status": "located",
+      "evidence": "UJz ClaudeCode.app + LSUIElement plist; L89 await UJz()??process.execPath"
+    },
+    {
+      "item": "Fixed stateful MCP servers without the optional GET SSE stream reconnect-looping on tools/list (regression in v2.1.147)",
+      "status": "shared-logic",
+      "evidence": "no unique 153 string"
+    },
+    {
+      "item": "Fixed a regression where a custom API gateway could receive the user's Anthropic OAuth credential instead of the gateway's own token",
+      "status": "shared-logic",
+      "evidence": "no unique 153 string"
+    },
+    {
+      "item": "Fixed subagent (Agent tool) frontmatter MCP servers ignoring --strict-mcp-config, --bare, remote mode, enterprise managed MCP config, and managed-settings MCP server allow/deny policies",
+      "status": "located",
+      "evidence": "Vv_ reason ladder + filterMcpServersByPolicy; tq$ flagSettings exception"
+    },
+    {
+      "item": "--strict-mcp-config no longer strips inline mcpServers from explicitly-passed agent definitions (--agents / SDK agents), and blocked subagent MCP servers now surface a visible warning",
+      "status": "located",
+      "evidence": "tq$ keeps flagSettings; AgentTool agent-mcp-blocked-${toolUseId}"
+    },
+    {
+      "item": "Fixed the Windows PowerShell installer reporting Installation complete! when installation actually failed",
+      "status": "absent-in-bundle",
+      "evidence": "Installation complete 0→0; Windows installer script"
+    },
+    {
+      "item": "Fixed claude update installing the latest version instead of the configured release channel's version for npm installations",
+      "status": "shared-logic",
+      "evidence": "autoUpdatesChannel already present; no unique 153 string"
+    },
+    {
+      "item": "Fixed excessive memory usage (multiple GB) when resuming a session by transcript file path on machines with many stored sessions",
+      "status": "shared-logic",
+      "evidence": "no unique 153 string"
+    },
+    {
+      "item": "Fixed claude agents and claude --bg running on a stale daemon started before binary-takeover support, even after upgrading",
+      "status": "shared-logic",
+      "evidence": "binary-takeover 0→0"
+    },
+    {
+      "item": "Fixed a hang where the CLI could fail to exit when stdin was closed without EOF in stream-json mode, leaving a stale session marker behind",
+      "status": "located",
+      "evidence": "uB8 iterateStreamUntilClose wired in main.tsx getInputPrompt; rxH/xB8 IO handlers"
+    },
+    {
+      "item": "Fixed malformed file:// links in Claude's responses not being clickable in the terminal",
+      "status": "shared-logic",
+      "evidence": "file:// shared"
+    },
+    {
+      "item": "Fixed claude --help rendering unwrapped output on terminals narrower than 92 columns",
+      "status": "shared-logic",
+      "evidence": "no unique 153 string"
+    },
+    {
+      "item": "Fixed MCP tool progress notifications not rendering in the collapsed tool view",
+      "status": "shared-logic",
+      "evidence": "no unique 153 string"
+    },
+    {
+      "item": "Fixed Agent tool with subagent_type: 'claude' running in an undocumented temporary worktree, which could silently discard outputs written to gitignored paths",
+      "status": "shared-logic",
+      "evidence": "subagent_type / gitignored shared"
+    },
+    {
+      "item": "/bg while Claude is responding now continues the response in the background session instead of dropping it",
+      "status": "shared-logic",
+      "evidence": "/bg token not unique"
+    },
+    {
+      "item": "Fixed /btw keyboard shortcuts becoming unresponsive in background sessions while a task is running",
+      "status": "shared-logic",
+      "evidence": "no unique 153 string"
+    },
+    {
+      "item": "Fixed background sessions writing temp files to $CLAUDE_JOB_DIR triggering a sensitive file permission prompt",
+      "status": "located",
+      "evidence": "zH9 isCurrentBgJobDirPath in checkEditableInternalPath + checkReadableInternalPath"
+    },
+    {
+      "item": "Fixed recovering a background agent whose working directory was deleted showing a truncated stack trace instead of a clear error message",
+      "status": "partial",
+      "evidence": "settleCwdGone daemon worker not in src/"
+    },
+    {
+      "item": "Fixed EnterWorktree not being available immediately in background sessions (previously required ToolSearch first)",
+      "status": "shared-logic",
+      "evidence": "EnterWorktree shared"
+    },
+    {
+      "item": "Fixed cmd+k in iTerm2/Terminal.app not repainting attached background sessions",
+      "status": "shared-logic",
+      "evidence": "no unique 153 string"
+    },
+    {
+      "item": "Fixed the IME candidate window appearing at the bottom of the screen instead of next to the input caret in attached background sessions on Windows",
+      "status": "shared-logic",
+      "evidence": "IME mostly shared"
+    },
+    {
+      "item": "Fixed background-color bleed when attaching to a background agent from 256-color-only terminals after the agent had rendered file diffs",
+      "status": "shared-logic",
+      "evidence": "256-color 0→0"
+    },
+    {
+      "item": "Fixed /copy and copy-on-select silently failing to update the system clipboard when attached to a background session inside tmux",
+      "status": "shared-logic",
+      "evidence": "copy-on-select 0→0"
+    },
+    {
+      "item": "Fixed opening claude agents with Remote Control enabled leaving zombie session entries on the Code tab after exiting",
+      "status": "shared-logic",
+      "evidence": "zombie 0→0"
+    },
+    {
+      "item": "Fixed /rename in background sessions not updating the session banner immediately",
+      "status": "shared-logic",
+      "evidence": "no unique 153 string"
+    },
+    {
+      "item": "Fixed Windows update rollback: if a Windows update fails, Claude Code now restores the original executable by copy and tells you how to recover",
+      "status": "absent-in-bundle",
+      "evidence": "Windows native updater; Windows update rollback 0→0"
+    },
+    {
+      "item": "[VSCode] Fixed Claude Code processes not shutting down cleanly when VS Code closed on Windows, causing false unclean exit reports and orphaned MCP servers",
+      "status": "absent-in-bundle",
+      "evidence": "vscode extension; unclean exit 0→0"
+    },
+    {
+      "item": "/model now saves your selection as the default for new sessions (matching the IDE). Press s in the picker to switch models for the current session only.",
+      "status": "located",
+      "evidence": "SE$ persistModelAsDefault; ModelPicker Enter=default s=session; onChangeAppState no longer writes userSettings"
+    },
+    {
+      "item": "If you customized the modelPicker:setAsDefault keybinding, rename it to modelPicker:thisSessionOnly in keybindings.json (the d action was replaced by s)",
+      "status": "located",
+      "evidence": "schema + defaultBindings s: modelPicker:thisSessionOnly; setAsDefault removed"
+    }
+  ],
+  "notes": "Typecheck per-file delta empty vs 3ccef05. bun run build green. Dist tokens: skipLfs 19, GIT_LFS_SKIP_SMUDGE 6, sudo-npm-install 1, can't auto-update 1, Last update attempt: 1, none recorded 1, modelPicker:thisSessionOnly 3, setAsDefault 0, LSUIElement 1, stream-closed 1, agent-mcp-blocked 1, Job directory files for current bg session writing/reading 1+1. myH writers at AutoUpdater + cli/update (not inside installGlobalPackage); error_code update_apply_restore_failed via IaH/yaH getter. FleetView iyz and settleCwdGone deferred (no host). Did not backfill 152 MessageDisplay flush / coordinator / workflow engine / disallowed_tools fork. Did not land 154+."
+}

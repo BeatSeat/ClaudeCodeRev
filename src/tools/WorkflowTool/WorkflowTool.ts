@@ -32,6 +32,7 @@ import {
   WORKFLOW_SEARCH_HINT,
   WORKFLOW_TOOL_NAME,
 } from './constants.js'
+import { recordWorkflowUsageConsent } from './usageConsent.js'
 import memoize from 'lodash-es/memoize.js'
 
 /** Official 2.1.153 reserved meta keys (`TW_`). */
@@ -888,7 +889,7 @@ export const WorkflowTool = buildTool({
       return {
         result: false as const,
         message:
-          'Workflows are disabled by managed settings (`disableWorkflows`).',
+          'Dynamic workflows are disabled by managed settings (`disableWorkflows`).',
         errorCode: 5,
       }
     }
@@ -968,6 +969,8 @@ export const WorkflowTool = buildTool({
     }
     const allow = getNamedRule(context, name, 'allow')
     if (allow) {
+      // Official 2.1.153: persist consent when Workflow is allowed.
+      recordWorkflowUsageConsent()
       return {
         behavior: 'allow' as const,
         updatedInput,

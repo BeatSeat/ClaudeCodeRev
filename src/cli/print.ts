@@ -65,7 +65,7 @@ import {
 import { getInMemoryErrors, logError, logMCPDebug } from 'src/utils/log.js'
 import {
   writeToStdout,
-  registerProcessOutputErrorHandlers,
+  registerProcessIOErrorHandlers,
 } from 'src/utils/process.js'
 import type { Stream } from 'src/utils/stream.js'
 import { EMPTY_USAGE } from 'src/services/api/logging.js'
@@ -928,7 +928,7 @@ export async function runHeadless(
   }
 
   // Install errors handlers to gracefully handle broken pipes (e.g., when parent process dies)
-  registerProcessOutputErrorHandlers()
+  registerProcessIOErrorHandlers()
 
   headlessProfilerCheckpoint('after_loadInitialMessages')
 

@@ -207,6 +207,10 @@ export type QueryParams = {
   maxOutputTokensOverride?: number
   maxTurns?: number
   skipCacheWrite?: boolean
+  // 152/153 fork-point pinning (bundle LJz `_`): uuid of the message a fork
+  // branched from, threaded through to the API's addCacheBreakpoints so the
+  // cache-breakpoint marker can be pinned to the shared prefix.
+  forkPointUuid?: string
   // API task_budget (output_config.task_budget, beta task-budgets-2026-03-13).
   // Distinct from the tokenBudget +500k auto-continue feature. `total` is the
   // budget for the whole agentic turn; `remaining` is computed per iteration
@@ -284,6 +288,7 @@ async function* queryLoop(
     querySource,
     maxTurns,
     skipCacheWrite,
+    forkPointUuid,
   } = params
   const deps = params.deps ?? productionDeps()
 
@@ -779,6 +784,7 @@ async function* queryLoop(
               effortValue: appState.effortValue,
               advisorModel: appState.advisorModel,
               skipCacheWrite,
+              forkPointUuid,
               agentId: toolUseContext.agentId,
               addNotification: toolUseContext.addNotification,
               ...(params.taskBudget && {

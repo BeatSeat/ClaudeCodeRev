@@ -1291,6 +1291,7 @@ You are running in an isolated git worktree at ${worktree.worktreePath} (a separ
           transcriptSubdir: workflowRunId
             ? `workflows/${workflowRunId}`
             : undefined,
+          spawnedByWorkflowRunId: workflowRunId,
           override: { agentId },
           model:
             typeof opts?.model === 'string'

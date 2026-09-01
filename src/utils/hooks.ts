@@ -1019,6 +1019,9 @@ async function execCommandHook(
     ...subprocessEnv(),
     CLAUDE_PROJECT_DIR: toHookPath(projectDir),
   }
+  const { columns, rows } = process.stdout
+  if (columns) envVars.COLUMNS = String(columns)
+  if (rows) envVars.LINES = String(rows)
   try {
     const parsedInput = JSON.parse(jsonInput) as {
       effort?: { level?: unknown }

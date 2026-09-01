@@ -119,6 +119,10 @@ import {
   isFastModeSupportedByModel,
 } from '../../utils/fastMode.js'
 import { isFullscreenEnvEnabled } from '../../utils/fullscreen.js'
+import {
+  getWorkflowsDefaultOn,
+  isWorkflowsAvailable,
+} from '../../utils/workflows/enabled.js'
 
 type Props = {
   onClose: (
@@ -324,6 +328,7 @@ export function Config({
       mainLoopModel: value,
       mainLoopModelForSession: null,
     }))
+    updateSettingsForSource('userSettings', { model: value ?? undefined })
     setChanges(prev => {
       const valStr = modelDisplayString(value)
       if ('model' in prev) {
@@ -544,6 +549,56 @@ export function Config({
           },
         ]
       : []),
+    // Official 2.1.153: oH = EH7() + source checks (hide if managed/project set it)
+    ...(() => {
+      const disableWorkflowsSource = getSourceForSetting('disableWorkflows')
+      const enableWorkflowsSource = getSourceForSetting('enableWorkflows')
+      const showDynamicWorkflows =
+        isWorkflowsAvailable() &&
+        (settingsData?.disableWorkflows !== true ||
+          disableWorkflowsSource === 'userSettings') &&
+        (enableWorkflowsSource === null ||
+          enableWorkflowsSource === 'userSettings')
+      return showDynamicWorkflows
+        ? [
+            {
+              id: 'workflowsEnabled',
+              label: 'Dynamic workflows',
+              // Official: J?.disableWorkflows===!0?!1:J?.enableWorkflows??_L6()
+              value:
+                settingsData?.disableWorkflows === true
+                  ? false
+                  : (settingsData?.enableWorkflows ?? getWorkflowsDefaultOn()),
+              type: 'boolean' as const,
+              onChange(enabled: boolean) {
+                const defaultOn = getWorkflowsDefaultOn()
+                const next = enabled === defaultOn ? undefined : enabled
+                updateSettingsForSource('userSettings', {
+                  enableWorkflows: next,
+                  disableWorkflows: undefined,
+                })
+                setSettingsData(prev => ({
+                  ...prev,
+                  enableWorkflows: next,
+                  disableWorkflows: undefined,
+                }))
+                setAppState(prev => ({
+                  ...prev,
+                  settings: {
+                    ...prev.settings,
+                    enableWorkflows: next,
+                    disableWorkflows: undefined,
+                  },
+                }))
+                setChanges(prev => ({
+                  ...prev,
+                  workflows: enabled ? 'on' : 'off',
+                }))
+              },
+            },
+          ]
+        : []
+    })(),
     {
       id: 'verbose',
       label: 'Verbose output',
@@ -1586,6 +1641,7 @@ export function Config({
           }
         : {}),
       disableWorkflows: iu?.disableWorkflows,
+      enableWorkflows: iu?.enableWorkflows,
       // ThemePicker's Ctrl+T writes this key directly — include it so the
       // disk state reverts along with the in-memory AppState.settings restore.
       syntaxHighlightingDisabled: iu?.syntaxHighlightingDisabled,

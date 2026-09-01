@@ -12,6 +12,7 @@ import { isAutoUpdaterDisabled } from '../utils/config.js'
 import { installLatest } from '../utils/nativeInstaller/index.js'
 import { gt } from '../utils/semver.js'
 import { getInitialSettings } from '../utils/settings/settings.js'
+import { recordUpdateResult } from '../utils/lastUpdateResult.js'
 
 /**
  * Categorize error messages for analytics
@@ -126,6 +127,15 @@ export function NativeAutoUpdater({
       setVersions({ current: currentVersion, latest: result.latestVersion })
 
       if (result.wasUpdated) {
+        void recordUpdateResult({
+          timestamp: new Date().toISOString(),
+          path: 'native',
+          outcome: 'success',
+          status: 'success',
+          version_from: currentVersion,
+          version_to: result.latestVersion,
+          error_code: null,
+        })
         logEvent('tengu_native_auto_updater_success', {
           latency_ms: latencyMs,
         })
@@ -158,6 +168,15 @@ export function NativeAutoUpdater({
         error_network: errorType === 'network_error',
       })
 
+      void recordUpdateResult({
+        timestamp: new Date().toISOString(),
+        path: 'native',
+        outcome: 'failed',
+        status: 'install_failed',
+        version_from: MACRO.VERSION,
+        version_to: null,
+        error_code: null,
+      })
       onAutoUpdaterResult({
         version: null,
         status: 'install_failed',
