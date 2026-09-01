@@ -12,7 +12,14 @@
 
 import { clamp } from './layout/geometry.js'
 import type { Screen, StylePool } from './screen.js'
-import { CellWidth, cellAt, cellAtIndex, setCellStyleId } from './screen.js'
+import {
+  CellWidth,
+  SW_ELIDED_SEP,
+  cellAt,
+  cellAtIndex,
+  setCellStyleId,
+  unpackSoftWrapStart,
+} from './screen.js'
 
 type Point = { col: number; row: number }
 
@@ -725,15 +732,18 @@ export function isCellSelected(
   return true
 }
 
-/** Extract text from one screen row. Official _14: packed softWrap is
- *  (prevContentEnd << 16) | startCol. Next-row high 16 bits are this
- *  row's content-end (don't trimEnd). This-row low 16 bits are the
- *  continuation start column. */
+/** Extract text from one screen row. Official 2.1.154 `piK`: packed
+ *  softWrap is (prevContentEnd << 16) | (startCol & 32767) [| SW_ELIDED_SEP].
+ *  Next-row high 16 bits are this row's content-end (don't trimEnd).
+ *  This-row low 15 bits are the continuation start column. When
+ *  `restoreElidedSep` and bit 15 is set and the selection covers the
+ *  join column, prepend the stripped wrap space. */
 function extractRowText(
   screen: Screen,
   row: number,
   colStart: number,
   colEnd: number,
+  restoreElidedSep = false,
 ): string {
   const noSelect = screen.noSelect
   const rowOff = row * screen.width
@@ -741,8 +751,16 @@ function extractRowText(
   const contentEnd =
     (row + 1 < screen.height ? screen.softWrap[row + 1]! : 0) >>> 16
   const lastCol = contentEnd > 0 ? Math.min(colEnd, contentEnd - 1) : colEnd
-  const start = packed !== 0 ? Math.max(colStart, packed & 65535) : colStart
-  let line = ''
+  const wrapStart = packed !== 0 ? unpackSoftWrapStart(packed) : 0
+  const start = packed !== 0 ? Math.max(colStart, wrapStart) : colStart
+  let line =
+    restoreElidedSep &&
+    packed !== 0 &&
+    (packed & SW_ELIDED_SEP) !== 0 &&
+    colStart <= wrapStart &&
+    colEnd >= wrapStart
+      ? ' '
+      : ''
   for (let col = start; col <= lastCol; col++) {
     // Skip cells marked noSelect (gutters, line numbers, diff sigils).
     // Check before cellAt to avoid the decode cost for excluded cells.
@@ -802,7 +820,11 @@ export function getSelectedText(s: SelectionState, screen: Screen): string {
   for (let row = start.row; row <= end.row; row++) {
     const rowStart = row === start.row ? start.col : 0
     const rowEnd = row === end.row ? end.col : screen.width - 1
-    joinRows(lines, extractRowText(screen, row, rowStart, rowEnd), sw[row]! > 0)
+    joinRows(
+      lines,
+      extractRowText(screen, row, rowStart, rowEnd, lines.length > 0),
+      sw[row]! > 0,
+    )
   }
 
   for (let i = 0; i < s.scrolledOffBelow.length; i++) {
@@ -867,7 +889,10 @@ export function captureScrolledRows(
   for (let row = lo; row <= hi; row++) {
     const colStart = row === start.row ? start.col : 0
     const colEnd = row === end.row ? end.col : width - 1
-    captured.push(extractRowText(screen, row, colStart, colEnd))
+    const restoreElidedSep = row > start.row || s.scrolledOffAbove.length > 0
+    captured.push(
+      extractRowText(screen, row, colStart, colEnd, restoreElidedSep),
+    )
     capturedSW.push(sw[row]! > 0)
   }
 

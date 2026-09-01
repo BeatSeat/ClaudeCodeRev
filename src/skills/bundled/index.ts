@@ -3,6 +3,7 @@ import { shouldAutoEnableClaudeInChrome } from 'src/utils/claudeInChrome/setup.j
 import { isEnvTruthy } from 'src/utils/envUtils.js'
 import { registerBatchSkill } from './batch.js'
 import { registerClaudeInChromeSkill } from './claudeInChrome.js'
+import { registerClaudeCodeSkill } from './claude-code-docs/index.js'
 import { registerDebugSkill } from './debug.js'
 import { registerKeybindingsSkill } from './keybindings.js'
 import { registerLessPermissionPromptsSkill } from './lessPermissionPrompts.js'
@@ -30,6 +31,9 @@ export function initBundledSkills(): void {
   registerVerifySkill()
   registerDebugSkill()
   registerLoremIpsumSkill()
+  // Official 2.1.154: claude-code-docs skill. Registered unconditionally; its
+  // own isEnabled() (tengu_birch_kettle) decides visibility.
+  registerClaudeCodeSkill()
   registerSkillifySkill()
   registerRememberSkill()
   registerSimplifySkill()

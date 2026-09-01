@@ -457,6 +457,10 @@ export type AppState = DeepImmutable<{
   advisorModel?: string
   // Effort value
   effortValue?: EffortValue
+  // Official 2.1.154: session ultracode (dynamic-workflow orchestration)
+  // active. Set by the /ultracode toggle; gates the ultra_effort
+  // maintenance attachments (see attachments.ts getUltraEffortAttachments).
+  ultracode?: boolean
   // Official 2.1.89 /autocompact — session copy of settings.autoCompactWindow
   autoCompactWindow?: number
   // Set synchronously in launchUltraplan before the detached flow starts.

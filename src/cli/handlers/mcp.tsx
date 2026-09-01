@@ -27,9 +27,11 @@ import {
 } from '../../services/mcp/client.js'
 import {
   addMcpConfig,
+  doesEnterpriseMcpConfigExist,
   getAllMcpConfigs,
   getMcpConfigByName,
   getMcpConfigsByScope,
+  isMcpServerAllowedByPolicy,
   removeMcpConfig,
 } from '../../services/mcp/config.js'
 import type {
@@ -39,8 +41,10 @@ import type {
 import {
   describeMcpConfigFilePath,
   ensureConfigScope,
+  getRawProjectMcpServerStatus,
   getScopeLabel,
 } from '../../services/mcp/utils.js'
+import { isRestrictedToPluginOnly } from '../../utils/settings/pluginOnlyPolicy.js'
 import { AppStateProvider } from '../../state/AppState.js'
 import {
   getCurrentProjectConfig,
@@ -52,6 +56,11 @@ import { gracefulShutdown } from '../../utils/gracefulShutdown.js'
 import { safeParseJSON } from '../../utils/json.js'
 import { getPlatform } from '../../utils/platform.js'
 import { cliError, cliOk } from '../exit.js'
+
+/** Official 2.1.154 `ZK9`. */
+const MCP_PENDING_APPROVAL = '⏸ Pending approval (run `claude` to approve)'
+/** Official 2.1.154 `ePz`. */
+const MCP_REJECTED = '✗ Rejected (see disabledMcpjsonServers in settings)'
 
 async function checkMcpServerHealth(
   name: string,
@@ -188,7 +197,9 @@ export async function mcpRemoveHandler(
 // mcp list (lines 4641–4688)
 export async function mcpListHandler(): Promise<void> {
   logEvent('tengu_mcp_list', {})
-  const { servers: configs } = await getAllMcpConfigs()
+  const { servers: configs, pendingProjectServers } = await getAllMcpConfigs({
+    includePendingProjectServers: true,
+  })
   if (Object.keys(configs).length === 0) {
     // biome-ignore lint/suspicious/noConsole:: intentional console output
     console.log(
@@ -205,7 +216,9 @@ export async function mcpListHandler(): Promise<void> {
       async ([name, server]) => ({
         name,
         server,
-        status: await checkMcpServerHealth(name, server),
+        status: pendingProjectServers.has(name)
+          ? MCP_PENDING_APPROVAL
+          : await checkMcpServerHealth(name, server),
       }),
       { concurrency: getMcpServerConnectionBatchSize() },
     )
@@ -238,7 +251,29 @@ export async function mcpGetHandler(name: string): Promise<void> {
   logEvent('tengu_mcp_get', {
     name: name as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
   })
-  const server = getMcpConfigByName(name)
+  const { servers, pendingProjectServers } = await getAllMcpConfigs({
+    includePendingProjectServers: true,
+  })
+  let server = servers[name]
+  let pendingKind: 'pending' | 'rejected' | null = pendingProjectServers.has(
+    name,
+  )
+    ? 'pending'
+    : null
+  if (!server) {
+    const { servers: projectServers } = getMcpConfigsByScope('project')
+    const project = projectServers[name]
+    if (
+      project &&
+      !isRestrictedToPluginOnly('mcp') &&
+      !doesEnterpriseMcpConfigExist() &&
+      isMcpServerAllowedByPolicy(name, project) &&
+      getRawProjectMcpServerStatus(name) === 'rejected'
+    ) {
+      server = project
+      pendingKind = 'rejected'
+    }
+  }
   if (!server) {
     cliError(`No MCP server found with name: ${name}`)
   }
@@ -248,8 +283,12 @@ export async function mcpGetHandler(name: string): Promise<void> {
   // biome-ignore lint/suspicious/noConsole:: intentional console output
   console.log(`  Scope: ${getScopeLabel(server.scope)}`)
 
-  // Check server health
-  const status = await checkMcpServerHealth(name, server)
+  const status =
+    pendingKind === 'pending'
+      ? MCP_PENDING_APPROVAL
+      : pendingKind === 'rejected'
+        ? MCP_REJECTED
+        : await checkMcpServerHealth(name, server)
   // biome-ignore lint/suspicious/noConsole:: intentional console output
   console.log(`  Status: ${status}`)
 

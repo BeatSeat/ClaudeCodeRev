@@ -169,6 +169,57 @@ const GOA: Record<EffortLevel, () => string> = {
   max: () => extraHighPrompt('max'),
 }
 
+/** Official 2.1.154 `Ehz`. */
+const SIMPLIFY_PROMPT = `\`/simplify → 4 cleanup agents in parallel → apply the fixes\`
+
+You are improving the quality of the changed code, not hunting for bugs. Review
+it for reuse, simplification, efficiency, and altitude issues, then fix what you
+find. Do not look for correctness bugs — that is what \`/code-review\` is for.
+
+${PHASE0_GATHER}
+## Phase 1 — Review (4 cleanup agents in parallel)
+
+Launch **4 independent review agents** via the ${AGENT_TOOL_NAME} tool, all in a
+single message so they run concurrently. Pass each agent the diff and one of
+the four angles below. Each returns its findings with \`file\`, \`line\`, a
+one-line \`summary\`, and the concrete cost (what is duplicated, wasted, or
+harder to maintain).
+
+### Reuse
+
+Flag new code that re-implements something the codebase
+already has — Grep shared/utility modules and files adjacent to the change,
+and name the existing helper to call instead.
+
+### Simplification
+
+Flag unnecessary complexity the diff adds: redundant or derivable state,
+copy-paste with slight variation, deep nesting, dead code left behind. Name
+the simpler form that does the same job.
+
+### Efficiency
+
+Flag wasted work the diff introduces: redundant computation or repeated I/O,
+independent operations run sequentially, blocking work added to startup or
+hot paths. Name the cheaper alternative.
+
+### Altitude
+
+Check that each change is implemented at the right depth, not as a fragile
+bandaid. Special cases layered on shared infrastructure are a sign the fix
+isn't deep enough — prefer generalizing the underlying mechanism over adding
+special cases.
+
+## Phase 2 — Apply the fixes
+
+Wait for all four agents to complete, dedup findings that point at the same
+line or mechanism, and fix each remaining one directly. Skip any finding whose
+fix would change intended behavior, require changes well outside the reviewed
+diff, or that you judge to be a false positive — note the skip rather than
+arguing with it. Finish with a brief summary of what was fixed and what was
+skipped (or confirm the code was already clean).
+`
+
 /** Official 2.1.152 `ihz`. */
 function ihz(): string {
   return `Review the current diff for correctness bugs and reuse/simplification/efficiency cleanups at the given effort level (low/medium: fewer, high-confidence findings; high\u2192max: broader coverage, may include uncertain findings${isUltrareviewEnabled() ? '; ultra: deep multi-agent review in the cloud' : ''}). Pass --comment to post findings as inline PR comments, or --fix to apply the findings to the working tree after the review.`
@@ -263,12 +314,17 @@ export function registerSimplifySkill(): void {
   registerBundledSkill({
     name: 'simplify',
     description:
-      'Review the current diff and apply the fixes — equivalent to /code-review --fix.',
-    argumentHint: `[${EFFORT_LEVELS.join('|')}] [--comment] [<target>]`,
+      'Review the changed code for reuse, simplification, efficiency, and altitude cleanups, then apply the fixes. Quality only — it does not hunt for bugs; use /code-review for that.',
+    argumentHint: '[<target>]',
     userInvocable: true,
-    getEffort: args => parseCodeReviewArgs(args).explicit,
-    async getPromptForCommand(args, context) {
-      return codeReviewPrompt(`${args} --fix`.trim(), context)
+    async getPromptForCommand(args) {
+      const target = args.trim()
+      return [
+        {
+          type: 'text' as const,
+          text: `${target ? `Review target: \`${target}\`\n\n` : ''}${SIMPLIFY_PROMPT}`,
+        },
+      ]
     },
   })
 }

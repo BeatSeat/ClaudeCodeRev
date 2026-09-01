@@ -14,10 +14,11 @@ import {
 } from '../ink.js'
 import type { BaseTextInputProps } from '../types/textInputTypes.js'
 import { rawInverse } from '../ink/colorize.js'
+import { isXtermJs } from '../ink/terminal.js'
 import { isEnvTruthy } from '../utils/envUtils.js'
 import type { TextHighlight } from '../utils/textHighlighting.js'
 import { BaseTextInput } from './BaseTextInput.js'
-import { hueToRgb } from './Spinner/utils.js'
+import { hueToRgb, quantizeHue } from './Spinner/utils.js'
 
 // Block characters for waveform bars: space (silent) + 8 rising block elements.
 const BARS = ' \u2581\u2582\u2583\u2584\u2585\u2586\u2587\u2588'
@@ -97,7 +98,9 @@ export default function TextInput(props: Props): React.ReactNode {
       Math.min(Math.round(displayLevel * (BARS.length - 1)), BARS.length - 1),
     )
     const isSilent = raw < SILENCE_THRESHOLD
-    const hue = ((animTime / 1000) * 90) % 360
+    const rawHue = ((animTime / 1000) * 90) % 360
+    // Official 2.1.154 `PL()?h78(j):j` — same VS Code hue cap as AnimatedAsterisk.
+    const hue = isXtermJs() ? quantizeHue(rawHue) : rawHue
     const { r, g, b } = isSilent ? { r: 128, g: 128, b: 128 } : hueToRgb(hue)
     invert = () => chalk.rgb(r, g, b)(BARS[barIndex]!)
   } else {

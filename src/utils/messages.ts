@@ -3534,6 +3534,33 @@ function getAutoModeSparseInstructions(): UserMessage[] {
   ])
 }
 
+function getUltraEffortEnterInstructions(attachment: {
+  reminderType: 'full' | 'sparse'
+}): UserMessage[] {
+  if (attachment.reminderType === 'sparse') {
+    return getUltraEffortSparseInstructions()
+  }
+  return getUltraEffortFullInstructions()
+}
+
+function getUltraEffortFullInstructions(): UserMessage[] {
+  // Official 2.1.154 verbatim (bundle idx 10503289): full ultra_effort_enter.
+  const content = `Ultracode is on: optimize for the most exhaustive, correct answer \u2014 not the fastest or cheapest. Use the Workflow tool on every substantive task; token cost is not a constraint. See the Workflow tool's **Ultracode** section and quality patterns. Solo only on conversational/trivial turns.`
+
+  return wrapMessagesInSystemReminder([
+    createUserMessage({ content, isMeta: true }),
+  ])
+}
+
+function getUltraEffortSparseInstructions(): UserMessage[] {
+  // Official 2.1.154 verbatim (bundle idx 10503289): sparse ultra_effort_enter.
+  const content = `Ultracode is still on \u2014 use the Workflow tool; see its Ultracode section.`
+
+  return wrapMessagesInSystemReminder([
+    createUserMessage({ content, isMeta: true }),
+  ])
+}
+
 export function normalizeAttachmentForAPI(
   attachment: Attachment,
 ): UserMessage[] {
@@ -3951,6 +3978,17 @@ You have exited plan mode. You can now make edits, run tools, and take actions.$
       const content = `## Exited Auto Mode
 
 You have exited auto mode. The user may now want to interact more directly. You should ask clarifying questions when the approach is ambiguous rather than making assumptions.`
+
+      return wrapMessagesInSystemReminder([
+        createUserMessage({ content, isMeta: true }),
+      ])
+    }
+    case 'ultra_effort_enter': {
+      return getUltraEffortEnterInstructions(attachment)
+    }
+    case 'ultra_effort_exit': {
+      // Official 2.1.154 verbatim (bundle idx 10503289): ultra_effort_exit.
+      const content = `Ultracode is off \u2014 the Workflow tool's standard opt-in rule applies again.`
 
       return wrapMessagesInSystemReminder([
         createUserMessage({ content, isMeta: true }),
