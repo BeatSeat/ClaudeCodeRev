@@ -1,29 +1,7 @@
 {
   "version": "2.1.158",
   "from": "2.1.157",
-  "astdiff": {
-    "version": "2.1.158",
-    "from": "2.1.157",
-    "from_bundle": "/root/projects/ClaudeCodeRev/restore-work/artifacts/cometix/2.1.157/cli.js",
-    "to_bundle": "/root/projects/ClaudeCodeRev/restore-work/artifacts/cometix/2.1.158/cli.js",
-    "from_sha256": "e9152d59e4d972baaa92b5655861cb9539cfad3049646579bf3b6425537dd7eb",
-    "to_sha256": "a43db751a784edb77d222f2d8dc2a999bcd4fb2ce68b5563a9f138c2b0a114a0",
-    "method": "astdiff-v0.2.0+tree-sitter0.25",
-    "parser": "tree-sitter 0.25 / tree-sitter-javascript 0.25",
-    "similarity": 100.0,
-    "matched_declarations": 24647,
-    "total_declarations_from": 24648,
-    "total_declarations_to": 24651,
-    "change_total": 7403,
-    "added": 4,
-    "removed": 1,
-    "structural": 7360,
-    "string_only": 38,
-    "command": "astdiff /root/projects/ClaudeCodeRev/restore-work/artifacts/cometix/2.1.157/cli.js /root/projects/ClaudeCodeRev/restore-work/artifacts/cometix/2.1.158/cli.js --format json",
-    "full_json": "/root/projects/Zhiman/projects/ccr-swarm/integration/astdiff-full/using/2.1.158.json",
-    "elapsed_seconds": 15.8,
-    "generated_at": "2026-11-14T15:07:46Z"
-  },
+  "astdiff": "failed-parse",
   "items": [
     {
       "item": "Auto mode is now available on Bedrock, Vertex, and Foundry for Opus 4.7 and Opus 4.8. Opt in by setting CLAUDE_CODE_ENABLE_AUTO_MODE=1",

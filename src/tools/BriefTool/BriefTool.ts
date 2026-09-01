@@ -6,6 +6,10 @@ import { logEvent } from '../../services/analytics/index.js'
 import type { ValidationResult } from '../../Tool.js'
 import { buildTool, type ToolDef } from '../../Tool.js'
 import { isEnvTruthy } from '../../utils/envUtils.js'
+import {
+  isPewterOwlBrief,
+  isPewterOwlTool,
+} from '../../utils/pewterOwl.js'
 import { lazySchema } from '../../utils/lazySchema.js'
 import { plural } from '../../utils/stringUtils.js'
 import { resolveAttachments, validateAttachmentPaths } from './attachments.js'
@@ -128,9 +132,17 @@ export function isBriefEnabled(): boolean {
   // the ternary to `false` in external builds and then dead-code the BriefTool
   // object. Composing isBriefEntitled() alone (which has its own guard) is
   // semantically equivalent but defeats constant-folding across the boundary.
-  return feature('KAIROS') || feature('KAIROS_BRIEF')
-    ? (getKairosActive() || getUserMsgOptIn()) && isBriefEntitled()
-    : false
+  // 2.1.159 bundle `VH$` = `(Gb()||qB())&&fG8()||HO6()`: the Pewter-owl brief
+  // OR-term (HO6 -> isPewterOwlBrief) is an independent runtime GB gate and is
+  // intentionally OUTSIDE the build-time KAIROS feature guard, so it stays
+  // compiled in external builds. 默认关实验（default-off experiment），
+  // 注入与否待裁 (pending adjudication) — see src/utils/pewterOwl.ts.
+  return (
+    (feature('KAIROS') || feature('KAIROS_BRIEF')
+      ? (getKairosActive() || getUserMsgOptIn()) && isBriefEntitled()
+      : false) ||
+    isPewterOwlBrief()
+  )
 }
 
 export const BriefTool = buildTool({
@@ -148,8 +160,13 @@ export const BriefTool = buildTool({
   get outputSchema(): OutputSchema {
     return outputSchema()
   },
+  // 2.1.159 bundle `xO4.isEnabled` = `VH$()||e36()` = isBriefEnabled() ||
+  // isPewterOwlTool(). The e36() (isPewterOwlTool) OR-term keeps the tool
+  // active for the Pewter-owl experiment even when the KAIROS brief gate is
+  // off. 默认关实验（default-off experiment），注入与否待裁 (pending
+  // adjudication) — see src/utils/pewterOwl.ts.
   isEnabled() {
-    return isBriefEnabled()
+    return isBriefEnabled() || isPewterOwlTool()
   },
   isConcurrencySafe() {
     return true
