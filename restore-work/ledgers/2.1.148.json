@@ -1,0 +1,14 @@
+{
+  "version": "2.1.148",
+  "fromVersion": "2.1.147",
+  "expectedFunctionCount": 0,
+  "functions": [],
+  "changelogCoverage": [
+    {
+      "item": "Bash tool exit code 127 regression from 2.1.147",
+      "status": "shared-logic",
+      "evidence": "astdiff similarity 1.0, 0 genuine, −212 B, 0 new unique tokens. Not invented."
+    }
+  ],
+  "notes": "NO_DELTA hop. Four-domain review PASS. Do not pull 149 product forward."
+}
