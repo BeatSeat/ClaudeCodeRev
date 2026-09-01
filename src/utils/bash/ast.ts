@@ -19,6 +19,7 @@
  */
 
 import { SHELL_KEYWORDS } from './bashParser.js'
+import { getParserModule } from './bashParser.js'
 import type { Node } from './parser.js'
 import { PARSE_ABORTED, parseCommandRaw } from './parser.js'
 
@@ -63,6 +64,79 @@ const STRUCTURAL_TYPES = new Set([
  * between commands in `list`/`pipeline`/`program` and carry no payload.
  */
 const SEPARATOR_TYPES = new Set(['&&', '||', '|', ';', '&', '|&', '\n'])
+
+// Command-segment splitter — faithful port of the official 2.1.141 `W3`.
+// Yields the raw source text of each leaf command in a (possibly compound)
+// command. Unlike parseForSecurityFromAst this never returns 'too-complex':
+// structure it does not recognize is simply not descended into (its inner
+// command spans are not collected). Consumed by checkDangerousRmComplexVariable
+// (tools/BashTool/pathValidation.ts) to find rm/rmdir sub-commands hidden
+// inside compound commands that the security parser classified as too-complex.
+//
+// The structural/separator sets mirror the official 2.1.141 `W3` (`hz6` =
+// program/list/pipeline; `QQK` = the operator separators). The separator set
+// here is one char (`\n`) broader than this tree's SEPARATOR_TYPES (which is
+// for a different purpose) — the extra entry is inert for collection because
+// separators are never pushed, only skipped.
+const COMMAND_SEGMENT_STRUCTURAL_TYPES = new Set([
+  'program',
+  'list',
+  'pipeline',
+])
+const COMMAND_SEGMENT_SEPARATORS = new Set([
+  '&&',
+  '||',
+  '|',
+  ';',
+  '&',
+  '|&',
+  '\n',
+])
+
+/**
+ * Extract the raw source text of every leaf command in `command`. Returns
+ * `[command]` when the parser is unavailable or the command is empty/too long
+ * (the caller's `iM7`-equivalent is safe to run on that fallback). Mirrors the
+ * official 2.1.141 `W3`.
+ */
+export function commandSegments(command: string): string[] {
+  if (!command) return []
+  // 10_000 matches both parser MAX_COMMAND_LENGTH and the official `Ze$`.
+  if (command.length > 10000) return [command]
+  const parser = getParserModule()
+  if (!parser) return [command]
+  let root: Node | null
+  try {
+    root = parser.parse(command)
+  } catch {
+    return [command]
+  }
+  if (!root) return [command]
+  const segments: string[] = []
+  const visit = (node: Node): void => {
+    // Skip operator tokens and comments (they carry no command payload).
+    if (COMMAND_SEGMENT_SEPARATORS.has(node.type) || node.type === 'comment') {
+      return
+    }
+    // A redirected command: recurse into its children but skip the redirect
+    // nodes themselves so their target text is not reported as a command.
+    if (node.type === 'redirected_statement') {
+      for (const child of node.children) {
+        if (!child.type.endsWith('_redirect')) visit(child)
+      }
+      return
+    }
+    // Composition nodes (program / list / pipeline): recurse into children.
+    if (COMMAND_SEGMENT_STRUCTURAL_TYPES.has(node.type)) {
+      for (const child of node.children) visit(child)
+      return
+    }
+    // Leaf command — keep its raw source span.
+    segments.push(node.text)
+  }
+  visit(root)
+  return segments
+}
 
 /**
  * Placeholder string used in outer argv when a $() is recursively extracted.

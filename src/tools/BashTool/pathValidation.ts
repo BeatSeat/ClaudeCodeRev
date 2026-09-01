@@ -2,6 +2,7 @@ import { homedir } from 'os'
 import { isAbsolute, resolve } from 'path'
 import type { z } from 'zod/v4'
 import type { ToolPermissionContext } from '../../Tool.js'
+import { commandSegments } from '../../utils/bash/ast.js'
 import type { Redirect, SimpleCommand } from '../../utils/bash/ast.js'
 import {
   extractOutputRedirections,
@@ -62,6 +63,59 @@ export type PathCommand =
   | 'sha1sum'
   | 'md5sum'
 
+// ── 2.1.141 G25: rm/rmdir whose target is a possibly-empty shell variable
+//    expansion that resolves to the filesystem root (official bundle `iM7`) ──
+
+/**
+ * A possibly-empty shell-variable path that expands to the filesystem root
+ * (or a top-level directory). The pattern requires a literal `/` immediately
+ * after the (optionally quoted) variable, so `$UNSET/*`, `$UNSET/`, `${UNSET}`
+ * (when followed by `/`) all match when UNSET is unset/empty — e.g.
+ * `rm -rf $UNSET/*` becomes `rm -rf /*`. A bare `$UNSET` with no trailing
+ * slash does NOT match (matches the official `oP_` verbatim).
+ *
+ * Official 2.1.141 `oP_`, verbatim.
+ */
+const POSSIBLY_EMPTY_VARIABLE_PATH_RE =
+  /^"?\$(?:\{[A-Za-z_][A-Za-z0-9_]*\}|[A-Za-z_][A-Za-z0-9_]*)"?\/(?:\*|\$|\/|["']|$)/
+
+/**
+ * Matches the head of an rm/rmdir command, tolerating leading `VAR=value`
+ * (and `VAR+=value`) env-assignment prefixes and an optional `\`-escaped
+ * command name or `[^\s=]*/` path prefix. Capture 1 is the bare `rm`/`rmdir`
+ * command name.
+ *
+ * Official 2.1.141 `aP_`, verbatim.
+ */
+const RM_RMDIR_HEAD_RE =
+  /^(?:[A-Za-z_][A-Za-z0-9_]*\+?=[^\s]*\s+)*\\?(?:[^\s=]*\/)?(rm|rmdir)(?:\s|$)/
+
+/**
+ * Shared "dangerous rm/rmdir operation" result — official 2.1.141 `IX6`.
+ * `behavior: 'ask'`, `decisionReason: safetyCheck` with
+ * `classifierApprovable: false` (cannot be auto-allowed by permission rules),
+ * and no suggestions. `reasonSuffix` is appended to the standard
+ * `Dangerous <cmd> operation` reason phrase. Exported so the 2.1.141 `a55`
+ * hook in bashPermissions.ts can build the G25 ask result with the same
+ * formatter (the official `IX6` is shared by both `SX6` and `a55`).
+ */
+export function createDangerousRemovalResult(
+  command: 'rm' | 'rmdir',
+  message: string,
+  reasonSuffix: string,
+): PermissionResult {
+  return {
+    behavior: 'ask',
+    message,
+    decisionReason: {
+      type: 'safetyCheck',
+      reason: `Dangerous ${command} operation ${reasonSuffix}`,
+      classifierApprovable: false,
+    },
+    suggestions: [],
+  }
+}
+
 /**
  * Checks if an rm/rmdir command targets dangerous paths that should always
  * require explicit user approval, even if allowlist rules exist.
@@ -87,19 +141,14 @@ export function checkDangerousRemovalPaths(
 
     // Check if this is a dangerous path (using the non-symlink-resolved path)
     if (isDangerousRemovalPath(absolutePath)) {
-      return {
-        behavior: 'ask',
-        message: `Dangerous ${command} operation detected: '${absolutePath}'\n\nThis command would remove a critical system directory. This requires explicit approval and cannot be auto-allowed by permission rules.`,
+      return createDangerousRemovalResult(
+        command,
+        // Official 2.1.116 Et8 message, verbatim (shared IX6 formatter).
+        `Dangerous ${command} operation detected: '${absolutePath}'\n\nThis command would remove a critical system directory. This requires explicit approval and cannot be auto-allowed by permission rules.`,
         // Official 2.1.116 Et8: safetyCheck + classifierApprovable:false
         // (114 was type:"other" + bashMissKind:"dangerous-path").
-        decisionReason: {
-          type: 'safetyCheck',
-          reason: `Dangerous ${command} operation on critical path: ${absolutePath}`,
-          classifierApprovable: false,
-        },
-        // Don't provide suggestions - we don't want to encourage saving dangerous commands
-        suggestions: [],
-      }
+        `on critical path: ${absolutePath}`,
+      )
     }
   }
 
@@ -108,6 +157,90 @@ export function checkDangerousRemovalPaths(
     behavior: 'passthrough',
     message: `No dangerous removals detected for ${command} command`,
   }
+}
+
+/**
+ * G25 (official 2.1.141): detect an rm/rmdir whose target is a shell
+ * variable expansion that would point at the filesystem root (or a
+ * top-level directory) when the variable is unset or empty, e.g.
+ * `rm -rf $UNSET/*` becomes `rm -rf /*`.
+ *
+ * This is the official 2.1.141 `iM7` detector, ported verbatim. It only
+ * fires on commands that (a) contain a `$` and (b) contain the `rm`/`rmdir`
+ * word. Because the caller (see bashPermissions.ts) only invokes this on the
+ * AST 'too-complex' path, every command that reaches here already has an
+ * unresolvable expansion (which is exactly why it is too-complex) — so a
+ * bare `$VAR/*` target is conservatively treated as possibly-empty.
+ *
+ * Returns the matching sub-command + the offending target argument, or null
+ * when no dangerous expansion is found.
+ */
+export function checkDangerousRmComplexVariable(
+  command: string,
+): { command: 'rm' | 'rmdir'; target: string } | null {
+  if (!command.includes('$') || !/\brm(?:dir)?\b/.test(command)) return null
+
+  for (const segment of commandSegments(command)) {
+    // Normalize the raw command span the same way the official `iM7` does:
+    //   - collapse backslash-newline continuations into a single space
+    //   - blank out backtick command-substitutions
+    //   - drop leading `(` / `{` (subshell / group prefixes)
+    //   - blank out $() and bare () command-substitution groups
+    //   - turn a lone `&` (not part of a redirect) into a `;`
+    //   - split on command separators (`;`, `|`, `&`, newlines, `&&`)
+    let text = segment
+      .replace(/\\\r?\n/g, ' ')
+      .replace(/`[^`]*`/g, ' ')
+      .trimStart()
+    while (text.startsWith('(') || text.startsWith('{')) {
+      text = text.slice(1).trimStart()
+    }
+    {
+      let prev = ''
+      let current = text
+      while (prev !== current) {
+        prev = current
+        current = current
+          .replace(/\$\([^()]*\)/g, ' ')
+          .replace(/(?<!\$)\([^()]*\)/g, ' ')
+      }
+      text = current
+    }
+    text = text.replace(/(?<![<>&])&(?![<>&])/g, ';')
+
+    for (const clause of text.split(/[;|\n\r]|&&/)) {
+      const trimmedClause = clause.trimStart()
+      const headMatch = trimmedClause.match(RM_RMDIR_HEAD_RE)
+      if (headMatch === null) continue
+      const rmCommand = (headMatch[1] === 'rmdir' ? 'rmdir' : 'rm') as
+        | 'rm'
+        | 'rmdir'
+      const remaining = trimmedClause.slice(headMatch[0].length).split(/\s+/)
+
+      for (let argIndex = 0; argIndex < remaining.length; argIndex++) {
+        const cleaned = remaining[argIndex].replace(/[)\]}]+$/, '')
+        if (
+          cleaned === '' ||
+          cleaned.startsWith('-') ||
+          cleaned.startsWith("'")
+        ) {
+          continue
+        }
+        // A redirection token (`> out`, `2>&1`, …) is not a path target.
+        if (/^[\d&]*[<>]/.test(cleaned)) {
+          // A standalone fd redirect like `> file` consumes the following
+          // token (the target) too.
+          if (/^(?:[0-9]+|&)?(?:>>?[|&]?|<<?<?|<>)$/.test(cleaned)) argIndex++
+          continue
+        }
+        // A possibly-empty variable path that expands to the filesystem root.
+        if (POSSIBLY_EMPTY_VARIABLE_PATH_RE.test(cleaned)) {
+          return { command: rmCommand, target: cleaned }
+        }
+      }
+    }
+  }
+  return null
 }
 
 /**
