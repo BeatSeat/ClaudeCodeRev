@@ -53,6 +53,11 @@ export function handoffAltScreen(): void {
   ink?.pause()
 }
 
+/** Official 2.1.140 `X_.get(process.stdout)?.handoffRawMode()`. */
+export function handoffRawMode(): void {
+  instances.get(process.stdout)?.handoffRawMode()
+}
+
 function restoreWindowsRawMode(): void {
   if (
     getPlatform() === 'windows' &&
