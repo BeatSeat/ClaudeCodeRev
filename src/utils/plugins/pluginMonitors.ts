@@ -197,27 +197,31 @@ export async function loadPluginMonitors(
   source: string,
   errors: PluginError[],
 ): Promise<PluginMonitorDefinition[] | undefined> {
+  // Official 2.1.129: `experimental.monitors` is the supported spelling; the
+  // top-level field still loads.
+  const monitors = manifest.experimental?.monitors ?? manifest.monitors
+
   let filePath: string | undefined
-  if (manifest.monitors === undefined) {
+  if (monitors === undefined) {
     const defaultPath = join(pluginPath, 'monitors', 'monitors.json')
     if (await pathExists(defaultPath)) {
       filePath = defaultPath
     }
-  } else if (typeof manifest.monitors === 'string') {
-    const validated = resolvePathWithinPlugin(pluginPath, manifest.monitors)
+  } else if (typeof monitors === 'string') {
+    const validated = resolvePathWithinPlugin(pluginPath, monitors)
     if (validated === null) {
       errors.push({
         type: 'path-traversal',
         source,
         plugin: manifest.name,
-        path: manifest.monitors,
+        path: monitors,
         component: 'monitors',
       })
       return
     }
     filePath = validated
   } else {
-    return manifest.monitors
+    return monitors
   }
 
   if (filePath === undefined) {

@@ -22,9 +22,21 @@ import {
   getSettingSourceName,
   type SettingSource,
 } from '../../utils/settings/constants.js'
+import {
+  getSharedSkillOverride,
+  getSkillOverrideLock,
+  SKILL_OVERRIDE_CYCLE,
+  type SkillOverride,
+  type SkillOverrideLock,
+} from '../../utils/settings/skillOverrides.js'
+import {
+  getSettingsForSource,
+  updateSettingsForSource,
+} from '../../utils/settings/settings.js'
 import { plural } from '../../utils/stringUtils.js'
 import { Dialog } from '../design-system/Dialog.js'
 import { SearchBox } from '../SearchBox.js'
+import { clearCommandMemoizationCaches } from '../../commands.js'
 
 // Skills are always PromptCommands with CommandBase properties
 type SkillCommand = CommandBase & PromptCommand
@@ -47,6 +59,21 @@ function getSourceLabel(source: SkillSource): string {
 
 function clamp(n: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, n))
+}
+
+/** Official 2.1.129 `SA5`. */
+const OVERRIDE_DISPLAY: Record<
+  SkillOverride,
+  { glyph: string; label: string; color?: 'success' | 'warning' | 'error' }
+> = {
+  on: { glyph: figures.tick, label: 'on', color: 'success' },
+  'name-only': { glyph: figures.bullet, label: 'name-only' },
+  'user-invocable-only': {
+    glyph: figures.circle,
+    label: 'user-only',
+    color: 'warning',
+  },
+  off: { glyph: figures.cross, label: 'off', color: 'error' },
 }
 
 export function SkillsMenu({ onExit, commands }: Props): React.ReactNode {
@@ -76,6 +103,44 @@ export function SkillsMenu({ onExit, commands }: Props): React.ReactNode {
         getCommandName(a).localeCompare(getCommandName(b)),
     )
   }, [commands, sortByTokens])
+
+  // Official 2.1.129 `m94`: the dialog became an editor for skillOverrides.
+  // 128 rendered the same list read-only because the override lookup was a
+  // stub that always answered "on".
+  const localOverrides = useMemo(
+    () => getSettingsForSource('localSettings')?.skillOverrides ?? {},
+    [],
+  )
+  const sharedOverrides = useMemo(() => {
+    const map = new Map<string, SkillOverride>()
+    for (const skill of skills) {
+      const shared = getSharedSkillOverride(skill.name)
+      if (shared) map.set(skill.name, shared)
+    }
+    return map
+  }, [skills])
+  const locks = useMemo(() => {
+    const map = new Map<SkillCommand, SkillOverrideLock>()
+    for (const skill of skills) {
+      const lock = getSkillOverrideLock(skill, skill.name)
+      if (lock) map.set(skill, lock)
+    }
+    return map
+  }, [skills])
+  const [overrides, setOverrides] = useState<Record<string, SkillOverride>>(
+    () => {
+      const initial: Record<string, SkillOverride> = {}
+      for (const skill of skills) {
+        if (skill.name in initial) continue
+        initial[skill.name] =
+          locks.get(skill)?.value ??
+          localOverrides[skill.name] ??
+          sharedOverrides.get(skill.name) ??
+          'on'
+      }
+      return initial
+    },
+  )
 
   const [isSearchMode, setIsSearchMode] = useState(false)
   const consumedRef = useRef(false)
@@ -126,19 +191,78 @@ export function SkillsMenu({ onExit, commands }: Props): React.ReactNode {
     onExit('Skills dialog dismissed', { display: 'system' })
   }, [onExit])
 
+  const cycleOverride = useCallback((): void => {
+    const skill = visibleSkills[selected]
+    if (!skill || locks.has(skill)) return
+    setOverrides(prev => {
+      const current = prev[skill.name] ?? 'on'
+      const next =
+        SKILL_OVERRIDE_CYCLE[
+          (SKILL_OVERRIDE_CYCLE.indexOf(current) + 1) %
+            SKILL_OVERRIDE_CYCLE.length
+        ]!
+      return { ...prev, [skill.name]: next }
+    })
+  }, [visibleSkills, selected, locks])
+
+  const handleSave = useCallback((): void => {
+    // A locked skill keeps whatever the policy/flag/author decided, so it is
+    // never written and never counted as changed.
+    const seen = new Set(Array.from(locks.keys(), skill => skill.name))
+    const toPersist: Record<string, SkillOverride | undefined> = {}
+    let writeCount = 0
+    let changeCount = 0
+    for (const skill of skills) {
+      if (seen.has(skill.name)) continue
+      seen.add(skill.name)
+      const value = overrides[skill.name] ?? 'on'
+      const shared = sharedOverrides.get(skill.name) ?? 'on'
+      const effective = localOverrides[skill.name] ?? shared
+      // A local override that just restates the project/user value is dropped
+      // rather than duplicated into settings.local.json.
+      const persisted = value === shared ? undefined : value
+      if (persisted !== localOverrides[skill.name]) {
+        toPersist[skill.name] = persisted
+        writeCount++
+      }
+      if (value !== effective) changeCount++
+    }
+
+    if (writeCount > 0) {
+      const { error } = updateSettingsForSource('localSettings', {
+        skillOverrides: toPersist as Record<string, SkillOverride>,
+      })
+      if (error) {
+        onExit(`Failed to save skill overrides: ${error.message}`, {
+          display: 'system',
+        })
+        return
+      }
+      clearCommandMemoizationCaches()
+    }
+
+    onExit(
+      changeCount > 0
+        ? `Updated ${changeCount} skill ${plural(changeCount, 'override')}`
+        : 'No changes',
+      { display: 'system' },
+    )
+  }, [locks, skills, overrides, sharedOverrides, localOverrides, onExit])
+
   const handlers = useMemo(
     () => ({
       'select:previous': () =>
         setSelected(i => (i - 1 + visibleSkills.length) % visibleSkills.length),
       'select:next': () => setSelected(i => (i + 1) % visibleSkills.length),
+      'select:accept': cycleOverride,
       'confirm:no': handleCancel,
-      'settings:close': handleCancel,
+      'settings:close': handleSave,
       'settings:sortByTokens': () => {
         setSortByTokens(prev => !prev)
         setSelected(0)
       },
     }),
-    [handleCancel, visibleSkills.length],
+    [handleCancel, handleSave, cycleOverride, visibleSkills.length],
   )
   useKeybindings(handlers, {
     context: 'Settings',
@@ -200,7 +324,8 @@ export function SkillsMenu({ onExit, commands }: Props): React.ReactNode {
     'Settings',
     't',
   )
-  const useHint = getShortcutDisplay('settings:close', 'Settings', 'enter')
+  const saveHint = getShortcutDisplay('settings:close', 'Settings', 'enter')
+  const cycleHint = getShortcutDisplay('select:accept', 'Settings', 'space')
 
   if (skills.length === 0) {
     return (
@@ -224,7 +349,7 @@ export function SkillsMenu({ onExit, commands }: Props): React.ReactNode {
     ? 'type to filter · ↓/enter to select · esc to clear'
     : visibleSkills.length === 0
       ? `/ to search, ${closeHint} to cancel`
-      : `${useHint} to use, / to search, ${sortHint} to sort, ${closeHint} to close`
+      : `${cycleHint} to cycle, ${saveHint} to save, / to search, ${sortHint} to sort, ${closeHint} to cancel`
 
   return (
     <Dialog
@@ -265,11 +390,22 @@ export function SkillsMenu({ onExit, commands }: Props): React.ReactNode {
               const selectedRow = flatIndex === selected
               const estimatedTokens = estimateSkillFrontmatterTokens(skill)
               const tokenDisplay = `~${formatTokens(estimatedTokens)} tok`
+              const lock = locks.get(skill)
+              const state = lock?.value ?? overrides[skill.name] ?? 'on'
+              const display = OVERRIDE_DISPLAY[state]
               return (
                 <Box key={`${skill.name}-${skill.source}`}>
                   <Text color={selectedRow ? 'suggestion' : undefined}>
                     {selectedRow ? figures.pointer : ' '}{' '}
                   </Text>
+                  {lock ? (
+                    <Text dimColor>{'🔒 ' + display.label.padEnd(9)}</Text>
+                  ) : (
+                    <Text color={display.color}>
+                      {display.glyph} {display.label.padEnd(9)}
+                    </Text>
+                  )}
+                  <Text>{'  '}</Text>
                   <Text color={selectedRow ? 'suggestion' : undefined}>
                     {getCommandName(skill)}
                   </Text>
@@ -277,6 +413,7 @@ export function SkillsMenu({ onExit, commands }: Props): React.ReactNode {
                     {' '}
                     · {getSourceLabel(skill.source as SkillSource)} ·{' '}
                     {tokenDisplay}
+                    {lock ? ` · locked by ${lock.source}` : ''}
                   </Text>
                 </Box>
               )

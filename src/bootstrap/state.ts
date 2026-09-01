@@ -129,6 +129,8 @@ type State = {
   inMemoryErrorLog: Array<{ error: string; timestamp: string }>
   // Session-only plugins from --plugin-dir flag
   inlinePlugins: Array<string>
+  // Session-only plugin .zip URLs from --plugin-url flag
+  inlinePluginUrls: Array<string>
   // Explicit --chrome / --no-chrome flag value (undefined = not set on CLI)
   chromeFlagOverride: boolean | undefined
   // Use cowork_plugins directory instead of plugins (--cowork flag or env var)
@@ -360,6 +362,8 @@ function getInitialState(): State {
     inMemoryErrorLog: [],
     // Session-only plugins from --plugin-dir flag
     inlinePlugins: [],
+    // Session-only plugin .zip URLs from --plugin-url flag
+    inlinePluginUrls: [],
     // Explicit --chrome / --no-chrome flag value (undefined = not set on CLI)
     chromeFlagOverride: undefined,
     // Use cowork_plugins directory instead of plugins
@@ -1278,6 +1282,15 @@ export function setInlinePlugins(plugins: Array<string>): void {
 
 export function getInlinePlugins(): Array<string> {
   return STATE.inlinePlugins
+}
+
+/** Official 2.1.129 `dW8`: `--plugin-url` .zip sources for this session. */
+export function setInlinePluginUrls(urls: Array<string>): void {
+  STATE.inlinePluginUrls = urls
+}
+
+export function getInlinePluginUrls(): Array<string> {
+  return STATE.inlinePluginUrls
 }
 
 export function setChromeFlagOverride(value: boolean | undefined): void {

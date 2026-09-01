@@ -1622,6 +1622,12 @@ export function REPL({
   // on resume (initialMessages present) so we don't re-title a resumed
   // session from mid-conversation context.
   const haikuTitleAttemptedRef = useRef((initialMessages?.length ?? 0) > 0)
+  // Official 2.1.129 `sJ`: /clear + ultraplan/resume clear reset the Haiku
+  // title so the tab falls back to session/agent/"Claude Code".
+  const resetTerminalTitle = useCallback(() => {
+    haikuTitleAttemptedRef.current = false
+    setHaikuTitle(undefined)
+  }, [])
   const agentTitle = mainThreadAgentDefinition?.agentType
   const terminalTitle =
     sessionTitle ?? agentTitle ?? haikuTitle ?? 'Claude Code'
@@ -3397,6 +3403,7 @@ export function REPL({
         },
         resume,
         setConversationId,
+        resetTerminalTitle,
         requestPrompt: feature('HOOK_PROMPTS') ? requestPrompt : undefined,
         contentReplacementState: contentReplacementStateRef.current,
         bashRerunAliases: bashRerunAliasesRef.current,
@@ -3425,6 +3432,7 @@ export function REPL({
       customSystemPrompt,
       appendSystemPrompt,
       setConversationId,
+      resetTerminalTitle,
     ],
   )
 
@@ -4216,8 +4224,7 @@ export function REPL({
           setAppState,
           setConversationId,
         })
-        haikuTitleAttemptedRef.current = false
-        setHaikuTitle(undefined)
+        resetTerminalTitle()
         bashTools.current.clear()
         bashToolsProcessedIdx.current = 0
 
@@ -6709,8 +6716,7 @@ export function REPL({
                           setAppState,
                           setConversationId,
                         })
-                        haikuTitleAttemptedRef.current = false
-                        setHaikuTitle(undefined)
+                        resetTerminalTitle()
                         bashTools.current.clear()
                         bashToolsProcessedIdx.current = 0
                       }
@@ -6824,6 +6830,7 @@ export function REPL({
                         readFileState={readFileState.current}
                         getAppState={() => store.getState()}
                         setConversationId={setConversationId}
+                        resetTerminalTitle={resetTerminalTitle}
                       />
                     )
                   : null}

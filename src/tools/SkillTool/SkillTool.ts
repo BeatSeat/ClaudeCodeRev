@@ -64,6 +64,7 @@ import {
 import { escapeRegExp } from '../../utils/stringUtils.js'
 import type { ModelAlias } from '../../utils/model/aliases.js'
 import { resolveSkillModelOverride } from '../../utils/model/model.js'
+import { getSkillOverride } from '../../utils/settings/skillOverrides.js'
 import { recordSkillUsage } from '../../utils/suggestions/skillUsageTracking.js'
 import { logOTelSkillActivated } from '../../utils/telemetry/skillActivatedEvent.js'
 import { createAgentId } from '../../utils/uuid.js'
@@ -469,6 +470,21 @@ export const SkillTool: Tool<InputSchema, Output, Progress> = buildTool({
         result: false,
         message: `Skill ${normalizedCommandName} cannot be used with ${SKILL_TOOL_NAME} tool due to disable-model-invocation`,
         errorCode: 4,
+      }
+    }
+
+    // Official 2.1.129 `na`: skillOverrides became a real lookup (128 stubbed it
+    // to "on"), so `off` / `user-invocable-only` now block model invocation.
+    const override = getSkillOverride(foundCommand)
+    if (
+      override === 'off' ||
+      (override === 'user-invocable-only' &&
+        !wasSkillInvokedViaSlashInCurrentTurn(normalizedCommandName, context))
+    ) {
+      return {
+        result: false,
+        message: `Skill ${normalizedCommandName} is disabled for model invocation in skillOverrides settings`,
+        errorCode: 7,
       }
     }
 

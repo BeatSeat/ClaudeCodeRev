@@ -29,7 +29,7 @@ import { getInitialSettings } from '../utils/settings/settings.js'
 type Props = {
   isUpdating: boolean
   onChangeIsUpdating: (isUpdating: boolean) => void
-  onAutoUpdaterResult: (autoUpdaterResult: AutoUpdaterResult) => void
+  onAutoUpdaterResult: (autoUpdaterResult: AutoUpdaterResult | null) => void
   autoUpdaterResult: AutoUpdaterResult | null
   showSuccessMessage: boolean
   verbose: boolean

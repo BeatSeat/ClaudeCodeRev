@@ -163,8 +163,10 @@ export type HistoryPickerScope = (typeof HISTORY_PICKER_SCOPES)[number]
  * newest first, with timestamps. Paste contents are resolved lazily via
  * `resolve()` — the picker only reads display+timestamp for the list.
  *
- * Official 126 `$vK(scope)`: `project` (default) filters to cwd; `session`
- * filters to this session; `everywhere` includes all projects.
+ * Official 126 `$vK(scope)`: `project` filters to cwd; `session` filters to
+ * this session; `everywhere` includes all projects. Official 2.1.129 `mT4`
+ * picker default is `everywhere` (Ctrl+S narrows); generator default stays
+ * `project` for callers that omit scope.
  */
 export async function* getTimestampedHistory(
   scope: HistoryPickerScope = 'project',

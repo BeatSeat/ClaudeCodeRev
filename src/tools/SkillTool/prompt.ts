@@ -17,6 +17,7 @@ import { toError } from '../../utils/errors.js'
 import { truncate } from '../../utils/format.js'
 import { logError } from '../../utils/log.js'
 import { getInitialSettings } from '../../utils/settings/settings.js'
+import { getSkillOverride } from '../../utils/settings/skillOverrides.js'
 
 // Skill listing gets 1% of the context window (in characters)
 export const SKILL_BUDGET_CONTEXT_PERCENT = 0.01
@@ -95,16 +96,26 @@ const MIN_DESC_LENGTH = 20
 export function formatCommandsWithinBudget(
   commands: Command[],
   contextWindowTokens?: number,
+  /**
+   * Official 2.1.129: when supplied, the budget is spent on the
+   * highest-scoring skills instead of trimming every description to the same
+   * length. Skills that don't fit fall back to name-only.
+   */
+  getPriorityScore?: (cmd: Command) => number,
 ): string {
   if (commands.length === 0) return ''
 
   const budget = getCharBudget(contextWindowTokens)
 
   // Try full descriptions first
-  const fullEntries = commands.map(cmd => ({
-    cmd,
-    full: formatCommandDescription(cmd),
-  }))
+  const nameOnlyIndices = new Set<number>()
+  const fullEntries = commands.map((cmd, i) => {
+    if (getSkillOverride(cmd) === 'name-only') {
+      nameOnlyIndices.add(i)
+      return { cmd, full: `- ${cmd.name}` }
+    }
+    return { cmd, full: formatCommandDescription(cmd) }
+  })
   // join('\n') produces N-1 newlines for N entries
   const fullTotal =
     fullEntries.reduce((sum, e) => sum + stringWidth(e.full), 0) +
@@ -114,14 +125,14 @@ export function formatCommandsWithinBudget(
     return fullEntries.map(e => e.full).join('\n')
   }
 
-  // Partition into bundled (never truncated) and rest
-  const bundledIndices = new Set<number>()
+  // Partition into never-truncated (bundled + name-only) and rest
+  const bundledIndices = new Set<number>(nameOnlyIndices)
   const restCommands: Command[] = []
   for (let i = 0; i < commands.length; i++) {
     const cmd = commands[i]!
     if (cmd.type === 'prompt' && cmd.source === 'bundled') {
       bundledIndices.add(i)
-    } else {
+    } else if (!nameOnlyIndices.has(i)) {
       restCommands.push(cmd)
     }
   }
@@ -137,6 +148,41 @@ export function formatCommandsWithinBudget(
   // Calculate max description length for non-bundled commands
   if (restCommands.length === 0) {
     return fullEntries.map(e => e.full).join('\n')
+  }
+
+  if (getPriorityScore) {
+    const candidates = commands
+      .map((_cmd, i) => i)
+      .filter(i => !bundledIndices.has(i))
+    const nameCost = (i: number): number => stringWidth(commands[i]!.name) + 2
+    const fullCost = (i: number): number => stringWidth(fullEntries[i]!.full)
+    // Baseline: everything not preserved collapses to name-only. Whatever the
+    // budget has left over buys back full descriptions, best score first.
+    const baseline =
+      commands.reduce(
+        (sum, _cmd, i) => sum + (bundledIndices.has(i) ? fullCost(i) : nameCost(i)),
+        0,
+      ) +
+      (commands.length - 1)
+    let slack = budget - baseline
+    const upgraded = new Set<number>()
+    const byScore = candidates
+      .slice()
+      .sort((a, b) => getPriorityScore(commands[b]!) - getPriorityScore(commands[a]!))
+    for (const i of byScore) {
+      const extra = fullCost(i) - nameCost(i)
+      if (extra <= slack) {
+        upgraded.add(i)
+        slack -= extra
+      }
+    }
+    return commands
+      .map((cmd, i) =>
+        bundledIndices.has(i) || upgraded.has(i)
+          ? fullEntries[i]!.full
+          : `- ${cmd.name}`,
+      )
+      .join('\n')
   }
 
   const restNameOverhead =

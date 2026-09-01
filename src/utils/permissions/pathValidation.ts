@@ -29,6 +29,13 @@ export type FileOperationType = 'read' | 'write' | 'create'
 export type PathCheckResult = {
   allowed: boolean
   decisionReason?: PermissionDecisionReason
+  /**
+   * Official 2.1.129 L_$: set on the terminal `{allowed:false}` so Bash
+   * path-command asks (mkdir/touch in-project) can be marked
+   * bashAllowRuleOverridable. Not a second working-dir helper — same
+   * pathInAllowedWorkingPath result already computed above.
+   */
+  isInWorkingDir?: boolean
 }
 
 export type ResolvedPathCheckResult = PathCheckResult & {
@@ -279,8 +286,10 @@ export function isPathAllowed(
     }
   }
 
-  // 5. Path is not allowed
-  return { allowed: false }
+  // 5. Path is not allowed. Official 2.1.129 L_$ (was yB7): surface
+  // isInWorkingDir so Bash validateCommandPaths can let Bash(mkdir *) /
+  // Bash(touch *) override an in-project create/write ask.
+  return { allowed: false, isInWorkingDir }
 }
 
 /**
@@ -511,5 +520,6 @@ export function validatePath(
     allowed: result.allowed,
     resolvedPath,
     decisionReason: result.decisionReason,
+    isInWorkingDir: result.isInWorkingDir,
   }
 }

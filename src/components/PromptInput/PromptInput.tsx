@@ -242,7 +242,7 @@ type Props = {
   isLoading: boolean
   verbose: boolean
   messages: Message[]
-  onAutoUpdaterResult: (result: AutoUpdaterResult) => void
+  onAutoUpdaterResult: (result: AutoUpdaterResult | null) => void
   autoUpdaterResult: AutoUpdaterResult | null
   input: string
   onInputChange: (value: string) => void

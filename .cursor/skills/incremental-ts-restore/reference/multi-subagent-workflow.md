@@ -8,15 +8,22 @@ This guide details how to orchestrate multiple subagents to parallelly review AS
 flowchart TD
     A["cli.js (From) & cli.js (To)"] --> B["astdiff Structural Diff (--format json / --dump)"]
     B --> C["Partition Diffs by Functional Domain"]
-    C --> D1["Subagent 1: UI & Terminal (Ink / Components)"]
-    C --> D2["Subagent 2: Tools & Permissions (Bash / MCP / Sandbox)"]
-    C --> D3["Subagent 3: Core & Session (REPL / Bridge / State)"]
-    C --> D4["Subagent 4: Services & API (Network / Retry / Telemetry)"]
-    D1 --> E["Main Agent: Typecheck & Build Gate (bun run typecheck / build)"]
+    C --> D1["Land: UI & Terminal"]
+    C --> D2["Land: Tools & Permissions"]
+    C --> D3["Land: Core & Session"]
+    C --> D4["Land: Services & API"]
+    D1 --> E["Main Agent: Typecheck & Build + CHANGELOG"]
     D2 --> E
     D3 --> E
     D4 --> E
-    E --> F["CHANGELOG Alignment Check"]
+    E --> R1["Review: UI"]
+    E --> R2["Review: Tools"]
+    E --> R3["Review: Core"]
+    E --> R4["Review: Services"]
+    R1 --> F["Main Agent: resolve findings"]
+    R2 --> F
+    R3 --> F
+    R4 --> F
     F --> G["Commit & Advance to Next Version"]
 ```
 
@@ -93,25 +100,72 @@ Once all subagents have completed their tasks:
    ```bash
    bun run typecheck
    ```
-   Must pass with **0 errors**. If there are type mismatches across module boundaries, fix them.
+   Gate is **no new errors vs a clean-HEAD worktree baseline** (per-file counts). This tree does not typecheck at 0 and never has. See [quality-gates.md](quality-gates.md) §2.
 
-2. **Production Bundle Build**:
+2. **Production Bundle Build (hard)**:
    ```bash
    bun run build
    ```
-   Verify that `dist/cli.js` builds cleanly.
+   Every version must produce `dist/cli.js`. Then assert the hop's unique tokens appear in that bundle (dead/unreferenced code builds green). See [quality-gates.md](quality-gates.md) §3–§4.
 
 3. **CHANGELOG Completeness Verification**:
    Verify that 100% of the CHANGELOG items for `<ver>` are reflected in the code or confirmed absent in CLI bundle.
 
+Do **not** commit yet. The hop is not done until §5 passes.
+
 ---
 
-### 5. Commit and Advance
+### 5. Pre-commit Parallel Review (mandatory, second wave)
+
+After landing + typecheck + build + CHANGELOG alignment, spawn a **new** set of domain subagents. These are reviewers, not restorers:
+
+- Read-only by default. They may only write `restore-work/diffs/<ver>-<domain>-review.md`.
+- They re-read `restore-work/diffs/<ver>.json` / `.astdump` and the landed `src/` diff.
+- They must not start the next hop, and must not pull later-version behavior.
+
+A hop **cannot** be committed if any reviewer is silent, unresponsive, or reports `FAIL`. The main agent must not substitute its own skim for a missing reviewer — re-dispatch that domain until it reports.
+
+#### Reviewer Dispatch Template
+
+```json
+{
+  "Subagents": [
+    {
+      "TypeName": "self",
+      "Role": "UI & Terminal Reviewer",
+      "Prompt": "Read-only pre-commit review for version <ver>. Do not land new hop work.\n\n1. Re-read restore-work/diffs/<ver>.json (or astdiff query the .astdump) for UI/Terminal declarations.\n2. Diff the landed TypeScript under src/ink/, src/components/, src/screens/ against those AST changes.\n3. Re-check CHANGELOG items that belong to this domain: <list>. Each must be located in src/ or confirmed absent-in-bundle / unrelated-packaging, with evidence.\n4. Flag any next-hop behavior that leaked in.\n5. Write restore-work/diffs/<ver>-ui-review.md with verdict PASS or FAIL and a finding list. Silent/empty report is FAIL."
+    },
+    {
+      "TypeName": "self",
+      "Role": "Tools & Permissions Reviewer",
+      "Prompt": "Read-only pre-commit review for version <ver>. Do not land new hop work.\n\n1. Re-read AST diffs for tools/permissions/sandbox.\n2. Diff landed TypeScript under src/tools/, src/utils/permissions/, src/utils/sandbox/.\n3. Re-check domain CHANGELOG items: <list>.\n4. Write restore-work/diffs/<ver>-tools-review.md with PASS or FAIL."
+    },
+    {
+      "TypeName": "self",
+      "Role": "Core & Session Reviewer",
+      "Prompt": "Read-only pre-commit review for version <ver>. Do not land new hop work.\n\n1. Re-read AST diffs for bridge/state/types/REPL.\n2. Diff landed TypeScript under src/bridge/, src/state/, src/types/, src/screens/REPL.tsx.\n3. Re-check domain CHANGELOG items: <list>.\n4. Write restore-work/diffs/<ver>-core-review.md with PASS or FAIL."
+    },
+    {
+      "TypeName": "self",
+      "Role": "Services & API Reviewer",
+      "Prompt": "Read-only pre-commit review for version <ver>. Do not land new hop work.\n\n1. Re-read AST diffs for services/telemetry/plugins.\n2. Diff landed TypeScript under src/services/, src/utils/telemetry/, src/utils/plugins/.\n3. Re-check domain CHANGELOG items: <list>.\n4. Write restore-work/diffs/<ver>-services-review.md with PASS or FAIL."
+    }
+  ]
+}
+```
+
+If any report is `FAIL`, the main agent fixes the findings and **re-runs this review wave**. Do not commit on a failed or incomplete wave.
+
+---
+
+### 6. Commit and Advance
+
+Only after §5 reviewers all report `PASS` (or `FAIL` findings have been fixed and the wave re-run to `PASS`):
 
 1. Update version in `package.json` to `<ver>`.
 2. Commit:
    ```bash
-   git add package.json src/ restore-work/diffs/
+   git add package.json src/ restore-work/diffs/ restore-work/ledgers/<ver>.json
    git commit -m "restore: align TypeScript tree with official <ver>"
    ```
 3. Update baseline to `<ver>` and proceed to next hop in `version-path.json`.

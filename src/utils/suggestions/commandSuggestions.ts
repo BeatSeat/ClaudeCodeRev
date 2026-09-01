@@ -7,6 +7,7 @@ import {
 } from '../../commands.js'
 import type { SuggestionItem } from '../../components/PromptInput/PromptInputFooterSuggestions.js'
 import { getSkillUsageScore } from './skillUsageTracking.js'
+import { isSkillDisabled } from '../settings/skillOverrides.js'
 
 // Treat these characters as word separators for command search
 const SEPARATORS = /[:_-]/g
@@ -328,7 +329,9 @@ export function generateCommandSuggestions(
 
   // When just typing '/' without additional text
   if (query === '') {
-    const visibleCommands = commands.filter(cmd => !cmd.isHidden)
+    const visibleCommands = commands.filter(
+      cmd => !cmd.isHidden && !isSkillDisabled(cmd),
+    )
 
     // Find recently used skills (only prompt commands have usage tracking)
     const recentlyUsed: Command[] = []
@@ -430,7 +433,9 @@ export function generateCommandSuggestions(
   }
 
   const fuse = getCommandFuse(commands)
-  const searchResults = fuse.search(query)
+  const searchResults = fuse
+    .search(query)
+    .filter(r => !isSkillDisabled(r.item.command))
 
   // Sort results prioritizing exact/prefix command name matches over fuzzy description matches
   // Priority order:

@@ -383,6 +383,7 @@ import {
   setParentManagedSettings,
   setInitialMainLoopModel,
   setInlinePlugins,
+  setInlinePluginUrls,
   setIsInteractive,
   setKairosActive,
   setOriginalCwd,
@@ -1370,6 +1371,16 @@ async function run(): Promise<CommanderCommand> {
       clearPluginCache('preAction: --plugin-dir inline plugins')
     }
 
+    const pluginUrl = thisCommand.getOptionValue('pluginUrl')
+    if (
+      Array.isArray(pluginUrl) &&
+      pluginUrl.length > 0 &&
+      pluginUrl.every(p => typeof p === 'string')
+    ) {
+      setInlinePluginUrls(pluginUrl)
+      clearPluginCache('preAction: --plugin-url inline plugins')
+    }
+
     runMigrations()
     profileCheckpoint('preAction_after_migrations')
 
@@ -1779,6 +1790,12 @@ async function run(): Promise<CommanderCommand> {
     .option(
       '--plugin-dir <path>',
       'Load a plugin from a directory or .zip for this session only (repeatable: --plugin-dir A --plugin-dir B.zip)',
+      (val: string, prev: string[]) => [...prev, val],
+      [] as string[],
+    )
+    .option(
+      '--plugin-url <url>',
+      'Fetch a plugin .zip from a URL for this session only (repeatable: --plugin-url A --plugin-url B)',
       (val: string, prev: string[]) => [...prev, val],
       [] as string[],
     )

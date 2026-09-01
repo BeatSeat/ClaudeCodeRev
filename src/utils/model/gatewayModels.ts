@@ -6,7 +6,7 @@ import { join } from 'path'
 import { z } from 'zod/v4'
 import { getAnthropicApiKey } from '../auth.js'
 import { logForDebugging } from '../debug.js'
-import { getClaudeConfigHomeDir } from '../envUtils.js'
+import { getClaudeConfigHomeDir, isEnvTruthy } from '../envUtils.js'
 import { getUserAgent } from '../http.js'
 import { safeParseJSON } from '../json.js'
 import { lazySchema } from '../lazySchema.js'
@@ -37,8 +37,14 @@ const CacheFileSchema = lazySchema(() =>
 
 type GatewayModel = z.infer<ReturnType<typeof GatewayModelSchema>>
 
-/** Official 2.1.126 `hl7`: custom first-party gateway, not api.anthropic.com. */
+/**
+ * Official 2.1.126 `hl7`: custom first-party gateway, not api.anthropic.com.
+ * Official 2.1.129 `br7`: discovery is opt-in — 126–128 probed /v1/models
+ * automatically whenever ANTHROPIC_BASE_URL pointed at a gateway.
+ */
 export function isGatewayModelDiscoveryEligible(): boolean {
+  if (!isEnvTruthy(process.env.CLAUDE_CODE_ENABLE_GATEWAY_MODEL_DISCOVERY))
+    return false
   if (getAPIProvider() !== 'firstParty') return false
   if (isFirstPartyAnthropicBaseUrl()) return false
   if (!process.env.ANTHROPIC_BASE_URL) return false
