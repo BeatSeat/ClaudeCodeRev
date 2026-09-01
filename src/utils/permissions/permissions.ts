@@ -109,6 +109,50 @@ import {
 
 const CLASSIFIER_FAIL_CLOSED_REFRESH_MS = 30 * 60 * 1000 // 30 minutes
 
+/** Official 2.1.97 x57 / 2.1.108 $z7: ask-rule, including nested bash subcommandResults. */
+function hasAskRuleDecisionReason(
+  reason: PermissionDecisionReason | undefined,
+): boolean {
+  if (reason?.type === 'rule' && reason.rule.ruleBehavior === 'ask') {
+    return true
+  }
+  if (reason?.type === 'subcommandResults') {
+    for (const nested of reason.reasons.values()) {
+      if (
+        nested.behavior === 'ask' &&
+        hasAskRuleDecisionReason(nested.decisionReason)
+      ) {
+        return true
+      }
+    }
+  }
+  return false
+}
+
+/** Official 2.1.97 hQ8 / 2.1.108 Tl8: first nested safetyCheck matching pred. */
+function findSafetyCheckDecisionReason(
+  reason: PermissionDecisionReason | undefined,
+  pred: (
+    check: Extract<PermissionDecisionReason, { type: 'safetyCheck' }>,
+  ) => boolean = () => true,
+): Extract<PermissionDecisionReason, { type: 'safetyCheck' }> | undefined {
+  if (!reason) {
+    return
+  }
+  if (reason.type === 'safetyCheck') {
+    return pred(reason) ? reason : undefined
+  }
+  if (reason.type === 'subcommandResults') {
+    for (const nested of reason.reasons.values()) {
+      const found = findSafetyCheckDecisionReason(nested.decisionReason, pred)
+      if (found) {
+        return found
+      }
+    }
+  }
+  return
+}
+
 const PERMISSION_RULE_SOURCES = [
   ...SETTING_SOURCES,
   'cliArg',
@@ -532,9 +576,12 @@ export const hasPermissionsToUseTool: CanUseToolFn = async (
       // auto. classifierApprovable safetyChecks (sensitive-file paths) fall
       // through to the classifier — the fast-paths below naturally don't fire
       // because the tool's own checkPermissions still returns 'ask'.
+      // Official 2.1.97: walk nested subcommandResults, not only the top-level reason.
       if (
-        result.decisionReason?.type === 'safetyCheck' &&
-        !result.decisionReason.classifierApprovable
+        findSafetyCheckDecisionReason(
+          result.decisionReason,
+          check => !check.classifierApprovable,
+        )
       ) {
         if (appState.toolPermissionContext.shouldAvoidPermissionPrompts) {
           return {
@@ -690,7 +737,7 @@ export const hasPermissionsToUseTool: CanUseToolFn = async (
 
       // Run the auto mode classifier
       const action = formatActionForClassifier(tool.name, input)
-      setClassifierChecking(toolUseID)
+      setClassifierChecking(toolUseID, context.setAppState)
       let classifierResult
       try {
         classifierResult = await classifyYoloAction(
@@ -701,7 +748,7 @@ export const hasPermissionsToUseTool: CanUseToolFn = async (
           context.abortController.signal,
         )
       } finally {
-        clearClassifierChecking(toolUseID)
+        clearClassifierChecking(toolUseID, context.setAppState)
       }
 
       // Notify ants when classifier error dumped prompts (will be in /share)
@@ -1147,8 +1194,7 @@ export async function checkRuleBasedPermissions(
   // (e.g. Bash(npm publish:*) → {ask, type:'rule', ruleBehavior:'ask'})
   if (
     toolPermissionResult?.behavior === 'ask' &&
-    toolPermissionResult.decisionReason?.type === 'rule' &&
-    toolPermissionResult.decisionReason.rule.ruleBehavior === 'ask'
+    hasAskRuleDecisionReason(toolPermissionResult.decisionReason)
   ) {
     return toolPermissionResult
   }
@@ -1158,7 +1204,7 @@ export async function checkRuleBasedPermissions(
   // allow. checkPathSafetyForAutoEdit returns {type:'safetyCheck'} for these.
   if (
     toolPermissionResult?.behavior === 'ask' &&
-    toolPermissionResult.decisionReason?.type === 'safetyCheck'
+    findSafetyCheckDecisionReason(toolPermissionResult.decisionReason)
   ) {
     return toolPermissionResult
   }
@@ -1255,8 +1301,7 @@ async function hasPermissionsToUseToolInner(
   // just as deny rules are respected at step 1d.
   if (
     toolPermissionResult?.behavior === 'ask' &&
-    toolPermissionResult.decisionReason?.type === 'rule' &&
-    toolPermissionResult.decisionReason.rule.ruleBehavior === 'ask'
+    hasAskRuleDecisionReason(toolPermissionResult.decisionReason)
   ) {
     return toolPermissionResult
   }
@@ -1266,7 +1311,7 @@ async function hasPermissionsToUseToolInner(
   // checkPathSafetyForAutoEdit returns {type:'safetyCheck'} for these paths.
   if (
     toolPermissionResult?.behavior === 'ask' &&
-    toolPermissionResult.decisionReason?.type === 'safetyCheck'
+    findSafetyCheckDecisionReason(toolPermissionResult.decisionReason)
   ) {
     return toolPermissionResult
   }

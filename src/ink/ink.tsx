@@ -26,6 +26,7 @@ import type {
 import { FRAME_INTERVAL_MS } from './constants.js'
 import * as dom from './dom.js'
 import { KeyboardEvent } from './events/keyboard-event.js'
+import { PasteEvent } from './events/paste-event.js'
 import { FocusManager } from './focus.js'
 import { emptyFrame, type Frame, type FrameEvent } from './frame.js'
 import { dispatchClick, dispatchHover } from './hit-test.js'
@@ -1470,6 +1471,11 @@ export default class Ink {
     dispatchHover(this.rootNode, col, row, this.hoveredNodes)
   }
 
+  dispatchPasteEvent(text: string): void {
+    const target = this.focusManager.activeElement ?? this.rootNode
+    dispatcher.dispatchDiscrete(target, new PasteEvent(text))
+  }
+
   dispatchKeyboardEvent(parsedKey: ParsedKey): void {
     const target = this.focusManager.activeElement ?? this.rootNode
     const event = new KeyboardEvent(parsedKey)
@@ -1683,6 +1689,7 @@ export default class Ink {
         onStdinResume={this.reassertTerminalModes}
         onCursorDeclaration={this.setCursorDeclaration}
         dispatchKeyboardEvent={this.dispatchKeyboardEvent}
+        dispatchPasteEvent={this.dispatchPasteEvent}
       >
         <TerminalWriteProvider value={this.writeRaw}>
           {node}

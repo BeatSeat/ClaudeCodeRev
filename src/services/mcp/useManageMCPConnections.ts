@@ -12,6 +12,7 @@ import {
   fetchToolsForClient,
   getMcpToolsCommandsAndResources,
   reconnectMcpServerImpl,
+  retryFailedRemoteMcpServers,
 } from './client.js'
 import type {
   MCPServerConnection,
@@ -39,6 +40,7 @@ import {
 } from '@modelcontextprotocol/sdk/types.js'
 import omit from 'lodash-es/omit.js'
 import reject from 'lodash-es/reject.js'
+import { getFeatureValue_CACHED_MAY_BE_STALE } from 'src/services/analytics/growthbook.js'
 import {
   type AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
   logEvent,
@@ -946,12 +948,37 @@ export function useManageMCPConnections(
       getMcpToolsCommandsAndResources(
         onConnectionAttempt,
         enabledConfigs,
-      ).catch(error => {
-        logMCPError(
-          'useManageMcpConnections',
-          `Failed to get MCP resources: ${errorMessage(error)}`,
-        )
-      })
+      )
+        .catch(error => {
+          logMCPError(
+            'useManageMcpConnections',
+            `Failed to get MCP resources: ${errorMessage(error)}`,
+          )
+        })
+        .finally(() => {
+          if (cancelled) return
+          if (
+            getFeatureValue_CACHED_MAY_BE_STALE(
+              'tengu_mcp_retry_failed_remote',
+              true,
+            )
+          ) {
+            void retryFailedRemoteMcpServers(enabledConfigs, {
+              getClients: () => store.getState().mcp.clients,
+              applyMcpUpdate: updater => {
+                setAppState(prev => ({
+                  ...prev,
+                  mcp: { ...prev.mcp, ...updater(prev.mcp) },
+                }))
+              },
+            }).catch(error => {
+              logMCPError(
+                'useManageMcpConnections',
+                `[MCP] Claude Code retry error: ${errorMessage(error)}`,
+              )
+            })
+          }
+        })
 
       // Phase 2: Await claude.ai configs (started above; memoized — no second fetch)
       let claudeaiConfigs: Record<string, ScopedMcpServerConfig> = {}
@@ -1006,12 +1033,37 @@ export function useManageMCPConnections(
           getMcpToolsCommandsAndResources(
             onConnectionAttempt,
             enabledClaudeaiConfigs,
-          ).catch(error => {
-            logMCPError(
-              'useManageMcpConnections',
-              `Failed to get claude.ai MCP resources: ${errorMessage(error)}`,
-            )
-          })
+          )
+            .catch(error => {
+              logMCPError(
+                'useManageMcpConnections',
+                `Failed to get claude.ai MCP resources: ${errorMessage(error)}`,
+              )
+            })
+            .finally(() => {
+              if (cancelled) return
+              if (
+                getFeatureValue_CACHED_MAY_BE_STALE(
+                  'tengu_mcp_retry_failed_remote',
+                  true,
+                )
+              ) {
+                void retryFailedRemoteMcpServers(enabledClaudeaiConfigs, {
+                  getClients: () => store.getState().mcp.clients,
+                  applyMcpUpdate: updater => {
+                    setAppState(prev => ({
+                      ...prev,
+                      mcp: { ...prev.mcp, ...updater(prev.mcp) },
+                    }))
+                  },
+                }).catch(error => {
+                  logMCPError(
+                    'useManageMcpConnections',
+                    `[MCP] claude.ai retry error: ${errorMessage(error)}`,
+                  )
+                })
+              }
+            })
         }
       }
 

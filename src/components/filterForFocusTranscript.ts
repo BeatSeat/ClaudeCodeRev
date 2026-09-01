@@ -28,6 +28,7 @@ export type FocusToolStats = {
   linesAdded?: number
   linesRemoved?: number
   otherToolCount?: number
+  frameCount?: number
 }
 
 type ToolUseResultWithStats = {
@@ -214,6 +215,9 @@ function mergeCollapsedGroups(
   if (source.otherToolCount) {
     dest.otherToolCount = (dest.otherToolCount ?? 0) + source.otherToolCount
   }
+  if (source.frameCount) {
+    dest.frameCount = (dest.frameCount ?? 0) + source.frameCount
+  }
   if (source.editFileCount) {
     dest.editFileCount = (dest.editFileCount ?? 0) + source.editFileCount
   }
@@ -355,6 +359,9 @@ export function filterForFocusTranscript(
           if (stats.otherToolCount) {
             group.otherToolCount =
               (group.otherToolCount ?? 0) + stats.otherToolCount
+          }
+          if (stats.frameCount) {
+            group.frameCount = (group.frameCount ?? 0) + stats.frameCount
           }
         }
       }

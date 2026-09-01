@@ -1,6 +1,10 @@
 import { getFeatureValue_CACHED_MAY_BE_STALE } from 'src/services/analytics/growthbook.js'
 import { splitCommand_DEPRECATED } from '../../utils/bash/commands.js'
 import { SandboxManager } from '../../utils/sandbox/sandbox-adapter.js'
+import {
+  isLinuxBwrapAvailable,
+  isSubprocessEnvScrubEnabled,
+} from '../../utils/subprocessEnv.js'
 import { getSettings_DEPRECATED } from '../../utils/settings/settings.js'
 import {
   BINARY_HIJACK_VARS,
@@ -128,6 +132,10 @@ function containsExcludedCommand(command: string): boolean {
 }
 
 export function shouldUseSandbox(input: Partial<SandboxInput>): boolean {
+  if (isSubprocessEnvScrubEnabled() && isLinuxBwrapAvailable()) {
+    return true
+  }
+
   if (!SandboxManager.isSandboxingEnabled()) {
     return false
   }

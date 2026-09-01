@@ -25,7 +25,7 @@ import { join } from 'path'
 import { registerCleanup } from '../utils/cleanupRegistry.js'
 import { logForDebugging } from '../utils/debug.js'
 import { isEnvTruthy } from '../utils/envUtils.js'
-import { isENOENT } from '../utils/errors.js'
+import { getErrnoCode, isENOENT } from '../utils/errors.js'
 import { startUpstreamProxyRelay } from './relay.js'
 
 export const SESSION_TOKEN_PATH = '/run/ccr/session_token'
@@ -81,6 +81,7 @@ export async function initUpstreamProxy(opts?: {
   systemCaPath?: string
   caBundlePath?: string
   ccrBaseUrl?: string
+  awsConfigPath?: string
 }): Promise<UpstreamProxyState> {
   if (!isEnvTruthy(process.env.CLAUDE_CODE_REMOTE)) {
     return state
@@ -128,6 +129,12 @@ export async function initUpstreamProxy(opts?: {
     caBundlePath,
   )
   if (!caOk) return state
+
+  // Official 2.1.89 luY: disable AWS S3 payload signing so the MITM proxy
+  // can inspect SigV4 traffic. wx = do not clobber an existing config.
+  await writeAwsS3PayloadSigningDisabled(
+    opts?.awsConfigPath ?? join(homedir(), '.aws', 'config'),
+  )
 
   try {
     const wsUrl = baseUrl.replace(/^http/, 'ws') + '/v1/code/upstreamproxy/ws'
@@ -246,6 +253,24 @@ function setNonDumpable(): void {
   } catch (err) {
     logForDebugging(
       `[upstreamproxy] prctl unavailable: ${err instanceof Error ? err.message : String(err)}`,
+      { level: 'warn' },
+    )
+  }
+}
+
+/** Official 2.1.89 luY */
+async function writeAwsS3PayloadSigningDisabled(configPath: string): Promise<void> {
+  try {
+    await mkdir(join(configPath, '..'), { recursive: true, mode: 0o700 })
+    await writeFile(
+      configPath,
+      `[default]\ns3 =\n  payload_signing_enabled = false\n`,
+      { flag: 'wx', mode: 0o600 },
+    )
+  } catch (err) {
+    if (getErrnoCode(err) === 'EEXIST') return
+    logForDebugging(
+      `[upstreamproxy] aws config write failed: ${err instanceof Error ? err.message : String(err)}`,
       { level: 'warn' },
     )
   }

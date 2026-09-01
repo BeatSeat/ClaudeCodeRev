@@ -462,6 +462,20 @@ export async function* runAgent({
       }
     }
 
+    if (worktreePath) {
+      const additionalWorkingDirectories = new Map(
+        toolPermissionContext.additionalWorkingDirectories,
+      )
+      additionalWorkingDirectories.set(worktreePath, {
+        path: worktreePath,
+        source: 'session',
+      })
+      toolPermissionContext = {
+        ...toolPermissionContext,
+        additionalWorkingDirectories,
+      }
+    }
+
     // Scope tool permissions: when allowedTools is provided, use them as session rules.
     // IMPORTANT: Preserve cliArg rules (from SDK's --allowedTools) since those are
     // explicit permissions from the SDK consumer that should apply to all agents.

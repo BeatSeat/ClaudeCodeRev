@@ -1030,6 +1030,82 @@ export function matchingRuleForInput(
 }
 
 /**
+ * macOS (and some Linux) shorthands whose realpath is a /private or /usr
+ * prefix. Official 2.1.89 BCY: if realpath(shorthand) === resolved, map
+ * resolved → shorthand so Edit(//tmp/**) matches /private/tmp/...
+ */
+const RESOLVED_PATH_SHORTHANDS: ReadonlyArray<readonly [string, string]> = [
+  ['/private/tmp', '/tmp'],
+  ['/private/var', '/var'],
+  ['/private/etc', '/etc'],
+  ['/usr/bin', '/bin'],
+  ['/usr/lib', '/lib'],
+  ['/usr/sbin', '/sbin'],
+]
+
+const getResolvedPathShorthands = memoize((): Map<string, string> => {
+  const map = new Map<string, string>()
+  const fs = getFsImplementation()
+  for (const [resolved, shorthand] of RESOLVED_PATH_SHORTHANDS) {
+    try {
+      if (fs.realpathSync(shorthand) === resolved) {
+        map.set(resolved, shorthand)
+      }
+    } catch {
+      // shorthand missing or not a symlink to resolved
+    }
+  }
+  return map
+})
+
+/** Official 2.1.89 gCY */
+function applyResolvedPathShorthand(path: string): string {
+  for (const [resolved, shorthand] of getResolvedPathShorthands()) {
+    if (path === resolved || path.startsWith(resolved + posix.sep)) {
+      return shorthand + path.slice(resolved.length)
+    }
+  }
+  return path
+}
+
+/**
+ * Allow-rule match over the full symlink chain (original + each target).
+ * Every path must match an allow rule (or its macOS shorthand form).
+ * Official 2.1.89 jFK.
+ */
+function matchingAllowRuleForPaths(
+  paths: readonly string[],
+  toolPermissionContext: ToolPermissionContext,
+  toolType: 'edit' | 'read',
+): PermissionRule | null {
+  let matched: PermissionRule | null = null
+  for (const pathToCheck of paths) {
+    let rule = matchingRuleForInput(
+      pathToCheck,
+      toolPermissionContext,
+      toolType,
+      'allow',
+    )
+    if (!rule) {
+      const aliased = applyResolvedPathShorthand(pathToCheck)
+      if (aliased !== pathToCheck) {
+        rule = matchingRuleForInput(
+          aliased,
+          toolPermissionContext,
+          toolType,
+          'allow',
+        )
+      }
+    }
+    if (!rule) {
+      return null
+    }
+    matched ??= rule
+  }
+  return matched
+}
+
+/**
  * Permission result for read permission for the specified tool & tool input
  */
 export function checkReadPermissionForTool(
@@ -1162,12 +1238,13 @@ export function checkReadPermissionForTool(
     return internalReadResult
   }
 
-  // 8. Check for allow rules
-  const allowRule = matchingRuleForInput(
-    path,
+  // 8. Check for allow rules — original path AND resolved symlink targets
+  // (official 2.1.89 jFK). Edit(//path/**) / Read(//path/**) must not ignore
+  // the real destination of a symlink.
+  const allowRule = matchingAllowRuleForPaths(
+    pathsToCheck,
     toolPermissionContext,
     'read',
-    'allow',
   )
   if (allowRule) {
     return {
@@ -1379,12 +1456,12 @@ export function checkWritePermissionForTool<Input extends AnyObject>(
     }
   }
 
-  // 4. Check for allow rules
-  const allowRule = matchingRuleForInput(
-    path,
+  // 4. Check for allow rules — original path AND resolved symlink targets
+  // (official 2.1.89 jFK).
+  const allowRule = matchingAllowRuleForPaths(
+    pathsToCheck,
     toolPermissionContext,
     'edit',
-    'allow',
   )
   if (allowRule) {
     return {

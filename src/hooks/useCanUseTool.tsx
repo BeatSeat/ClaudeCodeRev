@@ -121,6 +121,7 @@ function useCanUseTool(
                 setYoloClassifierApproval(
                   toolUseID,
                   result.decisionReason.reason,
+                  ctx.toolUseContext.setAppState,
                 )
               }
 
@@ -277,7 +278,11 @@ function useCanUseTool(
                       const matchedRule =
                         raceResult.result.matchedDescription ?? undefined
                       if (matchedRule) {
-                        setClassifierApproval(toolUseID, matchedRule)
+                        setClassifierApproval(
+                          toolUseID,
+                          matchedRule,
+                          ctx.toolUseContext.setAppState,
+                        )
                       }
 
                       ctx.logDecision({
@@ -343,7 +348,7 @@ function useCanUseTool(
             }
           })
           .finally(() => {
-            clearClassifierChecking(toolUseID)
+            clearClassifierChecking(toolUseID, toolUseContext.setAppState)
           })
       })
     },

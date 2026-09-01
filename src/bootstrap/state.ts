@@ -474,8 +474,12 @@ export function switchSession(
 ): void {
   // Drop the outgoing session's plan-slug entry so the Map stays bounded
   // across repeated /resume. Only the current session's slug is ever read
-  // (plans.ts getPlanSlug defaults to getSessionId()).
-  STATE.planSlugCache.delete(STATE.sessionId)
+  // (plans.ts getPlanSlug defaults to getSessionId()). Official 2.1.91:
+  // skip the delete when switchSession is a no-op on sessionId so a remote
+  // container restart can keep the in-memory plan file mapping.
+  if (sessionId !== STATE.sessionId) {
+    STATE.planSlugCache.delete(STATE.sessionId)
+  }
   STATE.sessionId = sessionId
   STATE.sessionProjectDir = projectDir
   sessionSwitched.emit(sessionId)

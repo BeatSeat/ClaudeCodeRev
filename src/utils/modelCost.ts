@@ -22,6 +22,7 @@ import {
   getDefaultMainLoopModelSetting,
   type ModelShortName,
 } from './model/model.js'
+import { getGlobalConfig } from './config.js'
 
 // @see https://platform.claude.com/docs/en/about-claude/pricing
 export type ModelCosts = {
@@ -153,14 +154,23 @@ export function getModelCosts(model: string, usage: Usage): ModelCosts {
   }
 
   const costs = MODEL_COSTS[shortName]
-  if (!costs) {
-    trackUnknownModelCost(model, shortName)
-    return (
-      MODEL_COSTS[getCanonicalName(getDefaultMainLoopModelSetting())] ??
-      DEFAULT_UNKNOWN_MODEL_COST
-    )
+  if (costs) {
+    return costs
   }
-  return costs
+  const cached = getGlobalConfig().additionalModelCostsCache
+  const fromCache = cached?.[model] ?? cached?.[shortName]
+  if (
+    fromCache &&
+    typeof fromCache.inputTokens === 'number' &&
+    typeof fromCache.outputTokens === 'number'
+  ) {
+    return fromCache
+  }
+  trackUnknownModelCost(model, shortName)
+  return (
+    MODEL_COSTS[getCanonicalName(getDefaultMainLoopModelSetting())] ??
+    DEFAULT_UNKNOWN_MODEL_COST
+  )
 }
 
 function trackUnknownModelCost(model: string, shortName: ModelShortName): void {

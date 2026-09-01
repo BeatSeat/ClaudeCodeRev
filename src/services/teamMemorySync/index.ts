@@ -13,10 +13,12 @@
  *
  * Sync semantics:
  *   - Pull overwrites local files with server content (server wins per-key).
- *   - Push uploads only keys whose content hash differs from serverChecksums
- *     (delta upload). Server uses upsert: keys not in the PUT are preserved.
- *   - File deletions do NOT propagate: deleting a local file won't remove it
- *     from the server, and the next pull will restore it locally.
+ *   - Push uploads only keys whose local content hash differs from
+ *     serverChecksums (delta upload). Server uses upsert: keys not in the PUT
+ *     are preserved unless listed in soft_delete_keys (2.1.92).
+ *   - After a successful pull (`state.pulled`), local deletions propagate via
+ *     soft_delete_keys. Soft-delete is suppressed if the team dir is
+ *     inaccessible so a missing mount cannot wipe the server copy.
  *
  * State management:
  *   All mutable state (ETag tracking, watcher suppression) lives in a
@@ -116,6 +118,12 @@ export type SyncState = {
    * authoritative (it rejects atomically).
    */
   serverMaxEntries: number | null
+  /**
+   * True after at least one successful pull this session. Soft-delete of
+   * server keys that vanished from disk is gated on this so a first-push
+   * before pull cannot wipe the remote copy.
+   */
+  pulled: boolean
 }
 
 export function createSyncState(): SyncState {
@@ -123,6 +131,7 @@ export function createSyncState(): SyncState {
     lastKnownChecksum: null,
     serverChecksums: new Map(),
     serverMaxEntries: null,
+    pulled: false,
   }
 }
 
@@ -464,6 +473,7 @@ async function uploadTeamMemory(
   repoSlug: string,
   entries: Record<string, string>,
   ifMatchChecksum?: string | null,
+  softDeleteKeys?: string[],
 ): Promise<TeamMemorySyncUploadResult> {
   try {
     await checkAndRefreshOAuthTokenIfNeeded()
@@ -481,10 +491,16 @@ async function uploadTeamMemory(
       headers['If-Match'] = `"${ifMatchChecksum.replace(/"/g, '')}"`
     }
 
+    const body: { entries: Record<string, string>; soft_delete_keys?: string[] } =
+      { entries }
+    if (softDeleteKeys && softDeleteKeys.length > 0) {
+      body.soft_delete_keys = [...softDeleteKeys]
+    }
+
     const endpoint = getTeamMemorySyncEndpoint(repoSlug)
     const response = await axios.put(
       endpoint,
-      { entries },
+      body,
       {
         headers,
         timeout: TEAM_MEMORY_SYNC_TIMEOUT_MS,
@@ -504,8 +520,12 @@ async function uploadTeamMemory(
       state.lastKnownChecksum = responseChecksum
     }
 
+    const softDeletedNote =
+      softDeleteKeys && softDeleteKeys.length > 0
+        ? `, soft-deleted ${softDeleteKeys.length}`
+        : ''
     logForDebugging(
-      `team-memory-sync: uploaded ${Object.keys(entries).length} entries (checksum: ${responseChecksum ?? 'none'})`,
+      `team-memory-sync: uploaded ${Object.keys(entries).length} entries${softDeletedNote} (checksum: ${responseChecksum ?? 'none'})`,
       { level: 'debug' },
     )
     return {
@@ -567,10 +587,27 @@ async function uploadTeamMemory(
 async function readLocalTeamMemory(maxEntries: number | null): Promise<{
   entries: Record<string, string>
   skippedSecrets: SkippedSecretFile[]
+  diskKeys: Set<string>
+  diskTrusted: boolean
 }> {
   const teamDir = getTeamMemPath()
   const entries: Record<string, string> = {}
   const skippedSecrets: SkippedSecretFile[] = []
+  const diskKeys = new Set<string>()
+  let diskTrusted = false
+  try {
+    const st = await stat(teamDir)
+    diskTrusted = st.isDirectory()
+  } catch (e) {
+    if (
+      isErrnoException(e) &&
+      (e.code === 'ENOENT' || e.code === 'EACCES' || e.code === 'EPERM')
+    ) {
+      diskTrusted = false
+    } else {
+      throw e
+    }
+  }
 
   async function walkDir(dir: string): Promise<void> {
     try {
@@ -583,6 +620,8 @@ async function readLocalTeamMemory(maxEntries: number | null): Promise<{
           } else if (entry.isFile()) {
             try {
               const stats = await stat(fullPath)
+              const relPath = relative(teamDir, fullPath).replaceAll('\\', '/')
+              diskKeys.add(relPath)
               if (stats.size > MAX_FILE_SIZE_BYTES) {
                 logForDebugging(
                   `team-memory-sync: skipping oversized file ${entry.name} (${stats.size} > ${MAX_FILE_SIZE_BYTES} bytes)`,
@@ -591,7 +630,6 @@ async function readLocalTeamMemory(maxEntries: number | null): Promise<{
                 return
               }
               const content = await readFile(fullPath, 'utf8')
-              const relPath = relative(teamDir, fullPath).replaceAll('\\', '/')
 
               // PSR M22174: scan for secrets BEFORE adding to the upload
               // payload. If a secret is detected, skip this file entirely
@@ -632,7 +670,9 @@ async function readLocalTeamMemory(maxEntries: number | null): Promise<{
     }
   }
 
-  await walkDir(teamDir)
+  if (diskTrusted) {
+    await walkDir(teamDir)
+  }
 
   // Truncate only if we've LEARNED a cap from the server (via a structured
   // 413's extra_details.max_entries — anthropic/anthropic#293258).  The
@@ -667,9 +707,9 @@ async function readLocalTeamMemory(maxEntries: number | null): Promise<{
     for (const key of keys.slice(0, maxEntries)) {
       truncated[key] = entries[key]!
     }
-    return { entries: truncated, skippedSecrets }
+    return { entries: truncated, skippedSecrets, diskKeys, diskTrusted }
   }
-  return { entries, skippedSecrets }
+  return { entries, skippedSecrets, diskKeys, diskTrusted }
 }
 
 /**
@@ -684,74 +724,86 @@ async function readLocalTeamMemory(maxEntries: number | null): Promise<{
  * recursive: true (EEXIST is swallowed). The initial pull is the long
  * pole in startTeamMemoryWatcher — p99 was ~22s serial at 50 entries.
  *
- * Returns the number of files actually written.
+ * Returns `{filesWritten, unwrittenKeys}` so the caller can drop failed
+ * keys from serverChecksums (official 2.1.92 eYY).
  */
 async function writeRemoteEntriesToLocal(
   entries: Record<string, string>,
-): Promise<number> {
+): Promise<{ filesWritten: number; unwrittenKeys: Set<string> }> {
   const results = await Promise.all(
-    Object.entries(entries).map(async ([relPath, content]) => {
-      let validatedPath: string
-      try {
-        validatedPath = await validateTeamMemKey(relPath)
-      } catch (e) {
-        if (e instanceof PathTraversalError) {
-          logForDebugging(`team-memory-sync: ${e.message}`, { level: 'warn' })
-          return false
+    Object.entries(entries).map(
+      async (
+        [relPath, content],
+      ): Promise<{
+        relPath: string
+        outcome: 'failed' | 'matched' | 'written'
+      }> => {
+        let validatedPath: string
+        try {
+          validatedPath = await validateTeamMemKey(relPath)
+        } catch (e) {
+          if (e instanceof PathTraversalError) {
+            logForDebugging(`team-memory-sync: ${e.message}`, { level: 'warn' })
+            return { relPath, outcome: 'failed' }
+          }
+          throw e
         }
-        throw e
-      }
 
-      const sizeBytes = Buffer.byteLength(content, 'utf8')
-      if (sizeBytes > MAX_FILE_SIZE_BYTES) {
-        logForDebugging(
-          `team-memory-sync: skipping oversized remote entry "${relPath}"`,
-          { level: 'info' },
-        )
-        return false
-      }
-
-      // Skip if on-disk content already matches. Handles the common case
-      // where pull returns unchanged entries (skipEtagCache path, first
-      // pull of a session with warm disk state from prior session).
-      try {
-        const existing = await readFile(validatedPath, 'utf8')
-        if (existing === content) {
-          return false
-        }
-      } catch (e) {
-        if (
-          isErrnoException(e) &&
-          e.code !== 'ENOENT' &&
-          e.code !== 'ENOTDIR'
-        ) {
+        const sizeBytes = Buffer.byteLength(content, 'utf8')
+        if (sizeBytes > MAX_FILE_SIZE_BYTES) {
           logForDebugging(
-            `team-memory-sync: unexpected read error for "${relPath}": ${e.code}`,
-            { level: 'debug' },
+            `team-memory-sync: skipping oversized remote entry "${relPath}"`,
+            { level: 'info' },
           )
+          return { relPath, outcome: 'failed' }
         }
-        // Fall through to write for ENOENT/ENOTDIR (file doesn't exist yet)
-      }
 
-      try {
-        const parentDir = validatedPath.substring(
-          0,
-          validatedPath.lastIndexOf(sep),
-        )
-        await mkdir(parentDir, { recursive: true })
-        await writeFile(validatedPath, content, 'utf8')
-        return true
-      } catch (e) {
-        logForDebugging(
-          `team-memory-sync: failed to write "${relPath}": ${e}`,
-          { level: 'warn' },
-        )
-        return false
-      }
-    }),
+        // Skip if on-disk content already matches. Handles the common case
+        // where pull returns unchanged entries (skipEtagCache path, first
+        // pull of a session with warm disk state from prior session).
+        try {
+          const existing = await readFile(validatedPath, 'utf8')
+          if (existing === content) {
+            return { relPath, outcome: 'matched' }
+          }
+        } catch (e) {
+          if (
+            isErrnoException(e) &&
+            e.code !== 'ENOENT' &&
+            e.code !== 'ENOTDIR'
+          ) {
+            logForDebugging(
+              `team-memory-sync: unexpected read error for "${relPath}": ${e.code}`,
+              { level: 'debug' },
+            )
+          }
+          // Fall through to write for ENOENT/ENOTDIR (file doesn't exist yet)
+        }
+
+        try {
+          const parentDir = validatedPath.substring(
+            0,
+            validatedPath.lastIndexOf(sep),
+          )
+          await mkdir(parentDir, { recursive: true })
+          await writeFile(validatedPath, content, 'utf8')
+          return { relPath, outcome: 'written' }
+        } catch (e) {
+          logForDebugging(
+            `team-memory-sync: failed to write "${relPath}": ${e}`,
+            { level: 'warn' },
+          )
+          return { relPath, outcome: 'failed' }
+        }
+      },
+    ),
   )
 
-  return count(results, Boolean)
+  const filesWritten = count(results, r => r.outcome === 'written')
+  const unwrittenKeys = new Set(
+    results.filter(r => r.outcome === 'failed').map(r => r.relPath),
+  )
+  return { filesWritten, unwrittenKeys }
 }
 
 // ─── Public API ──────────────────────────────────────────────
@@ -818,6 +870,7 @@ export async function pullTeamMemory(
     }
   }
   if (result.notModified) {
+    state.pulled = true
     logPull(startTime, { success: true, notModified: true })
     return { success: true, filesWritten: 0, entryCount: 0, notModified: true }
   }
@@ -825,6 +878,7 @@ export async function pullTeamMemory(
     // Server has no data — clear stale serverChecksums so the next push
     // doesn't skip entries it thinks the server already has.
     state.serverChecksums.clear()
+    state.pulled = true
     logPull(startTime, { success: true })
     return { success: true, filesWritten: 0, entryCount: 0 }
   }
@@ -848,14 +902,20 @@ export async function pullTeamMemory(
     )
   }
 
-  const filesWritten = await writeRemoteEntriesToLocal(entries)
+  const { filesWritten, unwrittenKeys } =
+    await writeRemoteEntriesToLocal(entries)
+  for (const key of unwrittenKeys) {
+    state.serverChecksums.delete(key)
+  }
   if (filesWritten > 0) {
     const { clearMemoryFileCaches } = await import('../../utils/claudemd.js')
     clearMemoryFileCaches()
   }
-  logForDebugging(`team-memory-sync: pulled ${filesWritten} files`, {
-    level: 'info',
-  })
+  state.pulled = true
+  logForDebugging(
+    `team-memory-sync: pulled ${filesWritten} files${unwrittenKeys.size > 0 ? ` (${unwrittenKeys.size} entries skipped)` : ''}`,
+    { level: 'info' },
+  )
 
   logPull(startTime, { success: true, filesWritten })
 
@@ -921,6 +981,19 @@ export async function pushTeamMemory(
   const localRead = await readLocalTeamMemory(state.serverMaxEntries)
   const entries = localRead.entries
   const skippedSecrets = localRead.skippedSecrets
+  const deletedKeys: string[] = []
+  if (state.pulled && localRead.diskTrusted) {
+    for (const key of state.serverChecksums.keys()) {
+      if (!localRead.diskKeys.has(key)) {
+        deletedKeys.push(key)
+      }
+    }
+  } else if (state.pulled && !localRead.diskTrusted) {
+    logForDebugging(
+      'team-memory-sync: team dir inaccessible — suppressing soft-delete',
+      { level: 'warn' },
+    )
+  }
   if (skippedSecrets.length > 0) {
     // Log a user-visible warning listing which files were skipped and why.
     // Don't block the push — just exclude those files. The secret VALUE is
@@ -952,6 +1025,7 @@ export async function pushTeamMemory(
   }
 
   let sawConflict = false
+  let filesSoftDeleted = 0
 
   for (
     let conflictAttempt = 0;
@@ -971,18 +1045,20 @@ export async function pushTeamMemory(
     }
     const deltaCount = Object.keys(delta).length
 
-    if (deltaCount === 0) {
-      // Nothing to upload. This is the expected fast path after a fresh pull
-      // with no local edits, and also the convergence point after a 412 where
-      // the teammate's push was a strict superset of ours.
+    if (deltaCount === 0 && deletedKeys.length === 0) {
+      // Nothing to upload or soft-delete. Expected fast path after a fresh
+      // pull with no local edits, and the 412 convergence point.
       logPush(startTime, {
         success: true,
+        filesUploaded: 0,
+        ...(filesSoftDeleted > 0 && { filesSoftDeleted }),
         conflict: sawConflict,
         conflictRetries,
       })
       return {
         success: true,
         filesUploaded: 0,
+        ...(filesSoftDeleted > 0 && { filesSoftDeleted }),
         ...(skippedSecrets.length > 0 && { skippedSecrets }),
       }
     }
@@ -997,15 +1073,21 @@ export async function pushTeamMemory(
     // state.lastKnownChecksum is updated inside uploadTeamMemory on each
     // 200, so the ETag chain threads through the batches automatically.
     const batches = batchDeltaByBytes(delta)
+    if (batches.length === 0) {
+      batches.push({})
+    }
     let filesUploaded = 0
     let result: TeamMemorySyncUploadResult | undefined
 
-    for (const batch of batches) {
+    for (let i = 0; i < batches.length; i++) {
+      const batch = batches[i]!
+      const softDelete = i === 0 ? deletedKeys : undefined
       result = await uploadTeamMemory(
         state,
         repoSlug,
         batch,
         state.lastKnownChecksum,
+        softDelete,
       )
       if (!result.success) break
 
@@ -1013,9 +1095,14 @@ export async function pushTeamMemory(
         state.serverChecksums.set(key, localHashes.get(key)!)
       }
       filesUploaded += Object.keys(batch).length
+      if (softDelete && softDelete.length > 0) {
+        for (const key of softDelete) {
+          state.serverChecksums.delete(key)
+        }
+        filesSoftDeleted += softDelete.length
+        deletedKeys.length = 0
+      }
     }
-    // batches is non-empty (deltaCount > 0 guaranteed by the check above),
-    // so the loop executed at least once.
     result = result!
 
     if (result.success) {
@@ -1024,13 +1111,14 @@ export async function pushTeamMemory(
       // fetched hashes during conflict resolution, not bodies.
       logForDebugging(
         batches.length > 1
-          ? `team-memory-sync: pushed ${filesUploaded} of ${localHashes.size} files in ${batches.length} batches`
-          : `team-memory-sync: pushed ${filesUploaded} of ${localHashes.size} files (delta)`,
+          ? `team-memory-sync: pushed ${filesUploaded} of ${localHashes.size} files${filesSoftDeleted > 0 ? `, soft-deleted ${filesSoftDeleted}` : ''} in ${batches.length} batches`
+          : `team-memory-sync: pushed ${filesUploaded} of ${localHashes.size} files${filesSoftDeleted > 0 ? `, soft-deleted ${filesSoftDeleted}` : ''} (delta)`,
         { level: 'info' },
       )
       logPush(startTime, {
         success: true,
         filesUploaded,
+        ...(filesSoftDeleted > 0 && { filesSoftDeleted }),
         conflict: sawConflict,
         conflictRetries,
         putBatches: batches.length > 1 ? batches.length : undefined,
@@ -1038,6 +1126,7 @@ export async function pushTeamMemory(
       return {
         success: true,
         filesUploaded,
+        ...(filesSoftDeleted > 0 && { filesSoftDeleted }),
         checksum: result.checksum,
         ...(skippedSecrets.length > 0 && { skippedSecrets }),
       }
@@ -1222,6 +1311,7 @@ function logPush(
     filesUploaded?: number
     conflict?: boolean
     conflictRetries?: number
+    filesSoftDeleted?: number
     errorType?: string
     status?: number
     putBatches?: number
@@ -1236,6 +1326,9 @@ function logPush(
     conflict: outcome.conflict ?? false,
     conflict_retries: outcome.conflictRetries ?? 0,
     duration_ms: Date.now() - startTime,
+    ...(outcome.filesSoftDeleted && {
+      files_soft_deleted: outcome.filesSoftDeleted,
+    }),
     ...(outcome.errorType && {
       errorType:
         outcome.errorType as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,

@@ -3,6 +3,7 @@ import { pathToFileURL } from 'url'
 import Link from '../ink/components/Link.js'
 import { supportsHyperlinks } from '../ink/supports-hyperlinks.js'
 import { Text } from '../ink.js'
+import { useAppStateMaybeOutsideOfProvider } from '../state/AppState.js'
 import { getStoredImagePath } from '../utils/imageStore.js'
 import type { Theme } from '../utils/theme.js'
 
@@ -25,7 +26,12 @@ export function ClickableImageRef({
   backgroundColor,
   isSelected = false,
 }: Props): React.ReactNode {
-  const imagePath = getStoredImagePath(imageId)
+  const imagePaths = useAppStateMaybeOutsideOfProvider(
+    state => state.imagePaths,
+  )
+  const imagePath = imagePaths
+    ? getStoredImagePath(imageId, imagePaths)
+    : null
   const displayText = `[Image #${imageId}]`
 
   // If we have a stored image and terminal supports hyperlinks, make it clickable

@@ -807,6 +807,10 @@ export async function teleportFromSessionsAPI(
       branch,
     }
   } catch (error) {
+    if (error instanceof TeleportOperationError) {
+      throw error
+    }
+
     const err = toError(error)
 
     // Handle 404 specifically
@@ -847,6 +851,9 @@ export async function pollRemoteSessionEvents(
   afterId: string | null = null,
   opts?: { skipMetadata?: boolean },
 ): Promise<PollRemoteSessionResponse> {
+  // Official 2.1.91: refresh before reading the cached token so a stale
+  // OAuth access token does not 401 the events poll.
+  await checkAndRefreshOAuthTokenIfNeeded()
   const accessToken = getClaudeAIOAuthTokens()?.accessToken
   if (!accessToken) {
     throw new Error('No access token for polling')
@@ -990,7 +997,15 @@ export async function teleportToRemote(options: {
    * fails. The wrapper stderr.writes it (pre-REPL). Remote-agent callers
    * capture it to include in their throw (in-REPL, Ink-rendered).
    */
-  onBundleFail?: (message: string) => void
+  onBundleFail?: (
+    message: string,
+    failureType?: 'git_error' | 'too_large' | 'empty_repo',
+  ) => void
+  /**
+   * Called when POST /v1/sessions returns a non-success status (2.1.92).
+   * Distinct from onBundleFail so ultraplan can log create_api_fail.
+   */
+  onCreateFail?: (message: string) => void
   /**
    * When true, disables the git-bundle fallback entirely. Use for flows like
    * autofix where CCR must push to GitHub — a bundle can't do that.
@@ -1294,7 +1309,7 @@ export async function teleportToRemote(options: {
             msg = `Bundle upload failed: ${bundle.error}`
           }
         }
-        options.onBundleFail?.(msg)
+        options.onBundleFail?.(msg, bundle.failReason)
         return null
       }
       seedBundleFileId = bundle.fileId
@@ -1479,6 +1494,9 @@ export async function teleportToRemote(options: {
         new Error(
           `API request failed with status ${response.status}: ${response.statusText}\n\nResponse data: ${jsonStringify(response.data, null, 2)}`,
         ),
+      )
+      options.onCreateFail?.(
+        `${response.status} ${response.statusText}: ${jsonStringify(response.data)}`,
       )
       return null
     }

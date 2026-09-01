@@ -209,11 +209,7 @@ export async function pollForApprovedExitPlanMode(
 
   while (Date.now() < deadline) {
     if (shouldStop?.()) {
-      throw new UltraplanPollError(
-        'poll stopped by caller',
-        'stopped',
-        scanner.rejectCount,
-      )
+      throw new Error('poll stopped by caller')
     }
     let newEvents: SDKMessage[]
     let sessionStatus: PollRemoteSessionResponse['sessionStatus']

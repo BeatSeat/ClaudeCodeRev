@@ -109,6 +109,7 @@ export default function TextInput(props: Props): React.ReactNode {
     onSubmit: props.onSubmit,
     onExit: props.onExit,
     onExitMessage: props.onExitMessage,
+    onLeftArrowOnEmpty: props.onLeftArrowOnEmpty,
     onHistoryReset: props.onHistoryReset,
     onHistoryUp: props.onHistoryUp,
     onHistoryDown: props.onHistoryDown,

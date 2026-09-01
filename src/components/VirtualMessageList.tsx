@@ -21,6 +21,7 @@ import { ScrollChromeContext } from './FullscreenLayout.js'
 // Rows of breathing room above the target when we scrollTo.
 const HEADROOM = 3
 
+import { logError } from '../utils/log.js'
 import { logForDebugging } from '../utils/debug.js'
 import { sleep } from '../utils/sleep.js'
 import { renderableSearchText } from '../utils/transcriptSearch.js'
@@ -36,6 +37,36 @@ import {
 // Fallback extractor: lower + cache here for callers without the
 // Messages.tsx tool-lookup path (tests, static contexts). Messages.tsx
 // provides its own lowering cache that also handles tool extractSearchText.
+function uniquifySiblingKeys(keys: string[]): string[] {
+  const out = keys.slice()
+  const counts = new Map<string, number>()
+  let dup = false
+  for (let i = 0; i < out.length; i++) {
+    const key = out[i]!
+    const seen = counts.get(key)
+    if (seen === undefined) {
+      counts.set(key, 1)
+    } else {
+      dup = true
+      counts.set(key, seen + 1)
+      out[i] = `${key}#${seen}`
+    }
+  }
+  if (dup) {
+    const samples = [...counts]
+      .filter(([, n]) => n > 1)
+      .slice(0, 3)
+      .map(([k, n]) => `${k} ×${n}`)
+      .join(', ')
+    logError(
+      new Error(
+        `VirtualMessageList: duplicate sibling keys (leaks DOM nodes via mapRemainingChildren overwrite): ${samples}`,
+      ),
+    )
+  }
+  return out
+}
+
 const fallbackLowerCache = new WeakMap<RenderableMessage, string>()
 function defaultExtractSearchText(msg: RenderableMessage): string {
   const cached = fallbackLowerCache.get(msg)
@@ -290,11 +321,12 @@ export function VirtualMessageList({
     messages.length < keysRef.current.length ||
     messages[0] !== prevMessagesRef.current[0]
   ) {
-    keysRef.current = messages.map(m => itemKey(m))
+    keysRef.current = uniquifySiblingKeys(messages.map(m => itemKey(m)))
   } else {
     for (let i = keysRef.current.length; i < messages.length; i++) {
       keysRef.current.push(itemKey(messages[i]!))
     }
+    keysRef.current = uniquifySiblingKeys(keysRef.current)
   }
   prevMessagesRef.current = messages
   prevItemKeyRef.current = itemKey

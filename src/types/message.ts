@@ -1,6 +1,7 @@
 // @generated-stub — missing from sourcemap, see scripts/gen-stubs.ts
 // Type definitions inferred from codebase usage patterns
 
+import type { APIError } from '@anthropic-ai/sdk'
 import type { BetaContentBlock, BetaMessage, BetaUsage, ContentBlockParam, ToolUseBlock, ToolResultBlockParam } from '@anthropic-ai/sdk/resources/beta/index.js'
 
 export type MessageOrigin = 'keyboard' | 'SendUserMessage' | 'queue' | 'hook' | 'agent' | string
@@ -71,7 +72,15 @@ export type SystemInformationalMessage = SystemMessageBase & {
   toolUseID?: string
   preventContinuation?: boolean
 }
-export type SystemAPIErrorMessage = SystemMessageBase & { subtype: 'api_error'; content: string; level: SystemMessageLevel }
+export type SystemAPIErrorMessage = SystemMessageBase & {
+  subtype: 'api_error'
+  error: APIError
+  retryInMs: number
+  retryAttempt: number
+  maxRetries: number
+  level: 'error'
+  cause?: Error
+}
 export type SystemLocalCommandMessage = SystemMessageBase & { subtype: 'local_command'; content: string; level: 'info' }
 export type SystemPermissionRetryMessage = SystemMessageBase & { subtype: 'permission_retry'; content: string; commands: string[]; level: 'info' }
 export type SystemBridgeStatusMessage = SystemMessageBase & { subtype: 'bridge_status'; content: string; url: string; upgradeNudge?: string }
@@ -145,6 +154,7 @@ export type CollapsedReadSearchGroup = {
   bashCount?: number
   gitOpBashCount?: number
   otherToolCount?: number
+  frameCount?: number
   editFileCount?: number
   linesAdded?: number
   linesRemoved?: number

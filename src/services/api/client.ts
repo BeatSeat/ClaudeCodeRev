@@ -232,10 +232,15 @@ export async function getAnthropicClient({
         : null
 
     const bedrockArgs: ConstructorParameters<typeof AnthropicBedrock>[0] & {
-      apiKey?: string
+      apiKey?: string | null
     } = {
       ...ARGS,
+      // SigV4 must sign a clean header set. In particular, custom
+      // Authorization headers from ANTHROPIC_CUSTOM_HEADERS must not reach
+      // the signer, and the base SDK must not synthesize an API key header.
+      defaultHeaders: headersWithoutAuth,
       awsRegion,
+      apiKey: null,
       ...(skipBedrockAuth && !authorization && { skipAuth: true }),
       ...(authorization && {
         apiKey: authorization.match(/^Bearer (.+)$/i)?.[1] ?? authorization,

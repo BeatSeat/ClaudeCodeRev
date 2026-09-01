@@ -1417,21 +1417,58 @@ export const PluginIdSchema = lazySchema(() =>
 const DEP_REF_REGEX =
   /^[a-z0-9][-a-z0-9._]*(@[a-z0-9][-a-z0-9._]*)?(@\^[^@]*)?$/i
 
+export type PluginDependencyConstraint = {
+  version?: string
+}
+
+/**
+ * Preserve version constraints separately from the normalized dependency IDs
+ * stored on PluginManifest. This keeps existing dependency consumers simple
+ * while allowing the loader and resolver to enforce the original ranges.
+ */
+export function extractDependencyConstraints(
+  dependencies: unknown,
+): Record<string, PluginDependencyConstraint> | undefined {
+  if (!Array.isArray(dependencies)) return undefined
+
+  const constraints: Record<string, PluginDependencyConstraint> = {}
+
+  for (const dependency of dependencies) {
+    if (
+      dependency === null ||
+      typeof dependency !== 'object' ||
+      !('name' in dependency) ||
+      typeof dependency.name !== 'string' ||
+      !('version' in dependency) ||
+      typeof dependency.version !== 'string'
+    ) {
+      continue
+    }
+
+    const marketplace =
+      'marketplace' in dependency && typeof dependency.marketplace === 'string'
+        ? dependency.marketplace
+        : undefined
+    const dependencyId = marketplace
+      ? `${dependency.name}@${marketplace}`
+      : dependency.name
+    constraints[dependencyId] = { version: dependency.version }
+  }
+
+  return Object.keys(constraints).length > 0 ? constraints : undefined
+}
+
 /**
  * Schema for entries in a plugin's `dependencies` array.
  *
  * Accepts three forms, all normalized to a plain "name" or "name@mkt" string
- * by the transform — downstream code (qualifyDependency, resolveDependencyClosure,
- * verifyAndDemote) never sees versions or objects:
+ * by the transform. Version ranges are preserved by
+ * extractDependencyConstraints before this schema normalizes the manifest:
  *
  *   "plugin"                → bare, resolved against declaring plugin's marketplace
  *   "plugin@marketplace"    → qualified
- *   "plugin@mkt@^1.2"       → trailing @^version silently stripped (forwards-compat)
- *   {name, marketplace?, …} → object form, version etc. stripped (forwards-compat)
- *
- * The latter two are permitted-but-ignored so future clients adding version
- * constraints don't cause old clients to fail schema validation and reject
- * the whole plugin. See CC-993 for the eventual version-range design.
+ *   "plugin@mkt@^1.2"       → qualified ID plus a ^1.2 constraint
+ *   {name, marketplace?, version?} → normalized ID plus an optional constraint
  */
 export const DependencyRefSchema = lazySchema(() =>
   z.union([
@@ -1453,6 +1490,7 @@ export const DependencyRefSchema = lazySchema(() =>
           .min(1)
           .regex(/^[a-z0-9][-a-z0-9._]*$/i)
           .optional(),
+        version: z.string().min(1).optional(),
       })
       .loose()
       .transform(o => (o.marketplace ? `${o.name}@${o.marketplace}` : o.name)),

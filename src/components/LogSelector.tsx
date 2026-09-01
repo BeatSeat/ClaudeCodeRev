@@ -977,7 +977,12 @@ export function LogSelector({
           setViewMode('rename')
           setRenameValue('')
           logEvent('tengu_session_rename_started', {})
-        } else if (lowerInput === 'v' && key.ctrl && focusedLog) {
+        } else if (
+          ((input === ' ' && keyIsNotCtrlOrMeta) ||
+            (lowerInput === 'v' && key.ctrl)) &&
+          focusedLog &&
+          !isAgenticSearchOptionFocused
+        ) {
           setPreviewLog(focusedLog)
           setViewMode('preview')
           logEvent('tengu_session_preview_opened', {
@@ -1327,7 +1332,7 @@ export function LogSelector({
                   action={`show ${showAllWorktrees ? 'current worktree' : 'all worktrees'}`}
                 />
               )}
-              <KeyboardShortcutHint shortcut="Ctrl+V" action="preview" />
+              <KeyboardShortcutHint shortcut="Space" action="preview" />
               <KeyboardShortcutHint shortcut="Ctrl+R" action="rename" />
               <Text>Type to search</Text>
               <ConfigurableShortcutHint

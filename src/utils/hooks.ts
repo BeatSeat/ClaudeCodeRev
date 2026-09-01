@@ -5149,12 +5149,11 @@ export async function executeWorktreeRemoveHook(
     timeoutMs: TOOL_HOOK_EXECUTION_TIMEOUT_MS,
   })
 
-  if (results.length === 0) {
-    return false
-  }
-
+  let anySucceeded = false
   for (const result of results) {
-    if (!result.succeeded) {
+    if (result.succeeded) {
+      anySucceeded = true
+    } else {
       logForDebugging(
         `WorktreeRemove hook failed [${result.command}]: ${result.output.trim()}`,
         { level: 'error' },
@@ -5162,7 +5161,7 @@ export async function executeWorktreeRemoveHook(
     }
   }
 
-  return true
+  return anySucceeded
 }
 
 function getHookDefinitionsForTelemetry(

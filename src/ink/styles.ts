@@ -531,7 +531,7 @@ const applyFlexStyles = (node: LayoutNode, style: Styles): void => {
   }
 
   if ('flexWrap' in style) {
-    if (style.flexWrap === 'nowrap') {
+    if (style.flexWrap === 'nowrap' || !style.flexWrap) {
       node.setFlexWrap(LayoutWrap.NoWrap)
     }
 
@@ -553,7 +553,7 @@ const applyFlexStyles = (node: LayoutNode, style: Styles): void => {
       node.setFlexDirection(LayoutFlexDirection.RowReverse)
     }
 
-    if (style.flexDirection === 'column') {
+    if (style.flexDirection === 'column' || !style.flexDirection) {
       node.setFlexDirection(LayoutFlexDirection.Column)
     }
 

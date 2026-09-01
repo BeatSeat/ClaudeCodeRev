@@ -197,9 +197,21 @@ export async function initEnvLessBridgeCore(
     'fetchRemoteCredentials',
     cfg,
   )
-  if (!credentials) {
-    onStateChange?.('failed', 'Remote credentials fetch failed — see debug log')
-    logBridgeSkip('v2_remote_creds_failed', undefined, true)
+  if (!credentials || isUntrustedDeviceBridgeResponse(credentials)) {
+    const msg = credentials
+      ? UNTRUSTED_DEVICE_ENROLL_MSG
+      : 'Remote credentials fetch failed — see debug log'
+    logForDebugging(
+      `[remote-bridge] Creds failed; onStateChange ${onStateChange ? 'set' : 'UNSET'}, msg="${msg}"`,
+    )
+    onStateChange?.('failed', msg)
+    logBridgeSkip(
+      credentials
+        ? 'v2_remote_creds_untrusted_device'
+        : 'v2_remote_creds_failed',
+      undefined,
+      true,
+    )
     void archiveSession(
       sessionId,
       baseUrl,
@@ -351,6 +363,12 @@ export async function initEnvLessBridgeCore(
             cfg,
           )
           if (!fresh || tornDown) return
+          if (isUntrustedDeviceBridgeResponse(fresh)) {
+            if (!tornDown) {
+              onStateChange?.('failed', UNTRUSTED_DEVICE_ENROLL_MSG)
+            }
+            return
+          }
           await rebuildTransport(fresh, 'proactive_refresh')
           logForDebugging(
             '[remote-bridge] Transport rebuilt (proactive refresh)',
@@ -564,6 +582,12 @@ export async function initEnvLessBridgeCore(
       if (!fresh || tornDown) {
         if (!tornDown) {
           onStateChange?.('failed', 'JWT refresh failed after 401')
+        }
+        return
+      }
+      if (isUntrustedDeviceBridgeResponse(fresh)) {
+        if (!tornDown) {
+          onStateChange?.('failed', UNTRUSTED_DEVICE_ENROLL_MSG)
         }
         return
       }
@@ -921,7 +945,10 @@ export {
 import {
   createCodeSession,
   fetchRemoteCredentials as fetchRemoteCredentialsRaw,
+  isUntrustedDeviceBridgeResponse,
+  UNTRUSTED_DEVICE_ENROLL_MSG,
   type RemoteCredentials,
+  type RemoteCredentialsResult,
 } from './codeSessionApi.js'
 import { getBridgeBaseUrlOverride } from './bridgeConfig.js'
 
@@ -933,7 +960,7 @@ export async function fetchRemoteCredentials(
   baseUrl: string,
   accessToken: string,
   timeoutMs: number,
-): Promise<RemoteCredentials | null> {
+): Promise<RemoteCredentialsResult> {
   const creds = await fetchRemoteCredentialsRaw(
     sessionId,
     baseUrl,
@@ -941,7 +968,7 @@ export async function fetchRemoteCredentials(
     timeoutMs,
     getTrustedDeviceToken(),
   )
-  if (!creds) return null
+  if (!creds || isUntrustedDeviceBridgeResponse(creds)) return creds
   return getBridgeBaseUrlOverride()
     ? { ...creds, api_base_url: baseUrl }
     : creds

@@ -240,7 +240,7 @@ async function createWizardBedrockClient(data: BedrockWizardData) {
   const args = {
     awsRegion: data.region,
     maxRetries: 0,
-    fetchOptions: getProxyFetchOptions({ forAnthropicAPI: true }),
+    fetchOptions: getProxyFetchOptions(),
   }
   return new AnthropicBedrock(
     applyBedrockClientAuth(args, await resolveWizardAuth(data)),

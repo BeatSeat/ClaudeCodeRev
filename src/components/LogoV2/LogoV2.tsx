@@ -49,6 +49,7 @@ import {
 import { EmergencyTip } from './EmergencyTip.js'
 import { VoiceModeNotice } from './VoiceModeNotice.js'
 import { Opus1mMergeNotice } from './Opus1mMergeNotice.js'
+import { PromptCachingDisabledNotice } from './PromptCachingDisabledNotice.js'
 import { feature } from 'bun:bundle'
 
 // Conditional require so ChannelsNotice.tsx tree-shakes when both flags are
@@ -187,6 +188,7 @@ export function LogoV2(): React.ReactNode {
         <CondensedLogo />
         <VoiceModeNotice />
         <Opus1mMergeNotice />
+        <PromptCachingDisabledNotice />
         {ChannelsNoticeModule && <ChannelsNoticeModule.ChannelsNotice />}
         {isDebugMode() && (
           <Box paddingLeft={2} flexDirection="column">
@@ -306,6 +308,7 @@ export function LogoV2(): React.ReactNode {
         </OffscreenFreeze>
         <VoiceModeNotice />
         <Opus1mMergeNotice />
+        <PromptCachingDisabledNotice />
         {ChannelsNoticeModule && <ChannelsNoticeModule.ChannelsNotice />}
         {showSandboxStatus && (
           <Box marginTop={1} flexDirection="column">
@@ -434,6 +437,7 @@ export function LogoV2(): React.ReactNode {
       </OffscreenFreeze>
       <VoiceModeNotice />
       <Opus1mMergeNotice />
+      <PromptCachingDisabledNotice />
       {ChannelsNoticeModule && <ChannelsNoticeModule.ChannelsNotice />}
       {isDebugMode() && (
         <Box paddingLeft={2} flexDirection="column">

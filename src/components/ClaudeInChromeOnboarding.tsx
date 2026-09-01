@@ -4,6 +4,7 @@ import { logEvent } from 'src/services/analytics/index.js'
 import { Box, Link, Newline, Text, useInput } from '../ink.js'
 import { isChromeExtensionInstalled } from '../utils/claudeInChrome/setup.js'
 import { saveGlobalConfig } from '../utils/config.js'
+import { logError } from '../utils/log.js'
 import { Dialog } from './design-system/Dialog.js'
 
 const CHROME_EXTENSION_URL = 'https://claude.ai/chrome'
@@ -18,7 +19,7 @@ export function ClaudeInChromeOnboarding({ onDone }: Props): React.ReactNode {
 
   React.useEffect(() => {
     logEvent('tengu_claude_in_chrome_onboarding_shown', {})
-    void isChromeExtensionInstalled().then(setIsExtensionInstalled)
+    void isChromeExtensionInstalled().then(setIsExtensionInstalled).catch(logError)
     saveGlobalConfig(current => {
       return { ...current, hasCompletedClaudeInChromeOnboarding: true }
     })

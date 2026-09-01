@@ -13,6 +13,9 @@ type InkNode = {
   parentNode: DOMElement | undefined
   yogaNode?: LayoutNode
   style: Styles
+  // Official 2.1.91: set on ancestors of position:absolute nodes so hit-test
+  // can still walk overflowing absolute descendants outside the parent rect.
+  hasAbsoluteDescendant?: boolean
 }
 
 export type TextName = '#text'
@@ -131,6 +134,18 @@ export const createNode = (nodeName: ElementNames): DOMElement => {
   return node
 }
 
+function markAbsoluteAncestors(node: DOMElement): void {
+  let current: DOMElement | undefined = node
+  while (current && !current.hasAbsoluteDescendant) {
+    current.hasAbsoluteDescendant = true
+    current = current.parentNode
+  }
+}
+
+function isAbsolutePositioned(node: DOMNode): boolean {
+  return node.style.position === 'absolute'
+}
+
 export const appendChildNode = (
   node: DOMElement,
   childNode: DOMElement,
@@ -149,6 +164,10 @@ export const appendChildNode = (
     )
   }
 
+  if (isAbsolutePositioned(childNode) || childNode.hasAbsoluteDescendant) {
+    markAbsoluteAncestors(node)
+  }
+
   markDirty(node)
 }
 
@@ -162,6 +181,13 @@ export const insertBeforeNode = (
   }
 
   newChildNode.parentNode = node
+
+  if (
+    isAbsolutePositioned(newChildNode) ||
+    (newChildNode.nodeName !== '#text' && newChildNode.hasAbsoluteDescendant)
+  ) {
+    markAbsoluteAncestors(node)
+  }
 
   const index = node.childNodes.indexOf(beforeChildNode)
 
@@ -269,7 +295,12 @@ export const setStyle = (node: DOMNode, style: Styles): void => {
   if (stylesEqual(node.style, style)) {
     return
   }
+  const becameAbsolute =
+    style.position === 'absolute' && node.style.position !== 'absolute'
   node.style = style
+  if (becameAbsolute && node.parentNode) {
+    markAbsoluteAncestors(node.parentNode)
+  }
   markDirty(node)
 }
 
@@ -309,7 +340,7 @@ function shallowEqual<T extends object>(
 
   // Compare each property
   for (const key of aKeys) {
-    if (a[key] !== b[key]) return false
+    if (!Object.hasOwn(b, key) || a[key] !== b[key]) return false
   }
 
   return true

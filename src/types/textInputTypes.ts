@@ -92,6 +92,11 @@ export type BaseTextInputProps = {
   readonly onExitMessage?: (show: boolean, key?: string) => void
 
   /**
+   * Official 2.1.98: left arrow on an empty input (no shift).
+   */
+  readonly onLeftArrowOnEmpty?: () => void
+
+  /**
    * Optional callback to show custom message
    */
   // readonly onMessage?: (show: boolean, message?: string) => void

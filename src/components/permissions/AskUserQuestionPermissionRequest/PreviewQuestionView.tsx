@@ -12,7 +12,9 @@ import type { Question } from '../../../tools/AskUserQuestionTool/AskUserQuestio
 import { getExternalEditor } from '../../../utils/editor.js'
 import { toIDEDisplayName } from '../../../utils/ide.js'
 import { editPromptInEditor } from '../../../utils/promptEditor.js'
+import { Byline } from '../../design-system/Byline.js'
 import { Divider } from '../../design-system/Divider.js'
+import { KeyboardShortcutHint } from '../../design-system/KeyboardShortcutHint.js'
 import TextInput from '../../TextInput.js'
 import { PermissionRequestTitle } from '../PermissionRequestTitle.js'
 import { PreviewBox } from './PreviewBox.js'
@@ -449,13 +451,24 @@ export function PreviewQuestionView({
           </Box>
           <Box marginTop={1}>
             <Text color="inactive" dimColor>
-              Enter to select · {figures.arrowUp}/{figures.arrowDown} to
-              navigate · n to add notes
-              {questions.length > 1 && <> · Tab to switch questions</>}
-              {isInNotesInput && editorName && (
-                <> · ctrl+g to edit in {editorName}</>
-              )}{' '}
-              · Esc to cancel
+              <Byline>
+                <KeyboardShortcutHint chord="enter" action="select" />
+                <KeyboardShortcutHint
+                  chord={['up', 'down']}
+                  action="navigate"
+                />
+                <KeyboardShortcutHint chord="n" action="add notes" />
+                {questions.length > 1 ? (
+                  <KeyboardShortcutHint chord="tab" action="switch questions" />
+                ) : null}
+                {isInNotesInput && editorName ? (
+                  <KeyboardShortcutHint
+                    chord="ctrl+g"
+                    action={`edit in ${editorName}`}
+                  />
+                ) : null}
+                <KeyboardShortcutHint chord="escape" action="cancel" />
+              </Byline>
             </Text>
           </Box>
         </Box>

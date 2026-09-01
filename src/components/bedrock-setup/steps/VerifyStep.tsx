@@ -29,6 +29,11 @@ export function VerifyStep(): React.ReactNode {
           verifiedIdentity: result.identity,
           discoveredProfiles: result.profiles,
         })
+      } else {
+        updateWizardData({
+          verifiedIdentity: undefined,
+          discoveredProfiles: undefined,
+        })
       }
       setState({ phase: 'done', result })
     })

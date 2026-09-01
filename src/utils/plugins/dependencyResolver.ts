@@ -11,6 +11,7 @@
  *    unsatisfied deps (session-local, does NOT write settings)
  */
 
+import { coerce, satisfies, valid } from 'semver'
 import type { LoadedPlugin, PluginError } from '../../types/plugin.js'
 import type { EditableSettingSource } from '../settings/constants.js'
 import { getSettingsForSource } from '../settings/settings.js'
@@ -223,6 +224,38 @@ export function verifyAndDemote(plugins: readonly LoadedPlugin[]): {
           changed = true
           break
         }
+
+        const constraint = p.depConstraints?.[rawDep]?.version
+        if (!constraint) continue
+
+        const matchingDependency = plugins.find(candidate => {
+          if (!candidate.enabled || !enabled.has(candidate.source)) return false
+          return isBare
+            ? parsePluginIdentifier(candidate.source).name === dep
+            : candidate.source === dep
+        })
+        const installedVersion = matchingDependency?.manifest.version
+        const normalizedVersion = normalizePluginVersion(installedVersion)
+        const versionSatisfied =
+          normalizedVersion !== undefined &&
+          satisfies(normalizedVersion, constraint)
+
+        if (!versionSatisfied) {
+          enabled.delete(p.source)
+          const count = enabledByName.get(p.name) ?? 0
+          if (count <= 1) enabledByName.delete(p.name)
+          else enabledByName.set(p.name, count - 1)
+          errors.push({
+            type: 'dependency-version-unsatisfied',
+            source: p.source,
+            plugin: p.name,
+            dependency: dep,
+            required: constraint,
+            installed: installedVersion,
+          })
+          changed = true
+          break
+        }
       }
     }
   }
@@ -231,6 +264,48 @@ export function verifyAndDemote(plugins: readonly LoadedPlugin[]): {
     plugins.filter(p => p.enabled && !enabled.has(p.source)).map(p => p.source),
   )
   return { demoted, errors }
+}
+
+function normalizePluginVersion(version: string | undefined): string | undefined {
+  if (!version) return undefined
+  return valid(version) ?? coerce(version)?.version
+}
+
+export type ReverseDependencyConstraint = {
+  plugin: LoadedPlugin
+  constraint: { version?: string }
+}
+
+/**
+ * Return enabled reverse dependencies together with the version requirement
+ * they place on the target. Update operations use this to reject a candidate
+ * version that would break an already-enabled plugin.
+ */
+export function findReverseDependencyConstraints(
+  pluginId: PluginId,
+  plugins: readonly LoadedPlugin[],
+): ReverseDependencyConstraint[] {
+  const { name: targetName } = parsePluginIdentifier(pluginId)
+  const reverseDependencies: ReverseDependencyConstraint[] = []
+
+  for (const plugin of plugins) {
+    if (!plugin.enabled || plugin.source === pluginId) continue
+
+    for (const rawDependency of plugin.manifest.dependencies ?? []) {
+      const qualifiedDependency = qualifyDependency(rawDependency, plugin.source)
+      const matchesTarget = parsePluginIdentifier(qualifiedDependency).marketplace
+        ? qualifiedDependency === pluginId
+        : qualifiedDependency === targetName
+      if (!matchesTarget) continue
+
+      reverseDependencies.push({
+        plugin,
+        constraint: plugin.depConstraints?.[rawDependency] ?? {},
+      })
+    }
+  }
+
+  return reverseDependencies
 }
 
 /**

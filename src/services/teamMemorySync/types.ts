@@ -112,6 +112,7 @@ export type TeamMemorySyncPushResult = {
   error?: string
   /** Files skipped because they contain detected secrets (PSR M22174). */
   skippedSecrets?: SkippedSecretFile[]
+  filesSoftDeleted?: number
   errorType?:
     | 'auth'
     | 'timeout'

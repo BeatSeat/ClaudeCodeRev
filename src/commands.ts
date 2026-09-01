@@ -140,6 +140,7 @@ import agents from './commands/agents/index.js'
 import plugin from './commands/plugin/index.js'
 import reloadPlugins from './commands/reload-plugins/index.js'
 import rewind from './commands/rewind/index.js'
+import recap from './commands/recap/index.js'
 import heapDump from './commands/heapdump/index.js'
 import mockLimits from './commands/mock-limits/index.js'
 import bridgeKick from './commands/bridge-kick.js'
@@ -231,6 +232,8 @@ export { getCommandName, isCommandEnabled } from './types/command.js'
 
 // Commands that get eliminated from the external build
 export const INTERNAL_ONLY_COMMANDS = [
+  autocompact,
+  autocompactNonInteractive,
   backfillSessions,
   breakCache,
   bughunter,
@@ -317,6 +320,7 @@ const COMMANDS = memoize((): Command[] => [
   review,
   ultrareview,
   rewind,
+  recap,
   securityReview,
   terminalSetup,
   upgrade,
@@ -577,17 +581,16 @@ export const getSkillToolCommands = memoize(
     const allCommands = await getCommands(cwd)
     return allCommands.filter(
       cmd =>
+        // Official 2.1.108 knY: builtins like /init /review are Skill-invocable.
+        // sh8 skillOverrides is a stub that always returns "on" — do not gate.
         cmd.type === 'prompt' &&
         !cmd.disableModelInvocation &&
-        cmd.source !== 'builtin' &&
-        // Always include skills from /skills/ dirs, bundled skills, and legacy /commands/ entries
-        // (they all get an auto-derived description from the first line if frontmatter is missing).
-        // Plugin/MCP commands still require an explicit description to appear in the listing.
-        (cmd.loadedFrom === 'bundled' ||
+        (cmd.source === 'builtin' ||
+          cmd.loadedFrom === 'bundled' ||
           cmd.loadedFrom === 'skills' ||
           cmd.loadedFrom === 'commands_DEPRECATED' ||
           cmd.hasUserSpecifiedDescription ||
-          cmd.whenToUse),
+          !!cmd.whenToUse),
     )
   },
 )

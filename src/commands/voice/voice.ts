@@ -4,7 +4,6 @@ import { logEvent } from '../../services/analytics/index.js'
 import type { LocalCommandCall } from '../../types/command.js'
 import { isAnthropicAuthEnabled } from '../../utils/auth.js'
 import { getGlobalConfig, saveGlobalConfig } from '../../utils/config.js'
-import { settingsChangeDetector } from '../../utils/settings/changeDetector.js'
 import {
   getInitialSettings,
   updateSettingsForSource,
@@ -46,7 +45,6 @@ export const call: LocalCommandCall = async () => {
           'Failed to update settings. Check your settings file for syntax errors.',
       }
     }
-    settingsChangeDetector.notifyChange('userSettings')
     logEvent('tengu_voice_toggled', { enabled: false })
     return {
       type: 'text' as const,
@@ -120,7 +118,6 @@ export const call: LocalCommandCall = async () => {
         'Failed to update settings. Check your settings file for syntax errors.',
     }
   }
-  settingsChangeDetector.notifyChange('userSettings')
   logEvent('tengu_voice_toggled', { enabled: true })
   const key = getShortcutDisplay('voice:pushToTalk', 'Chat', 'Space')
   const stt = normalizeLanguageForSTT(currentSettings.language)

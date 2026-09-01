@@ -61,6 +61,8 @@ export type SideQueryOptions = {
   stop_sequences?: string[]
   /** Attributes this call in tengu_api_success for COGS joining against reporting.sampling_calls. */
   querySource: QuerySource
+  /** Official 2.1.90: spread CLAUDE_CODE_EXTRA_BODY (and caller extras) into the request. */
+  extraBodyParams?: Record<string, unknown>
 }
 
 /**
@@ -119,6 +121,7 @@ export async function sideQuery(opts: SideQueryOptions): Promise<BetaMessage> {
     temperature,
     thinking,
     stop_sequences,
+    extraBodyParams,
   } = opts
 
   const client = await getAnthropicClient({
@@ -193,6 +196,7 @@ export async function sideQuery(opts: SideQueryOptions): Promise<BetaMessage> {
       ...(thinkingConfig && { thinking: thinkingConfig }),
       ...(betas.length > 0 && { betas }),
       metadata: getAPIMetadata(),
+      ...extraBodyParams,
     },
     { signal },
   )

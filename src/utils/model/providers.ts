@@ -52,6 +52,48 @@ export function getAPIProvider(): APIProvider {
             : 'firstParty'
 }
 
+/**
+ * Official 94 OW8 / 108 ED8: when Bedrock is the env provider and Mantle is
+ * also on, overlay Mantle as a secondary provider (combo /status, dual-env
+ * unversioned anthropic.* IDs).
+ */
+export function getBedrockMantleOverlay(): 'mantle' | null {
+  return getAPIProvider() === 'bedrock' && isMantleEnabled() ? 'mantle' : null
+}
+
+/** Official 94 ID9 / 108 Zv9: unversioned `anthropic.*` (no `-vN` / `:N`). */
+function isUnversionedAnthropicModelId(model: string): boolean {
+  return model.startsWith('anthropic.') && !/-v\d+(:\d+)?$/.test(model)
+}
+
+/**
+ * Official 94 IJ / 108 aX: env provider, unless Bedrock+Mantle dual-env and
+ * the model is an unversioned `anthropic.*` ID (then Mantle).
+ */
+export function getAPIProviderForModel(model?: string): APIProvider {
+  if (model) {
+    const overlay = getBedrockMantleOverlay()
+    if (overlay === 'mantle' && isUnversionedAnthropicModelId(model)) {
+      return overlay
+    }
+  }
+  return getAPIProvider()
+}
+
+/**
+ * Official 94 ru / 108 iU: 1P-shaped capability routing (thinking +
+ * structured outputs). Foundry and Mantle follow 1P, not Bedrock-3P.
+ */
+export function isCapabilityApiFamily(
+  provider: APIProvider = getAPIProvider(),
+): boolean {
+  return (
+    isFirstPartyApiFamily(provider) ||
+    provider === 'foundry' ||
+    provider === 'mantle'
+  )
+}
+
 /** Model-config lookup key. Mantle reuses Bedrock model IDs. */
 export function getCloudProvider(): CloudProvider {
   const provider = getAPIProvider()

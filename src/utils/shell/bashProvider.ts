@@ -15,7 +15,6 @@ import {
 import { logForDebugging } from '../debug.js'
 import { getPlatform } from '../platform.js'
 import { getSessionEnvironmentScript } from '../sessionEnvironment.js'
-import { getSessionEnvVars } from '../sessionEnvVars.js'
 import {
   ensureSocketInitialized,
   getClaudeTmuxEnv,
@@ -169,7 +168,9 @@ export async function createBashShellProvider(
       // Source session environment variables captured from session start hooks
       const sessionEnvScript = await getSessionEnvironmentScript()
       if (sessionEnvScript) {
-        commandParts.push(sessionEnvScript)
+        // Official 2.1.108: a trailing `# comment` would comment out the
+        // rest of the `&&` chain (eval + pwd) and produce no output.
+        commandParts.push(`${sessionEnvScript}\n:`)
       }
 
       // Disable extended glob patterns for security (after sourcing user config to override)
@@ -207,6 +208,7 @@ export async function createBashShellProvider(
 
     async getEnvironmentOverrides(
       command: string,
+      sessionEnvVars?: ReadonlyMap<string, string>,
     ): Promise<Record<string, string>> {
       // TMUX SOCKET ISOLATION (DEFERRED):
       // We initialize Claude's tmux socket ONLY AFTER the Tmux tool has been used
@@ -248,7 +250,7 @@ export async function createBashShellProvider(
         env.TMPPREFIX = posixJoin(posixTmpDir, 'zsh')
       }
       // Apply session env vars set via /env (child processes only, not the REPL)
-      for (const [key, value] of getSessionEnvVars()) {
+      for (const [key, value] of sessionEnvVars ?? []) {
         env[key] = value
       }
       return env

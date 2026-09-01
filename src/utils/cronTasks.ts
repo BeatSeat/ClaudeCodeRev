@@ -343,16 +343,26 @@ export type CronJitterConfig = {
    * `0` = unlimited (tasks never auto-expire).
    */
   recurringMaxAgeMs: number
+  /**
+   * Lead time used for five-minute step crons. Pulling these wakeups just
+   * ahead of the prompt-cache boundary avoids paying a full cache rebuild
+   * when scheduler overhead would otherwise land immediately after it.
+   */
+  cacheLeadMs: number
 }
 
 export const DEFAULT_CRON_JITTER_CONFIG: CronJitterConfig = {
-  recurringFrac: 0.1,
-  recurringCapMs: 15 * 60 * 1000,
+  recurringFrac: 0.5,
+  recurringCapMs: 30 * 60 * 1000,
   oneShotMaxMs: 90 * 1000,
   oneShotFloorMs: 0,
   oneShotMinuteMod: 30,
   recurringMaxAgeMs: 7 * 24 * 60 * 60 * 1000,
+  cacheLeadMs: 15 * 1000,
 }
+
+const PROMPT_CACHE_BOUNDARY_MS = 5 * 60 * 1000
+const STEP_MINUTE_CRON_REGEX = /^\*\/\d+ \* \* \* \*$/
 
 /**
  * taskId is an 8-hex-char UUID slice (see {@link addCronTask}) → parse as
@@ -390,8 +400,18 @@ export function jitteredNextCronRunMs(
   // No second match in the next year (e.g. pinned date) → nothing to
   // proportion against, and near-certainly not a herd risk. Fire on t1.
   if (t2 === null) return t1
+  const intervalMs = t2 - t1
+  if (
+    STEP_MINUTE_CRON_REGEX.test(cron) &&
+    cfg.cacheLeadMs > 0 &&
+    cfg.cacheLeadMs < intervalMs &&
+    intervalMs >= PROMPT_CACHE_BOUNDARY_MS &&
+    intervalMs - cfg.cacheLeadMs < PROMPT_CACHE_BOUNDARY_MS
+  ) {
+    return fromMs + intervalMs - cfg.cacheLeadMs
+  }
   const jitter = Math.min(
-    jitterFrac(taskId) * cfg.recurringFrac * (t2 - t1),
+    jitterFrac(taskId) * cfg.recurringFrac * intervalMs,
     cfg.recurringCapMs,
   )
   return t1 + jitter

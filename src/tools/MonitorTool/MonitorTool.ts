@@ -259,6 +259,7 @@ async function startMonitor(
     preventCwdChanges: true,
     shouldUseSandbox: shouldUseSandbox({ command }),
     onStdout: lineBuffer.onData,
+    sessionEnvVars: context.sessionEnvVars,
   })
 
   const handle = await spawnShellTask(

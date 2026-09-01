@@ -24,7 +24,14 @@ import { logForDebugging } from '../../utils/debug.js'
 import type { ToolUseContext } from '../../Tool.js'
 import { logEvent } from '../analytics/index.js'
 import { getFeatureValue_CACHED_MAY_BE_STALE } from '../analytics/growthbook.js'
+import { feature } from 'bun:bundle'
 import { isAutoMemoryEnabled, getAutoMemPath } from '../../memdir/paths.js'
+
+/* eslint-disable @typescript-eslint/no-require-imports */
+const teamMemPaths = feature('TEAMMEM')
+  ? (require('../../memdir/teamMemPaths.js') as typeof import('../../memdir/teamMemPaths.js'))
+  : null
+/* eslint-enable @typescript-eslint/no-require-imports */
 import { isAutoDreamEnabled } from './config.js'
 import { getProjectDir } from '../../utils/sessionStorage.js'
 import {
@@ -48,6 +55,7 @@ import {
   failDreamTask,
   isDreamTask,
 } from '../../tasks/DreamTask/DreamTask.js'
+import { BASH_TOOL_NAME } from '../../tools/BashTool/toolName.js'
 import { FILE_EDIT_TOOL_NAME } from '../../tools/FileEditTool/constants.js'
 import { FILE_WRITE_TOOL_NAME } from '../../tools/FileWriteTool/prompt.js'
 
@@ -223,11 +231,16 @@ export function initAutoDream(): void {
       // would be misleading there.
       const extra = `
 
-**Tool constraints for this run:** Bash is restricted to read-only commands (\`ls\`, \`find\`, \`grep\`, \`cat\`, \`stat\`, \`wc\`, \`head\`, \`tail\`, and similar). Anything that writes, redirects to a file, or modifies state will be denied. Plan your exploration with this in mind — no need to probe.
+**Tool constraints for this run:** Bash is restricted to read-only commands (\`ls\`, \`find\`, \`grep\`, \`cat\`, \`stat\`, \`wc\`, \`head\`, \`tail\`, and similar) plus \`rm\` for \`.md\` paths inside the memory directory. Anything else that writes, redirects to a file, or modifies state will be denied. Plan your exploration with this in mind — no need to probe.
 
 Sessions since last consolidation (${sessionIds.length}):
 ${sessionIds.map(id => `- ${id}`).join('\n')}`
-      const prompt = buildConsolidationPrompt(memoryRoot, transcriptDir, extra)
+      const prompt = buildConsolidationPrompt(
+        memoryRoot,
+        transcriptDir,
+        extra,
+        Boolean(teamMemPaths?.isTeamMemoryEnabled()),
+      )
 
       const result = await runForkedAgent({
         promptMessages: [createUserMessage({ content: prompt })],
@@ -283,8 +296,9 @@ ${sessionIds.map(id => `- ${id}`).join('\n')}`
 /**
  * Watch the forked agent's messages. For each assistant turn, extracts any
  * text blocks (the agent's reasoning/summary — what the user wants to see)
- * and collapses tool_use blocks to a count. Edit/Write file_paths are
- * collected for phase-flip + the inline completion message.
+ * and collapses tool_use blocks to a count. Edit/Write file_paths and Bash
+ * `rm` of `.md` paths are collected for phase-flip + the inline completion
+ * message.
  */
 function makeDreamProgressWatcher(
   taskId: string,
@@ -307,6 +321,16 @@ function makeDreamProgressWatcher(
           const input = block.input as { file_path?: unknown }
           if (typeof input.file_path === 'string') {
             touchedPaths.push(input.file_path)
+          }
+        } else if (block.name === BASH_TOOL_NAME) {
+          const input = block.input as { command?: unknown }
+          if (
+            typeof input.command === 'string' &&
+            /^\s*rm\b/.test(input.command)
+          ) {
+            for (const match of input.command.matchAll(/\/\S+\.md\b/g)) {
+              touchedPaths.push(match[0])
+            }
           }
         }
       }

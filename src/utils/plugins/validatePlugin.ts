@@ -465,14 +465,31 @@ export async function validateMarketplaceManifest(
           'plugin.json',
         )
         let manifestVersion: string | undefined
+        let manifestContents: string
         try {
-          const raw = await readFile(pluginJsonPath, { encoding: 'utf-8' })
-          const parsed = jsonParse(raw) as { version?: unknown }
+          manifestContents = await readFile(pluginJsonPath, {
+            encoding: 'utf-8',
+          })
+        } catch (error) {
+          const errorCode = getErrnoCode(error)
+          if (errorCode === 'ENOENT' || errorCode === 'ENOTDIR') continue
+          warnings.push({
+            path: `plugins[${i}].source`,
+            message: `Could not read ${path.relative(marketplaceRoot, pluginJsonPath)} for version cross-check: ${errorMessage(error)}`,
+          })
+          continue
+        }
+
+        try {
+          const parsed = jsonParse(manifestContents) as { version?: unknown }
           if (typeof parsed.version === 'string') {
             manifestVersion = parsed.version
           }
-        } catch {
-          // Missing/unreadable plugin.json is someone else's error to report
+        } catch (error) {
+          warnings.push({
+            path: `plugins[${i}].source`,
+            message: `Could not parse ${path.relative(marketplaceRoot, pluginJsonPath)} for version cross-check: ${errorMessage(error)}`,
+          })
           continue
         }
         if (manifestVersion && manifestVersion !== entry.version) {
@@ -821,7 +838,8 @@ export async function validateManifest(
   try {
     stats = await stat(absolutePath)
   } catch (e: unknown) {
-    if (!isENOENT(e)) {
+    const errorCode = getErrnoCode(e)
+    if (errorCode !== 'ENOENT' && errorCode !== 'ENOTDIR') {
       throw e
     }
   }
@@ -836,13 +854,19 @@ export async function validateManifest(
     )
     const marketplaceResult = await validateMarketplaceManifest(marketplacePath)
     // Only fall through if the marketplace file was not found (ENOENT)
-    if (marketplaceResult.errors[0]?.code !== 'ENOENT') {
+    if (
+      marketplaceResult.errors[0]?.code !== 'ENOENT' &&
+      marketplaceResult.errors[0]?.code !== 'ENOTDIR'
+    ) {
       return marketplaceResult
     }
 
     const pluginPath = path.join(absolutePath, '.claude-plugin', 'plugin.json')
     const pluginResult = await validatePluginManifest(pluginPath)
-    if (pluginResult.errors[0]?.code !== 'ENOENT') {
+    if (
+      pluginResult.errors[0]?.code !== 'ENOENT' &&
+      pluginResult.errors[0]?.code !== 'ENOTDIR'
+    ) {
       return pluginResult
     }
 

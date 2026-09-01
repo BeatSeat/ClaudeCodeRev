@@ -83,6 +83,20 @@ import { clearToolSchemaCache } from './toolSchemaCache.js'
 /** Default TTL for API key helper cache in milliseconds (5 minutes) */
 const DEFAULT_API_KEY_HELPER_TTL = 5 * 60 * 1000
 
+export const SDK_OAUTH_REFRESH_ENTRYPOINTS = new Set([
+  'claude-desktop',
+  'local-agent',
+  'claude-vscode',
+])
+
+let sdkOAuthTokenRefreshCallback: (() => Promise<string | null>) | null = null
+
+export function setSdkOAuthTokenRefreshCallback(
+  callback: (() => Promise<string | null>) | null,
+): void {
+  sdkOAuthTokenRefreshCallback = callback
+}
+
 /**
  * CCR and Claude Desktop spawn the CLI with OAuth and should never fall back
  * to the user's ~/.claude/settings.json API-key config (apiKeyHelper,
@@ -1395,6 +1409,34 @@ async function handleOAuth401ErrorImpl(
   clearOAuthTokenCache()
   const currentTokens = await getClaudeAIOAuthTokensAsync()
 
+  if (!currentTokens?.refreshToken && sdkOAuthTokenRefreshCallback) {
+    try {
+      const refreshedAccessToken = await sdkOAuthTokenRefreshCallback()
+      if (
+        refreshedAccessToken &&
+        refreshedAccessToken !== failedAccessToken
+      ) {
+        process.env.CLAUDE_CODE_OAUTH_TOKEN = refreshedAccessToken
+        clearOAuthTokenCache()
+        logEvent('tengu_oauth_401_sdk_callback_refreshed', {})
+        return true
+      }
+      logForDebugging(
+        refreshedAccessToken === null
+          ? 'SDK getOAuthToken callback returned null (no token available)'
+          : 'SDK getOAuthToken callback returned the same expired token; treating as no refresh',
+        { level: refreshedAccessToken === null ? 'debug' : 'error' },
+      )
+      return false
+    } catch (error) {
+      logForDebugging(
+        `SDK getOAuthToken callback failed: ${errorMessage(error)}`,
+        { level: 'error' },
+      )
+      return false
+    }
+  }
+
   if (!currentTokens?.refreshToken) {
     return false
   }
@@ -1996,7 +2038,7 @@ export async function validateForceLoginOrg(): Promise<OrgValidationResult> {
         `different organization than required by this machine's managed settings.\n\n` +
         `Required organization: ${requiredOrgUuid}\n` +
         `Token organization:   ${tokenOrgUuid}\n\n` +
-        `Remove the environment variable or obtain a token for the correct organization.`,
+        `Remove the environment variable or obtain a token for a permitted organization.`,
     }
   }
 
@@ -2005,7 +2047,7 @@ export async function validateForceLoginOrg(): Promise<OrgValidationResult> {
     message:
       `Your authentication token belongs to organization ${tokenOrgUuid},\n` +
       `but this machine requires organization ${requiredOrgUuid}.\n\n` +
-      `Please log in with the correct organization: claude auth login`,
+      `Please log in with a permitted organization: claude auth login`,
   }
 }
 
