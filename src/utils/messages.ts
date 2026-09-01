@@ -1037,7 +1037,8 @@ function isHookAttachmentMessage(
       message.attachment.type === 'hook_success' ||
       message.attachment.type === 'hook_system_message' ||
       message.attachment.type === 'hook_additional_context' ||
-      message.attachment.type === 'hook_stopped_continuation')
+      message.attachment.type === 'hook_stopped_continuation' ||
+      message.attachment.type === 'hook_deferred_tool')
   )
 }
 
@@ -2792,7 +2793,10 @@ export function getToolUseID(message: NormalizedMessage): string | null {
   }
 }
 
-export function filterUnresolvedToolUses(messages: Message[]): Message[] {
+export function filterUnresolvedToolUses(
+  messages: Message[],
+  keepToolUseIds?: Set<string>,
+): Message[] {
   // Collect all tool_use IDs and tool_result IDs directly from message content blocks.
   // This avoids calling normalizeMessages() which generates new UUIDs — if those
   // normalized messages were returned and later recorded to the transcript JSONL,
@@ -2816,7 +2820,9 @@ export function filterUnresolvedToolUses(messages: Message[]): Message[] {
   }
 
   const unresolvedIds = new Set(
-    [...toolUseIds].filter(id => !toolResultIds.has(id)),
+    [...toolUseIds].filter(
+      id => !toolResultIds.has(id) && !keepToolUseIds?.has(id),
+    ),
   )
 
   if (unresolvedIds.size === 0) {
@@ -4258,6 +4264,7 @@ You have exited auto mode. The user may now want to interact more directly. You 
     case 'hook_system_message':
     case 'structured_output':
     case 'hook_permission_decision':
+    case 'hook_deferred_tool':
       return []
   }
 

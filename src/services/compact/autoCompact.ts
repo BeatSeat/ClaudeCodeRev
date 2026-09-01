@@ -4,8 +4,12 @@ import { getSdkBetas } from '../../bootstrap/state.js'
 import type { QuerySource } from '../../constants/querySource.js'
 import type { ToolUseContext } from '../../Tool.js'
 import type { Message } from '../../types/message.js'
+import {
+  resolveAutoCompactWindow,
+} from '../../utils/autoCompactWindow.js'
 import { getGlobalConfig } from '../../utils/config.js'
 import { getContextWindowForModel } from '../../utils/context.js'
+import { getInitialSettings } from '../../utils/settings/settings.js'
 import { logForDebugging } from '../../utils/debug.js'
 import { isEnvTruthy } from '../../utils/envUtils.js'
 import { hasExactErrorMessage } from '../../utils/errors.js'
@@ -35,15 +39,15 @@ export function getEffectiveContextWindowSize(model: string): number {
     getMaxOutputTokensForModel(model),
     MAX_OUTPUT_TOKENS_FOR_SUMMARY,
   )
-  let contextWindow = getContextWindowForModel(model, getSdkBetas())
-
-  const autoCompactWindow = process.env.CLAUDE_CODE_AUTO_COMPACT_WINDOW
-  if (autoCompactWindow) {
-    const parsed = parseInt(autoCompactWindow, 10)
-    if (!isNaN(parsed) && parsed > 0) {
-      contextWindow = Math.min(contextWindow, parsed)
-    }
-  }
+  const modelWindow = getContextWindowForModel(model, getSdkBetas())
+  // Official 2.1.89 j56/Md: env > settings (only when autocompact is on) > model
+  const settingsWindow = isAutoCompactEnabled()
+    ? getInitialSettings().autoCompactWindow
+    : undefined
+  const { window: contextWindow } = resolveAutoCompactWindow(
+    modelWindow,
+    settingsWindow,
+  )
 
   return contextWindow - reservedTokensForSummary
 }
@@ -57,6 +61,8 @@ export type AutoCompactTrackingState = {
   // Used as a circuit breaker to stop retrying when the context is
   // irrecoverably over the limit (e.g., prompt_too_long).
   consecutiveFailures?: number
+  // Consecutive compact→refill cycles that refilled within RAPID_REFILL_TURNS.
+  consecutiveRapidRefills?: number
 }
 
 export const AUTOCOMPACT_BUFFER_TOKENS = 13_000
@@ -68,6 +74,13 @@ export const MANUAL_COMPACT_BUFFER_TOKENS = 3_000
 // BQ 2026-03-10: 1,279 sessions had 50+ consecutive failures (up to 3,272)
 // in a single session, wasting ~250K API calls/day globally.
 const MAX_CONSECUTIVE_AUTOCOMPACT_FAILURES = 3
+
+// Compact then refill to the limit within this many turns, this many times
+// in a row → stop and tell the user a file/tool output is too large.
+const RAPID_REFILL_TURNS = 3
+const RAPID_REFILL_STREAK = 3
+
+export const AUTOCOMPACT_THRASH_MESSAGE = `Autocompact is thrashing: the context refilled to the limit within ${RAPID_REFILL_TURNS} turns of the previous compact, ${RAPID_REFILL_STREAK} times in a row. A file being read or a tool output is likely too large for the context window. Try reading in smaller chunks, or use /clear to start fresh.`
 
 export function getAutoCompactThreshold(model: string): number {
   const effectiveContextWindow = getEffectiveContextWindowSize(model)
@@ -249,6 +262,8 @@ export async function autoCompactIfNeeded(
   wasCompacted: boolean
   compactionResult?: CompactionResult
   consecutiveFailures?: number
+  consecutiveRapidRefills?: number
+  rapidRefillBreakerTripped?: boolean
 }> {
   if (isEnvTruthy(process.env.DISABLE_COMPACT)) {
     return { wasCompacted: false }
@@ -274,6 +289,18 @@ export async function autoCompactIfNeeded(
 
   if (!shouldCompact) {
     return { wasCompacted: false }
+  }
+
+  const consecutiveRapidRefills =
+    tracking?.compacted === true && tracking.turnCounter < RAPID_REFILL_TURNS
+      ? (tracking.consecutiveRapidRefills ?? 0) + 1
+      : 0
+  if (consecutiveRapidRefills >= RAPID_REFILL_STREAK) {
+    logForDebugging(
+      `autocompact: rapid-refill breaker tripped — ${consecutiveRapidRefills} consecutive refills within <${RAPID_REFILL_TURNS} turns each (last was ${tracking?.turnCounter} turns)`,
+      { level: 'warn' },
+    )
+    return { wasCompacted: false, rapidRefillBreakerTripped: true }
   }
 
   const recompactionInfo: RecompactionInfo = {
@@ -306,6 +333,7 @@ export async function autoCompactIfNeeded(
     return {
       wasCompacted: true,
       compactionResult: sessionMemoryResult,
+      consecutiveRapidRefills,
     }
   }
 
@@ -330,6 +358,7 @@ export async function autoCompactIfNeeded(
       compactionResult,
       // Reset failure count on success
       consecutiveFailures: 0,
+      consecutiveRapidRefills,
     }
   } catch (error) {
     if (!hasExactErrorMessage(error, ERROR_MESSAGE_USER_ABORT)) {

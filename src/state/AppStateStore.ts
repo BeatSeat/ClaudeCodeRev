@@ -425,6 +425,8 @@ export type AppState = DeepImmutable<{
   advisorModel?: string
   // Effort value
   effortValue?: EffortValue
+  // Official 2.1.89 /autocompact — session copy of settings.autoCompactWindow
+  autoCompactWindow?: number
   // Set synchronously in launchUltraplan before the detached flow starts.
   // Prevents duplicate launches during the ~5s window before
   // ultraplanSessionUrl is set by teleportToRemote. Cleared by launchDetached
@@ -563,6 +565,7 @@ export function getDefaultAppState(): AppState {
     authVersion: 0,
     initialMessage: null,
     effortValue: undefined,
+    autoCompactWindow: getInitialSettings().autoCompactWindow,
     activeOverlays: new Set<string>(),
     fastMode: false,
   }

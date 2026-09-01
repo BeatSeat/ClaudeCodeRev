@@ -66,6 +66,7 @@ import {
 } from 'src/utils/process.js'
 import type { Stream } from 'src/utils/stream.js'
 import { EMPTY_USAGE } from 'src/services/api/logging.js'
+import type { HookDeferredToolAttachment } from 'src/utils/attachments.js'
 import {
   loadConversationForResume,
   type TurnInterruptionState,
@@ -683,6 +684,7 @@ export async function runHeadless(
     messages: initialMessages,
     turnInterruptionState,
     agentSetting: resumedAgentSetting,
+    deferredToolUse,
   } = await loadInitialMessages(setAppState, {
     continue: options.continue,
     teleport: options.teleport,
@@ -874,6 +876,7 @@ export async function runHeadless(
     agents,
     options,
     turnInterruptionState,
+    deferredToolUse,
   )) {
     if (transformToStreamlined) {
       // Streamlined mode: transform messages and stream immediately
@@ -1006,7 +1009,9 @@ function runHeadlessStreaming(
     workload?: string | undefined
   },
   turnInterruptionState?: TurnInterruptionState,
+  deferredToolUse?: HookDeferredToolAttachment,
 ): AsyncIterable<StdoutMessage> {
+  let pendingDeferredToolUse = deferredToolUse
   let running = false
   let runPhase:
     | 'draining_commands'
@@ -2198,6 +2203,7 @@ function runHeadlessStreaming(
                 ),
               agents: currentAgents,
               orphanedPermission: cmd.orphanedPermission,
+              deferredToolUse: pendingDeferredToolUse,
               setSDKStatus: status => {
                 output.enqueue({
                   type: 'system',
@@ -2243,6 +2249,7 @@ function runHeadlessStreaming(
                 output.enqueue(message)
               }
             }
+            pendingDeferredToolUse = undefined
           }) // end runWithWorkload
 
           for (const uuid of batchUuids) {
@@ -4888,6 +4895,7 @@ type LoadInitialMessagesResult = {
   messages: Message[]
   turnInterruptionState?: TurnInterruptionState
   agentSetting?: string
+  deferredToolUse?: HookDeferredToolAttachment
 }
 
 async function loadInitialMessages(
@@ -4976,6 +4984,7 @@ async function loadInitialMessages(
           messages: result.messages,
           turnInterruptionState: result.turnInterruptionState,
           agentSetting: result.agentSetting,
+          deferredToolUse: result.deferredToolUse,
         }
       }
     } catch (error) {
@@ -5174,6 +5183,7 @@ async function loadInitialMessages(
         messages: result.messages,
         turnInterruptionState: result.turnInterruptionState,
         agentSetting: result.agentSetting,
+        deferredToolUse: result.deferredToolUse,
       }
     } catch (error) {
       logError(error)

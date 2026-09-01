@@ -101,8 +101,8 @@ const FEATURE_FLAGS: Record<string, boolean> = {
   BYOC_ENVIRONMENT_RUNNER: isDev,
   CHICAGO_MCP: isDev,
   WEB_BROWSER_TOOL: isDev,
-  VOICE_MODE: isDev,
-  BUDDY: isDev,
+  VOICE_MODE: true,
+  BUDDY: true,
   KAIROS: isDev,
   KAIROS_BRIEF: isDev,
   KAIROS_CHANNELS: isDev,
@@ -164,17 +164,39 @@ const MACROS: Record<string, string> = {
  * Bun plugin that intercepts `bun:bundle` imports and replaces feature()
  * calls with boolean literals for dead code elimination.
  */
+function featureCallLoader(path: string): 'tsx' | 'ts' | 'jsx' | 'js' {
+  if (path.endsWith('.tsx')) return 'tsx'
+  if (path.endsWith('.jsx')) return 'jsx'
+  if (path.endsWith('.ts')) return 'ts'
+  return 'js'
+}
+
 const bunBundlePlugin: import('bun').BunPlugin = {
   name: 'bun-bundle-shim',
   setup(build) {
-    // Provide a virtual module for `bun:bundle`
+    // Fold feature('FLAG') to a boolean literal in source so Bun DCE can
+    // keep or drop `feature('X') ? require(...)` at bundle time.
+    build.onLoad({ filter: /\.(tsx?|jsx?)$/ }, async args => {
+      const normalized = args.path.replace(/\\/g, '/')
+      if (normalized.includes('/node_modules/')) return
+      let contents = await Bun.file(args.path).text()
+      if (contents.includes('feature(')) {
+        contents = contents.replace(
+          /\bfeature\((['"])([^'"]+)\1\)/g,
+          (_match, _quote, flag) => String(Boolean(FEATURE_FLAGS[flag])),
+        )
+      }
+      return { contents, loader: featureCallLoader(args.path) }
+    })
+
+    // Provide a virtual module for leftover `import { feature } from 'bun:bundle'`
     build.onResolve({ filter: /^bun:bundle$/ }, () => ({
       path: 'bun:bundle',
       namespace: 'bun-bundle-shim',
     }))
 
     build.onLoad({ filter: /.*/, namespace: 'bun-bundle-shim' }, () => ({
-      contents: `export function feature(name) { return false; }`,
+      contents: `export function feature(_name) { return false; }`,
       loader: 'js',
     }))
   },
@@ -213,6 +235,7 @@ async function main() {
     // Externalize Node builtins (they're loaded via createRequire at runtime)
     external: [
       'bun:ffi',  // guarded by typeof Bun at runtime
+      'audio-capture-napi', // optional native mic; loaded on first voice keypress
     ],
   })
 

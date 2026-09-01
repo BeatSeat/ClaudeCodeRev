@@ -1,0 +1,269 @@
+{
+  "version": "2.1.89",
+  "fromVersion": "2.1.88",
+  "expectedFunctionCount": 0,
+  "functions": [],
+  "changelogCoverage": [
+    {
+      "item": "Added `\"defer\"` permission decision to `PreToolUse` hooks \u2014 headless sessions can pause at a tool call and resume with `-p --resume` to have the hook re-evaluate",
+      "status": "located",
+      "evidence": "src/services/tools/toolExecution.ts + hooks.ts permissionDecision defer; conversationRecovery last hook_deferred_tool"
+    },
+    {
+      "item": "Added `CLAUDE_CODE_NO_FLICKER=1` environment variable to opt into flicker-free alt-screen rendering with virtualized scrollback",
+      "status": "located",
+      "evidence": "src/utils/fullscreen.ts + FullscreenLayout/REPL CLAUDE_CODE_NO_FLICKER"
+    },
+    {
+      "item": "Added `PermissionDenied` hook that fires after auto mode classifier denials \u2014 return `{retry: true}` to tell the model it can retry",
+      "status": "located",
+      "evidence": "src/utils/hooks.ts executePermissionDeniedHooks; toolExecution.ts retry copy"
+    },
+    {
+      "item": "Added named subagents to `@` mention typeahead suggestions",
+      "status": "located",
+      "evidence": "src/hooks/unifiedSuggestions.ts named subagent @ mentions"
+    },
+    {
+      "item": "Added `MCP_CONNECTION_NONBLOCKING=true` for `-p` mode to skip the MCP connection wait entirely, and bounded `--mcp-config` server connections at 5s instead of blocking on the slowest server",
+      "status": "located",
+      "evidence": "src/main.tsx + src/cli/print.ts mcpNonBlocking"
+    },
+    {
+      "item": "Auto mode: denied commands now show a notification and appear in `/permissions` \u2192 Recent tab where you can retry with `r`",
+      "status": "located",
+      "evidence": "src/commands/permissions + auto mode denial notification already in tree"
+    },
+    {
+      "item": "Fixed `Edit(//path/**)` and `Read(//path/**)` allow rules to check the resolved symlink target, not just the requested path",
+      "status": "located",
+      "evidence": "symlink target check already in permission/file tools"
+    },
+    {
+      "item": "Fixed voice push-to-talk not activating for some modifier-combo bindings, and voice mode on Windows failing with \"WebSocket upgrade rejected with HTTP 101\"",
+      "status": "located",
+      "evidence": "voice keybinding + Windows 101 already in voice stack"
+    },
+    {
+      "item": "Fixed Edit/Write tools doubling CRLF on Windows and stripping Markdown hard line breaks (two trailing spaces)",
+      "status": "located",
+      "evidence": "Edit/Write line-ending handling already in tree"
+    },
+    {
+      "item": "Fixed `StructuredOutput` schema cache bug causing ~50% failure rate when using multiple schemas",
+      "status": "located",
+      "evidence": "schema cache already in tree"
+    },
+    {
+      "item": "Fixed memory leak where large JSON inputs were retained as LRU cache keys in long-running sessions",
+      "status": "located",
+      "evidence": "JSON LRU key leak already addressed in tree"
+    },
+    {
+      "item": "Fixed a crash when removing a message from very large session files (over 50MB)",
+      "status": "located",
+      "evidence": "src/utils/conversationRecovery.ts large-session message remove"
+    },
+    {
+      "item": "Fixed LSP server zombie state after crash \u2014 server now restarts on next request instead of failing until session restart",
+      "status": "located",
+      "evidence": "LSP restart-on-next-request already in tree"
+    },
+    {
+      "item": "Fixed prompt history entries containing CJK or emoji being silently dropped when they fall on a 4KB boundary in `~/.claude/history.jsonl`",
+      "status": "located",
+      "evidence": "CJK/emoji 4KB boundary already in history writer"
+    },
+    {
+      "item": "Fixed `/stats` undercounting tokens by excluding subagent usage, and losing historical data beyond 30 days when the stats cache format changes",
+      "status": "located",
+      "evidence": "src/commands/stats + statsCache subagent + format-change retain"
+    },
+    {
+      "item": "Fixed `-p --resume` hangs when the deferred tool input exceeds 64KB or no deferred marker exists, and `-p --continue` not resuming deferred tools",
+      "status": "located",
+      "evidence": "src/services/tools/toolExecution.ts + hooks.ts permissionDecision defer; conversationRecovery last hook_deferred_tool"
+    },
+    {
+      "item": "Fixed `claude-cli://` deep links not opening on macOS",
+      "status": "located",
+      "evidence": "src/utils/deepLink/registerProtocol.ts Auto-registered claude-cli://"
+    },
+    {
+      "item": "Fixed MCP tool errors truncating to only the first content block when the server returns multi-element error content",
+      "status": "located",
+      "evidence": "multi-element error content already joined in MCP tool path"
+    },
+    {
+      "item": "Fixed skill reminders and other system context being dropped when sending messages with images via the SDK",
+      "status": "located",
+      "evidence": "src/utils/attachments.ts + messages.ts image+system context"
+    },
+    {
+      "item": "Fixed PreToolUse/PostToolUse hooks to receive `file_path` as an absolute path for Write/Edit/Read tools, matching the documented behavior",
+      "status": "located",
+      "evidence": "hooks receive absolute file_path for Write/Edit/Read"
+    },
+    {
+      "item": "Fixed autocompact thrash loop \u2014 now detects when context refills to the limit immediately after compacting three times in a row and stops with an actionable error instead of burning API calls",
+      "status": "located",
+      "evidence": "src/services/compact/autoCompact.ts rapid-refill breaker + AUTOCOMPACT_THRASH_MESSAGE; /autocompact command official tTK/eTK + settings.autoCompactWindow (astdiff-only, not in changelog)"
+    },
+    {
+      "item": "Fixed prompt cache misses in long sessions caused by tool schema bytes changing mid-session",
+      "status": "located",
+      "evidence": "src/utils/toolSchemaCache.ts + api.ts mid-session schema latch"
+    },
+    {
+      "item": "Fixed nested CLAUDE.md files being re-injected dozens of times in long sessions that read many files",
+      "status": "located",
+      "evidence": "nested CLAUDE.md re-inject guard already in tree"
+    },
+    {
+      "item": "Fixed `--resume` crash when transcript contains a tool result from an older CLI version or interrupted write",
+      "status": "located",
+      "evidence": "conversationRecovery older tool_result / interrupted write"
+    },
+    {
+      "item": "Fixed misleading \"Rate limit reached\" message when the API returned an entitlement error \u2014 now shows the actual error with actionable hints",
+      "status": "located",
+      "evidence": "src/services/api/errors.ts entitlement vs rate-limit copy"
+    },
+    {
+      "item": "Fixed hooks `if` condition filtering not matching compound commands (`ls && git push`) or commands with env-var prefixes (`FOO=bar git push`)",
+      "status": "located",
+      "evidence": "src/utils/hooks.ts compound/env-prefix matcher"
+    },
+    {
+      "item": "Fixed collapsed search/read group badges duplicating in terminal scrollback during heavy parallel tool use",
+      "status": "located",
+      "evidence": "src/utils/collapseReadSearch.ts badge dedup"
+    },
+    {
+      "item": "Fixed notification `invalidates` not clearing the currently-displayed notification immediately",
+      "status": "located",
+      "evidence": "notification invalidates clears current immediately"
+    },
+    {
+      "item": "Fixed prompt briefly disappearing after submit when background messages arrived during processing",
+      "status": "located",
+      "evidence": "PromptInput submit vs background message race already in tree"
+    },
+    {
+      "item": "Fixed Devanagari and other combining-mark text being truncated in assistant output",
+      "status": "located",
+      "evidence": "combining-mark width already in render path"
+    },
+    {
+      "item": "Fixed rendering artifacts on main-screen terminals after layout shifts",
+      "status": "located",
+      "evidence": "main-screen layout-shift already in tree"
+    },
+    {
+      "item": "Fixed voice mode failing to request microphone permission on macOS Apple Silicon",
+      "status": "located",
+      "evidence": "voice macOS Apple Silicon permission already in tree"
+    },
+    {
+      "item": "Fixed Shift+Enter submitting instead of inserting a newline on Windows Terminal Preview 1.25",
+      "status": "located",
+      "evidence": "Windows Terminal Preview 1.25 newline already in tree"
+    },
+    {
+      "item": "Fixed periodic UI jitter during streaming in iTerm2 when running inside tmux",
+      "status": "located",
+      "evidence": "src/utils/fullscreen.ts tmux -CC / iTerm2 jitter guard"
+    },
+    {
+      "item": "Fixed PowerShell tool incorrectly reporting failures when commands like `git push` wrote progress to stderr on Windows PowerShell 5.1",
+      "status": "located",
+      "evidence": "PowerShell stderr progress not treated as failure"
+    },
+    {
+      "item": "Fixed a potential out-of-memory crash when the Edit tool was used on very large files (>1 GiB)",
+      "status": "located",
+      "evidence": "Edit large-file OOM guard already in tree"
+    },
+    {
+      "item": "Improved collapsed tool summary to show \"Listed N directories\" for `ls`/`tree`/`du` instead of \"Read N files\"",
+      "status": "located",
+      "evidence": "src/tools/BashTool + collapseReadSearch Listed N directories"
+    },
+    {
+      "item": "Improved Bash tool to warn when a formatter/linter command modifies files you have previously read, preventing stale-edit errors",
+      "status": "located",
+      "evidence": "src/tools/BashTool/seedReadFileState.ts stale-edit warning"
+    },
+    {
+      "item": "Improved `@`-mention typeahead to rank source files above MCP resources with similar names",
+      "status": "located",
+      "evidence": "src/hooks/unifiedSuggestions.ts source files ranked above MCP"
+    },
+    {
+      "item": "Improved PowerShell tool prompt with version-appropriate syntax guidance (5.1 vs 7+)",
+      "status": "located",
+      "evidence": "PowerShell 5.1 vs 7+ prompt already in tree"
+    },
+    {
+      "item": "Changed `Edit` to work on files viewed via `Bash` with `sed -n` or `cat`, without requiring a separate `Read` call first",
+      "status": "located",
+      "evidence": "src/tools/BashTool/seedReadFileState.ts Edit after cat/sed"
+    },
+    {
+      "item": "Changed hook output over 50K characters to be saved to disk with a file path + preview instead of being injected directly into context",
+      "status": "located",
+      "evidence": "hook output persisted to disk over 50K"
+    },
+    {
+      "item": "Changed `cleanupPeriodDays: 0` in settings.json to be rejected with a validation error \u2014 it previously silently disabled transcript persistence",
+      "status": "located",
+      "evidence": "src/utils/settings/types.ts + validationTips.ts reject 0"
+    },
+    {
+      "item": "Changed thinking summaries to no longer be generated by default in interactive sessions \u2014 set `showThinkingSummaries: true` in settings.json to restore",
+      "status": "located",
+      "evidence": "src/utils/betas.ts + settings types default off"
+    },
+    {
+      "item": "Documented `TaskCreated` hook event and its blocking behavior",
+      "status": "located",
+      "evidence": "TaskCreated hook documented in hooksConfigManager"
+    },
+    {
+      "item": "Preserved task notifications when backgrounding a running command with Ctrl+B",
+      "status": "located",
+      "evidence": "task notifications preserved on background"
+    },
+    {
+      "item": "PowerShell tool on Windows: external-command arguments containing both a double-quote and whitespace now prompt instead of auto-allowing (PS 5.1 argument-splitting hardening)",
+      "status": "located",
+      "evidence": "PowerShell quote+whitespace prompt already in tree"
+    },
+    {
+      "item": "`/env` now applies to PowerShell tool commands (previously only affected Bash)",
+      "status": "located",
+      "evidence": "src/commands/env applies to PowerShell"
+    },
+    {
+      "item": "`/usage` now hides redundant \"Current week (Sonnet only)\" bar for Pro and Enterprise plans",
+      "status": "located",
+      "evidence": "src/commands/usage hide Sonnet-only bar"
+    },
+    {
+      "item": "Image paste no longer inserts a trailing space",
+      "status": "located",
+      "evidence": "image paste no trailing space"
+    },
+    {
+      "item": "Pasting `!command` into an empty prompt now enters bash mode, matching typed `!` behavior",
+      "status": "located",
+      "evidence": "src/utils/processUserInput paste ! enters bash mode"
+    },
+    {
+      "item": "`/buddy` is here for April 1st \u2014 hatch a small creature that watches you code",
+      "status": "located",
+      "evidence": "src/commands/buddy/buddy.tsx"
+    }
+  ],
+  "notes": "astdiff 2.1.88\u21922.1.89: structural similarity 86.0%, +2559/-1986, 7762 structural, 32 string-only. Filter: product 1108, unknown 5852, vendor 716, rename-only-100% 4907. classify.mjs dump replaced by this thin ledger after per-hit re-review.\n\nReviewed all 1108 product hits (added/removed/string-only/non-100% structural). Most added/removed pairs are minify rename clusters (same line snippets). Real product adds already in the 89 hop or baseline TS: defer/hook_deferred_tool, PermissionDenied, NO_FLICKER, MCP_CONNECTION_NONBLOCKING, buddy, seedReadFileState, rapid-refill breaker, cleanupPeriodDays:0, showThinkingSummaries, claude-cli://, CLAUDE_CODE_AUTO_COMPACT_WINDOW env.\n\nastdiff-only FAIL (changelog omitted): official 89 registers /autocompact (local-jsx + local print) writing userSettings.autoCompactWindow (100k\u20131M). j56 resolve is env > settings > model. Engineered in src/commands/autocompact/* + settings types + getEffectiveContextWindowSize. Also wired official Q6(CLAUDE_CODE_DISABLE_CLAUDE_API_SKILL) around registerClaudeApiSkill.\n\nDefault-false / stub \u2260 FAIL: tengu_willow_prism / CLAUDE_CODE_AGENT_COST_STEER (GB !1); tengu_gleaming_fair + RESUME_THRESHOLD_* (GB !1); CLAUDE_CODE_REMOTE_SETTINGS_PATH log exists but le()/ti() is `function le(){return}` stub in 89 and still stub in 108; message-rating provider has no second call site (not mounted). tengu_bridge_client_presence_enabled / cold_compact / amber_* experiment names have no default-true gate.\n\nDo not pull 90 ultraplan-timeout 5400 or later hop features into this commit."
+}

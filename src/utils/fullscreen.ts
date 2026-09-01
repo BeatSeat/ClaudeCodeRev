@@ -105,9 +105,7 @@ export function _resetTmuxControlModeProbeForTesting(): void {
 }
 
 /**
- * Runtime env-var check only. Ants default to on (CLAUDE_CODE_NO_FLICKER=0
- * to opt out); external users default to off (CLAUDE_CODE_NO_FLICKER=1 to
- * opt in).
+ * Official 2.1.89 `b4()`: env opt-out/in, tmux -CC disable, then default off.
  */
 export function isFullscreenEnvEnabled(): boolean {
   // Explicit user opt-out always wins.
@@ -125,7 +123,7 @@ export function isFullscreenEnvEnabled(): boolean {
     }
     return false
   }
-  return process.env.USER_TYPE === 'ant'
+  return false
 }
 
 /**

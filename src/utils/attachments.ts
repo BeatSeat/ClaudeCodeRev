@@ -377,12 +377,23 @@ export type HookAttachment =
     }
   | HookSystemMessageAttachment
   | HookPermissionDecisionAttachment
+  | HookDeferredToolAttachment
 
 export type HookPermissionDecisionAttachment = {
   type: 'hook_permission_decision'
   decision: 'allow' | 'deny'
   toolUseID: string
   hookEvent: HookEvent
+}
+
+export type HookDeferredToolAttachment = {
+  type: 'hook_deferred_tool'
+  toolUseID: string
+  toolName: string
+  toolInput: Record<string, unknown>
+  hookName: string
+  hookEvent: HookEvent
+  permissionMode: string
 }
 
 export type HookSystemMessageAttachment = {
