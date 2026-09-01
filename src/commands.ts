@@ -157,6 +157,7 @@ import chrome from './commands/chrome/index.js'
 import stickers from './commands/stickers/index.js'
 import advisor from './commands/advisor.js'
 import stopHook from './commands/stop-hook/index.js'
+import teamOnboarding from './commands/team-onboarding/index.js'
 import { logError } from './utils/log.js'
 import { toError } from './utils/errors.js'
 import { logForDebugging } from './utils/debug.js'
@@ -256,7 +257,6 @@ export const INTERNAL_ONLY_COMMANDS = [
   oauthRefresh,
   debugToolCall,
   agentsPlatform,
-  autofixPr,
 ].filter(Boolean)
 
 // Declared as a function so that we don't run this until getCommands is called,
@@ -265,6 +265,7 @@ const COMMANDS = memoize((): Command[] => [
   addDir,
   advisor,
   agents,
+  autofixPr,
   branch,
   btw,
   chrome,
@@ -342,6 +343,7 @@ const COMMANDS = memoize((): Command[] => [
   sandboxToggle,
   setupBedrock,
   stopHook,
+  teamOnboarding,
   ...(!isUsing3PServices() ? [logout, login()] : []),
   passes,
   ...(peersCmd ? [peersCmd] : []),

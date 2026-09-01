@@ -1,7 +1,7 @@
 import type { ModelName } from './model.js'
-import type { APIProvider } from './providers.js'
+import type { CloudProvider } from './providers.js'
 
-export type ModelConfig = Record<APIProvider, ModelName>
+export type ModelConfig = Record<CloudProvider, ModelName>
 
 // @[MODEL LAUNCH]: Add a new CLAUDE_*_CONFIG constant here. Double check the correct model strings
 // here since the pattern may change.
@@ -16,7 +16,7 @@ export const CLAUDE_3_7_SONNET_CONFIG = {
 
 export const CLAUDE_3_5_V2_SONNET_CONFIG = {
   firstParty: 'claude-3-5-sonnet-20241022',
-  bedrock: 'anthropic.claude-3-5-sonnet-20241022-v2:0',
+  bedrock: 'us.anthropic.claude-3-5-sonnet-20241022-v2:0',
   vertex: 'claude-3-5-sonnet-v2@20241022',
   foundry: 'claude-3-5-sonnet',
   anthropicAws: 'claude-3-5-sonnet-20241022',

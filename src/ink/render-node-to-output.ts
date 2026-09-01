@@ -988,6 +988,7 @@ function renderNodeToOutput(
               // point fall through to yoga + the fine-grained check below,
               // preserving the ghost-box fix.
               let cumHeightShift = 0
+              let firstRedrawnY: number | undefined
               for (const childNode of content.childNodes) {
                 const childElem = childNode as DOMElement
                 const isDirty = dirtyChildren.has(childNode)
@@ -1024,11 +1025,24 @@ function renderNodeToOutput(
                 // painted it → render.
                 if (!isDirty) {
                   const childCached = nodeCache.get(childElem)
-                  if (
-                    childCached &&
-                    Math.floor(childCached.y) - delta === screenY
-                  ) {
-                    continue
+                  if (childCached) {
+                    const oldBlitY = Math.floor(childCached.y) - delta
+                    if (oldBlitY === screenY) {
+                      continue
+                    }
+                    // Erase the old blit rectangle so a mid-scroll height
+                    // change cannot leave compounding ghost lines.
+                    const eraseTop = Math.max(oldBlitY, top)
+                    const eraseBottom = Math.min(
+                      oldBlitY + childCached.height,
+                      firstRedrawnY ?? bottom + 1,
+                    )
+                    if (eraseTop < eraseBottom) {
+                      const oldFill = Array(eraseBottom - eraseTop)
+                        .fill(spaces)
+                        .join('\n')
+                      output.write(Math.floor(x), eraseTop, oldFill)
+                    }
                   }
                 }
                 // Wipe this child's region with spaces to overwrite stale
@@ -1039,6 +1053,7 @@ function renderNodeToOutput(
                   Math.floor((y1 ?? y) + padTop + innerHeight),
                 )
                 if (screenY < screenBottom) {
+                  firstRedrawnY ??= screenY
                   const fill = Array(screenBottom - screenY)
                     .fill(spaces)
                     .join('\n')

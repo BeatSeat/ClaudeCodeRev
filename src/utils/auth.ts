@@ -1115,14 +1115,32 @@ export async function saveApiKey(apiKey: string): Promise<void> {
       // Process monitors only see "security -i", not the password
       const command = `add-generic-password -U -a "${username}" -s "${storageServiceName}" -X "${hexValue}"\n`
 
-      await execa('security', ['-i'], {
+      const result = await execa('security', ['-i'], {
         input: command,
         reject: false,
+        timeout: 5000,
       })
+      if (result.exitCode !== 0) {
+        const err = (result.stderr || result.stdout || '')
+          .trim()
+          .replace(/\s*\n\s*/g, '; ')
+        logEvent('tengu_api_key_keychain_error', {
+          error: err as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
+        })
+        throw new Error(
+          `Failed to save API key to macOS Keychain${err ? ` (${err})` : ''}. Run \`claude doctor\` to diagnose keychain access.`,
+        )
+      }
 
       logEvent('tengu_api_key_saved_to_keychain', {})
       savedToKeychain = true
     } catch (e) {
+      if (
+        e instanceof Error &&
+        e.message.startsWith('Failed to save API key to macOS Keychain')
+      ) {
+        throw e
+      }
       logError(e)
       logEvent('tengu_api_key_keychain_error', {
         error: errorMessage(

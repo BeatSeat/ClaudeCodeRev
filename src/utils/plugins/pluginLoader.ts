@@ -2106,6 +2106,11 @@ async function loadPluginFromMarketplaceEntryCacheOnly(
   let pluginPath: string
 
   if (typeof entry.source === 'string') {
+    // Prefer the installed cache when it exists so CLAUDE_PLUGIN_ROOT points
+    // at the cache copy, not the marketplace source directory.
+    if (installPath && (await pathExists(installPath))) {
+      pluginPath = installPath
+    } else {
     // Local relative path — read from the marketplace source dir directly.
     // Skip copyPluginToVersionedCache; startup doesn't need a fresh copy.
     let marketplaceDir: string
@@ -2125,6 +2130,7 @@ async function loadPluginFromMarketplaceEntryCacheOnly(
     pluginPath = join(marketplaceDir, entry.source)
     // finishLoadingPluginFromPath reads pluginPath — its error handling
     // surfaces ENOENT as a load failure, no need to pre-check here.
+    }
   } else {
     // External source (npm/github/url/git-subdir) — use recorded installPath.
     if (!installPath || !(await pathExists(installPath))) {

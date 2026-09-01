@@ -4285,11 +4285,13 @@ export declare function unstable_v2_resumeSession(_sessionId: string, _options: 
 export declare type UserPromptSubmitHookInput = BaseHookInput & {
     hook_event_name: 'UserPromptSubmit';
     prompt: string;
+    session_title?: string;
 };
 
 export declare type UserPromptSubmitHookSpecificOutput = {
     hookEventName: 'UserPromptSubmit';
     additionalContext?: string;
+    sessionTitle?: string;
 };
 
 export declare type WorktreeCreateHookInput = BaseHookInput & {

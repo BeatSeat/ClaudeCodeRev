@@ -460,6 +460,14 @@ export async function* withRetry<T>(
         )
       } else {
         delayMs = getRetryDelay(attempt, retryAfter)
+        if (delayMs > 60_000) {
+          logEvent('tengu_api_retry_after_too_long', {
+            delayMs,
+            status: (error as APIError).status,
+            provider: getAPIProviderForStatsig(),
+          })
+          throw new CannotRetryError(error, retryContext)
+        }
       }
 
       // In persistent mode the for-loop `attempt` is clamped at maxRetries+1;
