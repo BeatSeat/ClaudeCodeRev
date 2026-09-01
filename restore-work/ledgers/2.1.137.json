@@ -4,34 +4,7 @@
   "expectedFunctionCount": 0,
   "functions": [],
   "changelogCoverage": [
-    {
-      "item": "[VSCode] Fixed extension failing to activate on Windows",
-      "status": "absent-in-bundle",
-      "evidence": "VS Code extension host not in this repo; astdiff similarity 1.0, 0 genuine structural, 0-byte bundle delta."
-    }
+    { "item": "[VSCode] Fixed extension failing to activate on Windows", "status": "absent-in-bundle", "evidence": "VS Code extension host not in this repo; astdiff similarity 1.0, 0 genuine structural, 0-byte bundle delta." }
   ],
-  "notes": "Version-bump-only commit.",
-  "astdiff": {
-    "version": "2.1.137",
-    "from": "2.1.136",
-    "from_bundle": "/root/projects/ClaudeCodeRev/restore-work/artifacts/cometix/2.1.136/cli.js",
-    "to_bundle": "/root/projects/ClaudeCodeRev/restore-work/artifacts/cometix/2.1.137/cli.js",
-    "from_sha256": "6e83b9a5215063804ef9ee40bbc8b18f7eab68a4624b9b81d0a08028a16a5169",
-    "to_sha256": "f831b97148768e58162e0883288c1e4160f030c1521f6978700656f88d0e61b2",
-    "method": "astdiff-v0.2.0+tree-sitter0.25",
-    "parser": "tree-sitter 0.25 / tree-sitter-javascript 0.25",
-    "similarity": 100.0,
-    "matched_declarations": 22756,
-    "total_declarations_from": 22756,
-    "total_declarations_to": 22756,
-    "change_total": 91,
-    "added": 0,
-    "removed": 0,
-    "structural": 0,
-    "string_only": 91,
-    "command": "astdiff /root/projects/ClaudeCodeRev/restore-work/artifacts/cometix/2.1.136/cli.js /root/projects/ClaudeCodeRev/restore-work/artifacts/cometix/2.1.137/cli.js --format json",
-    "full_json": "/root/projects/Zhiman/projects/ccr-swarm/integration/astdiff-full/using/2.1.137.json",
-    "elapsed_seconds": 18.4,
-    "generated_at": "2026-11-14T15:05:19Z"
-  }
+  "notes": "Version-bump-only commit."
 }
