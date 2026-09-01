@@ -22,6 +22,12 @@ import { env } from '../utils/env.js'
 import { isFullscreenEnvEnabled } from '../utils/fullscreen.js'
 import type { ImageDimensions } from '../utils/imageResizer.js'
 import { isModifierPressed, prewarmModifiers } from '../utils/modifiers.js'
+import { getShortcutDisplay } from '../keybindings/shortcutFormat.js'
+import { logEvent } from '../services/analytics/index.js'
+import {
+  setWorkflowKeywordIgnored,
+  shouldDismissWorkflowKeywordOnBackspace,
+} from '../utils/workflows/keyword.js'
 import { useDoublePress } from './useDoublePress.js'
 
 type MaybeCursor = void | Cursor
@@ -352,6 +358,30 @@ export function useTextInput({
         return () => cursor.nextWord()
       case key.backspace:
         if (key.super) return killToLineStart
+        if (
+          !key.meta &&
+          !key.ctrl &&
+          shouldDismissWorkflowKeywordOnBackspace(originalValue, offset)
+        ) {
+          return () => {
+            setWorkflowKeywordIgnored(true)
+            logEvent('tengu_workflow_keyword_dismissed', {})
+            const shortcut = getShortcutDisplay(
+              'chat:workflowKeywordToggle',
+              'Chat',
+              'alt+w',
+            )
+            addNotification({
+              key: 'workflow-keyword-ignored',
+              text: `Workflow keyword ignored for this prompt${
+                shortcut ? ` · ${shortcut} to undo` : ''
+              }`,
+              priority: 'immediate',
+              timeoutMs: 5000,
+            })
+            return cursor
+          }
+        }
         return key.meta || key.ctrl
           ? killWordBefore
           : () => cursor.deleteTokenBefore() ?? cursor.backspace()

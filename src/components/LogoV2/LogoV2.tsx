@@ -65,7 +65,6 @@ const ChannelsNoticeModule =
     ? (require('./ChannelsNotice.js') as typeof import('./ChannelsNotice.js'))
     : null
 /* eslint-enable @typescript-eslint/no-require-imports */
-import { SandboxManager } from 'src/utils/sandbox/sandbox-adapter.js'
 import {
   useShowGuestPassesUpsell,
   incrementGuestPassesSeenCount,
@@ -113,7 +112,6 @@ export function LogoV2(): React.ReactNode {
   const showOnboarding = shouldShowProjectOnboarding()
   // Official 2.1.154 `LN8` / `WKz` = `De6()`
   const [showOpus48Notice] = useState(shouldShowOpus48Notice)
-  const showSandboxStatus = SandboxManager.isSandboxingEnabled()
   const showGuestPassesUpsell = useShowGuestPassesUpsell()
   const showOverageCreditUpsell = useShowOverageCreditUpsell()
   const showOpus47LaunchFeed = useShowOpus47LaunchFeed()
@@ -349,13 +347,6 @@ export function LogoV2(): React.ReactNode {
         <PromptCachingDisabledNotice />
         {ChannelsNoticeModule && <ChannelsNoticeModule.ChannelsNotice />}
         <ModelPinHeader />
-        {showSandboxStatus && (
-          <Box marginTop={1} flexDirection="column">
-            <Text color="warning">
-              Your bash commands will be sandboxed. Disable with /sandbox.
-            </Text>
-          </Box>
-        )}
         {"external" === 'ant' && <GateOverridesWarning />}
         {"external" === 'ant' && <ExperimentEnrollmentNotice />}
       </>
@@ -508,13 +499,6 @@ export function LogoV2(): React.ReactNode {
             </Text>
           )}
           <Text>{announcement}</Text>
-        </Box>
-      )}
-      {showSandboxStatus && (
-        <Box paddingLeft={2} flexDirection="column">
-          <Text color="warning">
-            Your bash commands will be sandboxed. Disable with /sandbox.
-          </Text>
         </Box>
       )}
       {"external" === 'ant' && !process.env.DEMO_VERSION && (

@@ -346,6 +346,11 @@ export function filterToolProgressMessages(
   )
 }
 
+export type ToolResultContextLayer = {
+  kind: 'working_directory'
+  directory: string
+}
+
 export type ToolResult<T> = {
   data: T
   newMessages?: (
@@ -361,6 +366,8 @@ export type ToolResult<T> = {
     _meta?: Record<string, unknown>
     structuredContent?: Record<string, unknown>
   }
+  /** Official 2.1.157 EnterWorktree pinned-cwd arm — isolate this agent's cwd. */
+  contextLayers?: ToolResultContextLayer[]
 }
 
 export type ToolCallProgress<P extends ToolProgressData = ToolProgressData> = (

@@ -81,6 +81,11 @@ export function isWorkflowsAvailable(): boolean {
 /**
  * Official 2.1.153 `xN` — runtime gate for /workflows and the Config value.
  */
+/** Official 2.1.157 `x48`. */
+export function isWorkflowKeywordTriggerEnabled(): boolean {
+  return getInitialSettings()?.workflowKeywordTriggerEnabled ?? true
+}
+
 export function isWorkflowsEnabled(): boolean {
   if (areWorkflowsDisabledByKillSwitch()) {
     return false

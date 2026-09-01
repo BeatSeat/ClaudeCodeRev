@@ -6,11 +6,15 @@ import {
   type AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
   logEvent,
 } from 'src/services/analytics/index.js'
-import { sanitizeToolNameForAnalytics } from 'src/services/analytics/metadata.js'
+import {
+  collectToolDecisionParameters,
+  sanitizeToolNameForAnalytics,
+} from 'src/services/analytics/metadata.js'
 import { getCodeEditToolDecisionCounter } from '../../bootstrap/state.js'
 import type { Tool as ToolType, ToolUseContext } from '../../Tool.js'
 import { getLanguageName } from '../../utils/cliHighlight.js'
 import { SandboxManager } from '../../utils/sandbox/sandbox-adapter.js'
+import { jsonStringify } from '../../utils/slowOperations.js'
 import { logOTelEvent } from '../../utils/telemetry/events.js'
 import type {
   PermissionApprovalSource,
@@ -227,11 +231,15 @@ function logPermissionDecision(
     timestamp: Date.now(),
   })
 
+  const tool_parameters = collectToolDecisionParameters(tool.name, input)
   void logOTelEvent('tool_decision', {
     decision,
     source: sourceString,
     tool_name: sanitizeToolNameForAnalytics(tool.name),
     tool_use_id: toolUseID,
+    ...(Object.keys(tool_parameters).length > 0 && {
+      tool_parameters: jsonStringify(tool_parameters),
+    }),
   })
 }
 

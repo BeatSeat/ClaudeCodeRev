@@ -596,6 +596,33 @@ export function Config({
                 }))
               },
             },
+            {
+              id: 'workflowKeywordTriggerEnabled',
+              label: 'Workflow keyword trigger',
+              value: settingsData?.workflowKeywordTriggerEnabled ?? true,
+              type: 'boolean' as const,
+              onChange(enabled: boolean) {
+                const next = enabled ? undefined : false
+                updateSettingsForSource('userSettings', {
+                  workflowKeywordTriggerEnabled: next,
+                })
+                setSettingsData(prev => ({
+                  ...prev,
+                  workflowKeywordTriggerEnabled: next,
+                }))
+                setAppState(prev => ({
+                  ...prev,
+                  settings: {
+                    ...prev.settings,
+                    workflowKeywordTriggerEnabled: next,
+                  },
+                }))
+                setChanges(prev => ({
+                  ...prev,
+                  workflowKeywordTrigger: enabled ? 'on' : 'off',
+                }))
+              },
+            },
           ]
         : []
     })(),
@@ -1642,6 +1669,7 @@ export function Config({
         : {}),
       disableWorkflows: iu?.disableWorkflows,
       enableWorkflows: iu?.enableWorkflows,
+      workflowKeywordTriggerEnabled: iu?.workflowKeywordTriggerEnabled,
       // ThemePicker's Ctrl+T writes this key directly — include it so the
       // disk state reverts along with the in-memory AppState.settings restore.
       syntaxHighlightingDisabled: iu?.syntaxHighlightingDisabled,

@@ -4,7 +4,7 @@ import { useNotifications } from 'src/context/notifications.js'
 import { Text } from 'src/ink.js'
 import { logEvent } from 'src/services/analytics/index.js'
 import { useDebounceCallback } from 'usehooks-ts'
-import { type Command, getCommandName } from '../commands.js'
+import { type Command, findCommand, getCommandName } from '../commands.js'
 import {
   getModeFromInput,
   getValueFromInput,
@@ -53,9 +53,11 @@ import {
 } from '../utils/sessionStorage.js'
 import {
   applyCommandSuggestion,
+  COMMAND_ARG_SUGGESTION_PREFIX,
   findMidInputSlashCommand,
   generateCommandSuggestions,
   getBestCommandMatch,
+  getCommandArgumentCompletions,
   isCommandInput,
 } from '../utils/suggestions/commandSuggestions.js'
 import {
@@ -1001,6 +1003,35 @@ export function useTypeahead({
           clearSuggestions()
           return
         }
+
+        // Official 2.1.157 B59: command.getArgumentCompletions after `/cmd `
+        if (parsedCommand && value.includes(' ')) {
+          const matched = findCommand(parsedCommand.commandName, commands)
+          if (matched?.getArgumentCompletions) {
+            const argSuggestions = await getCommandArgumentCompletions(
+              value,
+              matched.getArgumentCompletions,
+            )
+            if (argSuggestions.length > 0) {
+              setSuggestionsState(prev => ({
+                suggestions: argSuggestions,
+                selectedSuggestion: getPreservedSelection(
+                  prev.suggestions,
+                  prev.selectedSuggestion,
+                  argSuggestions,
+                ),
+                commandArgumentHint: undefined,
+              }))
+              setSuggestionType('command')
+              setMaxColumnWidth(undefined)
+              return
+            }
+            debouncedFetchFileSuggestions.cancel()
+            debouncedFetchSlackChannels.cancel()
+            clearSuggestions()
+            return
+          }
+        }
       }
 
       // Determine whether to display the argument hint and command suggestions.
@@ -1299,7 +1330,7 @@ export function useTypeahead({
 
       if (suggestionType === 'command' && index < suggestions.length) {
         if (suggestion) {
-          applyCommandSuggestion(
+          const applied = applyCommandSuggestion(
             suggestion,
             false, // don't execute on tab
             commands,
@@ -1307,7 +1338,11 @@ export function useTypeahead({
             setCursorOffset,
             onSubmit,
           )
-          clearSuggestions()
+          if (applied?.reSuggest) {
+            void updateSuggestions(applied.newInput, applied.newInput.length)
+          } else {
+            clearSuggestions()
+          }
         }
       } else if (suggestionType === 'custom-title' && suggestions.length > 0) {
         // Apply custom title to /resume command with sessionId
@@ -1628,7 +1663,19 @@ export function useTypeahead({
       selectedSuggestion < suggestions.length
     ) {
       if (suggestion) {
-        applyCommandSuggestion(
+        // Official 2.1.157: Enter on `/cmd ` with command-arg rows submits the
+        // command (plugin menu) instead of applying the first completion.
+        if (
+          suggestion.id.startsWith(COMMAND_ARG_SUGGESTION_PREFIX) &&
+          /^\/\S+\s+$/.test(input)
+        ) {
+          debouncedFetchFileSuggestions.cancel()
+          debouncedFetchSlackChannels.cancel()
+          clearSuggestions()
+          onSubmit(input, true)
+          return
+        }
+        const applied = applyCommandSuggestion(
           suggestion,
           true, // execute on return
           commands,
@@ -1637,7 +1684,12 @@ export function useTypeahead({
           onSubmit,
         )
         debouncedFetchFileSuggestions.cancel()
-        clearSuggestions()
+        debouncedFetchSlackChannels.cancel()
+        if (applied?.reSuggest) {
+          void updateSuggestions(applied.newInput, applied.newInput.length)
+        } else {
+          clearSuggestions()
+        }
       }
     } else if (
       suggestionType === 'custom-title' &&
@@ -1792,6 +1844,7 @@ export function useTypeahead({
     setCursorOffset,
     onSubmit,
     clearSuggestions,
+    updateSuggestions,
     debouncedFetchFileSuggestions,
     debouncedFetchSlackChannels,
   ])

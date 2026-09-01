@@ -20,7 +20,10 @@ import {
   rawSettingsContainsKey,
 } from './settings/settings.js'
 import { TOOL_RESULTS_SUBDIR } from './toolResultStorage.js'
-import { cleanupStaleAgentWorktrees } from './worktree.js'
+import {
+  cleanupStaleAgentWorktrees,
+  maybeSweepJobWorktree,
+} from './worktree.js'
 
 const DEFAULT_CLEANUP_PERIOD_DAYS = 30
 
@@ -646,6 +649,35 @@ export async function cleanupOldVersionsThrottled(): Promise<void> {
   }
 }
 
+/**
+ * Official 2.1.157 `Qkz`/`C7q` fragment — 30-day job worktree sweep.
+ * Walks settled jobs and removes their `.claude/worktrees/` trees when clean.
+ */
+async function cleanupStaleJobWorktrees(cutoffDate: Date): Promise<void> {
+  const { jobsDir } = await import('../daemon/bg/paths.js')
+  const { isSettled, readJobState } = await import('../daemon/bg/jobState.js')
+  const dir = jobsDir()
+  let entries: Awaited<ReturnType<typeof fs.readdir>>
+  try {
+    entries = await fs.readdir(dir, { withFileTypes: true })
+  } catch {
+    return
+  }
+  for (const entry of entries) {
+    if (!entry.isDirectory()) continue
+    const jobPath = join(dir, entry.name)
+    const state = await readJobState(jobPath)
+    if (!state?.worktreePath || !isSettled(state)) continue
+    await maybeSweepJobWorktree(
+      state.worktreePath,
+      state.worktreeBranch,
+      state.originCwd,
+      state.worktreeHookBased,
+      cutoffDate,
+    ).catch(() => {})
+  }
+}
+
 export async function cleanupOldMessageFilesInBackground(): Promise<void> {
   const enabledSettingSources = getEnabledSettingSources()
   const userSettingsEnabled = enabledSettingSources.includes('userSettings')
@@ -681,10 +713,12 @@ export async function cleanupOldMessageFilesInBackground(): Promise<void> {
   await cleanupOldConfigBackups()
   await cleanupOldImageCaches()
   await cleanupOldPastes(getCutoffDate())
-  const removedWorktrees = await cleanupStaleAgentWorktrees(getCutoffDate())
+  const cutoff = getCutoffDate()
+  const removedWorktrees = await cleanupStaleAgentWorktrees(cutoff)
   if (removedWorktrees > 0) {
     logEvent('tengu_worktree_cleanup', { removed: removedWorktrees })
   }
+  await cleanupStaleJobWorktrees(cutoff)
   if (process.env.USER_TYPE === 'ant') {
     await cleanupNpmCacheForAnthropicPackages()
   }

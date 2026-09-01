@@ -349,6 +349,26 @@ export type GlobalConfig = {
   overageCreditUpsellSeenCount?: number // Number of times the overage credit upsell has been shown
   hasVisitedExtraUsage?: boolean // Whether the user has visited /extra-usage — hides credit upsells
 
+  // Official 2.1.157 FotW eligibility / claimed-feature cache (keyed by org UUID).
+  // Inlined shape — same SDK-surface constraint as overageCreditGrantCache.
+  fotwEligibilityCache?: Record<
+    string,
+    Record<
+      string,
+      {
+        info: {
+          available: boolean
+          eligible: boolean
+          granted: boolean
+          amount_minor_units: number | null
+          currency: string | null
+        }
+        timestamp: number
+      }
+    >
+  >
+  fotwClaimedFeatures?: Record<string, string[]>
+
   // Voice mode notice tracking
   voiceNoticeSeenCount?: number // Number of times the voice-mode-available notice has been shown
   voiceLangHintShownCount?: number // Number of times the /voice dictation-language hint has been shown
