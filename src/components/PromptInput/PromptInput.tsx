@@ -1309,10 +1309,12 @@ function PromptInput({
     suggestions: SuggestionItem[]
     selectedSuggestion: number
     commandArgumentHint?: string
+    suggestionsEmptyMessage?: string
   }>({
     suggestions: [],
     selectedSuggestion: -1,
     commandArgumentHint: undefined,
+    suggestionsEmptyMessage: undefined,
   })
 
   // Setter for suggestions state
@@ -1505,6 +1507,7 @@ function PromptInput({
     suggestions,
     selectedSuggestion,
     commandArgumentHint,
+    suggestionsEmptyMessage,
     inlineGhostText,
     maxColumnWidth,
   } = useTypeahead({
@@ -3102,6 +3105,7 @@ function PromptInput({
         onChangeIsUpdating={setIsAutoUpdating}
         suggestions={suggestions}
         selectedSuggestion={selectedSuggestion}
+        suggestionsEmptyMessage={suggestionsEmptyMessage}
         maxColumnWidth={maxColumnWidth}
         toolPermissionContext={effectiveToolPermissionContext}
         helpOpen={helpOpen}

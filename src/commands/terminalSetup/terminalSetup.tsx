@@ -24,7 +24,11 @@ import { getGlobalConfig, saveGlobalConfig } from '../../utils/config.js'
 import { env } from '../../utils/env.js'
 import { isFsInaccessible } from '../../utils/errors.js'
 import { execFileNoThrow } from '../../utils/execFileNoThrow.js'
-import { addItemToJSONCArray, safeParseJSONC } from '../../utils/json.js'
+import {
+  addItemToJSONCArray,
+  safeParseJSONC,
+  setJSONCProperty,
+} from '../../utils/json.js'
 import { logError } from '../../utils/log.js'
 import { getPlatform } from '../../utils/platform.js'
 import { jsonParse, jsonStringify } from '../../utils/slowOperations.js'
@@ -111,12 +115,15 @@ export async function setupTerminal(theme: ThemeName): Promise<string> {
       break
     case 'vscode':
       result = await installBindingsForVSCodeTerminal('VSCode', theme)
+      result += await configureEditorScrollSensitivity('VSCode', theme)
       break
     case 'cursor':
       result = await installBindingsForVSCodeTerminal('Cursor', theme)
+      result += await configureEditorScrollSensitivity('Cursor', theme)
       break
     case 'windsurf':
       result = await installBindingsForVSCodeTerminal('Windsurf', theme)
+      result += await configureEditorScrollSensitivity('Windsurf', theme)
       break
     case 'alacritty':
       result = await installBindingsForAlacritty(theme)
@@ -226,6 +233,106 @@ type VSCodeKeybinding = {
   command: string
   args: { text: string }
   when: string
+}
+
+// Official 2.1.116 lR$ / Cg8 — /terminal-setup writes this into the
+// editor settings.json so VS Code / Cursor / Windsurf trackpad scroll
+// is less jumpy in the integrated terminal.
+const EDITOR_SCROLL_SENSITIVITY_KEY =
+  'terminal.integrated.mouseWheelScrollSensitivity'
+const EDITOR_SCROLL_SENSITIVITY = 3
+
+function getEditorUserDir(
+  editor: 'VSCode' | 'Cursor' | 'Windsurf',
+): string {
+  const editorDir = editor === 'VSCode' ? 'Code' : editor
+  return join(
+    homedir(),
+    platform() === 'win32'
+      ? join('AppData', 'Roaming', editorDir, 'User')
+      : platform() === 'darwin'
+        ? join('Library', 'Application Support', editorDir, 'User')
+        : join('.config', editorDir, 'User'),
+  )
+}
+
+async function configureEditorScrollSensitivity(
+  editor: 'VSCode' | 'Cursor' | 'Windsurf',
+  theme: ThemeName,
+): Promise<string> {
+  const hint = chalk.dim(
+    `For smoother scrolling, set "${EDITOR_SCROLL_SENSITIVITY_KEY}": ${EDITOR_SCROLL_SENSITIVITY} in ${editor} settings.`,
+  )
+  if (isVSCodeRemoteSSH()) {
+    return `${hint}${EOL}`
+  }
+  const settingsPath = join(getEditorUserDir(editor), 'settings.json')
+  try {
+    let content = '{}'
+    let fileExists = false
+    try {
+      content = await readFile(settingsPath, { encoding: 'utf-8' })
+      fileExists = true
+    } catch (e: unknown) {
+      if (!isFsInaccessible(e)) throw e
+    }
+    const parsed = safeParseJSONC(content)
+    if (parsed === null || typeof parsed !== 'object' || Array.isArray(parsed)) {
+      return `${color(
+        'warning',
+        theme,
+      )(
+        `${editor} settings.json isn't a JSON object; not modifying it.`,
+      )}${EOL}${hint}${EOL}`
+    }
+    if (EDITOR_SCROLL_SENSITIVITY_KEY in parsed) {
+      return `${color(
+        'success',
+        theme,
+      )(
+        `${editor} ${EDITOR_SCROLL_SENSITIVITY_KEY} already set; leaving as-is`,
+      )}${EOL}${chalk.dim(`See ${formatPathLink(settingsPath)}`)}${EOL}`
+    }
+    const updated = setJSONCProperty(
+      content,
+      EDITOR_SCROLL_SENSITIVITY_KEY,
+      EDITOR_SCROLL_SENSITIVITY,
+    )
+    if (updated === content) {
+      return `${color(
+        'warning',
+        theme,
+      )(`Couldn't update ${editor} settings.json.`)}${EOL}${hint}${EOL}`
+    }
+    if (fileExists) {
+      const backupPath = `${settingsPath}.${randomBytes(4).toString('hex')}.bak`
+      try {
+        await copyFile(settingsPath, backupPath)
+      } catch {
+        return `${color(
+          'warning',
+          theme,
+        )(
+          `Couldn't back up ${editor} settings.json; not modifying it.`,
+        )}${EOL}${hint}${EOL}`
+      }
+    } else {
+      await mkdir(dirname(settingsPath), { recursive: true })
+    }
+    await writeFile(settingsPath, updated, { encoding: 'utf-8' })
+    return `${color(
+      'success',
+      theme,
+    )(
+      `Set ${editor} terminal scroll sensitivity to ${EDITOR_SCROLL_SENSITIVITY}`,
+    )}${EOL}${chalk.dim(`See ${formatPathLink(settingsPath)}`)}${EOL}`
+  } catch (error) {
+    logError(error)
+    return `${color(
+      'warning',
+      theme,
+    )(`Couldn't update ${editor} settings.json.`)}${EOL}${hint}${EOL}`
+  }
 }
 
 async function installBindingsForVSCodeTerminal(

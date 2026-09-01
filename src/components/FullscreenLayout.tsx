@@ -587,7 +587,7 @@ function StickyPromptHeader({
 // items down into the prompt area when the list has fewer items than max.
 function SuggestionsOverlay(): React.ReactNode {
   const data = usePromptOverlay()
-  if (!data || data.suggestions.length === 0) return null
+  if (!data || (data.suggestions.length === 0 && !data.emptyMessage)) return null
   return (
     <Box
       position="absolute"
@@ -603,7 +603,9 @@ function SuggestionsOverlay(): React.ReactNode {
         suggestions={data.suggestions}
         selectedSuggestion={data.selectedSuggestion}
         maxColumnWidth={data.maxColumnWidth}
+        emptyMessage={data.emptyMessage}
         overlay
+        noPad
       />
     </Box>
   )

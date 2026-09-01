@@ -5,6 +5,8 @@ const doctor: Command = {
   name: 'doctor',
   description: 'Diagnose and verify your Claude Code installation and settings',
   isEnabled: () => !isEnvTruthy(process.env.DISABLE_DOCTOR_COMMAND),
+  // Official 2.1.116: open /doctor while Claude is still responding.
+  immediate: true,
   type: 'local-jsx',
   load: () => import('./doctor.js'),
 }

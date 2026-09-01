@@ -18,6 +18,21 @@ const SEP_WIDTH = stringWidth(' · ')
 const THINKING_BARE_WIDTH = stringWidth('thinking')
 const SHOW_TOKENS_AFTER_MS = 30_000
 
+// Official 2.1.116 Ro9 — spinner thinking label steps with elapsed time
+// (Eo9/ho9/So9/Io9) and replaces the 109 ThinkingProgressHint row.
+const STILL_THINKING_MS = 15_000
+const THINKING_MORE_MS = 30_000
+const THINKING_SOME_MORE_MS = 45_000
+const ALMOST_DONE_THINKING_MS = 60_000
+
+function thinkingProgressLabel(elapsedMs: number): string {
+  if (elapsedMs >= ALMOST_DONE_THINKING_MS) return 'almost done thinking'
+  if (elapsedMs >= THINKING_SOME_MORE_MS) return 'thinking some more'
+  if (elapsedMs >= THINKING_MORE_MS) return 'thinking more'
+  if (elapsedMs >= STILL_THINKING_MS) return 'still thinking'
+  return 'thinking'
+}
+
 // Thinking shimmer constants. Previously lived in a separate ThinkingShimmerText
 // component with its own useAnimationFrame(50) — inlined here to reuse our
 // existing 50ms clock and eliminate the redundant subscriber.
@@ -194,9 +209,13 @@ export function SpinnerAnimationRow({
   const tokensWidth = stringWidth(tokensText)
 
   // === Thinking text (may shrink to fit) ===
+  const thinkingProgress =
+    thinkingStatus === 'thinking'
+      ? thinkingProgressLabel(effectiveElapsedMs)
+      : null
   let thinkingText =
     thinkingStatus === 'thinking'
-      ? `thinking${effortSuffix}`
+      ? `${thinkingProgress}${effortSuffix}`
       : typeof thinkingStatus === 'number'
         ? `thought for ${Math.max(1, Math.round(thinkingStatus / 1000))}s`
         : null
@@ -217,7 +236,7 @@ export function SpinnerAnimationRow({
     !showThinking &&
     wantsThinking &&
     thinkingStatus === 'thinking' &&
-    effortSuffix
+    (effortSuffix || thinkingProgress !== 'thinking')
   ) {
     if (availableSpace > THINKING_BARE_WIDTH) {
       thinkingText = 'thinking'
