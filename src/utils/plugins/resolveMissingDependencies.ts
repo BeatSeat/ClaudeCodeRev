@@ -1,7 +1,13 @@
 import type { PluginError } from '../../types/plugin.js'
 import { logForDebugging } from '../debug.js'
 import { errorMessage } from '../errors.js'
-import { getEnabledPluginIdsForScope } from './dependencyResolver.js'
+import { uniq } from '../array.js'
+import {
+  formatDependencyCountSuffix,
+  formatUnresolvedDependenciesSuffix,
+  getEnabledPluginIdsForScope,
+} from './dependencyResolver.js'
+import { isSourceAllowedByPolicy } from './marketplaceHelpers.js'
 import {
   getMarketplaceCacheOnly,
   getPluginById,
@@ -12,12 +18,14 @@ import {
   scopeToSettingSource,
 } from './pluginIdentifier.js'
 import { installResolvedPlugin } from './pluginInstallationHelpers.js'
+import { loadAllPlugins } from './pluginLoader.js'
 
 const INSTALL_SCOPES = ['user', 'project', 'local'] as const
 
 export type ResolveMissingDependenciesResult = {
   installed: string[]
   stillUnresolved: string[]
+  marketplaceMissing: string[]
 }
 
 function pickInstallScope(
@@ -33,9 +41,10 @@ function pickInstallScope(
 }
 
 /**
- * Official 2.1.116 `sH8`: install `dependency-unsatisfied` / `not-found`
- * deps from marketplaces already added. Used by `/reload-plugins` and
- * background plugin autoupdate.
+ * Official 2.1.116 `sH8` / 2.1.117 `O$H`: install `dependency-unsatisfied`
+ * / `not-found` deps from marketplaces already added. 117 also skips
+ * policy-blocked marketplaces and reports `marketplaceMissing` for the
+ * "not installed" install hint.
  */
 export async function resolveMissingDependencies(
   errors: PluginError[],
@@ -53,7 +62,7 @@ export async function resolveMissingDependencies(
     declarers.add(error.source)
   }
   if (declarersByDep.size === 0) {
-    return { installed: [], stillUnresolved: [] }
+    return { installed: [], stillUnresolved: [], marketplaceMissing: [] }
   }
 
   const known = await loadKnownMarketplacesConfig()
@@ -66,10 +75,19 @@ export async function resolveMissingDependencies(
   )
   const installed: string[] = []
   const stillUnresolved: string[] = []
+  const marketplaceMissing: string[] = []
 
   for (const [dep, declarers] of declarersByDep) {
     const marketplace = parsePluginIdentifier(dep).marketplace
     if (!marketplace || !known[marketplace]) {
+      stillUnresolved.push(dep)
+      marketplaceMissing.push(dep)
+      continue
+    }
+    if (!isSourceAllowedByPolicy(known[marketplace].source)) {
+      logForDebugging(
+        `resolveMissingDependencies: skipping "${dep}" — marketplace "${marketplace}" is blocked by enterprise policy`,
+      )
       stillUnresolved.push(dep)
       continue
     }
@@ -128,5 +146,30 @@ export async function resolveMissingDependencies(
     }
   }
 
-  return { installed, stillUnresolved }
+  return { installed, stillUnresolved, marketplaceMissing }
+}
+
+/**
+ * Official 2.1.117 `emH`: when `plugin install` hits an already-installed
+ * plugin, install any missing deps and return a message suffix (or null
+ * when there are no unsatisfied-dep errors for this plugin).
+ */
+export async function installMissingDependenciesForPlugin(
+  pluginId: string,
+): Promise<{ suffix: string } | null> {
+  const { errors } = await loadAllPlugins()
+  const forPlugin = errors.filter(
+    (error): error is PluginError & { type: 'dependency-unsatisfied' } =>
+      error.type === 'dependency-unsatisfied' && error.source === pluginId,
+  )
+  if (forPlugin.length === 0) return null
+  const { installed, marketplaceMissing } =
+    await resolveMissingDependencies(forPlugin)
+  const installedSet = new Set(installed)
+  const stillUnresolved = uniq(forPlugin.map(e => e.dependency)).filter(
+    dep => !installedSet.has(dep),
+  )
+  return {
+    suffix: `${formatDependencyCountSuffix(installed)}${formatUnresolvedDependenciesSuffix(stillUnresolved, marketplaceMissing)}`,
+  }
 }

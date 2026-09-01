@@ -406,6 +406,61 @@ export async function cleanupOldSessionEnvDirs(): Promise<CleanupResult> {
   return result
 }
 
+/** Official 2.1.117 Va1 / m26("tasks") */
+export async function cleanupOldTasksDirs(): Promise<CleanupResult> {
+  const cutoffDate = getCutoffDate()
+  const result: CleanupResult = { messages: 0, errors: 0 }
+  const fsImpl = getFsImplementation()
+
+  try {
+    const tasksDir = join(getClaudeConfigHomeDir(), 'tasks')
+
+    let dirents
+    try {
+      dirents = await fsImpl.readdir(tasksDir)
+    } catch {
+      return result
+    }
+
+    for (const dirent of dirents) {
+      if (!dirent.isDirectory()) continue
+      const taskDir = join(tasksDir, dirent.name)
+      try {
+        const stats = await fsImpl.stat(taskDir)
+        if (stats.mtime < cutoffDate) {
+          await fsImpl.rm(taskDir, { recursive: true, force: true })
+          result.messages++
+        }
+      } catch {
+        result.errors++
+      }
+    }
+
+    await tryRmdir(tasksDir, fsImpl)
+  } catch (error) {
+    logError(error as Error)
+  }
+
+  return result
+}
+
+/** Official 2.1.117 ya1 */
+export function cleanupOldShellSnapshots(): Promise<CleanupResult> {
+  return cleanupSingleDirectory(
+    join(getClaudeConfigHomeDir(), 'shell-snapshots'),
+    '.sh',
+  )
+}
+
+/** Official 2.1.117 Ea1 — backups keep the empty dir */
+export function cleanupOldConfigBackups(): Promise<CleanupResult> {
+  return cleanupSingleDirectory(
+    join(getClaudeConfigHomeDir(), 'backups'),
+    '',
+    false,
+  )
+}
+
 /**
  * Cleans up old debug log files from ~/.claude/debug/
  * Preserves the 'latest' symlink which points to the current session's log.
@@ -620,7 +675,10 @@ export async function cleanupOldMessageFilesInBackground(): Promise<void> {
   await cleanupOldPlanFiles()
   await cleanupOldFileHistoryBackups()
   await cleanupOldSessionEnvDirs()
+  await cleanupOldTasksDirs()
   await cleanupOldDebugLogs()
+  await cleanupOldShellSnapshots()
+  await cleanupOldConfigBackups()
   await cleanupOldImageCaches()
   await cleanupOldPastes(getCutoffDate())
   const removedWorktrees = await cleanupStaleAgentWorktrees(getCutoffDate())

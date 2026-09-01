@@ -1452,6 +1452,11 @@ async function loadAndCacheMarketplace(
   source: MarketplaceSource,
   onProgress?: MarketplaceProgressCallback,
 ): Promise<LoadedPluginMarketplace> {
+  if (!isSourceAllowedByPolicy(source)) {
+    throw new Error(
+      `Marketplace source '${formatSourceForDisplay(source)}' is blocked by enterprise policy.`,
+    )
+  }
   const fs = getFsImplementation()
   const cacheDir = getMarketplacesCacheDir()
 
@@ -2327,6 +2332,13 @@ export async function refreshAllMarketplaces(): Promise<void> {
     if (entry.source.source === 'settings') {
       continue
     }
+    // Official 2.1.117: blockedMarketplaces / strictKnownMarketplaces on bulk refresh
+    if (!isSourceAllowedByPolicy(entry.source)) {
+      logForDebugging(
+        `Skipping policy-blocked marketplace '${name}' in bulk refresh`,
+      )
+      continue
+    }
     // inc-5046: same GCS intercept as refreshMarketplace() — bulk update
     // hits this path on `claude plugin marketplace update` (no name arg).
     if (name === OFFICIAL_MARKETPLACE_NAME) {
@@ -2424,6 +2436,13 @@ async function refreshMarketplaceUncoalesced(
   if (!entry) {
     throw new Error(
       `Marketplace '${name}' not found. Available marketplaces: ${Object.keys(config).join(', ')}`,
+    )
+  }
+
+  // Official 2.1.117: blockedMarketplaces / strictKnownMarketplaces on refresh
+  if (!isSourceAllowedByPolicy(entry.source)) {
+    throw new Error(
+      `Marketplace source '${formatSourceForDisplay(entry.source)}' is blocked by enterprise policy.`,
     )
   }
 

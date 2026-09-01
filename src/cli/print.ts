@@ -1873,11 +1873,14 @@ function runHeadlessStreaming(
   // so applyMcpServerChanges' diff doesn't close their transports.
   // Nested: needs closure access to sdkMcpConfigs, applyMcpServerChanges,
   // updateSdkMcp.
-  async function applyPluginMcpDiff(): Promise<void> {
+  async function applyPluginMcpDiff(
+    skipServerNames?: Set<string>,
+  ): Promise<void> {
     const { servers: newConfigs } = await getAllMcpConfigs()
     const supportedConfigs: Record<string, McpServerConfigForProcessTransport> =
       {}
     for (const [name, config] of Object.entries(newConfigs)) {
+      if (skipServerNames?.has(name)) continue
       const type = config.type
       if (
         type === undefined ||
@@ -3202,9 +3205,17 @@ function runHeadlessStreaming(
             // read failure doesn't mask the successful state change.
             // allSettled so one failure doesn't discard the others.
             let plugins: SDKControlReloadPluginsResponse['plugins'] = []
+            // Official 2.1.117: skip already-connected user MCP servers so
+            // reload_plugins does not reconnect them serially.
+            const sdkConfigNames = new Set(Object.keys(sdkMcpConfigs))
+            const connectedUserMcp = new Set(
+              getAppState()
+                .mcp.clients.filter(c => !sdkConfigNames.has(c.name))
+                .map(c => c.name),
+            )
             const [cmdsR, mcpR, pluginsR] = await Promise.allSettled([
               getCommands(cwd()),
-              applyPluginMcpDiff(),
+              applyPluginMcpDiff(connectedUserMcp),
               loadAllPluginsCacheOnly(),
             ])
             if (cmdsR.status === 'fulfilled') {

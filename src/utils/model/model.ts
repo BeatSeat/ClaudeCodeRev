@@ -21,7 +21,11 @@ import {
 import { isEnvTruthy } from '../envUtils.js'
 import { getModelStrings, resolveOverriddenModel } from './modelStrings.js'
 import { formatModelPricing, getOpus46CostTier } from '../modelCost.js'
-import { getSettings_DEPRECATED } from '../settings/settings.js'
+import {
+  getRelativeSettingsFilePathForSource,
+  getSettings_DEPRECATED,
+  getSourceForSetting,
+} from '../settings/settings.js'
 import type { PermissionMode } from '../permissions/PermissionMode.js'
 import { getAPIProvider } from './providers.js'
 import { LIGHTNING_BOLT } from '../../constants/figures.js'
@@ -76,6 +80,27 @@ export function getUserSpecifiedModelSetting(): ModelSetting | undefined {
   }
 
   return specifiedModel
+}
+
+/**
+ * Startup-header suffix when the active model is a project or managed pin.
+ * Official 2.1.117 aN8 — empty when --model / ANTHROPIC_MODEL / user-or-local win.
+ */
+export function getModelPinSourceAnnotation(): string {
+  if (getMainLoopModelOverride() !== undefined) {
+    return ''
+  }
+  if (process.env.ANTHROPIC_MODEL) {
+    return ''
+  }
+  switch (getSourceForSetting('model')) {
+    case 'projectSettings':
+      return ` (from ${getRelativeSettingsFilePathForSource('projectSettings')})`
+    case 'policySettings':
+      return ' (from managed settings)'
+    default:
+      return ''
+  }
 }
 
 /**

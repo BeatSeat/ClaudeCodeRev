@@ -1723,7 +1723,7 @@ async function* queryModel(
     // temperature: 1 when thinking is enabled, which is already the default.
     // Official 2.1.112 WV8: omit temperature on Opus 4.7 (auto-mode 503).
     const temperature =
-      !hasThinking && modelSupportsRequestTemperature(options.model)
+      !hasThinking && modelSupportsRequestTemperature(resolvedModel)
         ? (options.temperatureOverride ?? 1)
         : undefined
 
@@ -2288,6 +2288,7 @@ async function* queryModel(
               costUSDForPart,
               usage,
               options.model,
+              effort != null ? String(effort) : undefined,
             )
 
             const refusalMessage = getErrorMessageIfRefusal(
@@ -2842,6 +2843,7 @@ async function* queryModel(
           llmSpan,
           fastMode: isFastModeRequest,
           previousRequestId,
+          effort: effort != null ? String(effort) : undefined,
         })
 
         if (error instanceof APIUserAbortError) {
@@ -2898,6 +2900,7 @@ async function* queryModel(
         llmSpan,
         fastMode: isFastModeRequest,
         previousRequestId,
+        effort: effort != null ? String(effort) : undefined,
       })
 
       // Don't yield an assistant error message for user aborts
@@ -2935,6 +2938,7 @@ async function* queryModel(
         fallbackCost,
         fallbackUsage,
         options.model,
+        effort != null ? String(effort) : undefined,
       )
     }
   }
@@ -2993,6 +2997,7 @@ async function* queryModel(
       fastMode: isFastModeRequest,
       previousRequestId,
       betas: lastRequestBetas,
+      effort: effort != null ? String(effort) : undefined,
     })
   })
 

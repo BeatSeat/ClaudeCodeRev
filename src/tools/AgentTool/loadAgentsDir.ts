@@ -10,6 +10,7 @@ import {
 } from '../../services/analytics/index.js'
 import {
   type McpServerConfig,
+  type ScopedMcpServerConfig,
   McpServerConfigSchema,
 } from '../../services/mcp/types.js'
 import type { ToolUseContext } from '../../Tool.js'
@@ -36,6 +37,10 @@ import {
   clearPluginAgentCache,
   loadPluginAgents,
 } from '../../utils/plugins/loadPluginAgents.js'
+import {
+  isRestrictedToPluginOnly,
+  isSourceAdminTrusted,
+} from '../../utils/settings/pluginOnlyPolicy.js'
 import { HooksSchema, type HooksSettings } from '../../utils/settings/types.js'
 import { jsonStringify } from '../../utils/slowOperations.js'
 import { FILE_EDIT_TOOL_NAME } from '../FileEditTool/constants.js'
@@ -752,4 +757,40 @@ export function parseAgentFromMarkdown(
     logError(error)
     return null
   }
+}
+
+/**
+ * Official 2.1.117 do8: convert agent frontmatter mcpServers into scoped
+ * configs for the --agent main-thread path. String specs (name references)
+ * are skipped; inline objects must have exactly one key.
+ */
+export function agentMcpSpecsToScopedConfigs(
+  agent: Pick<AgentDefinition, 'mcpServers' | 'agentType' | 'source'>,
+): Record<string, ScopedMcpServerConfig> {
+  if (!agent.mcpServers?.length) {
+    return {}
+  }
+  if (isRestrictedToPluginOnly('mcp') && !isSourceAdminTrusted(agent.source)) {
+    logForDebugging(
+      `[Agent: ${agent.agentType}] Skipping frontmatter MCP servers: strictPluginOnlyCustomization locks MCP to plugin-only (agent source: ${agent.source})`,
+    )
+    return {}
+  }
+  const configs: Record<string, ScopedMcpServerConfig> = {}
+  for (const spec of agent.mcpServers) {
+    if (typeof spec === 'string') {
+      continue
+    }
+    const entries = Object.entries(spec)
+    if (entries.length !== 1) {
+      logForDebugging(
+        `[Agent: ${agent.agentType}] Invalid MCP server spec: expected exactly one key`,
+        { level: 'warn' },
+      )
+      continue
+    }
+    const [name, config] = entries[0]!
+    configs[name] = { ...config, scope: 'agent' }
+  }
+  return configs
 }

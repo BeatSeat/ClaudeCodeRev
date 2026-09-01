@@ -17,7 +17,10 @@ import {
   notifySessionMetadataChanged,
   type SessionExternalMetadata,
 } from '../utils/sessionState.js'
-import { updateSettingsForSource } from '../utils/settings/settings.js'
+import {
+  getSettingsForSource,
+  updateSettingsForSource,
+} from '../utils/settings/settings.js'
 import type { AppState } from './AppStateStore.js'
 
 // Inverse of the push below — restore on worker restart.
@@ -91,24 +94,19 @@ export function onChangeAppState({
     notifyPermissionModeChanged(newMode)
   }
 
-  // mainLoopModel: remove it from settings?
-  if (
-    newState.mainLoopModel !== oldState.mainLoopModel &&
-    newState.mainLoopModel === null
-  ) {
-    // Remove from settings
-    updateSettingsForSource('userSettings', { model: undefined })
-    setMainLoopModelOverride(null)
-  }
-
-  // mainLoopModel: add it to settings?
-  if (
-    newState.mainLoopModel !== oldState.mainLoopModel &&
-    newState.mainLoopModel !== null
-  ) {
-    // Save to settings
-    updateSettingsForSource('userSettings', { model: newState.mainLoopModel })
-    setMainLoopModelOverride(newState.mainLoopModel)
+  // Official 2.1.117: persist /model to userSettings, and to localSettings
+  // when a project/local pin would otherwise win on restart.
+  if (newState.mainLoopModel !== oldState.mainLoopModel) {
+    const next = newState.mainLoopModel
+    updateSettingsForSource('userSettings', { model: next ?? undefined })
+    const projectPin = getSettingsForSource('projectSettings')?.model
+    const localPin = getSettingsForSource('localSettings')?.model
+    if (next !== null && (projectPin !== undefined || localPin !== undefined) && next !== projectPin) {
+      updateSettingsForSource('localSettings', { model: next })
+    } else if (localPin !== undefined) {
+      updateSettingsForSource('localSettings', { model: undefined })
+    }
+    setMainLoopModelOverride(next)
   }
 
   // expandedView → persist as showExpandedTodos + showSpinnerTree for backwards compat

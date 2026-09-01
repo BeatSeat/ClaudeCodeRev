@@ -1,11 +1,14 @@
+import { execFileSync } from 'child_process'
 import memoize from 'lodash-es/memoize.js'
 import * as path from 'path'
 import * as pathWin32 from 'path/win32'
-import { getCwd } from './cwd.js'
 import { logForDebugging } from './debug.js'
 import { execSync_DEPRECATED } from './execSyncWrapper.js'
 import { memoizeWithLRU } from './memoize.js'
 import { getPlatform } from './platform.js'
+
+/** Official 2.1.117 hB6 — process-lifetime where.exe cache */
+const whereExeCache = new Map<string, string>()
 
 /**
  * Check if a file or directory exists on Windows using the dir command
@@ -44,32 +47,42 @@ function findExecutable(executable: string): string | null {
     }
   }
 
-  // Fall back to where.exe
+  return findViaWhereExe(executable)
+}
+
+/**
+ * Official 2.1.117 sJ8: cached where.exe lookup that skips cwd (unsafe).
+ */
+export function findViaWhereExe(executable: string): string | null {
+  const cached = whereExeCache.get(executable)
+  if (cached !== undefined) {
+    return cached
+  }
+
+  const systemRoot = process.env.SYSTEMROOT || 'C:\\Windows'
+  const whereExe = path.join(systemRoot, 'System32', 'where.exe')
   try {
-    const result = execSync_DEPRECATED(`where.exe ${executable}`, {
+    const result = execFileSync(whereExe, [executable], {
       stdio: 'pipe',
       encoding: 'utf8',
-    }).trim()
+    })
+      .trim()
+      .split(/\r?\n/)
+      .filter(Boolean)
+    const cwd = process.cwd().toLowerCase()
 
-    // SECURITY: Filter out any results from the current directory
-    // to prevent executing malicious git.bat/cmd/exe files
-    const paths = result.split('\r\n').filter(Boolean)
-    const cwd = getCwd().toLowerCase()
-
-    for (const candidatePath of paths) {
-      // Normalize and compare paths to ensure we're not in current directory
+    for (const candidatePath of result) {
       const normalizedPath = path.resolve(candidatePath).toLowerCase()
-      const pathDir = path.dirname(normalizedPath).toLowerCase()
-
-      // Skip if the executable is in the current working directory
-      if (pathDir === cwd || normalizedPath.startsWith(cwd + path.sep)) {
+      if (
+        path.dirname(normalizedPath).toLowerCase() === cwd ||
+        normalizedPath.startsWith(cwd + path.sep)
+      ) {
         logForDebugging(
           `Skipping potentially malicious executable in current directory: ${candidatePath}`,
         )
         continue
       }
-
-      // Return the first valid path that's not in the current directory
+      whereExeCache.set(executable, candidatePath)
       return candidatePath
     }
 
@@ -77,6 +90,30 @@ function findExecutable(executable: string): string | null {
   } catch {
     return null
   }
+}
+
+/**
+ * Official 2.1.117 tJ8: resolve a bare command name via cached where.exe.
+ * Path-like commands and non-Windows are returned unchanged.
+ */
+export function resolveCommandOnWindows(command: string): string | null {
+  if (getPlatform() !== 'windows') {
+    return command
+  }
+  if (command.includes('/') || command.includes('\\')) {
+    return command
+  }
+  return findViaWhereExe(command)
+}
+
+export function assertWindowsSpawnCommand(command: string): string {
+  const resolved = resolveCommandOnWindows(command)
+  if (resolved === null) {
+    throw new Error(
+      `Command '${command}' not found or is in an unsafe location (current directory)`,
+    )
+  }
+  return resolved
 }
 
 /**

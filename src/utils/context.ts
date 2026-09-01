@@ -75,6 +75,15 @@ export function getContextWindowForModel(
     return 1_000_000
   }
 
+  // Official 2.1.117 fkH: Opus 4.7 is natively 1M. Must run before the
+  // capability table, which still reports 200K and was used by /context.
+  if (
+    !is1mContextDisabled() &&
+    getCanonicalName(model) === 'claude-opus-4-7'
+  ) {
+    return 1_000_000
+  }
+
   const cap = getModelCapability(model)
   if (cap?.max_input_tokens && cap.max_input_tokens >= 100_000) {
     if (

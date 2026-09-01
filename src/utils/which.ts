@@ -1,20 +1,10 @@
 import { execFileSync } from 'child_process'
 import { execa } from 'execa'
-import { execSync_DEPRECATED } from './execSyncWrapper.js'
+import { findViaWhereExe } from './windowsPaths.js'
 
 async function whichNodeAsync(command: string): Promise<string | null> {
   if (process.platform === 'win32') {
-    // On Windows, use where.exe and return the first result
-    const result = await execa(`where.exe ${command}`, {
-      shell: true,
-      stderr: 'ignore',
-      reject: false,
-    })
-    if (result.exitCode !== 0 || !result.stdout) {
-      return null
-    }
-    // where.exe returns multiple paths separated by newlines, return the first
-    return result.stdout.trim().split(/\r?\n/)[0] || null
+    return findViaWhereExe(command)
   }
 
   // On POSIX systems (macOS, Linux, WSL), use which
@@ -32,16 +22,7 @@ async function whichNodeAsync(command: string): Promise<string | null> {
 
 function whichNodeSync(command: string): string | null {
   if (process.platform === 'win32') {
-    try {
-      const result = execSync_DEPRECATED(`where.exe ${command}`, {
-        encoding: 'utf-8',
-        stdio: ['ignore', 'pipe', 'ignore'],
-      })
-      const output = result.toString().trim()
-      return output.split(/\r?\n/)[0] || null
-    } catch {
-      return null
-    }
+    return findViaWhereExe(command)
   }
 
   try {

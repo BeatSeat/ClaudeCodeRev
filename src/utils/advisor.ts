@@ -85,6 +85,12 @@ export function getExperimentAdvisorModels():
     : undefined
 }
 
+/** Official 2.1.117 HSH — aliases offered by the /advisor dialog. */
+export const ADVISOR_MODELS = ['opus', 'sonnet'] as const
+
+export const ADVISOR_LEARN_MORE_URL =
+  'https://claude.com/blog/the-advisor-strategy'
+
 // @[MODEL LAUNCH]: Add the new model if it supports the advisor tool.
 // Checks whether the main loop model supports calling the advisor tool.
 export function modelSupportsAdvisor(model: string): boolean {

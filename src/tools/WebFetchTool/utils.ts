@@ -130,6 +130,11 @@ const MAX_REDIRECTS = 10
 // Truncate to not spend too many tokens
 export const MAX_MARKDOWN_LENGTH = 100_000
 
+// Official 2.1.117 `pO7`: cap HTML before Turndown so huge pages cannot hang
+// the converter. Applied only on the text/html path; the 100k markdown cap
+// below still truncates the secondary-model prompt.
+const MAX_HTML_TO_MARKDOWN_LENGTH = 1_048_576
+
 export function isPreapprovedUrl(url: string): boolean {
   try {
     const parsedUrl = new URL(url)
@@ -457,7 +462,12 @@ export async function getURLMarkdownContent(
   let markdownContent: string
   let contentBytes: number
   if (contentType.includes('text/html')) {
-    markdownContent = (await getTurndownService()).turndown(htmlContent)
+    markdownContent = (await getTurndownService()).turndown(
+      htmlContent.slice(0, MAX_HTML_TO_MARKDOWN_LENGTH),
+    )
+    if (htmlContent.length > MAX_HTML_TO_MARKDOWN_LENGTH) {
+      markdownContent += '\n\n[Content truncated due to length...]'
+    }
     contentBytes = Buffer.byteLength(markdownContent)
   } else {
     // It's not HTML - just use it raw. The decoded string's UTF-8 byte

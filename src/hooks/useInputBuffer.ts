@@ -24,6 +24,14 @@ export type UseInputBufferResult = {
   clearBuffer: () => void
 }
 
+/**
+ * Prompt-input undo stack. Official 2.1.117 y$4:
+ * entries are *previous* states (PromptInput pushes the old value before
+ * applying a change). currentIndex points at the next state to restore,
+ * so undo returns that entry then decrements — fixing "does nothing
+ * immediately after typing" (canUndo was false at index 0) and
+ * "skips a state" (116 returned index-1, jumping over the latest push).
+ */
 export function useInputBuffer({
   maxBufferSize,
   debounceMs,
@@ -41,13 +49,11 @@ export function useInputBuffer({
     ) => {
       const now = Date.now()
 
-      // Clear any pending push
       if (pendingPush.current) {
         clearTimeout(pendingPush.current)
         pendingPush.current = null
       }
 
-      // Debounce rapid changes
       if (now - lastPushTime.current < debounceMs) {
         pendingPush.current = setTimeout(
           pushToBuffer,
@@ -60,55 +66,37 @@ export function useInputBuffer({
       }
 
       lastPushTime.current = now
+      if (buffer[currentIndex]?.text === text) {
+        return
+      }
 
       setBuffer(prevBuffer => {
-        // If we're not at the end of the buffer, truncate everything after current position
-        const newBuffer =
-          currentIndex >= 0 ? prevBuffer.slice(0, currentIndex + 1) : prevBuffer
-
-        // Don't add if it's the same as the last entry
-        const lastEntry = newBuffer[newBuffer.length - 1]
-        if (lastEntry && lastEntry.text === text) {
-          return newBuffer
-        }
-
-        // Add new entry
         const updatedBuffer = [
-          ...newBuffer,
+          ...prevBuffer.slice(0, currentIndex + 1),
           { text, cursorOffset, pastedContents, timestamp: now },
         ]
-
-        // Limit buffer size
         if (updatedBuffer.length > maxBufferSize) {
           return updatedBuffer.slice(-maxBufferSize)
         }
-
         return updatedBuffer
       })
 
-      // Update current index to point to the new entry
-      setCurrentIndex(prev => {
-        const newIndex = prev >= 0 ? prev + 1 : buffer.length
-        return Math.min(newIndex, maxBufferSize - 1)
-      })
+      setCurrentIndex(prev => Math.min(prev + 1, maxBufferSize - 1))
     },
-    [debounceMs, maxBufferSize, currentIndex, buffer.length],
+    [debounceMs, maxBufferSize, currentIndex, buffer],
   )
 
   const undo = useCallback((): BufferEntry | undefined => {
-    if (currentIndex < 0 || buffer.length === 0) {
+    if (pendingPush.current) {
+      clearTimeout(pendingPush.current)
+      pendingPush.current = null
+    }
+    const entry = buffer[currentIndex]
+    if (!entry) {
       return undefined
     }
-
-    const targetIndex = Math.max(0, currentIndex - 1)
-    const entry = buffer[targetIndex]
-
-    if (entry) {
-      setCurrentIndex(targetIndex)
-      return entry
-    }
-
-    return undefined
+    setCurrentIndex(currentIndex - 1)
+    return entry
   }, [buffer, currentIndex])
 
   const clearBuffer = useCallback(() => {
@@ -119,9 +107,9 @@ export function useInputBuffer({
       clearTimeout(pendingPush.current)
       pendingPush.current = null
     }
-  }, [lastPushTime, pendingPush])
+  }, [])
 
-  const canUndo = currentIndex > 0 && buffer.length > 1
+  const canUndo = currentIndex >= 0 && buffer[currentIndex] !== undefined
 
   return {
     pushToBuffer,

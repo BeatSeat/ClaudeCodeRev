@@ -1,7 +1,5 @@
 // biome-ignore-all assist/source/organizeImports: ANT-ONLY import markers must not be reordered
-import { isUltrathinkEnabled } from './thinking.js'
 import { getInitialSettings } from './settings/settings.js'
-import { isProSubscriber, isMaxSubscriber } from './auth.js'
 import { getFeatureValue_CACHED_MAY_BE_STALE } from 'src/services/analytics/growthbook.js'
 import { isFirstPartyApiFamily } from './model/providers.js'
 import { get3PModelCapabilityOverride } from './model/modelSupportOverrides.js'
@@ -360,23 +358,8 @@ export function getDefaultEffortForModel(
     return 'xhigh'
   }
 
-  // Default effort on Opus 4.6 to medium for Pro/Max.
-  if (canonical.includes('opus-4-6')) {
-    if (isProSubscriber() || isMaxSubscriber()) {
-      return 'medium'
-    }
-  }
-
-  // Ultrathink default medium is Pro/Max only; API-key / 3P / Team /
-  // Enterprise fall through to high (API default).
-  if (
-    isUltrathinkEnabled() &&
-    modelSupportsEffort(model) &&
-    (isProSubscriber() || isMaxSubscriber())
-  ) {
-    return 'medium'
-  }
-
+  // Official 2.1.117 JQ8: Pro/Max default on Opus 4.6 / Sonnet 4.6 is high
+  // (was medium). External users always fall through to high.
   return 'high'
 }
 

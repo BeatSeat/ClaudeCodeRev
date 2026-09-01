@@ -21,6 +21,7 @@ import {
   isInstallationRelevantToCurrentProject,
   loadInstalledPluginsFromDisk,
 } from './installedPluginsManager.js'
+import { isSourceAllowedByPolicy } from './marketplaceHelpers.js'
 import {
   getDeclaredMarketplaces,
   loadKnownMarketplacesConfig,
@@ -89,6 +90,10 @@ async function getAutoUpdateEnabledMarketplaces(): Promise<Set<string>> {
   const enabled = new Set<string>()
 
   for (const [name, entry] of Object.entries(config)) {
+    // Official 2.1.117: blockedMarketplaces / strictKnownMarketplaces on autoupdate
+    if (!isSourceAllowedByPolicy(entry.source)) {
+      continue
+    }
     // Settings-declared autoUpdate takes precedence over JSON state
     const declaredAutoUpdate = declared[name]?.autoUpdate
     const autoUpdate =

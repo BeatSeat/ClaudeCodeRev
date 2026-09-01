@@ -22,6 +22,7 @@ import {
   VALID_UPDATE_SCOPES,
 } from '../../services/plugins/pluginCliCommands.js'
 import { getPluginErrorMessage } from '../../types/plugin.js'
+import { logForDebugging } from '../../utils/debug.js'
 import { errorMessage } from '../../utils/errors.js'
 import { logError } from '../../utils/log.js'
 import { clearAllCaches } from '../../utils/plugins/cacheUtils.js'
@@ -48,7 +49,9 @@ import {
   parsePluginIdentifier,
   scopeToSettingSource,
 } from '../../utils/plugins/pluginIdentifier.js'
+import { formatDependencyCountSuffix } from '../../utils/plugins/dependencyResolver.js'
 import { loadAllPlugins } from '../../utils/plugins/pluginLoader.js'
+import { resolveMissingDependencies } from '../../utils/plugins/resolveMissingDependencies.js'
 import type { PluginSource } from '../../utils/plugins/schemas.js'
 import {
   type ValidationResult,
@@ -513,10 +516,22 @@ export async function marketplaceAddHandler(
         sourceType as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
     })
 
+    let installedDeps: string[] = []
+    try {
+      installedDeps = (await resolveMissingDependencies((await loadAllPlugins()).errors))
+        .installed
+    } catch (depErr) {
+      logForDebugging(
+        `marketplace add: dep auto-resolve skipped: ${errorMessage(depErr)}`,
+        { level: 'warn' },
+      )
+    }
+    const depNote = formatDependencyCountSuffix(installedDeps)
+
     cliOk(
       alreadyMaterialized
-        ? `${figures.tick} Marketplace '${name}' already on disk — declared in ${scope} settings`
-        : `${figures.tick} Successfully added marketplace: ${name} (declared in ${scope} settings)`,
+        ? `${figures.tick} Marketplace '${name}' already on disk — declared in ${scope} settings${depNote}`
+        : `${figures.tick} Successfully added marketplace: ${name} (declared in ${scope} settings)${depNote}`,
     )
   } catch (error) {
     handleMarketplaceError(error, 'add marketplace')

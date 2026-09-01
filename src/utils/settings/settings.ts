@@ -326,6 +326,23 @@ export function getSettingsForSource(
   return result
 }
 
+/**
+ * Highest-priority enabled source that actually defines `key`.
+ * Official 2.1.117 Q3H — used by /model pin chrome and persist.
+ */
+export function getSourceForSetting(
+  key: keyof SettingsJson,
+): SettingSource | null {
+  const sources = getEnabledSettingSources()
+  for (let i = sources.length - 1; i >= 0; i--) {
+    const source = sources[i]
+    if (source && getSettingsForSource(source)?.[key] !== undefined) {
+      return source
+    }
+  }
+  return null
+}
+
 function getSettingsForSourceUncached(
   source: SettingSource,
 ): SettingsJson | null {

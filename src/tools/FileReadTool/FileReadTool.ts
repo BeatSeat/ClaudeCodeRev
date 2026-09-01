@@ -708,7 +708,9 @@ export const FileReadTool = buildTool({
           content =
             memoryFileFreshnessPrefix(data) +
             formatFileLines(data.file) +
-            (shouldIncludeFileReadMitigation()
+            (shouldIncludeFileReadMitigation(
+              fileReadModels.get(data) ?? getMainLoopModel(),
+            )
               ? CYBER_RISK_MITIGATION_REMINDER
               : '')
         } else {
@@ -758,9 +760,8 @@ const MITIGATION_INCLUDED_MODELS = new Set([
   'claude-haiku-4-5',
 ])
 
-function shouldIncludeFileReadMitigation(): boolean {
-  const shortName = getCanonicalName(getMainLoopModel())
-  return MITIGATION_INCLUDED_MODELS.has(shortName)
+function shouldIncludeFileReadMitigation(model: string): boolean {
+  return MITIGATION_INCLUDED_MODELS.has(getCanonicalName(model))
 }
 
 /**
@@ -771,6 +772,11 @@ function shouldIncludeFileReadMitigation(): boolean {
  * when the data object becomes unreachable after rendering.
  */
 const memoryFileMtimes = new WeakMap<object, number>()
+
+// Official 2.1.117 `oW7`: the agent that issued this Read, not the REPL
+// main-loop model. Subagents on a newer model were inheriting the parent
+// model's include-list and getting a false malware reminder.
+const fileReadModels = new WeakMap<object, string>()
 
 function memoryFileFreshnessPrefix(data: object): string {
   const mtimeMs = memoryFileMtimes.get(data)
@@ -1079,6 +1085,7 @@ async function callInner(
       totalLines,
     },
   }
+  fileReadModels.set(data, context.options.mainLoopModel)
   if (isAutoMemFile(fullFilePath)) {
     memoryFileMtimes.set(data, mtimeMs)
   }

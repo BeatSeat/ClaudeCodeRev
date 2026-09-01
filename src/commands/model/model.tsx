@@ -29,9 +29,58 @@ import {
   isOpus1mMergeEnabled,
   parseUserSpecifiedModel,
   renderDefaultModelSetting,
+  renderModelName,
 } from '../../utils/model/model.js'
 import { isModelAllowed } from '../../utils/model/modelAllowlist.js'
 import { validateModel } from '../../utils/model/validateModel.js'
+import {
+  getRelativeSettingsFilePathForSource,
+  getSettingsForSource,
+  getSourceForSetting,
+} from '../../utils/settings/settings.js'
+import type { SettingSource } from '../../utils/settings/constants.js'
+
+function pinDisplayName(model: string): string {
+  if (model === 'opusplan') {
+    return 'Opus Plan'
+  }
+  return renderModelName(parseUserSpecifiedModel(model))
+}
+
+/** Official 2.1.117 Fx1 — /model confirmation when a project/managed pin still applies on restart. */
+function formatModelPinNote(
+  selected: string | null,
+  source: SettingSource | null,
+  pinnedModel: string | undefined,
+): string {
+  if (pinnedModel === undefined || selected === pinnedModel) {
+    return ''
+  }
+  const localPath = getRelativeSettingsFilePathForSource('localSettings')
+  switch (source) {
+    case 'policySettings':
+      return chalk.dim(
+        `\n     Managed settings pin ${chalk.bold(pinDisplayName(pinnedModel))} — that applies on restart`,
+      )
+    case 'projectSettings':
+    case 'localSettings': {
+      const pinPath =
+        source === 'localSettings'
+          ? localPath
+          : getRelativeSettingsFilePathForSource('projectSettings')
+      if (selected !== null) {
+        return chalk.dim(
+          `\n     Also saved to ${localPath} to override the pin in ${pinPath}`,
+        )
+      }
+      return chalk.dim(
+        `\n     ${pinPath} pins ${chalk.bold(pinDisplayName(pinnedModel))} — that applies on restart`,
+      )
+    }
+    default:
+      return ''
+  }
+}
 
 function ModelPickerWrapper({
   onDone,
@@ -284,6 +333,12 @@ function SetModelAndClose({
         // Fast mode was toggled off, show suffix after extra usage billing
         message += ` · Fast mode OFF`
       }
+
+      const pinSource = getSourceForSetting('model')
+      const pinnedModel = pinSource
+        ? getSettingsForSource(pinSource)?.model
+        : undefined
+      message += formatModelPinNote(modelValue, pinSource, pinnedModel)
 
       onDone(message)
     }

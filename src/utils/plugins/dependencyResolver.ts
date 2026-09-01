@@ -524,6 +524,28 @@ export function formatDependencyCountSuffix(installedDeps: string[]): string {
 }
 
 /**
+ * Official 2.1.117 `NXK`: "not installed" install-hint suffix when deps
+ * stay unresolved after auto-resolve (marketplace missing vs other).
+ */
+export function formatUnresolvedDependenciesSuffix(
+  stillUnresolved: string[],
+  marketplaceMissing: string[],
+): string {
+  if (stillUnresolved.length === 0) return ''
+  const n = stillUnresolved.length
+  const hintedMarketplace = marketplaceMissing
+    .map(id => parsePluginIdentifier(id).marketplace)
+    .find(m => m !== undefined)
+  const hint =
+    hintedMarketplace !== undefined
+      ? ` Is the "${hintedMarketplace}" marketplace added?`
+      : marketplaceMissing.length > 0
+        ? ' Add the dependency\'s marketplace, then re-run install.'
+        : ''
+  return ` — ${n} ${n === 1 ? 'dependency' : 'dependencies'} still unresolved: ${stillUnresolved.join(', ')}.${hint}`
+}
+
+/**
  * Format the "warning: required by X, Y" suffix for uninstall/disable
  * results. Em-dash style for CLI result messages (not the middot style
  * used in the notification UI). Returns empty string when no dependents.

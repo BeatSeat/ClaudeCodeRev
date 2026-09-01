@@ -36,6 +36,7 @@ import {
 import type { TabStatusKind } from '../ink/hooks/use-tab-status.js'
 import { CostThresholdDialog } from '../components/CostThresholdDialog.js'
 import { IdleReturnDialog } from '../components/IdleReturnDialog.js'
+import { ResumeReturnDialog } from '../components/ResumeReturnDialog.js'
 import * as React from 'react'
 import {
   useEffect,
@@ -169,6 +170,7 @@ import {
   getStoredSessionCosts,
 } from '../cost-tracker.js'
 import { tokenCountWithEstimation } from '../utils/tokens.js'
+import { getResumeReturnOffer } from '../utils/resumeReturnOffer.js'
 import { useCostSummary } from '../costHook.js'
 import { useFpsMetrics } from '../context/fpsMetrics.js'
 import { useAfterFirstRender } from '../hooks/useAfterFirstRender.js'
@@ -541,6 +543,7 @@ import { useIDEStatusIndicator } from 'src/hooks/notifs/useIDEStatusIndicator.js
 import { useModelMigrationNotifications } from 'src/hooks/notifs/useModelMigrationNotifications.js'
 import { useCanSwitchToExistingSubscription } from 'src/hooks/notifs/useCanSwitchToExistingSubscription.js'
 import { useTeammateLifecycleNotification } from 'src/hooks/notifs/useTeammateShutdownNotification.js'
+import { useAdvisorExperimentalNotification } from 'src/hooks/notifs/useAdvisorExperimentalNotification.js'
 import { useFastModeNotification } from 'src/hooks/notifs/useFastModeNotification.js'
 import {
   AutoRunIssueNotification,
@@ -1171,6 +1174,7 @@ export function REPL({
   useSettingsErrors()
   useRateLimitWarningNotification(mainLoopModel)
   useFastModeNotification()
+  useAdvisorExperimentalNotification()
   useDeprecationWarningNotification(mainLoopModel)
   useNpmDeprecationNotification()
   useAntOrgWarningNotification()
@@ -2065,6 +2069,20 @@ export function REPL({
     input: string
     idleMinutes: number
   } | null>(null)
+  // Official 2.1.117 qs7 / $s7: summarize stale large sessions on --resume and /resume
+  const [resumeReturnPending, setResumeReturnPending] = useState<{
+    sessionAgeMinutes: number
+    estimatedTokens: number
+  } | null>(null)
+  const offerResumeReturn = useCallback((sessionMessages: MessageType[]) => {
+    const offer = getResumeReturnOffer(
+      sessionMessages,
+      tokenCountWithEstimation,
+    )
+    if (offer) {
+      setResumeReturnPending(offer)
+    }
+  }, [])
   const skipIdleCheckRef = useRef(false)
   const lastQueryCompletionTimeRef = useRef(lastQueryCompletionTime)
   lastQueryCompletionTimeRef.current = lastQueryCompletionTime
@@ -2620,6 +2638,10 @@ export function REPL({
         // Clear input to ensure no residual state
         setInputValue('')
 
+        if (entrypoint !== 'fork') {
+          offerResumeReturn(messages)
+        }
+
         logEvent('tengu_session_resumed', {
           entrypoint:
             entrypoint as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
@@ -2635,7 +2657,7 @@ export function REPL({
         throw error
       }
     },
-    [resetLoadingState, setAppState],
+    [resetLoadingState, setAppState, offerResumeReturn],
   )
 
   // Lazy init: useRef(createX()) would call createX on every render and
@@ -2691,6 +2713,7 @@ export function REPL({
         setAppState,
       })
       resurrectSessionCronTasks(initialMessages)
+      offerResumeReturn(initialMessages)
     }
     // Only run on mount - initialMessages shouldn't change during component lifetime
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -2725,6 +2748,7 @@ export function REPL({
     | 'worker-sandbox-permission'
     | 'elicitation'
     | 'cost'
+    | 'resume-return'
     | 'idle-return'
     | 'init-onboarding'
     | 'ide-onboarding'
@@ -2761,6 +2785,7 @@ export function REPL({
       return 'worker-sandbox-permission'
     if (allowDialogsWithAnimation && elicitation.queue[0]) return 'elicitation'
     if (allowDialogsWithAnimation && showingCostDialog) return 'cost'
+    if (allowDialogsWithAnimation && resumeReturnPending) return 'resume-return'
     if (allowDialogsWithAnimation && idleReturnPending) return 'idle-return'
 
     if (
@@ -6599,6 +6624,41 @@ export function REPL({
                     }}
                   />
                 )}
+                {focusedInputDialog === 'resume-return' &&
+                  resumeReturnPending && (
+                    <ResumeReturnDialog
+                      sessionAgeMinutes={
+                        resumeReturnPending.sessionAgeMinutes
+                      }
+                      estimatedTokens={resumeReturnPending.estimatedTokens}
+                      onDone={action => {
+                        const pending = resumeReturnPending
+                        setResumeReturnPending(null)
+                        logEvent('tengu_resume_return_action', {
+                          action:
+                            action as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
+                          sessionAgeMinutes: Math.round(
+                            pending.sessionAgeMinutes,
+                          ),
+                          messageCount: messagesRef.current.length,
+                          estimatedTokens: pending.estimatedTokens,
+                        })
+                        if (action === 'never') {
+                          saveGlobalConfig(current => {
+                            if (current.resumeReturnDismissed) return current
+                            return { ...current, resumeReturnDismissed: true }
+                          })
+                        }
+                        if (action === 'compact') {
+                          void onSubmitRef.current('/compact', {
+                            setCursorOffset: () => {},
+                            clearBuffer: () => {},
+                            resetHistory: () => {},
+                          })
+                        }
+                      }}
+                    />
+                  )}
                 {focusedInputDialog === 'idle-return' && idleReturnPending && (
                   <IdleReturnDialog
                     idleMinutes={idleReturnPending.idleMinutes}

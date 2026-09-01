@@ -33,6 +33,7 @@ import {
   type AnalyticsMetadata_I_VERIFIED_THIS_IS_PII_TAGGED,
   logEvent,
 } from '../../services/analytics/index.js'
+import { isToolDetailsLoggingEnabled } from '../../services/analytics/metadata.js'
 import { getDumpPromptsPath } from '../../services/api/dumpPrompts.js'
 import { buildPostCompactMessages } from '../../services/compact/compact.js'
 import { resetMicrocompactState } from '../../services/compact/microCompact.js'
@@ -502,6 +503,34 @@ export async function processSlashCommand(
       shouldQuery: true,
     }
   }
+
+  // Official 2.1.117: user_prompt OTEL includes command_name / command_source.
+  // Custom/MCP names are redacted unless OTEL_LOG_TOOL_DETAILS=1.
+  const slashCommand = getCommand(commandName, context.options.commands)
+  const commandSource = isMcp
+    ? 'mcp'
+    : builtInCommandNames().has(commandName) ||
+        (slashCommand.type === 'prompt' &&
+          (slashCommand.source === 'bundled' ||
+            slashCommand.source === 'builtin'))
+      ? 'builtin'
+      : 'custom'
+  const promptToLog =
+    slashCommand.isSensitive && parsedArgs.trim()
+      ? `/${commandName} ***`
+      : inputString
+  const slashPromptId = randomUUID()
+  setPromptId(slashPromptId)
+  void logOTelEvent('user_prompt', {
+    prompt_length: String(promptToLog.length),
+    prompt: redactIfDisabled(promptToLog),
+    'prompt.id': slashPromptId,
+    command_name:
+      commandSource === 'builtin' || isToolDetailsLoggingEnabled()
+        ? commandName
+        : commandSource,
+    command_source: commandSource,
+  })
 
   // Track slash command usage for feature discovery
 

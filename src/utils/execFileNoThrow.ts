@@ -5,6 +5,7 @@
 import { type ExecaError, execa } from 'execa'
 import { getCwd } from '../utils/cwd.js'
 import { logError } from './log.js'
+import { assertWindowsSpawnCommand } from './windowsPaths.js'
 
 export { execSyncWithDefaults_DEPRECATED } from './execFileNoThrowPortable.js'
 
@@ -106,6 +107,15 @@ export function execFileNoThrowWithCwd(
   },
 ): Promise<{ stdout: string; stderr: string; code: number; error?: string }> {
   return new Promise(resolve => {
+    // Official 2.1.117 TI/Kg6: resolve bare Windows commands via cached
+    // where.exe and refuse cwd-local lookups.
+    try {
+      file = assertWindowsSpawnCommand(file)
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error)
+      void resolve({ stdout: '', stderr: message, code: 1, error: message })
+      return
+    }
     // Use execa for cross-platform .bat/.cmd compatibility on Windows
     execa(file, args, {
       maxBuffer,
