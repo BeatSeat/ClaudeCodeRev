@@ -458,6 +458,55 @@ function getCustomHeaders(): Record<string, string> {
 
 export const CLIENT_REQUEST_ID_HEADER = 'x-client-request-id'
 
+/** Byte-level SSE idle abort (official 2.1.104 `OV8`). */
+export class StreamIdleTimeoutError extends Error {
+  idleMs: number
+  constructor(idleMs: number) {
+    super(`stream idle: no bytes for ${idleMs}ms`)
+    this.name = 'StreamIdleTimeoutError'
+    this.idleMs = idleMs
+  }
+}
+
+/**
+ * Abort an SSE body when no bytes arrive for `idleMs`.
+ * Official 2.1.104 `u9_` — independent of the event-level stream watchdog.
+ */
+function withByteLevelStreamIdleTimeout(
+  body: ReadableStream<Uint8Array>,
+  idleMs: number,
+): ReadableStream<Uint8Array> {
+  let timer: ReturnType<typeof setTimeout> | null = null
+  const clear = (): void => {
+    if (timer !== null) {
+      clearTimeout(timer)
+      timer = null
+    }
+  }
+  const arm = (controller: TransformStreamDefaultController<Uint8Array>): void => {
+    clear()
+    timer = setTimeout(() => {
+      timer = null
+      try {
+        controller.error(new StreamIdleTimeoutError(idleMs))
+      } catch {
+        // controller may already be closed or errored
+      }
+    }, idleMs)
+    timer.unref?.()
+  }
+  return body.pipeThrough(
+    new TransformStream<Uint8Array, Uint8Array>({
+      start: arm,
+      transform(chunk, controller) {
+        arm(controller)
+        controller.enqueue(chunk)
+      },
+      flush: clear,
+    }),
+  )
+}
+
 function buildFetch(
   fetchOverride: ClientOptions['fetch'],
   source: string | undefined,
@@ -470,7 +519,7 @@ function buildFetch(
   const injectClientRequestId =
     (provider === 'firstParty' && isFirstPartyAnthropicBaseUrl()) ||
     (provider === 'anthropicAws' && !process.env.ANTHROPIC_AWS_BASE_URL)
-  return (input, init) => {
+  return async (input, init) => {
     // eslint-disable-next-line eslint-plugin-n/no-unsupported-features/node-builtins
     const headers = new Headers(init?.headers)
     // Generate a client-side request ID so timeouts (which return no server
@@ -489,6 +538,24 @@ function buildFetch(
     } catch {
       // never let logging crash the fetch
     }
-    return inner(input, { ...init, headers })
+    const response = await inner(input, { ...init, headers })
+    // First-party SSE: abort if the byte stream goes silent (official 2.1.104 `m9_`).
+    if (
+      injectClientRequestId &&
+      response.body &&
+      response.headers.get('content-type')?.includes('text/event-stream')
+    ) {
+      const idleMs = Math.max(
+        parseInt(process.env.CLAUDE_STREAM_IDLE_TIMEOUT_MS || '', 10) || 90_000,
+        15_000,
+      )
+      const wrapped = new Response(
+        withByteLevelStreamIdleTimeout(response.body, idleMs),
+        response,
+      )
+      Object.defineProperty(wrapped, 'url', { value: response.url })
+      return wrapped
+    }
+    return response
   }
 }
