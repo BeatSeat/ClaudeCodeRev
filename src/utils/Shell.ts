@@ -420,11 +420,11 @@ export async function exec(
         AI_AGENT: formatAiAgentValue('agent'),
         ...envOverrides,
         ...(traceparent && { TRACEPARENT: traceparent }),
-        ...(process.env.USER_TYPE === 'ant'
-          ? {
-              CLAUDE_CODE_SESSION_ID: getSessionId(),
-            }
-          : {}),
+        // 2.1.132: CLAUDE_CODE_SESSION_ID is now always passed to the Bash
+        // subprocess, matching the session_id sent to hooks (was gated on
+        // USER_TYPE==='ant' before). Official 132 spawn env:
+        // CLAUDE_CODE_SESSION_ID:N$() unconditional.
+        CLAUDE_CODE_SESSION_ID: getSessionId(),
       },
       cwd,
       stdio: spawnStdio(usePipeMode, outputHandle?.fd, applySeccompFd),

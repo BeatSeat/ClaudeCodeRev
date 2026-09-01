@@ -76,6 +76,7 @@ import { LSPTool } from './tools/LSPTool/LSPTool.js'
 import { ListMcpResourcesTool } from './tools/ListMcpResourcesTool/ListMcpResourcesTool.js'
 import { ReadMcpResourceTool } from './tools/ReadMcpResourceTool/ReadMcpResourceTool.js'
 import { ToolSearchTool } from './tools/ToolSearchTool/ToolSearchTool.js'
+import { WaitForMcpServersTool } from './tools/WaitForMcpServersTool/WaitForMcpServersTool.js'
 import { EnterPlanModeTool } from './tools/EnterPlanModeTool/EnterPlanModeTool.js'
 import { EnterWorktreeTool } from './tools/EnterWorktreeTool/EnterWorktreeTool.js'
 import { ExitWorktreeTool } from './tools/ExitWorktreeTool/ExitWorktreeTool.js'
@@ -252,6 +253,9 @@ export function getAllBaseTools(): Tools {
     ...(process.env.NODE_ENV === 'test' ? [TestingPermissionTool] : []),
     ListMcpResourcesTool,
     ReadMcpResourceTool,
+    // Official 2.1.132: WaitForMcpServers is always present in the base list;
+    // its isEnabled() (tengu_ashen_kelp + pending servers) gates visibility.
+    WaitForMcpServersTool,
     // Include ToolSearchTool when tool search might be enabled (optimistic check)
     // The actual decision to defer tools happens at request time in claude.ts
     ...(isToolSearchEnabledOptimistic() ? [ToolSearchTool] : []),

@@ -87,6 +87,7 @@ import {
 import { registerElicitationHandler } from './elicitationHandler.js'
 import { getMcpPrefix } from './mcpStringUtils.js'
 import { commandBelongsToServer, excludeStalePluginClients } from './utils.js'
+import { setMcpClientsGetter } from './mcpPendingClients.js'
 
 // Constants for reconnection with exponential backoff
 const MAX_RECONNECT_ATTEMPTS = 5
@@ -205,6 +206,15 @@ export function useManageMCPConnections(
       }
     }
   }, [setAppState])
+  // Official 2.1.132 `JEH`: expose the live MCP client list to non-React code
+  // (WaitForMcpServers.isEnabled reads pending server names). Registered once
+  // per mount; cleared on unmount.
+  useEffect(() => {
+    setMcpClientsGetter(() => store.getState().mcp.clients)
+    return () => {
+      setMcpClientsGetter(undefined)
+    }
+  }, [store])
   const { addNotification } = useNotifications()
 
   // Batched MCP state updates: queue individual server updates and flush them
