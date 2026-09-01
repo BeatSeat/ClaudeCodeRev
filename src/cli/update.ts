@@ -1,10 +1,13 @@
+import { basename } from 'path'
 import chalk from 'chalk'
 import { logEvent } from 'src/services/analytics/index.js'
 import {
   getLatestVersion,
+  getUpdateApplyRestoreFailed,
   type InstallStatus,
   installGlobalPackage,
 } from 'src/utils/autoUpdater.js'
+import { recordUpdateResult } from 'src/utils/lastUpdateResult.js'
 import { regenerateCompletionCache } from 'src/utils/completionCache.js'
 import {
   getGlobalConfig,
@@ -392,6 +395,21 @@ export async function update() {
 
   logForDebugging(`update: Installation status: ${status}`)
 
+  if (status !== 'in_progress') {
+    await recordUpdateResult({
+      timestamp: new Date().toISOString(),
+      path: useLocalUpdate ? 'npm-local' : 'npm-global',
+      outcome: status === 'success' ? 'success' : 'failed',
+      status,
+      version_from: MACRO.VERSION,
+      version_to: latestVersion,
+      error_code:
+        status === 'install_failed' && getUpdateApplyRestoreFailed()
+          ? 'update_apply_restore_failed'
+          : null,
+    })
+  }
+
   switch (status) {
     case 'success':
       writeToStdout(
@@ -418,9 +436,18 @@ export async function update() {
       }
       await gracefulShutdown(1)
       break
-    case 'install_failed':
+    case 'install_failed': {
       process.stderr.write('Error: Failed to install update\n')
-      if (useLocalUpdate) {
+      // Official 2.1.153: Windows copy-restore failure (IaH / getUpdateApplyRestoreFailed)
+      const restoreFailed = getUpdateApplyRestoreFailed()
+      if (restoreFailed) {
+        process.stderr.write(
+          `Your Claude Code executable could not be restored after the failed update. It was preserved at ${restoreFailed.preservedPath}\n`,
+        )
+        process.stderr.write(
+          `Rename it back to ${basename(restoreFailed.originalPath)}, or reinstall with: npm i -g ${MACRO.PACKAGE_URL}\n`,
+        )
+      } else if (useLocalUpdate) {
         process.stderr.write('Try manually updating with:\n')
         process.stderr.write(
           `  cd ~/.claude/local && npm update ${MACRO.PACKAGE_URL}\n`,
@@ -432,6 +459,7 @@ export async function update() {
       }
       await gracefulShutdown(1)
       break
+    }
     case 'in_progress':
       process.stderr.write(
         'Error: Another instance is currently performing an update\n',

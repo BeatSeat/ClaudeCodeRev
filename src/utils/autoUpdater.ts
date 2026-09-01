@@ -1,8 +1,10 @@
 import axios from 'axios'
 import { constants as fsConstants } from 'fs'
-import { access, writeFile } from 'fs/promises'
+import { access, copyFile, readdir, rename, rm, stat, unlink, writeFile } from 'fs/promises'
 import { homedir } from 'os'
-import { join } from 'path'
+import { dirname, join } from 'path'
+import { isInBundledMode } from './bundledMode.js'
+import { getPlatform } from './platform.js'
 import { getDynamicConfig_BLOCKS_ON_INIT } from 'src/services/analytics/growthbook.js'
 import {
   type AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
@@ -26,6 +28,16 @@ import {
   writeFileLines,
 } from './shellConfig.js'
 import { jsonParse } from './slowOperations.js'
+
+/** Official 2.1.153 `yaH` / `IaH()`: set when Windows npm copy-restore fails. */
+let updateApplyRestoreFailed: {
+  originalPath: string
+  preservedPath: string
+} | null = null
+
+export function getUpdateApplyRestoreFailed(): typeof updateApplyRestoreFailed {
+  return updateApplyRestoreFailed
+}
 
 const GCS_BUCKET_URL =
   'https://downloads.claude.ai/claude-code-releases'
@@ -506,11 +518,109 @@ To fix this issue:
     // Run from home directory to avoid reading project-level .npmrc/.bunfig.toml
     // which could be maliciously crafted to redirect to an attacker's registry
     const packageManager = env.isRunningWithBun() ? 'bun' : 'npm'
+
+    // Official 2.1.153 `$Z$`: Windows npm self-rename so the locked exe can
+    // be replaced; on install fail, rename/copy-restore the original.
+    const renamed: Array<[originalPath: string, preservedPath: string]> = []
+    if (
+      getPlatform() === 'windows' &&
+      isInBundledMode() &&
+      process.execPath
+        .replace(/\\/g, '/')
+        .includes('/node_modules/@anthropic-ai/')
+    ) {
+      const packageScopeDir = join(dirname(process.execPath), '..', '..')
+      const packageScopeParent = join(packageScopeDir, '..')
+      for (const dir of [packageScopeParent, packageScopeDir]) {
+        for (const entry of await readdir(dir, { withFileTypes: true }).catch(
+          (): import('fs').Dirent[] => [],
+        )) {
+          if (!entry.isDirectory() || !entry.name.startsWith('.')) continue
+          const hiddenDir = join(dir, entry.name)
+          if (
+            await Promise.all([
+              readdir(hiddenDir).catch(() => []),
+              readdir(join(hiddenDir, 'bin')).catch(() => []),
+            ]).then(([rootNames, binNames]) =>
+              [...rootNames, ...binNames].some(name =>
+                /\.exe\.old\.\d+$/.test(name),
+              ),
+            )
+          ) {
+            await rm(hiddenDir, { recursive: true, force: true }).catch(err =>
+              logForDebugging(`retired-dir cleanup failed: ${err}`),
+            )
+          }
+        }
+      }
+      const stamp = Date.now()
+      const execIno = await stat(process.execPath, { bigint: true })
+        .then(s => s.ino)
+        .catch(() => 0n)
+      const exePaths = [process.execPath]
+      for (const entry of await readdir(packageScopeDir).catch(() => [])) {
+        for (const exeName of ['claude.exe', 'cli.exe']) {
+          const candidate = join(packageScopeDir, entry, exeName)
+          if (candidate === process.execPath) continue
+          const candidateIno = await stat(candidate, { bigint: true })
+            .then(s => s.ino)
+            .catch(() => -1n)
+          if (execIno && candidateIno === execIno) {
+            exePaths.push(candidate)
+          }
+        }
+      }
+      for (const exePath of exePaths) {
+        const preservedPath = `${exePath}.old.${stamp}`
+        await rename(exePath, preservedPath).then(
+          () => {
+            renamed.push([exePath, preservedPath])
+          },
+          () => {},
+        )
+      }
+    }
+
     const installResult = await execFileNoThrowWithCwd(
       packageManager,
       ['install', '-g', packageSpec],
       { cwd: homedir() },
     )
+    if (renamed.length && installResult.code !== 0) {
+      updateApplyRestoreFailed = null
+      for (const [originalPath, preservedPath] of renamed) {
+        try {
+          await rename(preservedPath, originalPath)
+        } catch (renameErr) {
+          try {
+            await copyFile(preservedPath, originalPath)
+            logForDebugging(
+              `Restored ${originalPath} by copy after rename failed: ${renameErr}`,
+            )
+            await unlink(preservedPath).catch(err =>
+              logForDebugging(
+                `Failed to remove ${preservedPath} after copy-restore: ${err}`,
+              ),
+            )
+          } catch (copyErr) {
+            if (!updateApplyRestoreFailed) {
+              updateApplyRestoreFailed = { originalPath, preservedPath }
+              logEvent('tengu_feature_bad', {
+                feature_name:
+                  'update_apply' as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
+                error_code:
+                  'update_apply_restore_failed' as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
+              })
+            }
+            logError(
+              new AutoUpdaterError(
+                `Failed to restore ${originalPath} after install failure: rename: ${renameErr}; copy: ${copyErr}`,
+              ),
+            )
+          }
+        }
+      }
+    }
     if (installResult.code !== 0) {
       const error = new AutoUpdaterError(
         `Failed to install new version of claude: ${installResult.stdout} ${installResult.stderr}`,
@@ -525,6 +635,7 @@ To fix this issue:
       installMethod: 'global',
     }))
 
+    updateApplyRestoreFailed = null
     return 'success'
   } finally {
     // Ensure we always release the lock

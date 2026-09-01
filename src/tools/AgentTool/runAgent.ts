@@ -3,7 +3,12 @@ import type { UUID } from 'crypto'
 import { randomUUID } from 'crypto'
 import uniqBy from 'lodash-es/uniqBy.js'
 import { logForDebugging } from 'src/utils/debug.js'
-import { getProjectRoot, getSessionId } from '../../bootstrap/state.js'
+import {
+  getIsRemoteMode,
+  getProjectRoot,
+  getSessionId,
+  getStrictMcpConfig,
+} from '../../bootstrap/state.js'
 import { getCommand, getSkillToolCommands, hasCommand } from '../../commands.js'
 import {
   DEFAULT_AGENT_PROMPT,
@@ -20,7 +25,11 @@ import {
   connectToServer,
   fetchToolsForClient,
 } from '../../services/mcp/client.js'
-import { getMcpConfigByName } from '../../services/mcp/config.js'
+import {
+  doesEnterpriseMcpConfigExist,
+  filterMcpServersByPolicy,
+  getMcpConfigByName,
+} from '../../services/mcp/config.js'
 import type {
   MCPServerConnection,
   ScopedMcpServerConfig,
@@ -58,6 +67,7 @@ import { executeSubagentStartHooks } from '../../utils/hooks.js'
 import { createUserMessage } from '../../utils/messages.js'
 import { getAgentModel } from '../../utils/model/agent.js'
 import type { ModelAlias } from '../../utils/model/aliases.js'
+import { isBareMode } from '../../utils/envUtils.js'
 import {
   clearAgentTranscriptSubdir,
   recordForkContextRef,
@@ -96,6 +106,7 @@ import { type AgentDefinition, isBuiltInAgent } from './loadAgentsDir.js'
 async function initializeAgentMcpServers(
   agentDefinition: AgentDefinition,
   parentClients: MCPServerConnection[],
+  onBlocked?: (servers: string[], reason: string) => void,
 ): Promise<{
   clients: MCPServerConnection[]
   tools: Tools
@@ -110,15 +121,29 @@ async function initializeAgentMcpServers(
     }
   }
 
-  // When MCP is locked to plugin-only, skip frontmatter MCP servers for
-  // USER-CONTROLLED agents only. Plugin, built-in, and policySettings agents
-  // are admin-trusted — their frontmatter MCP is part of the admin-approved
-  // surface. Blocking them (as the first cut did) breaks plugin agents that
-  // legitimately need MCP, contradicting "plugin-provided always loads."
   const agentIsAdminTrusted = isSourceAdminTrusted(agentDefinition.source)
+  let blockedBy: string | null = null
   if (isRestrictedToPluginOnly('mcp') && !agentIsAdminTrusted) {
+    blockedBy = 'strictPluginOnlyCustomization'
+  } else if (getStrictMcpConfig() && agentDefinition.source !== 'flagSettings') {
+    blockedBy = '--strict-mcp-config'
+  } else if (isBareMode()) {
+    blockedBy = '--bare'
+  } else if (getIsRemoteMode()) {
+    blockedBy = 'remote mode'
+  } else if (doesEnterpriseMcpConfigExist()) {
+    blockedBy = 'enterprise MCP config'
+  }
+  if (blockedBy) {
     logForDebugging(
-      `[Agent: ${agentDefinition.agentType}] Skipping MCP servers: strictPluginOnlyCustomization locks MCP to plugin-only (agent source: ${agentDefinition.source})`,
+      `[Agent: ${agentDefinition.agentType}] Skipping frontmatter MCP servers: blocked by ${blockedBy} (agent source: ${agentDefinition.source})`,
+      { level: 'warn' },
+    )
+    onBlocked?.(
+      agentDefinition.mcpServers.flatMap(spec =>
+        typeof spec === 'string' ? spec : Object.keys(spec),
+      ),
+      blockedBy,
     )
     return {
       clients: parentClients,
@@ -132,6 +157,8 @@ async function initializeAgentMcpServers(
   // Only newly created clients should be cleaned up when the agent finishes
   const newlyCreatedClients: MCPServerConnection[] = []
   const agentTools: Tool[] = []
+  const skippedByStrict: string[] = []
+  const blockedByPolicy: string[] = []
 
   for (const spec of agentDefinition.mcpServers) {
     let config: ScopedMcpServerConfig | null = null
@@ -142,6 +169,14 @@ async function initializeAgentMcpServers(
       // Reference by name - look up in existing MCP configs
       // This uses the memoized connectToServer, so we may get a shared client
       name = spec
+      if (getStrictMcpConfig()) {
+        logForDebugging(
+          `[Agent: ${agentDefinition.agentType}] MCP server '${spec}' skipped: string specs resolve from disk config, which --strict-mcp-config ignores`,
+          { level: 'warn' },
+        )
+        skippedByStrict.push(spec)
+        continue
+      }
       config = getMcpConfigByName(spec)
       if (!config) {
         logForDebugging(
@@ -168,6 +203,16 @@ async function initializeAgentMcpServers(
         scope: 'dynamic' as const,
       } as ScopedMcpServerConfig
       isNewlyCreated = true
+    }
+
+    const { blocked } = filterMcpServersByPolicy({ [name]: config })
+    if (blocked.length > 0) {
+      logForDebugging(
+        `[Agent: ${agentDefinition.agentType}] MCP server '${name}' blocked by managed settings MCP policy`,
+        { level: 'warn' },
+      )
+      blockedByPolicy.push(name)
+      continue
     }
 
     // Connect to the server
@@ -208,6 +253,13 @@ async function initializeAgentMcpServers(
         }
       }
     }
+  }
+
+  if (skippedByStrict.length > 0) {
+    onBlocked?.(skippedByStrict, '--strict-mcp-config')
+  }
+  if (blockedByPolicy.length > 0) {
+    onBlocked?.(blockedByPolicy, 'managed settings MCP policy')
   }
 
   // Return merged clients (parent + agent-specific) and agent tools
@@ -268,7 +320,9 @@ export async function* runAgent({
   worktreePath,
   description,
   transcriptSubdir,
+  spawnedByWorkflowRunId,
   onQueryProgress,
+  onMcpServersBlocked,
 }: {
   agentDefinition: AgentDefinition
   promptMessages: Message[]
@@ -328,11 +382,15 @@ export async function* runAgent({
   /** Optional subdirectory under subagents/ to group this agent's transcript
    * with related ones (e.g. workflows/<runId> for workflow subagents). */
   transcriptSubdir?: string
+  /** Official 2.1.153: workflow run that spawned this subagent. Threaded onto
+   * the tool-use context; `dx6` reads it for `{type:"workflow-agent"}`. */
+  spawnedByWorkflowRunId?: string
   /** Optional callback fired on every message yielded by query() — including
    * stream_event deltas that runAgent otherwise drops. Use to detect liveness
    * during long single-block streams (e.g. thinking) where no assistant
    * message is yielded for >60s. */
   onQueryProgress?: () => void
+  onMcpServersBlocked?: (servers: string[], reason: string) => void
 }): AsyncGenerator<Message, void> {
   // Track subagent usage for feature discovery
 
@@ -674,6 +732,7 @@ export async function* runAgent({
   } = await initializeAgentMcpServers(
     agentDefinition,
     toolUseContext.options.mcpClients,
+    onMcpServersBlocked,
   )
 
   // Merge agent MCP tools with resolved agent tools, deduplicating by name.
@@ -738,6 +797,13 @@ export async function* runAgent({
       agentDefinition.criticalSystemReminder_EXPERIMENTAL,
     contentReplacementState,
   })
+  if (spawnedByWorkflowRunId !== undefined) {
+    ;(
+      agentToolUseContext as ToolUseContext & {
+        spawnedByWorkflowRunId?: string
+      }
+    ).spawnedByWorkflowRunId = spawnedByWorkflowRunId
+  }
 
   // Preserve tool use results for subagents with viewable transcripts (in-process teammates)
   if (preserveToolUseResults) {

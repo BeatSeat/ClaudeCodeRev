@@ -476,6 +476,14 @@ export type AppState = DeepImmutable<{
   // Races against local UI + bridge + hooks + classifier via claim() in
   // interactiveHandler.ts. Constructed once in useManageMCPConnections.
   channelPermissionCallbacks?: ChannelPermissionCallbacks
+  // Official 2.1.153 T59 — Feature-of-the-Week credit-claim inline banner
+  // (not the 157 fotw-claim toast). Producer writes phase/amount; T59 reads it.
+  fotwClaim?: {
+    phase: 'pending' | 'granted' | 'failed'
+    command: string
+    amountMinorUnits: number
+    currency: string
+  }
 }
 
 export type AppStateStore = Store<AppState>

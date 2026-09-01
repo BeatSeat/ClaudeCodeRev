@@ -523,6 +523,12 @@ export const SettingsSchema = lazySchema(() =>
         .describe(
           '@internal Disable the Workflows feature (also via CLAUDE_CODE_DISABLE_WORKFLOWS).',
         ),
+      enableWorkflows: z
+        .boolean()
+        .optional()
+        .describe(
+          'Enable or disable the Workflows feature for this user. Unset = default by plan once the feature is available.',
+        ),
       disableSkillShellExecution: z
         .boolean()
         .optional()
@@ -1119,6 +1125,12 @@ export const SettingsSchema = lazySchema(() =>
         .optional()
         .describe(
           'Whether the user has accepted the bypass permissions mode dialog',
+        ),
+      skipWorkflowUsageWarning: z
+        .boolean()
+        .optional()
+        .describe(
+          '@internal Whether the user has accepted the multi-agent workflow usage warning. Until set, auto permission mode prompts before running a workflow.',
         ),
       ...(feature('TRANSCRIPT_CLASSIFIER')
         ? {

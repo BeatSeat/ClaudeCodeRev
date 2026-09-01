@@ -1,5 +1,38 @@
+import { link, mkdir, stat, unlink, writeFile } from 'fs/promises'
+import { join, sep } from 'path'
 import { isInBundledMode } from './bundledMode.js'
 import { getPlatform } from './platform.js'
+import { getXDGDataHome } from './xdg.js'
+
+const CLAUDE_CODE_APP_PLIST = `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0"><dict><key>CFBundleIdentifier</key><string>com.anthropic.claude-code</string><key>CFBundleName</key><string>Claude Code</string><key>CFBundleDisplayName</key><string>Claude Code</string><key>CFBundleExecutable</key><string>claude</string><key>CFBundlePackageType</key><string>APPL</string><key>LSUIElement</key><true/><key>NSMicrophoneUsageDescription</key><string>Claude Code uses the microphone for voice dictation.</string></dict></plist>
+`
+
+/** Official 2.1.153 `UJz`: native-install ClaudeCode.app hardlink for TCC identity. */
+export async function ensureClaudeCodeAppExecPath(): Promise<string | null> {
+  const claudeHome = join(getXDGDataHome(), 'claude')
+  if (!process.execPath.startsWith(join(claudeHome, 'versions') + sep)) {
+    return null
+  }
+  const macosDir = join(claudeHome, 'ClaudeCode.app', 'Contents', 'MacOS')
+  const linked = join(macosDir, 'claude')
+  try {
+    const currentIno = (await stat(process.execPath)).ino
+    try {
+      if ((await stat(linked)).ino === currentIno) return linked
+      await unlink(linked)
+    } catch {
+      // missing link — create below
+    }
+    await mkdir(macosDir, { recursive: true })
+    await writeFile(join(macosDir, '..', 'Info.plist'), CLAUDE_CODE_APP_PLIST)
+    await link(process.execPath, linked)
+    return linked
+  } catch {
+    return null
+  }
+}
 
 /**
  * Official 2.1.143 `LS4`: on macOS, spawn a copy of this process with
@@ -9,12 +42,13 @@ import { getPlatform } from './platform.js'
  *
  * Called first from `--bg-pty-host` (bundle `ZU5`).
  */
-export function disclaimMacOSTccResponsibility(): void {
+export async function disclaimMacOSTccResponsibility(): Promise<void> {
   if (getPlatform() !== 'macos') return
   if (process.env.CLAUDE_BG_TCC_DISCLAIMED) {
     delete process.env.CLAUDE_BG_TCC_DISCLAIMED
     return
   }
+  const execPath = (await ensureClaudeCodeAppExecPath()) ?? process.execPath
   try {
     // bun:ffi is only present under Bun. Keep the require dynamic so Node
     // test/typecheck graphs do not load it.
@@ -62,7 +96,6 @@ export function disclaimMacOSTccResponsibility(): void {
         })
         return arr
       }
-      const execPath = process.execPath
       const argv = isInBundledMode()
         ? [execPath]
         : [execPath, process.argv[1]!]

@@ -28,6 +28,8 @@ import { errorMessage } from '../../../utils/errors.js'
 import type { PermissionDecision } from '../../../utils/permissions/PermissionResult.js'
 import type { PermissionUpdate } from '../../../utils/permissions/PermissionUpdateSchema.js'
 import { hasPermissionsToUseTool } from '../../../utils/permissions/permissions.js'
+import { WORKFLOW_TOOL_NAME } from '../../../tools/WorkflowTool/constants.js'
+import { recordWorkflowUsageConsent } from '../../../tools/WorkflowTool/usageConsent.js'
 import type { PermissionContext } from '../PermissionContext.js'
 import {
   createResolveOnce,
@@ -70,7 +72,18 @@ function handleInteractivePermission(
     channelCallbacks,
   } = params
 
-  const { resolve: resolveOnce, isResolved, claim } = createResolveOnce(resolve)
+  // Official 2.1.153 `g74`: wrap resolve so Workflow allow persists consent.
+  const wrappedResolve: typeof resolve =
+    ctx.tool.name === WORKFLOW_TOOL_NAME
+      ? decision => {
+          if (decision.behavior === 'allow') {
+            recordWorkflowUsageConsent()
+          }
+          resolve(decision)
+        }
+      : resolve
+  const { resolve: resolveOnce, isResolved, claim } =
+    createResolveOnce(wrappedResolve)
   let userInteracted = false
   let checkmarkTransitionTimer: ReturnType<typeof setTimeout> | undefined
   // Hoisted so onDismissCheckmark (Esc during checkmark window) can also

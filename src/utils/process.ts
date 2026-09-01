@@ -1,19 +1,77 @@
 import chalk from 'chalk'
 
-function handleEPIPE(
-  stream: NodeJS.WriteStream,
-): (err: NodeJS.ErrnoException) => void {
-  return (err: NodeJS.ErrnoException) => {
-    if (err.code === 'EPIPE') {
-      stream.destroy()
+const STREAM_GONE_ERRNOS = new Set(['EPIPE', 'EIO', 'ENXIO', 'EBADF'])
+
+type StreamWithDestroy = {
+  on(event: 'error', listener: (err: NodeJS.ErrnoException) => void): unknown
+  destroy?: () => void
+}
+
+export function handleStreamGoneErrors(
+  stream: StreamWithDestroy,
+  onGone?: (code: string) => void,
+): void {
+  stream.on('error', (err: NodeJS.ErrnoException) => {
+    if (err.code !== undefined && STREAM_GONE_ERRNOS.has(err.code)) {
+      try {
+        stream.destroy?.()
+      } catch {
+        // ignore destroy failures on a already-gone stream
+      }
+      onGone?.(err.code)
     }
-  }
+  })
 }
 
 // Prevents memory leak when pipe is broken (e.g., `claude -p | head -1`)
-export function registerProcessOutputErrorHandlers(): void {
-  process.stdout.on('error', handleEPIPE(process.stdout))
-  process.stderr.on('error', handleEPIPE(process.stderr))
+export function registerProcessIOErrorHandlers(
+  onGone?: (stream: 'stdin' | 'stdout', code: string) => void,
+): void {
+  handleStreamGoneErrors(process.stdin, code => onGone?.('stdin', code))
+  handleStreamGoneErrors(process.stdout, code => onGone?.('stdout', code))
+  handleStreamGoneErrors(process.stderr)
+}
+
+/** @deprecated Official 2.1.153 renamed to registerProcessIOErrorHandlers */
+export function registerProcessOutputErrorHandlers(
+  onGone?: (stream: 'stdin' | 'stdout', code: string) => void,
+): void {
+  registerProcessIOErrorHandlers(onGone)
+}
+
+const STREAM_CLOSED = Symbol('stream-closed')
+
+/** Official 2.1.153 `uB8`: race stdin iterator against close so stream-json exits. */
+export async function* iterateStreamUntilClose(
+  stream: NodeJS.ReadStream,
+): AsyncGenerator<string> {
+  if (stream.readableEnded || stream.destroyed) return
+  let closed = false
+  let resolveClose: (() => void) | null = null
+  const onClose = (): void => {
+    closed = true
+    resolveClose?.()
+  }
+  stream.once('close', onClose)
+  const iterator = stream[Symbol.asyncIterator]()
+  try {
+    while (!closed) {
+      const next = iterator.next()
+      next.catch(() => {})
+      const closedPromise = new Promise<typeof STREAM_CLOSED>(resolve => {
+        resolveClose = () => resolve(STREAM_CLOSED)
+      })
+      const raced = await Promise.race([next, closedPromise])
+      resolveClose = null
+      if (raced === STREAM_CLOSED || (raced as IteratorResult<string>).done) {
+        return
+      }
+      yield String((raced as IteratorResult<string>).value)
+    }
+  } finally {
+    stream.off('close', onClose)
+    void iterator.return?.().catch(() => {})
+  }
 }
 
 function writeOut(stream: NodeJS.WriteStream, data: string): void {

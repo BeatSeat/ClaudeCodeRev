@@ -43,6 +43,10 @@ import {
 } from './shellConfig.js'
 import { jsonParse } from './slowOperations.js'
 import { which } from './which.js'
+import {
+  type LastUpdateResult,
+  readLastUpdateResult,
+} from './lastUpdateResult.js'
 
 export type InstallationType =
   | 'npm-global'
@@ -62,6 +66,7 @@ export type DiagnosticInfo = {
   hasUpdatePermissions: boolean | null
   multipleInstallations: Array<{ type: string; path: string }>
   warnings: Array<{ issue: string; fix: string }>
+  lastUpdateResult: LastUpdateResult | null
   recommendation?: string
   packageManager?: string
   ripgrepStatus: {
@@ -624,8 +629,8 @@ export async function getDoctorDiagnostic({
     // Add warning if no permissions
     if (!hasUpdatePermissions && !getAutoUpdaterDisabledReason()) {
       warnings.push({
-        issue: 'Insufficient permissions for auto-updates',
-        fix: 'Do one of: (1) Re-install node without sudo, or (2) Use `claude install` for native installation',
+        issue: "Can't auto-update: npm global folder isn't writable",
+        fix: 'Run `claude install` to switch to the native installer (no sudo)\nOr reinstall with a sudo-free npm (e.g. via nvm)\nOr `npm config set prefix ~/.npm-global`, add ~/.npm-global/bin to PATH, then reinstall',
       })
     }
   }
@@ -660,6 +665,7 @@ export async function getDoctorDiagnostic({
         : 'enabled'
     })(),
     hasUpdatePermissions,
+    lastUpdateResult: await readLastUpdateResult(),
     multipleInstallations,
     warnings,
     packageManager,

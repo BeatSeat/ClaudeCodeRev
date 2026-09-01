@@ -950,6 +950,15 @@ export const AgentTool = buildTool({
       ...(isForkPath && { useExactTools: true }),
       worktreePath: worktreeInfo?.worktreePath,
       description,
+      onMcpServersBlocked: (servers, reason) => {
+        toolUseContext.addNotification?.({
+          key: `agent-mcp-blocked-${toolUseContext.toolUseId ?? ''}`,
+          text: `${selectedAgent.agentType} agent MCP ${servers.length === 1 ? 'server' : 'servers'} blocked by ${reason}: ${servers.join(', ')}`,
+          priority: 'medium',
+          color: 'warning',
+          timeoutMs: 10000,
+        })
+      },
     }
 
     // Helper to wrap execution with a cwd override: explicit cwd arg (KAIROS)

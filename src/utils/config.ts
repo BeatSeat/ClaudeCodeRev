@@ -190,6 +190,8 @@ export type GlobalConfig = {
   numStartups: number
   installMethod?: InstallMethod
   autoUpdates?: boolean
+  /** Official 2.1.153: one-time startup notice impression counts (e.g. sudo-npm-install). */
+  seenNotifications?: Record<string, number>
   // Flag to distinguish protection-based disabling from user preference
   autoUpdatesProtectedForNative?: boolean
   // Session count when Doctor was last shown

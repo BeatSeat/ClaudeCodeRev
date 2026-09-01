@@ -1093,6 +1093,20 @@ export function hasSkipDangerousModePermissionPrompt(): boolean {
 }
 
 /**
+ * Official 2.1.153 `xF$` — any trusted source has accepted the workflow
+ * usage warning. projectSettings is excluded (same RCE posture as the
+ * dangerous-mode twin).
+ */
+export function hasSkipWorkflowUsageWarning(): boolean {
+  return !!(
+    getSettingsForSource('userSettings')?.skipWorkflowUsageWarning ||
+    getSettingsForSource('localSettings')?.skipWorkflowUsageWarning ||
+    getSettingsForSource('flagSettings')?.skipWorkflowUsageWarning ||
+    getSettingsForSource('policySettings')?.skipWorkflowUsageWarning
+  )
+}
+
+/**
  * Returns true if any trusted settings source has accepted the auto
  * mode opt-in dialog. projectSettings is intentionally excluded —
  * a malicious project could otherwise auto-bypass the dialog (RCE risk).

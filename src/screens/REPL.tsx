@@ -553,6 +553,7 @@ import { AwsAuthStatusBox } from '../components/AwsAuthStatusBox.js'
 import { useRateLimitWarningNotification } from 'src/hooks/notifs/useRateLimitWarningNotification.js'
 import { useDeprecationWarningNotification } from 'src/hooks/notifs/useDeprecationWarningNotification.js'
 import { useNpmDeprecationNotification } from 'src/hooks/notifs/useNpmDeprecationNotification.js'
+import { useSudoNpmInstallNotice } from 'src/hooks/notifs/useSudoNpmInstallNotice.js'
 import { useIDEStatusIndicator } from 'src/hooks/notifs/useIDEStatusIndicator.js'
 import { useModelMigrationNotifications } from 'src/hooks/notifs/useModelMigrationNotifications.js'
 import { useCanSwitchToExistingSubscription } from 'src/hooks/notifs/useCanSwitchToExistingSubscription.js'
@@ -573,6 +574,7 @@ const WebBrowserPanelModule = feature('WEB_BROWSER_TOOL')
   ? (require('../tools/WebBrowserTool/WebBrowserPanel.js') as typeof import('../tools/WebBrowserTool/WebBrowserPanel.js'))
   : null
 /* eslint-enable @typescript-eslint/no-require-imports */
+import { FotwCreditBanner } from '../components/FotwCreditBanner.js'
 import { IssueFlagBanner } from '../components/PromptInput/IssueFlagBanner.js'
 import { useIssueFlagBanner } from '../hooks/useIssueFlagBanner.js'
 import {
@@ -1197,6 +1199,7 @@ export function REPL({
   useAdvisorExperimentalNotification()
   useDeprecationWarningNotification(mainLoopModel)
   useNpmDeprecationNotification()
+  useSudoNpmInstallNotice()
   useAntOrgWarningNotification()
   useInstallMessages()
   useChromeExtensionNotification()
@@ -7105,8 +7108,7 @@ export function REPL({
                           />
                         )}
                       {showIssueFlagBanner && <IssueFlagBanner />}
-                      {
-                      }
+                      <FotwCreditBanner />
                       <PromptInput
                         debug={debug}
                         ideSelection={ideSelection}

@@ -19,10 +19,6 @@ import {
   type SessionExternalMetadata,
   type SessionInternalMetadata,
 } from '../utils/sessionState.js'
-import {
-  getSettingsForSource,
-  updateSettingsForSource,
-} from '../utils/settings/settings.js'
 import { getUserIntentSetting, setUserIntentSetting } from '../utils/settings/userIntent.js'
 import type { AppState } from './AppStateStore.js'
 
@@ -131,19 +127,10 @@ export function onChangeAppState({
     })
   }
 
-  // Official 2.1.117: persist /model to userSettings, and to localSettings
-  // when a project/local pin would otherwise win on restart.
+  // Official 2.1.153: AppState model changes are session-scoped. Persist
+  // only via persistModelAsDefault (Enter / onSetDefault), not every write.
   if (newState.mainLoopModel !== oldState.mainLoopModel) {
-    const next = newState.mainLoopModel
-    updateSettingsForSource('userSettings', { model: next ?? undefined })
-    const projectPin = getSettingsForSource('projectSettings')?.model
-    const localPin = getSettingsForSource('localSettings')?.model
-    if (next !== null && (projectPin !== undefined || localPin !== undefined) && next !== projectPin) {
-      updateSettingsForSource('localSettings', { model: next })
-    } else if (localPin !== undefined) {
-      updateSettingsForSource('localSettings', { model: undefined })
-    }
-    setMainLoopModelOverride(next)
+    setMainLoopModelOverride(newState.mainLoopModel)
   }
 
   // expandedView → persist as showExpandedTodos + showSpinnerTree for backwards compat

@@ -563,10 +563,18 @@ function getPluginGitTimeoutMs(): number {
 export async function gitPull(
   cwd: string,
   ref?: string,
-  options?: { disableCredentialHelper?: boolean; sparsePaths?: string[] },
+  options?: {
+    disableCredentialHelper?: boolean
+    sparsePaths?: string[]
+    skipLfs?: boolean
+  },
 ): Promise<{ code: number; stderr: string }> {
   logForDebugging(`git pull: cwd=${cwd} ref=${ref ?? 'default'}`)
-  const env = { ...process.env, ...GIT_NO_PROMPT_ENV }
+  const env = {
+    ...process.env,
+    ...GIT_NO_PROMPT_ENV,
+    ...(options?.skipLfs && { GIT_LFS_SKIP_SMUDGE: '1' }),
+  }
   const credentialArgs = options?.disableCredentialHelper
     ? ['-c', 'credential.helper=']
     : []
@@ -840,8 +848,14 @@ export async function gitClone(
   targetPath: string,
   ref?: string,
   sparsePaths?: string[],
+  skipLfs?: boolean,
 ): Promise<{ code: number; stderr: string }> {
   const useSparse = sparsePaths && sparsePaths.length > 0
+  const env = {
+    ...process.env,
+    ...GIT_NO_PROMPT_ENV,
+    ...(skipLfs && { GIT_LFS_SKIP_SMUDGE: '1' }),
+  }
   const args = [
     '-c',
     'core.sshCommand=ssh -o BatchMode=yes -o StrictHostKeyChecking=yes',
@@ -874,7 +888,7 @@ export async function gitClone(
   const result = await execFileNoThrowWithCwd(gitExe(), args, {
     timeout: timeoutMs,
     stdin: 'ignore',
-    env: { ...process.env, ...GIT_NO_PROMPT_ENV },
+    env,
   })
 
   // Scrub credentials from execa's error/stderr fields before any logging or
@@ -900,7 +914,7 @@ export async function gitClone(
           cwd: targetPath,
           timeout: timeoutMs,
           stdin: 'ignore',
-          env: { ...process.env, ...GIT_NO_PROMPT_ENV },
+          env,
         },
       )
       if (sparseResult.code !== 0) {
@@ -919,7 +933,7 @@ export async function gitClone(
           cwd: targetPath,
           timeout: timeoutMs,
           stdin: 'ignore',
-          env: { ...process.env, ...GIT_NO_PROMPT_ENV },
+          env,
         },
       )
       if (checkoutResult.code !== 0) {
@@ -1069,8 +1083,13 @@ function safeCallProgress(
 export async function reconcileSparseCheckout(
   cwd: string,
   sparsePaths: string[] | undefined,
+  skipLfs?: boolean,
 ): Promise<{ code: number; stderr: string }> {
-  const env = { ...process.env, ...GIT_NO_PROMPT_ENV }
+  const env = {
+    ...process.env,
+    ...GIT_NO_PROMPT_ENV,
+    ...(skipLfs && { GIT_LFS_SKIP_SMUDGE: '1' }),
+  }
 
   if (sparsePaths && sparsePaths.length > 0) {
     return execFileNoThrowWithCwd(
@@ -1122,7 +1141,7 @@ async function cacheMarketplaceFromGit(
   ref?: string,
   sparsePaths?: string[],
   onProgress?: MarketplaceProgressCallback,
-  options?: { disableCredentialHelper?: boolean },
+  options?: { disableCredentialHelper?: boolean; skipLfs?: boolean },
 ): Promise<void> {
   const fs = getFsImplementation()
 
@@ -1138,12 +1157,17 @@ async function cacheMarketplaceFromGit(
   // Reconcile sparse-checkout config before pulling. If this requires a re-clone
   // (Sparse→Full transition) or fails (missing dir, not a repo), skip straight
   // to the rm+clone fallback.
-  const reconcileResult = await reconcileSparseCheckout(cachePath, sparsePaths)
+  const reconcileResult = await reconcileSparseCheckout(
+    cachePath,
+    sparsePaths,
+    options?.skipLfs,
+  )
   if (reconcileResult.code === 0) {
     const pullStarted = performance.now()
     const pullResult = await gitPull(cachePath, ref, {
       disableCredentialHelper: options?.disableCredentialHelper,
       sparsePaths,
+      skipLfs: options?.skipLfs,
     })
     logPluginFetch(
       'marketplace_pull',
@@ -1199,7 +1223,13 @@ async function cacheMarketplaceFromGit(
     `Cloning repository (timeout: ${timeoutSec}s): ${redactUrlCredentials(gitUrl)}${refMessage}`,
   )
   const cloneStarted = performance.now()
-  const result = await gitClone(gitUrl, cachePath, ref, sparsePaths)
+  const result = await gitClone(
+    gitUrl,
+    cachePath,
+    ref,
+    sparsePaths,
+    options?.skipLfs,
+  )
   logPluginFetch(
     'marketplace_clone',
     gitUrl,
@@ -1535,6 +1565,7 @@ async function loadAndCacheMarketplace(
               source.ref,
               source.sparsePaths,
               onProgress,
+              { skipLfs: source.skipLfs },
             )
           } catch (err) {
             lastError = toError(err)
@@ -1564,6 +1595,7 @@ async function loadAndCacheMarketplace(
                 source.ref,
                 source.sparsePaths,
                 onProgress,
+                { skipLfs: source.skipLfs },
               )
               lastError = null // Success!
             } catch (httpsErr) {
@@ -1593,6 +1625,7 @@ async function loadAndCacheMarketplace(
               source.ref,
               source.sparsePaths,
               onProgress,
+              { skipLfs: source.skipLfs },
             )
           } catch (err) {
             lastError = toError(err)
@@ -1623,6 +1656,7 @@ async function loadAndCacheMarketplace(
                 source.ref,
                 source.sparsePaths,
                 onProgress,
+                { skipLfs: source.skipLfs },
               )
               lastError = null // Success!
             } catch (sshErr) {
@@ -1656,6 +1690,7 @@ async function loadAndCacheMarketplace(
           source.ref,
           source.sparsePaths,
           onProgress,
+          { skipLfs: source.skipLfs },
         )
         marketplacePath = join(
           temporaryCachePath,
@@ -2571,6 +2606,7 @@ async function refreshMarketplaceUncoalesced(
 
     // Update based on source type
     if (source.source === 'github' || source.source === 'git') {
+      const gitOptions = { ...options, skipLfs: source.skipLfs }
       // Git sources: do in-place git pull
       if (source.source === 'github') {
         // Same SSH/HTTPS fallback as loadAndCacheMarketplace: if the pull
@@ -2587,7 +2623,7 @@ async function refreshMarketplaceUncoalesced(
             source.ref,
             source.sparsePaths,
             onProgress,
-            options,
+            gitOptions,
           )
         } else {
           const sshConfigured = await isGitHubSshLikelyConfigured()
@@ -2601,7 +2637,7 @@ async function refreshMarketplaceUncoalesced(
               source.ref,
               source.sparsePaths,
               onProgress,
-              options,
+              gitOptions,
             )
           } catch {
             logForDebugging(
@@ -2614,7 +2650,7 @@ async function refreshMarketplaceUncoalesced(
               source.ref,
               source.sparsePaths,
               onProgress,
-              options,
+              gitOptions,
             )
           }
         }
@@ -2626,7 +2662,7 @@ async function refreshMarketplaceUncoalesced(
           source.ref,
           source.sparsePaths,
           onProgress,
-          options,
+          gitOptions,
         )
       }
       // Validate that marketplace.json still exists after update

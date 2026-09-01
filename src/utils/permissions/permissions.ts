@@ -78,6 +78,7 @@ import {
   logEvent,
 } from '../../services/analytics/index.js'
 import { sanitizeToolNameForAnalytics } from '../../services/analytics/metadata.js'
+import { workflowNeedsUsageConsentPrompt } from '../../tools/WorkflowTool/usageConsent.js'
 import {
   clearClassifierChecking,
   setClassifierChecking,
@@ -635,6 +636,18 @@ export const hasPermissionsToUseTool: CanUseToolFn = async (
         return result
       }
       if (tool.requiresUserInteraction?.() && result.behavior === 'ask') {
+        return result
+      }
+      // Official 2.1.153: auto mode falls back to ask until workflow usage
+      // consent is recorded (`BZ_` / `workflowNeedsUsageConsentPrompt`).
+      if (
+        workflowNeedsUsageConsentPrompt(tool.name, context)
+      ) {
+        logEvent('tengu_auto_mode_fallback_to_ask', {
+          reason:
+            'workflow_usage_consent' as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
+          toolName: sanitizeToolNameForAnalytics(tool.name),
+        })
         return result
       }
 
