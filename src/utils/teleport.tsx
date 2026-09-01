@@ -65,7 +65,10 @@ import {
   getOAuthHeaders,
   type SessionResource,
 } from './teleport/api.js'
-import { fetchEnvironments } from './teleport/environments.js'
+import {
+  createDefaultCloudEnvironment,
+  fetchEnvironments,
+} from './teleport/environments.js'
 import { createAndUploadGitBundle } from './teleport/gitBundle.js'
 
 export type TeleportResult = {
@@ -1321,11 +1324,23 @@ export async function teleportToRemote(options: {
       )
     }
 
-    // Fetch available environments
+    // Fetch available environments. Official 2.1.101: auto-create a default
+    // anthropic_cloud env instead of requiring web onboarding first.
     let environments = await fetchEnvironments()
     if (!environments || environments.length === 0) {
-      logError(new Error('No environments available for session creation'))
-      return null
+      try {
+        environments = [await createDefaultCloudEnvironment(undefined, signal)]
+        logForDebugging('[teleportToRemote] Auto-created default cloud env')
+      } catch (error) {
+        logForDebugging(
+          `[teleportToRemote] auto-create env failed: ${toError(error).message}`,
+          { level: 'warn' },
+        )
+        options.onBundleFail?.(
+          'Could not create a cloud environment. Set one up at https://claude.ai/code/onboarding?magic=env-setup',
+        )
+        return null
+      }
     }
 
     logForDebugging(

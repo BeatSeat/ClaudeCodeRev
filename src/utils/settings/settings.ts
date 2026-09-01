@@ -46,7 +46,7 @@ import {
 } from './settingsCache.js'
 import { type SettingsJson, SettingsSchema } from './types.js'
 import {
-  filterInvalidPermissionRules,
+  filterSettingsWarnings,
   formatZodError,
   type SettingsWithErrors,
   type ValidationError,
@@ -214,7 +214,7 @@ function parseSettingsFileUncached(path: string): {
 
     // Filter invalid permission rules before schema validation so one bad
     // rule doesn't cause the entire settings file to be rejected.
-    const ruleWarnings = filterInvalidPermissionRules(data, path)
+    const ruleWarnings = filterSettingsWarnings(data, path)
 
     const result = SettingsSchema().safeParse(data)
 

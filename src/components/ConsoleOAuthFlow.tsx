@@ -4,6 +4,7 @@ import {
   logEvent,
 } from 'src/services/analytics/index.js'
 import { installOAuthTokens } from '../cli/handlers/auth.js'
+import { useIsInsideModal } from '../context/modalContext.js'
 import { useTerminalSize } from '../hooks/useTerminalSize.js'
 import { setClipboard } from '../ink/termio/osc.js'
 import { useTerminalNotification } from '../ink/useTerminalNotification.js'
@@ -27,6 +28,7 @@ type Props = {
   startingMessage?: string
   mode?: 'login' | 'setup-token'
   forceLoginMethod?: 'claudeai' | 'console'
+  urlOutdent?: number
 }
 
 type OAuthStatus =
@@ -52,7 +54,9 @@ export function ConsoleOAuthFlow({
   startingMessage,
   mode = 'login',
   forceLoginMethod: forceLoginMethodProp,
+  urlOutdent = 0,
 }: Props): React.ReactNode {
+  const effectiveUrlOutdent = (useIsInsideModal() ? 2 : 0) + urlOutdent
   const settings = getSettings_DEPRECATED() || {}
   const forceLoginMethod = forceLoginMethodProp ?? settings.forceLoginMethod
   const orgUUID =
@@ -346,9 +350,11 @@ export function ConsoleOAuthFlow({
               </Text>
             )}
           </Box>
-          <Link url={oauthStatus.url}>
-            <Text dimColor>{oauthStatus.url}</Text>
-          </Link>
+          <Box marginX={effectiveUrlOutdent ? -effectiveUrlOutdent : undefined}>
+            <Link url={oauthStatus.url}>
+              <Text dimColor>{oauthStatus.url}</Text>
+            </Link>
+          </Box>
         </Box>
       )}
       {mode === 'setup-token' &&

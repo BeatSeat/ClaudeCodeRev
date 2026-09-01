@@ -206,7 +206,9 @@ type VirtualItemProps = {
   onClickK: (msg: RenderableMessage, cellIsBlank: boolean) => void
   onEnterK: (k: string) => void
   onLeaveK: (k: string) => void
-  renderItem: (msg: RenderableMessage, idx: number) => React.ReactNode
+  renderItemRef: RefObject<
+    (msg: RenderableMessage, idx: number) => React.ReactNode
+  >
 }
 
 // Item wrapper with stable click handlers. The per-item closures were the
@@ -233,7 +235,7 @@ function VirtualItem({
   onClickK,
   onEnterK,
   onLeaveK,
-  renderItem,
+  renderItemRef,
 }: VirtualItemProps): React.ReactNode {
   return (
     <Box
@@ -251,7 +253,7 @@ function VirtualItem({
       <TextHoverColorContext.Provider
         value={!!(hovered && !expanded)}
       >
-        {renderItem(msg, idx)}
+        {renderItemRef.current(msg, idx)}
       </TextHoverColorContext.Provider>
     </Box>
   )
@@ -803,6 +805,8 @@ export function VirtualMessageList({
   const onLeaveK = useCallback((k: string) => {
     handlersRef.current.setHoveredKey(prev => (prev === k ? null : prev))
   }, [])
+  const renderItemRef = useRef(renderItem)
+  renderItemRef.current = renderItem
 
   return (
     <>
@@ -826,7 +830,7 @@ export function VirtualMessageList({
             onClickK={onClickK}
             onEnterK={onEnterK}
             onLeaveK={onLeaveK}
-            renderItem={renderItem}
+            renderItemRef={renderItemRef}
           />
         )
       })}

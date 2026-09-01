@@ -1184,12 +1184,25 @@ export function categorizeRetryableAPIError(
 export function getErrorMessageIfRefusal(
   stopReason: BetaStopReason | null,
   model: string,
+  stopDetails?: unknown,
 ): AssistantMessage | undefined {
   if (stopReason !== 'refusal') {
     return
   }
 
-  logEvent('tengu_refusal_api_response', {})
+  const explanation =
+    typeof stopDetails === 'object' &&
+    stopDetails !== null &&
+    'type' in stopDetails &&
+    stopDetails.type === 'refusal' &&
+    'explanation' in stopDetails &&
+    typeof stopDetails.explanation === 'string'
+      ? stopDetails.explanation.trimEnd()
+      : null
+
+  logEvent('tengu_refusal_api_response', {
+    has_explanation: Boolean(explanation),
+  })
 
   const baseMessage = getIsNonInteractiveSession()
     ? `${API_ERROR_MESSAGE_PREFIX}: Claude Code is unable to respond to this request, which appears to violate our Usage Policy (https://www.anthropic.com/legal/aup). Try rephrasing the request or attempting a different approach.`

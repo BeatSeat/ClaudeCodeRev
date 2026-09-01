@@ -29,6 +29,7 @@ import {
 } from '../../../bootstrap/state.js'
 import { generateSessionName } from '../../../commands/rename/generateSessionName.js'
 import { launchUltraplan } from '../../../commands/ultraplan.js'
+import { isUltraplanPlanOptionEnabled } from '../../../utils/ultraplan/eligibility.js'
 import type { KeyboardEvent } from '../../../ink/events/keyboard-event.js'
 import { Box, Text } from '../../../ink.js'
 import type { AppState } from '../../../state/AppStateStore.js'
@@ -224,8 +225,11 @@ export function ExitPlanModePermissionRequest({
   // selecting it would dismiss the dialog and reject locally before
   // launchUltraplan can notice the session exists and return "already polling".
   // feature() must sit directly in an if/ternary (bun:bundle DCE constraint).
+  // Official 2.1.101 On() && !session && !launching
   const showUltraplan = feature('ULTRAPLAN')
-    ? !ultraplanSessionUrl && !ultraplanLaunching
+    ? !ultraplanSessionUrl &&
+      !ultraplanLaunching &&
+      isUltraplanPlanOptionEnabled()
     : false
   const usage = toolUseConfirm.assistantMessage.message.usage
   const { mode, isAutoModeAvailable, isBypassPermissionsModeAvailable } =

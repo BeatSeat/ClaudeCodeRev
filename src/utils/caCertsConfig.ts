@@ -8,7 +8,7 @@
  * CCRClient, telemetry) must NOT depend on that graph, or the Agent SDK
  * bundle (`connectRemoteControl` path) bloats from ~0.4 MB to ~10.8 MB.
  *
- * `getCACertificates()` only reads `process.env.NODE_EXTRA_CA_CERTS`. This
+ * `getCACertificates()` reads `NODE_EXTRA_CA_CERTS` and `CLAUDE_CODE_CERT_STORE`. This
  * module is the one place allowed to import `config.ts` to *populate* that
  * env var at CLI startup. Only `init.ts` imports this file.
  */

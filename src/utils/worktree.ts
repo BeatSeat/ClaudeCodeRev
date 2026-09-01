@@ -1,3 +1,5 @@
+import { orphanedWorktreeRemoteFailed } from './worktreeOrphan.js'
+void orphanedWorktreeRemoteFailed
 import { feature } from 'bun:bundle'
 import chalk from 'chalk'
 import { spawnSync } from 'child_process'

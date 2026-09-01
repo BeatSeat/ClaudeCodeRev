@@ -1,12 +1,70 @@
+import { getAllowedChannels } from '../../bootstrap/state.js'
+import { getFeatureValue_CACHED_MAY_BE_STALE } from '../../services/analytics/growthbook.js'
+import { isPolicyAllowed } from '../../services/policyLimits/index.js'
+import { ASK_USER_QUESTION_TOOL_NAME } from '../../tools/AskUserQuestionTool/prompt.js'
 import {
   CRON_CREATE_TOOL_NAME,
   CRON_DELETE_TOOL_NAME,
   DEFAULT_MAX_AGE_DAYS,
   isKairosCronEnabled,
 } from '../../tools/ScheduleCronTool/prompt.js'
+import { SKILL_TOOL_NAME } from '../../tools/SkillTool/constants.js'
+import { isEnvTruthy } from '../../utils/envUtils.js'
 import { registerBundledSkill } from '../bundledSkills.js'
 
 const DEFAULT_INTERVAL = '10m'
+const SCHEDULE_WAKEUP_TOOL_NAME = 'ScheduleWakeup'
+
+function isCloudFirstLoopEnabled(): boolean {
+  return (
+    !isEnvTruthy(process.env.CLAUDE_CODE_REMOTE) &&
+    getFeatureValue_CACHED_MAY_BE_STALE('tengu_surreal_dali', false) &&
+    isPolicyAllowed('allow_remote_sessions') &&
+    getFeatureValue_CACHED_MAY_BE_STALE('tengu_cinder_almanac', false)
+  )
+}
+
+function getCloudOfferSection(): string {
+  if (!isCloudFirstLoopEnabled() || getAllowedChannels().length > 0) {
+    return ''
+  }
+  return `
+## Offer cloud first
+
+Before any scheduling step, check whether EITHER is true:
+- the parsed interval (rule 1 or 2) is **≥60 minutes**, or
+- regardless of which rule matched, the original input uses daily phrasing ("every morning", "daily", "every day", "each night", "every weekday")
+
+If either is true, call ${ASK_USER_QUESTION_TOOL_NAME} first:
+- \`question\`: "This loop stops when you close this session. Set it up as a cloud schedule instead so it keeps running?"
+- \`header\`: "Schedule"
+- \`options\`: \`[{label: "Cloud schedule (recommended)", description: "Runs in Anthropic's cloud even after you close this session"}, {label: "This session only", description: "Runs in this terminal until you exit"}]\`
+
+If they pick **Cloud schedule**: do NOT call ${CRON_CREATE_TOOL_NAME}. Invoke the \`schedule\` skill directly via the ${SKILL_TOOL_NAME} tool with \`args\` set to their original input verbatim (e.g. \`${SKILL_TOOL_NAME}({skill: "schedule", args: "every morning tell me a joke"})\`), then follow that skill's instructions to completion. Do NOT tell the user to run /schedule themselves. **Then stop — do not continue to any section below** (no ${CRON_CREATE_TOOL_NAME}, no ${SCHEDULE_WAKEUP_TOOL_NAME}, no "execute the prompt now").
+If they pick **This session only**:
+- If the trigger was a parsed ≥60-minute interval (rule 1 or 2): continue below with that interval.
+- If the trigger was daily phrasing only (rule 3, no parsed interval): do NOT call ${CRON_CREATE_TOOL_NAME}. Explain that a daily-cadence loop won't fire before this session closes, so there's nothing useful to schedule locally — suggest they either pick Cloud schedule, or re-run \`/loop\` with an explicit shorter interval (e.g. \`/loop 1h <prompt>\`) if they want a session loop. Then stop.
+If neither trigger condition was met: continue below.
+`
+}
+
+function getLoopConfirmationSuffix(): string {
+  if (!isCloudFirstLoopEnabled()) {
+    return ''
+  }
+  const line =
+    '`_Runs until you close this session · For durable cloud-based loops, use /schedule_`'
+  if (getAllowedChannels().length > 0) {
+    return ` End the confirmation with this exact line on its own, italicized: ${line}`
+  }
+  return ` Only if you did NOT show the cloud-offer ${ASK_USER_QUESTION_TOOL_NAME} above (i.e., neither trigger condition applied), end the confirmation with this exact line on its own, italicized: ${line}. If the user already answered that question, omit this line.`
+}
+
+function getLoopActionSection(): string {
+  return `1. Call ${CRON_CREATE_TOOL_NAME} with: \`cron\` (the expression above), \`prompt\` (the parsed prompt verbatim), \`recurring: true\`.
+2. Briefly confirm: what's scheduled, the cron expression, the human-readable cadence, that recurring tasks auto-expire after ${DEFAULT_MAX_AGE_DAYS} days, and that the user can cancel sooner with ${CRON_DELETE_TOOL_NAME} (include the job ID).${getLoopConfirmationSuffix()}
+3. **Then immediately execute the parsed prompt now** — don't wait for the first cron fire. If it's a slash command, invoke it via the Skill tool; otherwise act on it directly.`
+}
 
 const USAGE_MESSAGE = `Usage: /loop [interval] <prompt>
 
@@ -42,7 +100,7 @@ Examples:
 - \`check the deploy\` → interval \`${DEFAULT_INTERVAL}\`, prompt \`check the deploy\` (rule 3)
 - \`check every PR\` → interval \`${DEFAULT_INTERVAL}\`, prompt \`check every PR\` (rule 3 — "every" not followed by time)
 - \`5m\` → empty prompt → show usage
-
+${getCloudOfferSection()}
 ## Interval → cron
 
 Supported suffixes: \`s\` (seconds, rounded up to nearest minute, min 1), \`m\` (minutes), \`h\` (hours), \`d\` (days). Convert:
@@ -59,12 +117,7 @@ Supported suffixes: \`s\` (seconds, rounded up to nearest minute, min 1), \`m\` 
 
 ## Action
 
-1. Call ${CRON_CREATE_TOOL_NAME} with:
-   - \`cron\`: the expression from the table above
-   - \`prompt\`: the parsed prompt from above, verbatim (slash commands are passed through unchanged)
-   - \`recurring\`: \`true\`
-2. Briefly confirm: what's scheduled, the cron expression, the human-readable cadence, that recurring tasks auto-expire after ${DEFAULT_MAX_AGE_DAYS} days, and that they can cancel sooner with ${CRON_DELETE_TOOL_NAME} (include the job ID).
-3. **Then immediately execute the parsed prompt now** — don't wait for the first cron fire. If it's a slash command, invoke it via the Skill tool; otherwise act on it directly.
+${getLoopActionSection()}
 
 ## Input
 

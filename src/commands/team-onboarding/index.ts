@@ -1,7 +1,6 @@
 import type { Command } from '../../commands.js'
 import { getFeatureValue_CACHED_MAY_BE_STALE } from '../../services/analytics/growthbook.js'
 import { logEvent } from '../../services/analytics/index.js'
-import { isEnvTruthy } from '../../utils/envUtils.js'
 import {
   DEFAULT_TEAM_ONBOARDING_GUIDE,
   DEFAULT_TEAM_ONBOARDING_PROMPT,
@@ -27,9 +26,8 @@ const teamOnboarding = {
     'Help teammates ramp on Claude Code with a guide from your usage',
   allowedTools: ['Edit(ONBOARDING.md)', 'Bash(ls:*)'],
   contentLength: 0,
-  isEnabled: () =>
-    isEnvTruthy(process.env.CLAUDE_CODE_TEAM_ONBOARDING) ||
-    getFeatureValue_CACHED_MAY_BE_STALE('tengu_flint_harbor', false),
+  // Official 2.1.101: always on. tengu_flint_harbor was removed from the bundle.
+  isEnabled: () => true,
   isHidden: false,
   progressMessage: 'scanning usage data',
   userFacingName: () => 'team-onboarding',
