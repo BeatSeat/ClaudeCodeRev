@@ -462,6 +462,7 @@ export async function initReplBridge(
     if (reattachSessionId) {
       delete process.env.CLAUDE_BRIDGE_REATTACH_SESSION
       delete process.env.CLAUDE_BRIDGE_REATTACH_SEQ
+      delete process.env.CLAUDE_BRIDGE_REATTACH_OUTBOUND_ONLY
     }
     const reattachSequenceNum = reattachSeqRaw
       ? Number.parseInt(reattachSeqRaw, 10) || undefined

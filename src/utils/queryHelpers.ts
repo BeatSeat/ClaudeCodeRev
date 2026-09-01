@@ -9,6 +9,7 @@ import type { CanUseToolFn } from '../hooks/useCanUseTool.js'
 import { runTools } from '../services/tools/toolOrchestration.js'
 import { findToolByName, type Tool, type Tools } from '../Tool.js'
 import { BASH_TOOL_NAME } from '../tools/BashTool/toolName.js'
+import { POWERSHELL_TOOL_NAME } from '../tools/PowerShellTool/toolName.js'
 import { FILE_EDIT_TOOL_NAME } from '../tools/FileEditTool/constants.js'
 import type { Input as FileReadInput } from '../tools/FileReadTool/FileReadTool.js'
 import {
@@ -595,6 +596,79 @@ export function extractBashToolsFromMessages(messages: Message[]): Set<string> {
     }
   }
   return tools
+}
+
+/** Official 2.1.152 `FT` — bash-like tools whose `command` input is scanned. */
+const BASH_LIKE_TOOL_NAMES = [BASH_TOOL_NAME, POWERSHELL_TOOL_NAME] as const
+
+/**
+ * Official 2.1.152 `nO4` — yield `command` strings from bash-like tool_use blocks.
+ */
+function* bashCommandStringsFromMessages(
+  messages: Message[],
+): Generator<string> {
+  for (const message of messages) {
+    if (
+      message.type === 'assistant' &&
+      Array.isArray(message.message.content)
+    ) {
+      for (const content of message.message.content) {
+        if (
+          content.type === 'tool_use' &&
+          (BASH_LIKE_TOOL_NAMES as readonly string[]).includes(content.name)
+        ) {
+          const { input } = content
+          if (
+            typeof input === 'object' &&
+            input !== null &&
+            'command' in input &&
+            typeof input.command === 'string'
+          ) {
+            yield input.command
+          }
+        }
+      }
+    }
+  }
+}
+
+/**
+ * Official 2.1.152 `gO4` — capture host-ish text after https?://
+ */
+const BASH_HOST_URL_RE = /https?:\/\/([^\s/?#'"`<>\\)\];&|(,]+)/gi
+
+/**
+ * Official 2.1.152 `zN_` — hostnames from https?:// URLs in a command string.
+ * Lowercase; strip userinfo (`user@host`) and port (`host:443`).
+ */
+function extractHostsFromCommand(command: string | undefined): string[] {
+  if (!command) return []
+  const hosts: string[] = []
+  BASH_HOST_URL_RE.lastIndex = 0
+  let match: RegExpExecArray | null
+  while ((match = BASH_HOST_URL_RE.exec(command)) !== null) {
+    let host = match[1]!.toLowerCase()
+    const at = host.lastIndexOf('@')
+    if (at !== -1) host = host.slice(at + 1)
+    const colon = host.indexOf(':')
+    if (colon !== -1) host = host.slice(0, colon)
+    if (host) hosts.push(host)
+  }
+  return hosts
+}
+
+/**
+ * Official 2.1.152 `fF6`.
+ * Hostnames seen in https?:// URLs inside bash/PowerShell commands this session.
+ */
+export function extractBashHostsFromMessages(messages: Message[]): Set<string> {
+  const hosts = new Set<string>()
+  for (const command of bashCommandStringsFromMessages(messages)) {
+    for (const host of extractHostsFromCommand(command)) {
+      hosts.add(host)
+    }
+  }
+  return hosts
 }
 
 const STRIPPED_COMMANDS = new Set(['sudo'])

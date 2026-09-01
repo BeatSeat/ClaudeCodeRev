@@ -1399,7 +1399,7 @@ const PluginRelevanceSignalsSchema = lazySchema(() =>
       .max(20)
       .optional()
       .describe(
-        'Exact hostname match (case-insensitive) against ' +
+        'Hostnames (e.g. ["api.stripe.com"]) — exact, case-insensitive match against ' +
           'hostnames seen in https?:// URLs in bash commands run this session. Bare hostname only: lowercase, no scheme, no port, no path.',
       ),
     filePath: z

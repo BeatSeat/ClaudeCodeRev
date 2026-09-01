@@ -998,6 +998,7 @@ export async function startBgManager(
             log(
               'bg: low memory persists after shedding non-pinned — retiring pinned settled workers as a last resort',
             )
+            bgEvent('tengu_bg_retire_pinned_low_mem', {})
             for (const g of Q) {
               void g.retireIfSettled(b, EMPTY_PINNED, m).catch(l => logError(l))
             }

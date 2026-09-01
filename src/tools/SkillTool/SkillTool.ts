@@ -248,10 +248,11 @@ async function executeForkedSkill(
   const { modifiedGetAppState, baseAgent, promptMessages, skillContent } =
     await prepareForkedCommandContext(command, args || '', context)
 
-  // Merge skill's effort into the agent definition so runAgent applies it
+  // Official 2.1.147: getEffort(args) wins over static frontmatter effort.
+  const forkedEffort = command.getEffort?.(args || '') ?? command.effort
   const agentDefinition =
-    command.effort !== undefined
-      ? { ...baseAgent, effort: command.effort }
+    forkedEffort !== undefined
+      ? { ...baseAgent, effort: forkedEffort }
       : baseAgent
 
   // Collect messages from the forked agent
@@ -737,7 +738,10 @@ export const SkillTool: Tool<InputSchema, Output, Progress> = buildTool({
     // Extract metadata from the command
     const allowedTools = processedCommand.allowedTools || []
     const model = processedCommand.model
-    const effort = command?.type === 'prompt' ? command.effort : undefined
+    const effort =
+      command?.type === 'prompt'
+        ? (command.getEffort?.(args || '') ?? command.effort)
+        : undefined
 
     const isBuiltIn = builtInCommandNames().has(commandName)
     const isBundled = command?.type === 'prompt' && command.source === 'bundled'
