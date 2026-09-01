@@ -1225,6 +1225,7 @@ export function getErrorMessageIfRefusal(
   stopReason: BetaStopReason | null,
   model: string,
   stopDetails?: unknown,
+  requestId?: string,
 ): AssistantMessage | undefined {
   if (stopReason !== 'refusal') {
     return
@@ -1242,6 +1243,9 @@ export function getErrorMessageIfRefusal(
 
   logEvent('tengu_refusal_api_response', {
     has_explanation: Boolean(explanation),
+    request_id:
+      (requestId as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS) ||
+      undefined,
   })
 
   const maximumExplanationLength = 400
@@ -1262,8 +1266,12 @@ export function getErrorMessageIfRefusal(
       ? ' If you are seeing this refusal repeatedly, try running /model claude-sonnet-4-20250514 to switch models.'
       : ''
 
-  return createAssistantAPIErrorMessage({
-    content: baseMessage + modelSuggestion,
+  const requestIdSuffix = requestId ? `\n\nRequest ID: ${requestId}` : ''
+
+  const message = createAssistantAPIErrorMessage({
+    content: baseMessage + modelSuggestion + requestIdSuffix,
     error: 'invalid_request',
   })
+  message.requestId = requestId ?? undefined
+  return message
 }

@@ -865,6 +865,23 @@ const PluginManifestMonitorsSchema = lazySchema(() =>
   }),
 )
 
+/**
+ * Official 2.1.129: experimental components moved under `experimental`. The
+ * loader reads `experimental.<component> ?? <component>`, so the top-level
+ * spelling still works — `claude plugin validate` warns about it.
+ */
+const PluginManifestExperimentalSchema = lazySchema(() =>
+  z.object({
+    experimental: z
+      .object({
+        ...PluginManifestMonitorsSchema().partial().shape,
+      })
+      .describe(
+        'Experimental components. Declaring them here instead of at the top level opts into the supported spelling; top-level still loads but is deprecated.',
+      ),
+  }),
+)
+
 export type PluginMonitorDefinition = z.infer<
   ReturnType<typeof PluginMonitorSchema>
 >
@@ -968,6 +985,7 @@ export const PluginManifestSchema = lazySchema(() =>
     ...PluginManifestMcpServerSchema().partial().shape,
     ...PluginManifestLspServerSchema().partial().shape,
     ...PluginManifestMonitorsSchema().partial().shape,
+    ...PluginManifestExperimentalSchema().partial().shape,
     ...PluginManifestSettingsSchema().partial().shape,
     ...PluginManifestUserConfigSchema().partial().shape,
   }),

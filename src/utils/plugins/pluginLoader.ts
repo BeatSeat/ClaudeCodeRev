@@ -44,9 +44,16 @@ import {
   stat,
   symlink,
 } from 'fs/promises'
+import { createWriteStream } from 'fs'
 import memoize from 'lodash-es/memoize.js'
 import { basename, dirname, join, relative, resolve, sep } from 'path'
-import { getInlinePlugins } from '../../bootstrap/state.js'
+import { Readable } from 'stream'
+import { pipeline } from 'stream/promises'
+import {
+  getInlinePlugins,
+  getInlinePluginUrls,
+} from '../../bootstrap/state.js'
+import { getProxyFetchOptions } from '../proxy.js'
 import {
   BUILTIN_MARKETPLACE_NAME,
   getBuiltinPlugins,
@@ -3232,87 +3239,194 @@ async function finishLoadingPluginFromPath(
   return plugin
 }
 
+/** Official 2.1.129 `Dr1` / `Ks$`. */
+const PLUGIN_URL_FETCH_TIMEOUT_MS = 30_000
+const PLUGIN_ARCHIVE_MAX_BYTES = 268_435_456
+
+/** A `--plugin-url` may carry a signed-URL query string; never log it. */
+function redactQueryString(text: string): string {
+  return text.replace(/\?[^\s"']*/g, '')
+}
+
 /**
- * Load session-only plugins from --plugin-dir CLI flag.
+ * Official 2.1.129: download a `--plugin-url` .zip into the session cache.
+ * A failed re-fetch falls back to the previously downloaded archive so a
+ * flaky network doesn't drop plugins mid-session.
+ */
+async function downloadSessionPluginZip(
+  url: string,
+  index: number,
+): Promise<string> {
+  const sessionDir = await getSessionPluginCachePath()
+  const parsed = new URL(url)
+  // Origin + pathname only: the query string can carry a signed-URL secret.
+  const displayUrl = parsed.origin + parsed.pathname
+  const stem = basename(parsed.pathname).replace(/\.zip$/i, '') || 'download'
+  const target = join(
+    sessionDir,
+    `url-${index}-${stem.replace(/[^a-zA-Z0-9\-_]/g, '-')}.zip`,
+  )
+
+  try {
+    const response = await fetch(url, {
+      ...getProxyFetchOptions({ url }),
+      signal: AbortSignal.timeout(PLUGIN_URL_FETCH_TIMEOUT_MS),
+    })
+    if (!response.ok || !response.body) {
+      throw new Error(
+        `HTTP ${response.status} ${response.statusText} from ${displayUrl}`,
+      )
+    }
+    const declaredLength = Number(response.headers.get('content-length'))
+    if (declaredLength > PLUGIN_ARCHIVE_MAX_BYTES) {
+      throw new Error(
+        `Plugin archive too large (${declaredLength} bytes, max ${PLUGIN_ARCHIVE_MAX_BYTES}) from ${displayUrl}`,
+      )
+    }
+    // content-length is advisory — enforce the cap on the stream too.
+    let received = 0
+    const stream = Readable.fromWeb(
+      response.body as unknown as Parameters<typeof Readable.fromWeb>[0],
+    )
+    stream.on('data', (chunk: Buffer) => {
+      received += chunk.byteLength
+      if (received > PLUGIN_ARCHIVE_MAX_BYTES) {
+        stream.destroy(
+          new Error(
+            `Plugin archive exceeded ${PLUGIN_ARCHIVE_MAX_BYTES} bytes from ${displayUrl}`,
+          ),
+        )
+      }
+    })
+    const partial = `${target}.part`
+    await pipeline(stream, createWriteStream(partial))
+    await rename(partial, target)
+    logForDebugging(`Downloaded inline plugin from ${displayUrl}`)
+  } catch (error) {
+    if (!(await pathExists(target))) throw error
+    logForDebugging(
+      `Re-fetch of inline plugin from ${displayUrl} failed; reusing cached ${target}`,
+      { level: 'warn' },
+    )
+  }
+
+  return target
+}
+
+/** Official 2.1.129: a `--plugin-dir` path or a `--plugin-url` .zip URL. */
+export type SessionPluginSource = {
+  kind: 'path' | 'url'
+  value: string
+}
+
+/**
+ * Load session-only plugins from the --plugin-dir / --plugin-url CLI flags.
  *
  * These plugins are loaded directly without going through the marketplace system.
  * They appear with source='plugin-name@inline' and are always enabled for the current session.
  *
- * @param sessionPluginPaths - Array of plugin directory paths from CLI
+ * @param sessionPluginSources - Plugin directories and .zip URLs from CLI
  * @returns LoadedPlugin objects and any errors encountered
  */
 async function loadSessionOnlyPlugins(
-  sessionPluginPaths: Array<string>,
+  sessionPluginSources: Array<SessionPluginSource>,
 ): Promise<{ plugins: LoadedPlugin[]; errors: PluginError[] }> {
-  if (sessionPluginPaths.length === 0) {
+  if (sessionPluginSources.length === 0) {
     return { plugins: [], errors: [] }
   }
 
-  const plugins: LoadedPlugin[] = []
-  const errors: PluginError[] = []
+  // Official 2.1.129: parallel, so one slow --plugin-url doesn't serialize
+  // the rest of session plugin loading.
+  const results = await Promise.all(
+    sessionPluginSources.map(
+      async (
+        source,
+        index,
+      ): Promise<{
+        plugin: LoadedPlugin | undefined
+        errors: PluginError[]
+      }> => {
+        try {
+          let resolvedPath: string
+          if (source.kind === 'url') {
+            resolvedPath = await downloadSessionPluginZip(source.value, index)
+          } else {
+            resolvedPath = resolve(source.value)
+            if (!(await pathExists(resolvedPath))) {
+              logForDebugging(
+                `Plugin path does not exist: ${resolvedPath}, skipping`,
+                { level: 'warn' },
+              )
+              return {
+                plugin: undefined,
+                errors: [
+                  {
+                    type: 'path-not-found',
+                    source: `inline[${index}]`,
+                    path: resolvedPath,
+                    component: 'commands',
+                  },
+                ],
+              }
+            }
+          }
 
-  for (const [index, pluginPath] of sessionPluginPaths.entries()) {
-    try {
-      let resolvedPath = resolve(pluginPath)
+          const isZip = resolvedPath.toLowerCase().endsWith('.zip')
+          const dirName = isZip
+            ? basename(resolvedPath).replace(/\.zip$/i, '')
+            : basename(resolvedPath)
+          if (isZip) {
+            const sessionDir = await getSessionPluginCachePath()
+            const extractDir = join(
+              sessionDir,
+              `inline-${index}-${dirName.replace(/[^a-zA-Z0-9\-_]/g, '-')}`,
+            )
+            await rm(extractDir, { recursive: true, force: true })
+            await extractZipToDirectory(resolvedPath, extractDir)
+            logForDebugging(`Extracted inline plugin zip to ${extractDir}`)
+            resolvedPath = extractDir
+          }
 
-      if (!(await pathExists(resolvedPath))) {
-        logForDebugging(
-          `Plugin path does not exist: ${resolvedPath}, skipping`,
-          { level: 'warn' },
-        )
-        errors.push({
-          type: 'path-not-found',
-          source: `inline[${index}]`,
-          path: resolvedPath,
-          component: 'commands',
-        })
-        continue
-      }
+          const { plugin, errors: pluginErrors } = await createPluginFromPath(
+            resolvedPath,
+            `${dirName}@inline`, // temporary, will be updated after we know the real name
+            true, // always enabled
+            dirName,
+          )
 
-      const isZip = resolvedPath.toLowerCase().endsWith('.zip')
-      const dirName = isZip
-        ? basename(resolvedPath).replace(/\.zip$/i, '')
-        : basename(resolvedPath)
-      if (isZip) {
-        const sessionDir = await getSessionPluginCachePath()
-        const extractDir = join(
-          sessionDir,
-          `inline-${index}-${dirName.replace(/[^a-zA-Z0-9\-_]/g, '-')}`,
-        )
-        await rm(extractDir, { recursive: true, force: true })
-        await extractZipToDirectory(resolvedPath, extractDir)
-        logForDebugging(`Extracted inline plugin zip to ${extractDir}`)
-        resolvedPath = extractDir
-      }
+          // Update source to use the actual plugin name from manifest
+          plugin.source = `${plugin.name}@inline`
+          plugin.repository = `${plugin.name}@inline`
 
-      const { plugin, errors: pluginErrors } = await createPluginFromPath(
-        resolvedPath,
-        `${dirName}@inline`, // temporary, will be updated after we know the real name
-        true, // always enabled
-        dirName,
-      )
+          logForDebugging(`Loaded inline plugin from path: ${plugin.name}`)
+          return { plugin, errors: pluginErrors }
+        } catch (error) {
+          const errorMsg = redactQueryString(errorMessage(error))
+          logForDebugging(
+            `Failed to load session plugin from ${
+              source.kind === 'url'
+                ? redactQueryString(source.value)
+                : source.value
+            }: ${errorMsg}`,
+            { level: 'warn' },
+          )
+          return {
+            plugin: undefined,
+            errors: [
+              {
+                type: 'generic-error',
+                source: `inline[${index}]`,
+                error: `Failed to load plugin: ${errorMsg}`,
+              },
+            ],
+          }
+        }
+      },
+    ),
+  )
 
-      // Update source to use the actual plugin name from manifest
-      plugin.source = `${plugin.name}@inline`
-      plugin.repository = `${plugin.name}@inline`
-
-      plugins.push(plugin)
-      errors.push(...pluginErrors)
-
-      logForDebugging(`Loaded inline plugin from path: ${plugin.name}`)
-    } catch (error) {
-      const errorMsg = errorMessage(error)
-      logForDebugging(
-        `Failed to load session plugin from ${pluginPath}: ${errorMsg}`,
-        { level: 'warn' },
-      )
-      errors.push({
-        type: 'generic-error',
-        source: `inline[${index}]`,
-        error: `Failed to load plugin: ${errorMsg}`,
-      })
-    }
-  }
+  const plugins = results.flatMap(r => (r.plugin ? [r.plugin] : []))
+  const errors = results.flatMap(r => r.errors)
 
   if (plugins.length > 0) {
     logForDebugging(
@@ -3500,11 +3614,18 @@ async function assemblePluginLoadResult(
   // Load marketplace plugins and session-only plugins in parallel.
   // getInlinePlugins() is a synchronous state read with no dependency on
   // marketplace loading, so these two sources can be fetched concurrently.
-  const inlinePlugins = getInlinePlugins()
+  const sessionSources: SessionPluginSource[] = [
+    ...getInlinePlugins().map(
+      (value): SessionPluginSource => ({ kind: 'path', value }),
+    ),
+    ...getInlinePluginUrls().map(
+      (value): SessionPluginSource => ({ kind: 'url', value }),
+    ),
+  ]
   const [marketplaceResult, sessionResult] = await Promise.all([
     marketplaceLoader(),
-    inlinePlugins.length > 0
-      ? loadSessionOnlyPlugins(inlinePlugins)
+    sessionSources.length > 0
+      ? loadSessionOnlyPlugins(sessionSources)
       : Promise.resolve({ plugins: [], errors: [] }),
   ])
   // 3. Load built-in plugins that ship with the CLI

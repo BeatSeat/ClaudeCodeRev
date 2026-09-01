@@ -657,13 +657,13 @@ function validateCommandPaths(
     }
   }
 
+  // Official 2.1.129 l9_: an in-project ask that no rule produced is held back
+  // so the caller can let a matching Bash allow rule win first.
+  let deferredOverridableAsk: PermissionResult | undefined
+
   for (const path of paths) {
-    const { allowed, resolvedPath, decisionReason } = validatePath(
-      path,
-      cwd,
-      toolPermissionContext,
-      operationType,
-    )
+    const { allowed, resolvedPath, decisionReason, isInWorkingDir } =
+      validatePath(path, cwd, toolPermissionContext, operationType)
 
     if (!allowed) {
       const workingDirs = Array.from(
@@ -687,13 +687,25 @@ function validateCommandPaths(
         }
       }
 
-      return {
+      const bashAllowRuleOverridable =
+        isInWorkingDir === true && decisionReason === undefined
+      const ask: PermissionResult = {
         behavior: 'ask',
         message,
         blockedPath: resolvedPath,
         decisionReason,
+        bashAllowRuleOverridable,
       }
+      if (bashAllowRuleOverridable) {
+        deferredOverridableAsk ??= ask
+        continue
+      }
+      return ask
     }
+  }
+
+  if (deferredOverridableAsk) {
+    return deferredOverridableAsk
   }
 
   // All paths are valid - return passthrough
@@ -1074,13 +1086,30 @@ export function checkPathConstraints(
       },
     }
   }
-  const redirectionResult = validateOutputRedirections(
-    redirections,
-    cwd,
-    toolPermissionContext,
-    compoundCommandHasCd,
+  // Official 2.1.129 WH8: deny and non-overridable asks still short-circuit,
+  // but an overridable ask is held so a Bash allow rule gets its turn.
+  let deferredOverridableAsk: PermissionResult | undefined
+  function classify(result: PermissionResult): PermissionResult | undefined {
+    if (result.behavior === 'deny') return result
+    if (result.behavior === 'ask') {
+      if (result.bashAllowRuleOverridable) {
+        deferredOverridableAsk ??= result
+        return undefined
+      }
+      return result
+    }
+    return undefined
+  }
+
+  const redirectionResult = classify(
+    validateOutputRedirections(
+      redirections,
+      cwd,
+      toolPermissionContext,
+      compoundCommandHasCd,
+    ),
   )
-  if (redirectionResult.behavior !== 'passthrough') {
+  if (redirectionResult) {
     return redirectionResult
   }
 
@@ -1091,29 +1120,37 @@ export function checkPathConstraints(
   // (isDangerousRemovalPath etc). The AST already resolved argv correctly.
   if (astCommands) {
     for (const cmd of astCommands) {
-      const result = validateSinglePathCommandArgv(
-        cmd,
-        cwd,
-        toolPermissionContext,
-        compoundCommandHasCd,
+      const result = classify(
+        validateSinglePathCommandArgv(
+          cmd,
+          cwd,
+          toolPermissionContext,
+          compoundCommandHasCd,
+        ),
       )
-      if (result.behavior === 'ask' || result.behavior === 'deny') {
+      if (result) {
         return result
       }
     }
   } else {
     const commands = splitCommand_DEPRECATED(input.command)
     for (const cmd of commands) {
-      const result = validateSinglePathCommand(
-        cmd,
-        cwd,
-        toolPermissionContext,
-        compoundCommandHasCd,
+      const result = classify(
+        validateSinglePathCommand(
+          cmd,
+          cwd,
+          toolPermissionContext,
+          compoundCommandHasCd,
+        ),
       )
-      if (result.behavior === 'ask' || result.behavior === 'deny') {
+      if (result) {
         return result
       }
     }
+  }
+
+  if (deferredOverridableAsk) {
+    return deferredOverridableAsk
   }
 
   // Always return passthrough to let other permission checks handle the command

@@ -1,6 +1,7 @@
 import { coerce } from 'semver'
 import type { Writable } from 'stream'
 import { env } from '../utils/env.js'
+import { isEnvTruthy } from '../utils/envUtils.js'
 import { gte } from '../utils/semver.js'
 import { getClearTerminalSequence } from './clearTerminal.js'
 import type { Diff } from './frame.js'
@@ -72,6 +73,10 @@ export function isSynchronizedOutputSupported(): boolean {
   // BSU/ESU pass through to the outer terminal but tmux has already
   // broken atomicity by chunking. Skip to save 16 bytes/frame + parser work.
   if (process.env.TMUX) return false
+
+  // Official 2.1.129 `rB`: Emacs eat and similar can force DEC 2026 even
+  // when TERM_PROGRAM is not in the known-support list.
+  if (isEnvTruthy(process.env.CLAUDE_CODE_FORCE_SYNC_OUTPUT)) return true
 
   const termProgram = process.env.TERM_PROGRAM
   const term = process.env.TERM

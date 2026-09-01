@@ -252,6 +252,12 @@ export type ToolUseContext = {
     updater: (prev: AttributionState) => AttributionState,
   ) => void
   setConversationId?: (id: UUID) => void
+  /**
+   * Official 2.1.129 `resetTerminalTitle` / REPL `sJ`: clear the Haiku-generated
+   * tab title so /clear (and ultraplan/resume clear) fall back to the product
+   * name. Wired only in interactive REPL; SDK/print omit it.
+   */
+  resetTerminalTitle?: () => void
   agentId?: AgentId // Only set for subagents; use getSessionId() for session ID. Hooks use this to distinguish subagent calls.
   agentType?: string // Subagent type name. For the main thread's --agent type, hooks fall back to getMainThreadAgentType().
   /** When true, canUseTool must always be called even when hooks auto-approve.

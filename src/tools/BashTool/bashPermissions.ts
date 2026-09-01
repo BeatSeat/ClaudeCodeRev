@@ -1602,7 +1602,13 @@ export const bashToolCheckPermission = (
     astCommand?.redirects,
     astCommand ? [astCommand] : undefined,
   )
-  if (pathResult.behavior !== 'passthrough') {
+  // Official 2.1.129: an in-project path ask (`mkdir foo`, `touch foo`) falls
+  // through to the allow-rule steps so `Bash(mkdir *)` can win; it is returned
+  // below only when no allow rule matched.
+  if (
+    pathResult.behavior === 'deny' ||
+    (pathResult.behavior === 'ask' && !pathResult.bashAllowRuleOverridable)
+  ) {
     return pathResult
   }
 
@@ -1621,6 +1627,10 @@ export const bashToolCheckPermission = (
         rule: matchingAllowRules[0],
       },
     }
+  }
+
+  if (pathResult.behavior === 'ask') {
+    return pathResult
   }
 
   // 5b. Check sed constraints (blocks dangerous sed operations before mode auto-allow)
@@ -2779,7 +2789,12 @@ export async function bashToolHasPermission(
         astRedirects,
         astCommands,
       )
-      if (pathResult.behavior !== 'passthrough') {
+      // Official 2.1.129: the pipe segments already matched allow rules, so an
+      // overridable in-project ask must not undo that decision.
+      if (
+        pathResult.behavior === 'deny' ||
+        (pathResult.behavior === 'ask' && !pathResult.bashAllowRuleOverridable)
+      ) {
         return pathResult
       }
     }
@@ -3054,7 +3069,11 @@ export async function bashToolHasPermission(
   //
   // When no subcommand asked (all allow, or all passthrough like `printf > file`),
   // pathResult IS the only ask — return it so redirection checks surface.
-  if (pathResult.behavior === 'ask' && askSubresult === undefined) {
+  if (
+    pathResult.behavior === 'ask' &&
+    askSubresult === undefined &&
+    !pathResult.bashAllowRuleOverridable
+  ) {
     return pathResult
   }
 

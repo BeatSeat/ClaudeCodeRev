@@ -47,7 +47,7 @@ type Props = {
   autoUpdaterResult: AutoUpdaterResult | null
   isAutoUpdating: boolean
   verbose: boolean
-  onAutoUpdaterResult: (result: AutoUpdaterResult) => void
+  onAutoUpdaterResult: (result: AutoUpdaterResult | null) => void
   onChangeIsUpdating: (isUpdating: boolean) => void
   suggestions: SuggestionItem[]
   selectedSuggestion: number

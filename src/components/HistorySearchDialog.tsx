@@ -47,7 +47,9 @@ export function HistorySearchDialog({
   useRegisterOverlay('history-search')
   const { columns } = useTerminalSize()
 
-  const [scope, setScope] = useState<HistoryPickerScope>('project')
+  // Official 2.1.129 `mT4`: default all prompts across all projects
+  // (pre-2.1.124). Ctrl+S cycles session → project → everywhere.
+  const [scope, setScope] = useState<HistoryPickerScope>('everywhere')
   const [items, setItems] = useState<Item[] | null>(null)
   const [query, setQuery] = useState(initialQuery ?? '')
   const cacheRef = useRef<Partial<Record<HistoryPickerScope, Item[]>>>({})

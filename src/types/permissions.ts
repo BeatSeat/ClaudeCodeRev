@@ -213,6 +213,13 @@ export type PermissionAskDecision<
    */
   isBashSecurityCheckForMisparsing?: boolean
   /**
+   * Official 2.1.129 `l9_` / `WH8`: this ask came from a path constraint on a
+   * path that IS inside a working directory and had no rule-based reason, so a
+   * matching Bash allow rule (`Bash(mkdir *)`, `Bash(touch *)`) may override
+   * it. Callers defer the ask until the allow-rule step has run.
+   */
+  bashAllowRuleOverridable?: boolean
+  /**
    * If set, an allow classifier check should be run asynchronously.
    * The classifier may auto-approve the permission before the user responds.
    */
