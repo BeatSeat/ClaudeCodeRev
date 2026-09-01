@@ -5,6 +5,7 @@ import * as React from 'react'
 import {
   useCallback,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -65,6 +66,7 @@ import { useTerminalSize } from '../../hooks/useTerminalSize.js'
 import { useTypeahead } from '../../hooks/useTypeahead.js'
 import type { BorderTextOptions } from '../../ink/render-border.js'
 import { stringWidth } from '../../ink/stringWidth.js'
+import instances from '../../ink/instances.js'
 import { Box, type ClickEvent, type Key, Text, useInput } from '../../ink.js'
 import { useOptionalKeybindingContext } from '../../keybindings/KeybindingContext.js'
 import { getShortcutDisplay } from '../../keybindings/shortcutFormat.js'
@@ -2153,6 +2155,22 @@ function PromptInput({
     })
   }, [keybindingContext, isModalOverlayActive, onSubmit, input])
 
+  const [clearInputRedrawTick, setClearInputRedrawTick] = useState(0)
+  useLayoutEffect(() => {
+    if (clearInputRedrawTick === 0) return
+    instances.get(process.stdout)?.forceRedraw()
+  }, [clearInputRedrawTick])
+
+  // Official 111 lu: Ctrl+L clears the prompt and forces a full-screen redraw.
+  const handleClearInput = useCallback(() => {
+    trackAndSetInput('')
+    setCursorOffset(0)
+    resetHistory()
+    setPastedContents({})
+    onModeChange('prompt')
+    setClearInputRedrawTick(tick => tick + 1)
+  }, [trackAndSetInput, resetHistory, setPastedContents, onModeChange])
+
   // Chat context keybindings for editing shortcuts
   // Note: history:previous/history:next are NOT handled here. They are passed as
   // onHistoryUp/onHistoryDown props to TextInput, so that useTextInput's
@@ -2164,6 +2182,7 @@ function PromptInput({
       'chat:newline': handleNewline,
       'chat:externalEditor': handleExternalEditor,
       'chat:stash': handleStash,
+      'chat:clearInput': handleClearInput,
       'chat:modelPicker': handleModelPicker,
       'chat:thinkingToggle': handleThinkingToggle,
       'chat:cycleMode': handleCycleMode,
@@ -2174,6 +2193,7 @@ function PromptInput({
       handleNewline,
       handleExternalEditor,
       handleStash,
+      handleClearInput,
       handleModelPicker,
       handleThinkingToggle,
       handleCycleMode,

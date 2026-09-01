@@ -46,22 +46,32 @@ function clamp(n: number, min: number, max: number): number {
 }
 
 export function SkillsMenu({ onExit, commands }: Props): React.ReactNode {
+  const [sortByTokens, setSortByTokens] = useState(false)
   const skills = useMemo(() => {
-    return commands
-      .filter(
-        (cmd): cmd is SkillCommand =>
-          cmd.type === 'prompt' &&
-          (cmd.loadedFrom === 'skills' ||
-            cmd.loadedFrom === 'commands_DEPRECATED' ||
-            cmd.loadedFrom === 'plugin' ||
-            cmd.loadedFrom === 'mcp'),
+    const filtered = commands.filter(
+      (cmd): cmd is SkillCommand =>
+        cmd.type === 'prompt' &&
+        (cmd.loadedFrom === 'skills' ||
+          cmd.loadedFrom === 'commands_DEPRECATED' ||
+          cmd.loadedFrom === 'plugin' ||
+          cmd.loadedFrom === 'mcp'),
+    )
+    if (sortByTokens) {
+      const tokens = new Map(
+        filtered.map(cmd => [cmd, estimateSkillFrontmatterTokens(cmd)]),
       )
-      .sort(
+      return filtered.sort(
         (a, b) =>
-          String(a.source).localeCompare(String(b.source)) ||
+          (tokens.get(b) ?? 0) - (tokens.get(a) ?? 0) ||
           getCommandName(a).localeCompare(getCommandName(b)),
       )
-  }, [commands])
+    }
+    return filtered.sort(
+      (a, b) =>
+        String(a.source).localeCompare(String(b.source)) ||
+        getCommandName(a).localeCompare(getCommandName(b)),
+    )
+  }, [commands, sortByTokens])
 
   const [selected, setSelected] = useState(0)
   const { rows } = useModalOrTerminalSize(useTerminalSize())
@@ -87,6 +97,10 @@ export function SkillsMenu({ onExit, commands }: Props): React.ReactNode {
       'select:next': () => setSelected(i => (i + 1) % skills.length),
       'confirm:no': handleCancel,
       'settings:close': handleCancel,
+      'settings:sortByTokens': () => {
+        setSortByTokens(prev => !prev)
+        setSelected(0)
+      },
     }),
     [handleCancel, skills.length],
   )
@@ -96,6 +110,11 @@ export function SkillsMenu({ onExit, commands }: Props): React.ReactNode {
   })
 
   const closeHint = getShortcutDisplay('confirm:no', 'Confirmation', 'esc')
+  const sortHint = getShortcutDisplay(
+    'settings:sortByTokens',
+    'Settings',
+    't',
+  )
 
   if (skills.length === 0) {
     return (
@@ -115,7 +134,7 @@ export function SkillsMenu({ onExit, commands }: Props): React.ReactNode {
   return (
     <Dialog
       title="Skills"
-      subtitle={`${skills.length} ${plural(skills.length, 'skill')} · ${closeHint} to close`}
+      subtitle={`${skills.length} ${plural(skills.length, 'skill')}${sortByTokens ? ' · sorted by tokens' : ''} · ${sortHint} to sort, ${closeHint} to close`}
       onCancel={handleCancel}
       hideInputGuide
     >

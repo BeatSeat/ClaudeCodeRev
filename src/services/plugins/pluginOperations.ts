@@ -27,7 +27,9 @@ import {
 import {
   findReverseDependencyConstraints,
   findReverseDependents,
+  formatNoMatchingTagError,
   formatReverseDependentsSuffix,
+  formatVersionRequirementError,
 } from '../../utils/plugins/dependencyResolver.js'
 import {
   loadInstalledPluginsFromDisk,
@@ -384,7 +386,7 @@ export async function installPluginOp(
     marketplaceInstallLocation,
   })
 
-  if (!result.ok) {
+  if (result.ok === false) {
     switch (result.reason) {
       case 'local-source-no-location':
         return {
@@ -410,6 +412,25 @@ export async function installPluginOp(
         return {
           success: false,
           message: `Plugin "${result.pluginName}" depends on "${result.blockedDependency}", which is blocked by your organization's policy`,
+        }
+      case 'range-conflict':
+        return {
+          success: false,
+          message: formatVersionRequirementError(
+            result.dep === pluginId ? 'Plugin' : 'Dependency',
+            result.dep,
+            result.ranges,
+            result.why,
+          ),
+        }
+        case 'no-matching-tag':
+        return {
+          success: false,
+          message: formatNoMatchingTagError(
+            result.dep === pluginId ? 'Plugin' : 'Dependency',
+            result.dep,
+            result.range,
+          ),
         }
     }
   }

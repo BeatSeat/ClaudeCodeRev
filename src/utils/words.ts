@@ -798,3 +798,23 @@ export function generateShortWordSlug(): string {
   const noun = pickRandom(NOUNS)
   return `${adjective}-${noun}`
 }
+
+/**
+ * Official 2.1.111 XR4: turn a user prompt into a short filename-safe slug.
+ * Example: "Fix auth race condition" → "fix-auth-race-condition"
+ */
+export function slugifyPrompt(
+  prompt: string,
+  opts: { words?: number; maxLen?: number } = {},
+): string {
+  const words = opts.words ?? 4
+  const maxLen = opts.maxLen ?? 40
+  return prompt
+    .split(/\s+/)
+    .slice(0, words)
+    .join(' ')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .slice(0, maxLen)
+    .replace(/^-+|-+$/g, '')
+}

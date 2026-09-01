@@ -73,6 +73,13 @@ export type LoadedPlugin = {
   settings?: Record<string, unknown>
   /** Version requirements keyed by the normalized dependency ID. */
   depConstraints?: Record<string, PluginDependencyConstraint>
+  /**
+   * Official 2.1.111: tag-derived semver this install resolved to (when
+   * fetched via a version constraint). verifyAndDemote prefers this over
+   * manifest.version so a forgotten plugin.json bump after `plugin update`
+   * does not leave dependents looking at a stale range.
+   */
+  resolvedVersion?: string
 }
 
 export type PluginComponent =

@@ -23,6 +23,7 @@ import { getAPIProviderForStatsig } from 'src/utils/model/providers.js'
 import type { PermissionMode } from 'src/utils/permissions/PermissionMode.js'
 import { jsonStringify } from 'src/utils/slowOperations.js'
 import { logOTelEvent } from 'src/utils/telemetry/events.js'
+import { logRawApiResponseBody } from 'src/utils/telemetry/rawApiBodies.js'
 import {
   endLLMRequestSpan,
   isBetaTracingEnabled,
@@ -723,7 +724,13 @@ export function logAPISuccessAndDuration({
     cache_creation_tokens: String(usage.cache_creation_input_tokens),
     cost_usd: String(costUSD),
     duration_ms: String(durationMs),
+    request_id: requestId ?? undefined,
     speed: fastMode ? 'fast' : 'normal',
+  })
+  logRawApiResponseBody(newMessages, {
+    model,
+    querySource,
+    requestId,
   })
 
   // Extract model output, thinking output, and tool call flag when beta tracing is enabled

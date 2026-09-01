@@ -427,6 +427,7 @@ export function addPluginInstallation(
     installedAt: metadata.installedAt || new Date().toISOString(),
     lastUpdated: new Date().toISOString(),
     gitCommitSha: metadata.gitCommitSha,
+    resolvedVersion: metadata.resolvedVersion,
     ...(projectPath && { projectPath }),
   }
 
@@ -559,6 +560,9 @@ export function updateInstallationPathOnDisk(
   if (entry) {
     entry.installPath = newPath
     entry.version = newVersion
+    // Official 2.1.111 `DEK`: drop the previous tag pin so dependents do
+    // not keep checking a stale resolvedVersion after `plugin update`.
+    delete entry.resolvedVersion
     entry.lastUpdated = new Date().toISOString()
     if (gitCommitSha !== undefined) {
       entry.gitCommitSha = gitCommitSha
@@ -885,6 +889,7 @@ export function addInstalledPlugin(
     installedAt: metadata.installedAt,
     lastUpdated: metadata.lastUpdated,
     gitCommitSha: metadata.gitCommitSha,
+    resolvedVersion: metadata.resolvedVersion,
     ...(projectPath && { projectPath }),
   }
 

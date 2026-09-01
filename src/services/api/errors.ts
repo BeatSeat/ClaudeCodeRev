@@ -567,8 +567,11 @@ export function getAssistantMessageFromError(
       innerMessage = stripped.match(/"message"\s*:\s*"([^"]*)"/)?.[1]
     }
     const detail = innerMessage || stripped
+    const fallback = isFirstPartyApiFamily()
+      ? `this may be a temporary capacity issue — check ${STATUS_CLAUDE_COM}`
+      : 'this may be a temporary capacity issue'
     return createAssistantAPIErrorMessage({
-      content: `${API_ERROR_MESSAGE_PREFIX}: ${isSubscriberRateLimit ? 'Server is temporarily limiting requests (not your usage limit)' : 'Request rejected (429)'} · ${detail || `this may be a temporary capacity issue — check ${STATUS_CLAUDE_COM}`}`,
+      content: `${API_ERROR_MESSAGE_PREFIX}: ${isSubscriberRateLimit ? 'Server is temporarily limiting requests (not your usage limit)' : 'Request rejected (429)'} · ${detail || fallback}`,
       error: 'rate_limit',
     })
   }

@@ -98,6 +98,7 @@ export const KEYBINDING_ACTIONS = [
   'chat:stash',
   'chat:imagePaste',
   'chat:messageActions',
+  'chat:clearInput',
   // Autocomplete menu actions
   'autocomplete:accept',
   'autocomplete:dismiss',
@@ -176,6 +177,7 @@ export const KEYBINDING_ACTIONS = [
   'settings:search',
   'settings:retry',
   'settings:close',
+  'settings:sortByTokens',
   // Voice actions
   'voice:pushToTalk',
 ] as const

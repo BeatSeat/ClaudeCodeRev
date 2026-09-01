@@ -1,5 +1,5 @@
 import { randomUUID } from 'crypto'
-import { useCallback, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import type { TranscriptShareResponse } from './TranscriptSharePrompt.js'
 import type { FeedbackSurveyResponse } from './utils.js'
 
@@ -13,6 +13,11 @@ type SurveyState =
 
 type UseSurveyStateOptions = {
   hideThanksAfterMs: number
+  /**
+   * Official 2.1.111 `hm6`: another survey is already on screen. Close this
+   * one if it is open so dismissing one does not immediately reveal the next.
+   */
+  otherSurveyActive?: boolean
   onOpen: (appearanceId: string) => void | Promise<void>
   onSelect: (
     appearanceId: string,
@@ -32,6 +37,7 @@ type UseSurveyStateOptions = {
 
 export function useSurveyState({
   hideThanksAfterMs,
+  otherSurveyActive = false,
   onOpen,
   onSelect,
   shouldShowTranscriptPrompt,
@@ -76,6 +82,14 @@ export function useSurveyState({
     appearanceId.current = randomUUID()
     void onOpen(appearanceId.current)
   }, [state, onOpen])
+
+  // Official 2.1.111: if another survey becomes active while this one is
+  // open, close it so the user does not see two surveys back-to-back.
+  useEffect(() => {
+    if (otherSurveyActive && state === 'open') {
+      setState('closed')
+    }
+  }, [otherSurveyActive, state])
 
   const handleSelect = useCallback(
     (selected: FeedbackSurveyResponse): boolean => {

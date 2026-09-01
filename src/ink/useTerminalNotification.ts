@@ -5,6 +5,16 @@ import { ITERM2, OSC, osc, PROGRESS, wrapForMultiplexer } from './termio/osc.js'
 
 type WriteRaw = (data: string) => void
 
+/** Official 111 As6: C0 / DEL → space so OSC payloads stay single-line. */
+function sanitizeOscPayload(value: string): string {
+  let out = ''
+  for (let i = 0; i < value.length; i++) {
+    const code = value.charCodeAt(i)
+    out += code < 32 || code === 127 ? ' ' : value[i]
+  }
+  return out
+}
+
 export const TerminalWriteContext = createContext<WriteRaw | null>(null)
 
 export const TerminalWriteProvider = TerminalWriteContext.Provider
@@ -32,8 +42,8 @@ export function useTerminalNotification(): TerminalNotification {
 
   const notifyITerm2 = useCallback(
     ({ message, title }: { message: string; title?: string }) => {
-      const displayString = title ? `${title}:\n${message}` : message
-      writeRaw(wrapForMultiplexer(osc(OSC.ITERM2, `\n\n${displayString}`)))
+      const displayString = title ? `${title}: ${message}` : message
+      writeRaw(wrapForMultiplexer(osc(OSC.ITERM2, sanitizeOscPayload(displayString))))
     },
     [writeRaw],
   )
@@ -48,8 +58,16 @@ export function useTerminalNotification(): TerminalNotification {
       title: string
       id: number
     }) => {
-      writeRaw(wrapForMultiplexer(osc(OSC.KITTY, `i=${id}:d=0:p=title`, title)))
-      writeRaw(wrapForMultiplexer(osc(OSC.KITTY, `i=${id}:p=body`, message)))
+      writeRaw(
+        wrapForMultiplexer(
+          osc(OSC.KITTY, `i=${id}:d=0:p=title`, sanitizeOscPayload(title)),
+        ),
+      )
+      writeRaw(
+        wrapForMultiplexer(
+          osc(OSC.KITTY, `i=${id}:p=body`, sanitizeOscPayload(message)),
+        ),
+      )
       writeRaw(wrapForMultiplexer(osc(OSC.KITTY, `i=${id}:d=1:a=focus`, '')))
     },
     [writeRaw],
@@ -57,7 +75,16 @@ export function useTerminalNotification(): TerminalNotification {
 
   const notifyGhostty = useCallback(
     ({ message, title }: { message: string; title: string }) => {
-      writeRaw(wrapForMultiplexer(osc(OSC.GHOSTTY, 'notify', title, message)))
+      writeRaw(
+        wrapForMultiplexer(
+          osc(
+            OSC.GHOSTTY,
+            'notify',
+            sanitizeOscPayload(title),
+            sanitizeOscPayload(message),
+          ),
+        ),
+      )
     },
     [writeRaw],
   )

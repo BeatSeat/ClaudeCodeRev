@@ -36,7 +36,9 @@ import { processSessionStartHooks } from '../../utils/sessionStart.js'
 import {
   clearSessionMetadata,
   getAgentTranscriptPath,
+  getCurrentSessionTitle,
   resetSessionFilePointer,
+  saveCustomTitle,
   saveWorktreeState,
 } from '../../utils/sessionStorage.js'
 import {
@@ -195,8 +197,13 @@ export async function clearConversation({
   // Clear plan slug cache so a new plan file is used after /clear
   clearAllPlanSlugs()
 
+  // Official 2.1.111: keep /rename session name across /clear so
+  // statusline session_name survives the new session id.
+  const preservedTitle = getCurrentSessionTitle(getSessionId())
+
   // Clear cached session metadata (title, tag, agent name/color)
   // so the new session doesn't inherit the previous session's identity
+  // (title is restored onto the new session below).
   clearSessionMetadata()
 
   // Generate new session ID to provide fresh state
@@ -207,6 +214,14 @@ export async function clearConversation({
     process.env.CLAUDE_CODE_SESSION_ID = getSessionId()
   }
   await resetSessionFilePointer()
+  if (preservedTitle) {
+    await saveCustomTitle(
+      getSessionId() as UUID,
+      preservedTitle,
+      undefined,
+      'user',
+    )
+  }
 
   // Preserved local_agent tasks had their TaskOutput symlink baked against the
   // old session ID at spawn time, but post-clear transcript writes land under

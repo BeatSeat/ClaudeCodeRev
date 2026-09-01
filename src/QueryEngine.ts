@@ -647,10 +647,11 @@ export class QueryEngine {
     // ref-tracked plugins. CCR populates the cache via CLAUDE_CODE_SYNC_PLUGIN_INSTALL
     // (headlessPluginInstall) or CLAUDE_CODE_PLUGIN_SEED_DIR before this runs;
     // SDK callers that need fresh source can call /reload-plugins.
-    const [skills, { enabled: enabledPlugins }] = await Promise.all([
-      getSlashCommandToolSkills(getCwd()),
-      loadAllPluginsCacheOnly(),
-    ])
+    const [skills, { enabled: enabledPlugins, errors: pluginErrors }] =
+      await Promise.all([
+        getSlashCommandToolSkills(getCwd()),
+        loadAllPluginsCacheOnly(),
+      ])
     headlessProfilerCheckpoint('after_skills_plugins')
 
     yield buildSystemInitMessage({
@@ -663,6 +664,7 @@ export class QueryEngine {
       agents,
       skills,
       plugins: enabledPlugins,
+      pluginErrors,
       fastMode: initialAppState.fastMode,
     })
 

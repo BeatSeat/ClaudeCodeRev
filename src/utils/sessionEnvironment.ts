@@ -4,7 +4,6 @@ import { getSessionId } from '../bootstrap/state.js'
 import { logForDebugging } from './debug.js'
 import { getClaudeConfigHomeDir } from './envUtils.js'
 import { errorMessage, getErrnoCode } from './errors.js'
-import { getPlatform } from './platform.js'
 
 // Cache states:
 // undefined = not yet loaded (need to check disk)
@@ -58,11 +57,9 @@ export function invalidateSessionEnvCache(): void {
 }
 
 export async function getSessionEnvironmentScript(): Promise<string | null> {
-  if (getPlatform() === 'windows') {
-    logForDebugging('Session environment not yet supported on Windows')
-    return null
-  }
-
+  // Official 2.1.111: Windows no longer short-circuits. CLAUDE_ENV_FILE and
+  // SessionStart hook env files apply here; bashProvider POSIX-converts
+  // paths before `source` on git-bash.
   if (sessionEnvScript !== undefined) {
     return sessionEnvScript
   }

@@ -18,6 +18,23 @@ import type {
 
 export const PIN_TIERS = ['sonnet', 'opus', 'haiku'] as const
 
+export const PIN_ENV = {
+  sonnet: 'ANTHROPIC_DEFAULT_SONNET_MODEL',
+  opus: 'ANTHROPIC_DEFAULT_OPUS_MODEL',
+  haiku: 'ANTHROPIC_DEFAULT_HAIKU_MODEL',
+} as const
+
+export function existingPinFromEnv(
+  tier: (typeof PIN_TIERS)[number],
+): string | undefined {
+  const value = process.env[PIN_ENV[tier]]?.trim()
+  return value || undefined
+}
+
+export function with1mSuffix(model: string): string {
+  return /\[1m\]$/i.test(model) ? model : `${model}[1m]`
+}
+
 export const TIER_LABELS = {
   sonnet: 'Sonnet',
   opus: 'Opus',
@@ -104,6 +121,7 @@ export function buildBedrockEnv(
     ANTHROPIC_DEFAULT_SONNET_MODEL: undefined,
     ANTHROPIC_DEFAULT_OPUS_MODEL: undefined,
     ANTHROPIC_DEFAULT_HAIKU_MODEL: undefined,
+    ANTHROPIC_SMALL_FAST_MODEL: undefined,
   }
   switch (data.authMethod) {
     case 'profile':

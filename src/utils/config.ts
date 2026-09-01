@@ -473,6 +473,10 @@ export type GlobalConfig = {
 
   // Copy command behavior
   copyFullResponse: boolean // Whether /copy always copies the full response instead of showing the picker
+  /** Official 2.1.111: once the user sets /effort or --effort, stop pinning Opus 4.7 launch default (xhigh). */
+  unpinOpus47LaunchEffort?: boolean
+  /** Official 2.1.111 `qUY` / `vr8`: cap `gdK` impressions (`tgY` = 12). */
+  opus47LaunchSeenCount?: number
 
   // Fullscreen in-app text selection behavior
   copyOnSelect?: boolean // Auto-copy to clipboard on mouse-up (undefined → true; lets cmd+c "work" via no-op)
@@ -641,6 +645,7 @@ function createDefaultGlobalConfig(): GlobalConfig {
     cachedGrowthBookFeatures: {},
     respectGitignore: true,
     copyFullResponse: false,
+    unpinOpus47LaunchEffort: false,
   }
 }
 

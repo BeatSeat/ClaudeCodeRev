@@ -11,8 +11,9 @@
  *    unsatisfied deps (session-local, does NOT write settings)
  */
 
-import { coerce, satisfies, valid } from 'semver'
+import { coerce, minVersion, satisfies, valid, validRange } from 'semver'
 import type { LoadedPlugin, PluginError } from '../../types/plugin.js'
+import { logForDebugging } from '../debug.js'
 import type { EditableSettingSource } from '../settings/constants.js'
 import { getSettingsForSource } from '../settings/settings.js'
 import { parsePluginIdentifier } from './pluginIdentifier.js'
@@ -234,7 +235,12 @@ export function verifyAndDemote(plugins: readonly LoadedPlugin[]): {
             ? parsePluginIdentifier(candidate.source).name === dep
             : candidate.source === dep
         })
-        const installedVersion = matchingDependency?.manifest.version
+        // Official 2.1.111: prefer tag-derived resolvedVersion over
+        // plugin.json so a stale manifest after `plugin update` does not
+        // demote dependents that the installed tag still satisfies.
+        const installedVersion =
+          matchingDependency?.resolvedVersion ??
+          matchingDependency?.manifest.version
         const normalizedVersion = normalizePluginVersion(installedVersion)
         const versionSatisfied =
           normalizedVersion !== undefined &&
@@ -269,6 +275,128 @@ export function verifyAndDemote(plugins: readonly LoadedPlugin[]): {
 function normalizePluginVersion(version: string | undefined): string | undefined {
   if (!version) return undefined
   return valid(version) ?? coerce(version)?.version
+}
+
+/** Official 2.1.111 `WS8` / `zf4` / `fQ1`. */
+const MAX_INTERSECT_CONJUNCTS = 1024
+const MAX_INTERSECT_INPUT_CHARS = 4096
+const MAX_RANGE_DISPLAY_CHARS = 200
+const CONTROL_CHARS = /[\x00-\x08\x0b-\x1f\x7f]/g
+
+export type IntersectConstraintsResult =
+  | { ok: true; range: string }
+  | { ok: false; reason: 'invalid' | 'too-complex' | 'disjoint' }
+
+/** Official 2.1.111 `ZQ1`. */
+function tooComplex(detail: string): IntersectConstraintsResult {
+  logForDebugging(`intersectConstraints: ${detail} — treating as too complex`, {
+    level: 'warn',
+  })
+  return { ok: false, reason: 'too-complex' }
+}
+
+/**
+ * Official 2.1.111 `Af4`. Intersect semver ranges and distinguish
+ * invalid / too-complex / disjoint failures (2.1.110 collapsed all to null).
+ */
+export function intersectConstraints(
+  ranges: string[],
+): IntersectConstraintsResult {
+  if (ranges.length === 0) return { ok: true, range: '*' }
+  let totalChars = 0
+  for (const range of ranges) totalChars += range.length
+  if (totalChars > MAX_INTERSECT_INPUT_CHARS) {
+    return tooComplex(
+      `total input ${totalChars} chars > ${MAX_INTERSECT_INPUT_CHARS}`,
+    )
+  }
+
+  const disjunctions: string[][] = []
+  for (const range of ranges) {
+    const normalized = validRange(range)
+    if (normalized === null) return { ok: false, reason: 'invalid' }
+    disjunctions.push(
+      normalized
+        .split('||')
+        .map(part => part.trim())
+        .filter(Boolean),
+    )
+  }
+
+  let conjuncts = disjunctions[0] ?? []
+  if (conjuncts.length > MAX_INTERSECT_CONJUNCTS) {
+    return tooComplex(
+      `${conjuncts.length} conjuncts after 1/${ranges.length} inputs > ${MAX_INTERSECT_CONJUNCTS}`,
+    )
+  }
+  for (let i = 1; i < disjunctions.length; i++) {
+    const next = disjunctions[i] ?? []
+    const product = conjuncts.length * next.length
+    if (product > MAX_INTERSECT_CONJUNCTS) {
+      return tooComplex(
+        `${product} conjuncts after ${i + 1}/${ranges.length} inputs > ${MAX_INTERSECT_CONJUNCTS}`,
+      )
+    }
+    const crossed: string[] = []
+    for (const left of conjuncts) {
+      for (const right of next) {
+        crossed.push(`${left} ${right}`)
+      }
+    }
+    conjuncts = crossed
+  }
+
+  const viable = conjuncts.filter(part => {
+    const normalized = validRange(part)
+    return normalized !== null && minVersion(normalized) !== null
+  })
+  if (viable.length === 0) return { ok: false, reason: 'disjoint' }
+  const combined = validRange(viable.join(' || '))
+  return combined === null
+    ? { ok: false, reason: 'disjoint' }
+    : { ok: true, range: combined }
+}
+
+function stripControlChars(value: string): string {
+  return value.replace(CONTROL_CHARS, '')
+}
+
+function truncateRangeDisplay(value: string): string {
+  if (value.length <= MAX_RANGE_DISPLAY_CHARS) return value
+  return `${value.slice(0, MAX_RANGE_DISPLAY_CHARS)}… (+${value.length - MAX_RANGE_DISPLAY_CHARS} chars)`
+}
+
+/**
+ * Official 2.1.111 `ZS8`. Distinguish conflicting / invalid / too-complex
+ * version requirement errors.
+ */
+export function formatVersionRequirementError(
+  kind: 'Plugin' | 'Dependency',
+  id: string,
+  ranges: string[],
+  why: 'disjoint' | 'too-complex' | 'invalid',
+): string {
+  const listed = truncateRangeDisplay(
+    stripControlChars(ranges.join(', ')),
+  )
+  const name = stripControlChars(id)
+  switch (why) {
+    case 'disjoint':
+      return `${kind} "${name}" has conflicting version requirements (no version satisfies all of: ${listed})`
+    case 'too-complex':
+      return `${kind} "${name}" has version requirements too complex to intersect — simplify the ranges: ${listed}`
+    case 'invalid':
+      return `${kind} "${name}" has an invalid version requirement among: ${listed}`
+  }
+}
+
+/** Official 2.1.111 `fS8`. */
+export function formatNoMatchingTagError(
+  kind: 'Plugin' | 'Dependency',
+  id: string,
+  range: string,
+): string {
+  return `${kind} "${stripControlChars(id)}" has no git tag satisfying ${truncateRangeDisplay(stripControlChars(range))}`
 }
 
 export type ReverseDependencyConstraint = {

@@ -5,6 +5,7 @@ import { registerBatchSkill } from './batch.js'
 import { registerClaudeInChromeSkill } from './claudeInChrome.js'
 import { registerDebugSkill } from './debug.js'
 import { registerKeybindingsSkill } from './keybindings.js'
+import { registerLessPermissionPromptsSkill } from './lessPermissionPrompts.js'
 import { registerLoremIpsumSkill } from './loremIpsum.js'
 import { registerRememberSkill } from './remember.js'
 import { registerSimplifySkill } from './simplify.js'
@@ -24,6 +25,7 @@ import { registerVerifySkill } from './verify.js'
  */
 export function initBundledSkills(): void {
   registerUpdateConfigSkill()
+  registerLessPermissionPromptsSkill()
   registerKeybindingsSkill()
   registerVerifySkill()
   registerDebugSkill()

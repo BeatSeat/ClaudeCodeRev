@@ -379,6 +379,28 @@ export function clearDeliveredDiagnosticsForFile(fileUri: string): void {
 }
 
 /**
+ * Drop pending (not-yet-delivered) diagnostics for a file that is about to
+ * be overwritten. Official 2.1.111: pre-edit publishDiagnostics were still
+ * delivered after the edit, so the model saw stale diagnostics as if they
+ * were produced by the new contents.
+ */
+export function clearPendingLSPDiagnosticsForFile(fileUri: string): void {
+  const stripped = fileUri.replace(/^file:\/\//, '')
+  for (const [id, diagnostic] of pendingDiagnostics) {
+    const matches = diagnostic.files.some(file => {
+      if (file.uri === fileUri) return true
+      return file.uri.replace(/^file:\/\//, '') === stripped
+    })
+    if (matches) {
+      logForDebugging(
+        `LSP Diagnostics: Clearing pending diagnostic ${id} for ${fileUri}`,
+      )
+      pendingDiagnostics.delete(id)
+    }
+  }
+}
+
+/**
  * Get count of pending diagnostics (for monitoring)
  */
 export function getPendingLSPDiagnosticCount(): number {

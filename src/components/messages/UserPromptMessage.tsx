@@ -86,7 +86,7 @@ export function UserPromptMessage({
     const hiddenLines =
       countCharInString(text, '\n', TRUNCATE_HEAD_CHARS) -
       countCharInString(tail, '\n')
-    return `${head}\n… +${hiddenLines} lines …\n${tail}`
+    return { head, hiddenLines, tail }
   }, [text])
 
   const isSelected = useContext(MessageActionsSelectedContext)

@@ -22,7 +22,7 @@ import {
   WEB_SEARCH_BETA_HEADER,
 } from '../constants/betas.js'
 import { OAUTH_BETA_HEADER } from '../constants/oauth.js'
-import { isClaudeAISubscriber } from './auth.js'
+import { isClaudeAISubscriber, isMaxSubscriber } from './auth.js'
 import { has1mContext } from './context.js'
 import { isEnvDefinedFalsy, isEnvTruthy } from './envUtils.js'
 import { getCanonicalName } from './model/model.js'
@@ -158,6 +158,7 @@ export function modelSupportsStructuredOutputs(model: string): boolean {
     canonical.includes('claude-opus-4-1') ||
     canonical.includes('claude-opus-4-5') ||
     canonical.includes('claude-opus-4-6') ||
+    canonical.includes('claude-opus-4-7') ||
     canonical.includes('claude-haiku-4-5')
   )
 }
@@ -195,7 +196,12 @@ export function modelSupportsAutoMode(model: string): boolean {
       return true
     }
     // External allowlist (firstParty already checked above).
-    return /^claude-(opus|sonnet)-4-6/.test(m)
+    // Official 2.1.111: Max subscribers get auto mode on Opus 4.7 only;
+    // other first-party users keep 4.6 plus Opus 4.7.
+    if (isMaxSubscriber()) {
+      return /^claude-opus-4-7/.test(m)
+    }
+    return /^claude-(opus|sonnet)-4-6/.test(m) || /^claude-opus-4-7/.test(m)
   }
   return false
 }

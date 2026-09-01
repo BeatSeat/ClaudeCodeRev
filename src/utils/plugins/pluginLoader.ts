@@ -492,7 +492,8 @@ export async function copyPluginToVersionedCache(
       )
       return cachePath
     }
-    // Directory exists but is empty, remove it so we can recreate with content
+    // Official 2.1.111: recover from an interrupted prior install that left
+    // an empty cache directory.
     logForDebugging(
       `Removing empty cache directory for ${pluginId} at ${cachePath}`,
     )
@@ -1048,7 +1049,12 @@ export async function cachePlugin(
   options?: {
     manifest?: PluginManifest
   },
-): Promise<{ path: string; manifest: PluginManifest; gitCommitSha?: string }> {
+): Promise<{
+  path: string
+  manifest: PluginManifest
+  gitCommitSha?: string
+  depConstraints?: LoadedPlugin['depConstraints']
+}> {
   const cachePath = getPluginCachePath()
 
   await getFsImplementation().mkdir(cachePath)
@@ -1114,6 +1120,7 @@ export async function cachePlugin(
   const manifestPath = join(tempPath, '.claude-plugin', 'plugin.json')
   const legacyManifestPath = join(tempPath, 'plugin.json')
   let manifest: PluginManifest
+  let depConstraints: LoadedPlugin['depConstraints']
 
   if (await pathExists(manifestPath)) {
     try {
@@ -1123,6 +1130,13 @@ export async function cachePlugin(
 
       if (result.success) {
         manifest = result.data
+        depConstraints = extractDependencyConstraints(
+          parsed !== null &&
+            typeof parsed === 'object' &&
+            'dependencies' in parsed
+            ? parsed.dependencies
+            : undefined,
+        )
       } else {
         // Manifest exists but is invalid - throw error
         const errors = result.error.issues
@@ -1169,6 +1183,13 @@ export async function cachePlugin(
 
       if (result.success) {
         manifest = result.data
+        depConstraints = extractDependencyConstraints(
+          parsed !== null &&
+            typeof parsed === 'object' &&
+            'dependencies' in parsed
+            ? parsed.dependencies
+            : undefined,
+        )
       } else {
         // Manifest exists but is invalid - throw error
         const errors = result.error.issues
@@ -1237,6 +1258,7 @@ export async function cachePlugin(
     path: finalPath,
     manifest,
     ...(gitCommitSha && { gitCommitSha }),
+    ...(depConstraints && { depConstraints }),
   }
 }
 
@@ -2262,8 +2284,8 @@ async function loadPluginsFromMarketplaces({
       // (version for the full loader's first-pass probe, installPath for
       // the cache-only loader's direct read).
       const installEntry = installedPluginsData.plugins[pluginId]?.[0]
-      return cacheOnly
-        ? loadPluginFromMarketplaceEntryCacheOnly(
+      const plugin = cacheOnly
+        ? await loadPluginFromMarketplaceEntryCacheOnly(
             result.entry,
             result.marketplaceInstallLocation,
             marketplaceConfig?.source,
@@ -2272,7 +2294,7 @@ async function loadPluginsFromMarketplaces({
             errors,
             installEntry?.installPath,
           )
-        : loadPluginFromMarketplaceEntry(
+        : await loadPluginFromMarketplaceEntry(
             result.entry,
             result.marketplaceInstallLocation,
             marketplaceConfig?.source,
@@ -2281,6 +2303,12 @@ async function loadPluginsFromMarketplaces({
             errors,
             installEntry?.version,
           )
+      // Official 2.1.111: copy tag-derived resolvedVersion onto the loaded
+      // plugin so verifyAndDemote does not keep using a stale plugin.json.
+      if (plugin && installEntry?.resolvedVersion !== undefined) {
+        plugin.resolvedVersion = installEntry.resolvedVersion
+      }
+      return plugin
     }),
   )
 

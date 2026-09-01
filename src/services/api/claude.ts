@@ -72,6 +72,7 @@ import { isEnvTruthy } from '../../utils/envUtils.js'
 import { errorMessage } from '../../utils/errors.js'
 import { computeFingerprintFromMessages } from '../../utils/fingerprint.js'
 import { captureAPIRequest, logError } from '../../utils/log.js'
+import { logRawApiRequestBody } from '../../utils/telemetry/rawApiBodies.js'
 import {
   createAssistantAPIErrorMessage,
   createUserMessage,
@@ -109,7 +110,6 @@ const autoModeStateModule = feature('TRANSCRIPT_CLASSIFIER')
 import { feature } from 'bun:bundle'
 import type { ClientOptions } from '@anthropic-ai/sdk'
 import {
-  APIConnectionError,
   APIConnectionTimeoutError,
   APIError,
   APIUserAbortError,
@@ -254,15 +254,10 @@ import {
 import {
   CannotRetryError,
   FallbackTriggeredError,
-  getDefaultMaxRetries,
   is529Error,
   type RetryContext,
   withRetry,
 } from './withRetry.js'
-
-/** Official 2.1.110 `weY`. Caps non-streaming fallback retries so an
- * unreachable API cannot burn DEFAULT_MAX_RETRIES × 300s. */
-const NONSTREAMING_FALLBACK_MAX_RETRIES = 2
 
 // Define a type that represents valid JSON values
 type JsonValue = string | number | boolean | null | JsonObject | JsonArray
@@ -814,26 +809,13 @@ function shouldDeferLspTool(tool: Tool): boolean {
  * Otherwise defaults to 300s — long enough for slow backends without
  * approaching the API's 10-minute non-streaming boundary.
  */
-function getNonstreamingFallbackTimeoutMs(fallbackCause?: string): number {
+function getNonstreamingFallbackTimeoutMs(): number {
   const override = parseInt(process.env.API_TIMEOUT_MS || '', 10)
   if (override) return override
-  // Official 2.1.110 `OeY`: a streaming idle-watchdog fallback should not
-  // sit on a 300s per-attempt timeout — the stream already died.
-  if (fallbackCause === 'watchdog') return 60_000
+  // Official 2.1.111 `r6A`: revert the 2.1.110 watchdog 60s cap. A short
+  // per-attempt timeout traded long waits for more outright failures
+  // during API overload.
   return isEnvTruthy(process.env.CLAUDE_CODE_REMOTE) ? 120_000 : 300_000
-}
-
-/** Official 2.1.110 `$eY`. Classifies the non-streaming fallback error
- * for tengu_nonstreaming_fallback_error so "API unreachable" is distinct
- * from overload / HTTP status. */
-function classifyNonstreamingFallbackError(err: unknown): string {
-  if (err instanceof APIConnectionTimeoutError) return 'timeout'
-  if (err instanceof APIConnectionError) return 'connection'
-  if (is529Error(err)) return 'overloaded'
-  if (err instanceof APIError) {
-    return err.status != null ? `status_${err.status}` : 'api_error'
-  }
-  return 'other'
 }
 
 /**
@@ -864,9 +846,8 @@ export async function* executeNonStreamingRequest(
    * from. Emitted in tengu_nonstreaming_fallback_error for funnel correlation.
    */
   originatingRequestId?: string | null,
-  fallbackCause?: string,
 ): AsyncGenerator<SystemAPIErrorMessage, BetaMessage> {
-  const fallbackTimeoutMs = getNonstreamingFallbackTimeoutMs(fallbackCause)
+  const fallbackTimeoutMs = getNonstreamingFallbackTimeoutMs()
   const generator = withRetry(
     () =>
       getAnthropicClient({
@@ -913,14 +894,8 @@ export async function* executeNonStreamingRequest(
             err instanceof Error
               ? (err.name as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS)
               : ('unknown' as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS),
-          error_class:
-            classifyNonstreamingFallbackError(
-              err,
-            ) as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
           attempt,
           timeout_ms: fallbackTimeoutMs,
-          fallback_cause: (fallbackCause ??
-            'unknown') as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
           request_id: (originatingRequestId ??
             'unknown') as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
         })
@@ -935,12 +910,6 @@ export async function* executeNonStreamingRequest(
       signal: retryOptions.signal,
       initialConsecutive529Errors: retryOptions.initialConsecutive529Errors,
       querySource: retryOptions.querySource,
-      // Official 2.1.110 `weY`: cap fallback retries so an unreachable API
-      // cannot hang for DEFAULT_MAX_RETRIES × per-attempt timeout.
-      maxRetries: Math.min(
-        NONSTREAMING_FALLBACK_MAX_RETRIES,
-        getDefaultMaxRetries(),
-      ),
     },
   )
 
@@ -1835,6 +1804,7 @@ async function* queryModel(
 
         const params = paramsFromContext(context)
         captureAPIRequest(params, options.querySource) // Capture for bug reports
+        logRawApiRequestBody({ ...params, stream: true }, options.querySource)
 
         maxOutputTokens = params.max_tokens
 
@@ -2672,9 +2642,11 @@ async function* queryModel(
           attemptNumber = attempt
           maxOutputTokens = tokens
         },
-        params => captureAPIRequest(params, options.querySource),
+        params => {
+          captureAPIRequest(params, options.querySource)
+          logRawApiRequestBody(params, options.querySource)
+        },
         streamRequestId,
-        fallbackCause,
       )
 
       const m: AssistantMessage = {
@@ -2770,9 +2742,11 @@ async function* queryModel(
             attemptNumber = attempt
             maxOutputTokens = tokens
           },
-          params => captureAPIRequest(params, options.querySource),
+          params => {
+            captureAPIRequest(params, options.querySource)
+            logRawApiRequestBody(params, options.querySource)
+          },
           failedRequestId,
-          '404_stream_creation',
         )
 
         const m: AssistantMessage = {

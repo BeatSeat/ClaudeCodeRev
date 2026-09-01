@@ -21,6 +21,7 @@ import {
   getDefaultEffortForModel,
   modelSupportsEffort,
   modelSupportsMaxEffort,
+  modelSupportsXHighEffort,
   resolvePickerEffortPersistence,
   toPersistableEffort,
 } from '../utils/effort.js'
@@ -144,11 +145,18 @@ export function ModelPicker({
   const focusedSupportsMax = focusedModel
     ? modelSupportsMaxEffort(focusedModel)
     : false
+  const focusedSupportsXhigh = focusedModel
+    ? modelSupportsXHighEffort(focusedModel)
+    : false
   const focusedDefaultEffort = getDefaultEffortLevelForOption(focusedValue)
-  // Clamp display when 'max' is selected but the focused model doesn't support it.
-  // resolveAppliedEffort() does the same downgrade at API-send time.
+  // Clamp display when 'max' / 'xhigh' is selected but the focused model
+  // doesn't support it. resolveAppliedEffort() does the same downgrade.
   const displayEffort =
-    effort === 'max' && !focusedSupportsMax ? 'high' : effort
+    effort === 'max' && !focusedSupportsMax
+      ? 'high'
+      : effort === 'xhigh' && !focusedSupportsXhigh
+        ? 'high'
+        : effort
 
   const handleFocus = useCallback(
     (value: string) => {
@@ -169,11 +177,17 @@ export function ModelPicker({
           prev ?? focusedDefaultEffort,
           direction,
           focusedSupportsMax,
+          focusedSupportsXhigh,
         ),
       )
       setHasToggledEffort(true)
     },
-    [focusedSupportsEffort, focusedSupportsMax, focusedDefaultEffort],
+    [
+      focusedSupportsEffort,
+      focusedSupportsMax,
+      focusedSupportsXhigh,
+      focusedDefaultEffort,
+    ],
   )
 
   useKeybindings(
@@ -344,10 +358,11 @@ function cycleEffortLevel(
   current: EffortLevel,
   direction: 'left' | 'right',
   includeMax: boolean,
+  includeXhigh: boolean,
 ): EffortLevel {
-  const levels: EffortLevel[] = includeMax
-    ? ['low', 'medium', 'high', 'max']
-    : ['low', 'medium', 'high']
+  const levels: EffortLevel[] = ['low', 'medium', 'high']
+  if (includeXhigh) levels.push('xhigh')
+  if (includeMax) levels.push('max')
   // If the current level isn't in the cycle (e.g. 'max' after switching to a
   // non-Opus model), clamp to 'high'.
   const idx = levels.indexOf(current)

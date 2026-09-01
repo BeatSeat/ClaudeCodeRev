@@ -57,6 +57,7 @@ export function useFeedbackSurvey(
   submitCount: number,
   surveyType: FeedbackSurveyType = 'session',
   hasActivePrompt: boolean = false,
+  otherSurveyActive: boolean = false,
 ): {
   state:
     | 'closed'
@@ -286,6 +287,7 @@ export function useFeedbackSurvey(
 
   const { state, lastResponse, open, handleSelect, handleTranscriptSelect } =
     useSurveyState({
+      otherSurveyActive,
       hideThanksAfterMs: config.hideThanksAfterMs,
       onOpen,
       onSelect,
@@ -316,6 +318,12 @@ export function useFeedbackSurvey(
 
     // Don't show survey when permission or ask question prompts are visible
     if (hasActivePrompt) {
+      return false
+    }
+
+    // Official 2.1.111: another survey is already open (or just dismissed
+    // into a non-closed state) — do not immediately open this one.
+    if (otherSurveyActive) {
       return false
     }
 
@@ -401,6 +409,7 @@ export function useFeedbackSurvey(
     state,
     isLoading,
     hasActivePrompt,
+    otherSurveyActive,
     isModelAllowed,
     feedbackSurvey.timeLastShown,
     feedbackSurvey.submitCountAtLastAppearance,

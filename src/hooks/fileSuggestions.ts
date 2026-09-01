@@ -643,6 +643,13 @@ export function startBackgroundCacheRefresh(): void {
   // the rebuild when the 5s refresh finds nothing actually changed.
   const indexMtime = getGitIndexMtime()
   if (fileIndex) {
+    // Official 2.1.111: no .git/index (non-git dirs, or fresh repos that
+    // have not created an index yet) — do not re-walk the tree after the
+    // first successful populate. The 5s floor is only for git repos, where
+    // it picks up untracked files that don't bump index mtime.
+    if (indexMtime === null && lastRefreshMs > 0) {
+      return
+    }
     const gitStateChanged =
       indexMtime !== null && indexMtime !== lastGitIndexMtime
     if (!gitStateChanged && Date.now() - lastRefreshMs < REFRESH_THROTTLE_MS) {

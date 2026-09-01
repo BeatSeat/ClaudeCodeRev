@@ -13,6 +13,7 @@ import { syncPermissionRulesFromDisk } from '../permissions/permissions.js'
 import { loadAllPermissionRulesFromDisk } from '../permissions/permissionsLoader.js'
 import type { SettingSource } from './constants.js'
 import { isAwaySummaryEnabled } from '../../services/awaySummary.js'
+import { unpinOpus47LaunchEffort } from '../effort.js'
 import { getInitialSettings } from './settings.js'
 import type { ToolPermissionRulesBySource } from '../../types/permissions.js'
 
@@ -103,6 +104,9 @@ export function applySettingsChange(
     const prevEffort = prev.settings.effortLevel
     const newEffort = newSettings.effortLevel
     const effortChanged = prevEffort !== newEffort
+    if (effortChanged) {
+      unpinOpus47LaunchEffort()
+    }
     const awaySummaryEnabled = isAwaySummaryEnabled()
 
     return {

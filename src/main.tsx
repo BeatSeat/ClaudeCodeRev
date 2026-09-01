@@ -105,7 +105,7 @@ import {
   saveGlobalConfig,
 } from './utils/config.js'
 import { seedEarlyInput, stopCapturingEarlyInput } from './utils/earlyInput.js'
-import { getInitialEffortSetting, parseEffortValue } from './utils/effort.js'
+import { applyEffortSelection } from './utils/effort.js'
 import {
   getInitialFastModeSetting,
   isFastModeEnabled,
@@ -1645,10 +1645,10 @@ async function run(): Promise<CommanderCommand> {
     .addOption(
       new Option(
         '--effort <level>',
-        `Effort level for the current session (low, medium, high, max)`,
+        `Effort level for the current session (low, medium, high, xhigh, max)`,
       ).argParser((rawValue: string) => {
         const value = rawValue.toLowerCase()
-        const allowed = ['low', 'medium', 'high', 'max']
+        const allowed = ['low', 'medium', 'high', 'xhigh', 'max']
         if (!allowed.includes(value)) {
           throw new InvalidArgumentError(
             `It must be one of: ${allowed.join(', ')}`,
@@ -1755,6 +1755,18 @@ async function run(): Promise<CommanderCommand> {
         prompt.length > 0
       ) {
         logEvent('tengu_single_word_prompt', { length: prompt.length })
+        // Official 2.1.111 HPA: `claude udpate` → did you mean update
+        if (
+          !options.print &&
+          !options.continue &&
+          !options.resume &&
+          /^[a-zA-Z][a-zA-Z-]*$/.test(prompt)
+        ) {
+          const { suggestClosestCliCommand } = await import(
+            './cli/suggestCommand.js'
+          )
+          await suggestClosestCliCommand(prompt, program)
+        }
       }
 
       // Assistant mode: when .claude/settings.json has assistant: true AND
@@ -3754,7 +3766,7 @@ async function run(): Promise<CommanderCommand> {
           },
           toolPermissionContext,
           effortValue:
-            parseEffortValue(options.effort) ?? getInitialEffortSetting(),
+            applyEffortSelection(options.effort),
           ...(isFastModeEnabled() && {
             fastMode: getInitialFastModeSetting(effectiveModel ?? null),
           }),
@@ -4305,7 +4317,7 @@ async function run(): Promise<CommanderCommand> {
           ? { message: createUserMessage({ content: String(inputPrompt) }) }
           : null,
         effortValue:
-          parseEffortValue(options.effort) ?? getInitialEffortSetting(),
+          applyEffortSelection(options.effort),
         activeOverlays: new Set<string>(),
         fastMode: getInitialFastModeSetting(resolvedInitialModel),
         ...(isAdvisorEnabled() && advisorModel && { advisorModel }),
