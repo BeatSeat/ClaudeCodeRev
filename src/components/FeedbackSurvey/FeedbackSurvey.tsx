@@ -132,6 +132,7 @@ function FeedbackSurveyThanks({
     isValidDigit: isFollowUpDigit,
     enabled: Boolean(showFollowUp),
     once: true,
+    mountDelayMs: 0,
     onDigit: () => {
       logEvent('tengu_feedback_survey_event', {
         event_type:

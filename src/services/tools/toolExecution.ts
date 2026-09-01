@@ -38,6 +38,16 @@ import {
 import type { BashToolInput } from '../../tools/BashTool/BashTool.js'
 import { startSpeculativeClassifierCheck } from '../../tools/BashTool/bashPermissions.js'
 import { BASH_TOOL_NAME } from '../../tools/BashTool/toolName.js'
+import {
+  allocateBashRerunAlias,
+  formatBashRerunFooter,
+  isBashRerunEnabled,
+  resolveBashRerunAlias,
+} from '../../utils/bash/rerunAliases.js'
+import {
+  applyToolResultDedup,
+  isMcpToolForDedup,
+} from '../../utils/toolResultDedup.js'
 import { FILE_EDIT_TOOL_NAME } from '../../tools/FileEditTool/constants.js'
 import { FILE_READ_TOOL_NAME } from '../../tools/FileReadTool/prompt.js'
 import { FILE_WRITE_TOOL_NAME } from '../../tools/FileWriteTool/prompt.js'
@@ -671,8 +681,66 @@ async function checkPermissionsAndCallTool(
     progress: ToolProgress<ToolProgressData> | ProgressMessage<HookProgress>,
   ) => void,
 ): Promise<MessageUpdateLazy[]> {
+  // Official 2.1.92: resolve Bash `{rerun: "bN"}` before Zod parse so the
+  // model-facing schema can keep `command` required.
+  let resolvedInput: { [key: string]: boolean | string | number } = input
+  if (
+    tool.name === BASH_TOOL_NAME &&
+    isBashRerunEnabled() &&
+    typeof input.rerun === 'string'
+  ) {
+    if (typeof input.command === 'string' && input.command.length > 0) {
+      return [
+        {
+          message: createUserMessage({
+            content: [
+              {
+                type: 'tool_result',
+                content:
+                  "<tool_use_error>'rerun' and 'command' are mutually exclusive — provide one or the other.</tool_use_error>",
+                is_error: true,
+                tool_use_id: toolUseID,
+              },
+            ],
+            toolUseResult: "Error: 'rerun' and 'command' are mutually exclusive",
+            sourceToolAssistantUUID: assistantMessage.uuid,
+          }),
+        },
+      ]
+    }
+    const resolved = resolveBashRerunAlias(
+      toolUseContext.bashRerunAliases,
+      input.rerun,
+    )
+    if ('error' in resolved) {
+      logEvent('tengu_bash_rerun_used', { ok: false })
+      return [
+        {
+          message: createUserMessage({
+            content: [
+              {
+                type: 'tool_result',
+                content: `<tool_use_error>${resolved.error}</tool_use_error>`,
+                is_error: true,
+                tool_use_id: toolUseID,
+              },
+            ],
+            toolUseResult: `Error: ${resolved.error}`,
+            sourceToolAssistantUUID: assistantMessage.uuid,
+          }),
+        },
+      ]
+    }
+    logEvent('tengu_bash_rerun_used', {
+      ok: true,
+      commandBytes: Buffer.byteLength(resolved.command, 'utf8'),
+    })
+    const { rerun: _rerun, ...rest } = input
+    resolvedInput = { ...rest, command: resolved.command }
+  }
+
   // Validate input types with zod (surprisingly, the model is not great at generating valid input)
-  const parsedInput = tool.inputSchema.safeParse(input)
+  const parsedInput = tool.inputSchema.safeParse(resolvedInput)
   if (!parsedInput.success) {
     let errorContent = formatZodValidationError(tool.name, parsedInput.error)
 
@@ -1394,10 +1462,40 @@ async function checkPermissionsAndCallTool(
 
     // Map the tool result to API format once and cache it. This block is reused
     // by addToolResult (skipping the remap) and measured here for analytics.
-    const mappedToolResultBlock = tool.mapToolResultToToolResultBlockParam(
+    let mappedToolResultBlock = tool.mapToolResultToToolResultBlockParam(
       result.data,
       toolUseID,
     )
+    if (!isMcpToolForDedup(tool)) {
+      mappedToolResultBlock = applyToolResultDedup(
+        mappedToolResultBlock,
+        tool.name,
+        toolUseContext.resultDedupState,
+        tool.maxResultSizeChars,
+      )
+    }
+    if (
+      tool.name === BASH_TOOL_NAME &&
+      isBashRerunEnabled() &&
+      toolUseContext.bashRerunAliases &&
+      processedInput &&
+      typeof processedInput === 'object' &&
+      'command' in processedInput &&
+      typeof processedInput.command === 'string'
+    ) {
+      const alias = allocateBashRerunAlias(
+        toolUseContext.bashRerunAliases,
+        processedInput.command,
+      )
+      const footer = formatBashRerunFooter(alias)
+      if (typeof mappedToolResultBlock.content === 'string') {
+        const content = mappedToolResultBlock.content
+        mappedToolResultBlock = {
+          ...mappedToolResultBlock,
+          content: content + (content.endsWith('\n') ? '' : '\n') + footer,
+        }
+      }
+    }
     const mappedContent = mappedToolResultBlock.content
     const toolResultSizeBytes = !mappedContent
       ? 0

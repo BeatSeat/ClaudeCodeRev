@@ -913,7 +913,7 @@ function renderNodeToOutput(
           // is false the full path renders a next.screen that doesn't match
           // the DECSTBM shift — emitting DECSTBM leaves stale rows (seen as
           // content bleeding through during scroll-up + streaming). Clear it.
-          if (!safeForFastPath) scrollHint = null
+          if (hint && !(prevScreen && safeForFastPath)) scrollHint = null
           if (hint && prevScreen && safeForFastPath) {
             const { top, bottom, delta } = hint
             const w = Math.floor(width)

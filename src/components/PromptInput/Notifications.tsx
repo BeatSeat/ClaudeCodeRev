@@ -29,6 +29,8 @@ import { isEnvTruthy } from '../../utils/envUtils.js'
 import { formatDuration } from '../../utils/format.js'
 import { setEnvHookNotifier } from '../../utils/hooks/fileChangedWatcher.js'
 import { toIDEDisplayName } from '../../utils/ide.js'
+import { getLastApiCompletionTimestamp } from '../../bootstrap/state.js'
+import { getFeatureValue_CACHED_MAY_BE_STALE } from '../../services/analytics/growthbook.js'
 import { getMessagesAfterCompactBoundary } from '../../utils/messages.js'
 import { tokenCountFromLastAPIResponse } from '../../utils/tokens.js'
 import { AutoUpdaterWrapper } from '../AutoUpdaterWrapper.js'
@@ -47,6 +49,19 @@ const VoiceIndicator: typeof import('./VoiceIndicator.js').VoiceIndicator =
 /* eslint-enable @typescript-eslint/no-require-imports */
 
 export const FOOTER_TEMPORARY_STATUS_TIMEOUT = 5000
+const UNCACHE_HINT_MIN_TOKENS = 50_000
+const PROMPT_CACHE_TTL_MS = 3_600_000
+
+function formatUncachedCacheHint(
+  tokenUsage: number,
+  lastApiCompletion: number | null,
+  now = Date.now(),
+): string | null {
+  if (lastApiCompletion === null) return null
+  if (tokenUsage < UNCACHE_HINT_MIN_TOKENS) return null
+  if (now - lastApiCompletion <= PROMPT_CACHE_TTL_MS) return null
+  return `~${Math.round(tokenUsage / 1000)}k uncached · /clear to start fresh`
+}
 
 type Props = {
   apiKeyStatus: VerificationStatus
@@ -234,6 +249,27 @@ function NotificationContent({
   onAutoUpdaterResult: (result: AutoUpdaterResult) => void
   onChangeIsUpdating: (isUpdating: boolean) => void
 }): ReactNode {
+  const [uncachedHint, setUncachedHint] = useState<string | null>(null)
+  useEffect(() => {
+    if (
+      getSubscriptionType() !== 'pro' ||
+      !getFeatureValue_CACHED_MAY_BE_STALE('tengu_amber_swift', false)
+    ) {
+      setUncachedHint(prev => (prev === null ? prev : null))
+      return
+    }
+    const update = () => {
+      const next = formatUncachedCacheHint(
+        tokenUsage,
+        getLastApiCompletionTimestamp(),
+      )
+      setUncachedHint(prev => (prev === next ? prev : next))
+    }
+    update()
+    const interval = setInterval(update, 30_000)
+    return () => clearInterval(interval)
+  }, [tokenUsage])
+
   // Poll apiKeyHelper inflight state to show slow-helper notice.
   // Gated on configuration — most users never set apiKeyHelper, so the
   // effect is a no-op for them (no interval allocated).
@@ -333,6 +369,13 @@ function NotificationContent({
         <Box>
           <Text dimColor wrap="truncate">
             {tokenUsage} tokens
+          </Text>
+        </Box>
+      )}
+      {uncachedHint && (
+        <Box>
+          <Text dimColor wrap="truncate">
+            {uncachedHint}
           </Text>
         </Box>
       )}

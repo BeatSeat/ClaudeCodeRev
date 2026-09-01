@@ -60,6 +60,8 @@ import type { FileStateCache } from './utils/fileStateCache.js'
 import type { DenialTrackingState } from './utils/permissions/denialTracking.js'
 import type { SystemPrompt } from './utils/systemPromptType.js'
 import type { ContentReplacementState } from './utils/toolResultStorage.js'
+import type { BashRerunAliases } from './utils/bash/rerunAliases.js'
+import type { ToolResultDedupState } from './utils/toolResultDedup.js'
 
 // Re-export progress types for backwards compatibility
 export type {
@@ -290,6 +292,16 @@ export type ToolUseContext = {
    * resumeAgentBackground threads one reconstructed from sidechain records.
    */
   contentReplacementState?: ContentReplacementState
+  /**
+   * Official 2.1.92: session-scoped Bash `{rerun: "bN"}` aliases.
+   * Fresh per conversation / subagent; mutated in place.
+   */
+  bashRerunAliases?: BashRerunAliases
+  /**
+   * Official 2.1.92: identical tool-result collapse (`tengu_onyx_basin_m1k`).
+   * Fresh per conversation / subagent; mutated in place.
+   */
+  resultDedupState?: ToolResultDedupState
   /**
    * Parent's rendered system prompt bytes, frozen at turn start.
    * Used by fork subagents to share the parent's prompt cache — re-calling

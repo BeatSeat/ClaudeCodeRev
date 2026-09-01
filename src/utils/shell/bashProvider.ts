@@ -225,7 +225,9 @@ export async function createBashShellProvider(
         await ensureSocketInitialized()
       }
       const claudeTmuxEnv = getClaudeTmuxEnv()
-      const env: Record<string, string> = {}
+      const env: Record<string, string> = {
+        CLAUDE_CODE_EXECPATH: process.execPath,
+      }
       // CRITICAL: Override TMUX to isolate ALL tmux commands to Claude's socket.
       // This is NOT the user's TMUX value - it points to Claude's isolated socket.
       // When null (before socket initializes), user's TMUX is preserved.
