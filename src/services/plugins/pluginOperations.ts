@@ -837,6 +837,7 @@ export async function updatePluginOp(
     parsePluginIdentifier(plugin)
   const pluginId = marketplaceName ? `${pluginName}@${marketplaceName}` : plugin
 
+  let refreshWarning: string | undefined
   if (marketplaceName) {
     const marketplaceSource = (await loadKnownMarketplacesConfig())[
       marketplaceName
@@ -852,6 +853,7 @@ export async function updatePluginOp(
           skipIfRecent: true,
         })
       } catch (error) {
+        refreshWarning = `marketplace not refreshed (${errorMessage(error)})`
         logForDebugging(
           `Failed to refresh marketplace '${marketplaceName}' before update; using cached data: ${errorMessage(error)}`,
           { level: 'warn' },
@@ -889,10 +891,18 @@ export async function updatePluginOp(
   // Determine projectPath based on scope
   const projectPath = getProjectPathForScope(scope)
 
-  // Find the installation for this scope
-  const installation = installations.find(
-    inst => inst.scope === scope && inst.projectPath === projectPath,
-  )
+  const sameScope = installations.filter(inst => inst.scope === scope)
+  const installation =
+    sameScope.find(inst => inst.projectPath === projectPath) ?? sameScope[0]
+  if (
+    !sameScope.find(inst => inst.projectPath === projectPath) &&
+    sameScope.length > 1
+  ) {
+    logForDebugging(
+      `updatePluginOp: ${sameScope.length} ${scope}-scope installs, none match CWD '${projectPath}'; updating '${sameScope[0]?.projectPath}' only`,
+      { level: 'warn' },
+    )
+  }
   if (!installation) {
     const scopeDesc = projectPath ? `${scope} (${projectPath})` : scope
     return {
@@ -910,7 +920,8 @@ export async function updatePluginOp(
     marketplaceInstallLocation,
     installation,
     scope,
-    projectPath,
+    projectPath: installation.projectPath,
+    refreshWarning,
   })
 }
 
@@ -926,6 +937,7 @@ async function performPluginUpdate({
   installation,
   scope,
   projectPath,
+  refreshWarning,
 }: {
   pluginId: string
   pluginName: string
@@ -934,6 +946,7 @@ async function performPluginUpdate({
   installation: { version?: string; installPath: string }
   scope: PluginScope
   projectPath: string | undefined
+  refreshWarning?: string
 }): Promise<PluginUpdateResult> {
   const fs = getFsImplementation()
   const oldVersion = installation.version
@@ -1044,9 +1057,12 @@ async function performPluginUpdate({
       installation.installPath === versionedPath ||
       installation.installPath === zipPath
     if (isUpToDate) {
+      const upToDate = `${pluginName} is already at the latest version (${newVersion}).`
       return {
         success: true,
-        message: `${pluginName} is already at the latest version (${newVersion}).`,
+        message: refreshWarning
+          ? `${upToDate} Warning: ${refreshWarning} — version shown may be stale.`
+          : upToDate,
         pluginId,
         newVersion,
         oldVersion,
@@ -1091,7 +1107,8 @@ async function performPluginUpdate({
     }
 
     const scopeDesc = projectPath ? `${scope} (${projectPath})` : scope
-    const message = `Plugin "${pluginName}" updated from ${oldVersion || 'unknown'} to ${newVersion} for scope ${scopeDesc}. Restart to apply changes.`
+    const updated = `Plugin "${pluginName}" updated from ${oldVersion || 'unknown'} to ${newVersion} for scope ${scopeDesc}. Restart to apply changes.`
+    const message = refreshWarning ? `${updated} Warning: ${refreshWarning}.` : updated
 
     return {
       success: true,
