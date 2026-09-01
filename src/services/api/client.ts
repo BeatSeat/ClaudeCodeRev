@@ -182,28 +182,45 @@ export async function getAnthropicClient({
         ? `https://bedrock-mantle.${awsRegion}.api.aws/anthropic`
         : undefined)
     const skipMantleAuth = isEnvTruthy(process.env.CLAUDE_CODE_SKIP_MANTLE_AUTH)
+    const { value: existingAuthorization, rest: headersWithoutAuth } =
+      splitAuthorizationHeader(ARGS.defaultHeaders)
+    // Official factory: Z is the existing Authorization only when SKIP_MANTLE_AUTH.
+    const skipAuthHeader = skipMantleAuth ? existingAuthorization : undefined
+    const cachedCredentials =
+      !process.env.AWS_BEARER_TOKEN_BEDROCK && !skipMantleAuth
+        ? await refreshAndGetAwsCredentials()
+        : null
+    // 131: do not skipAuth + Authorization Bearer — that blocks SDK
+    // authHeaders (129 Bearer / 131 parent X-Api-Key from apiKey).
     const mantleArgs: ConstructorParameters<
       typeof bedrockSdk.AnthropicBedrock
-    >[0] = {
+    >[0] & {
+      apiKey?: string | null
+      awsSecretAccessKey?: string | null
+    } = {
       ...ARGS,
+      defaultHeaders: {
+        ...headersWithoutAuth,
+        Authorization: null,
+      },
       awsRegion,
       ...(mantleBaseURL && { baseURL: mantleBaseURL }),
-      ...(skipMantleAuth && { skipAuth: true }),
+      ...(skipMantleAuth && !skipAuthHeader && { skipAuth: true }),
+      ...(skipAuthHeader && {
+        apiKey:
+          skipAuthHeader.match(/^Bearer (.+)$/i)?.[1] ?? skipAuthHeader,
+        defaultHeaders: {
+          ...headersWithoutAuth,
+          Authorization: skipAuthHeader,
+        },
+      }),
+      ...(cachedCredentials && {
+        awsAccessKey: cachedCredentials.accessKeyId,
+        awsSecretAccessKey: cachedCredentials.secretAccessKey,
+        awsSecretKey: cachedCredentials.secretAccessKey,
+        awsSessionToken: cachedCredentials.sessionToken,
+      }),
       ...(isDebugToStdErr() && { logger: createStderrLogger() }),
-    }
-    if (process.env.AWS_BEARER_TOKEN_BEDROCK) {
-      mantleArgs.skipAuth = true
-      mantleArgs.defaultHeaders = {
-        ...mantleArgs.defaultHeaders,
-        Authorization: `Bearer ${process.env.AWS_BEARER_TOKEN_BEDROCK}`,
-      }
-    } else if (!skipMantleAuth) {
-      const cachedCredentials = await refreshAndGetAwsCredentials()
-      if (cachedCredentials) {
-        mantleArgs.awsAccessKey = cachedCredentials.accessKeyId
-        mantleArgs.awsSecretKey = cachedCredentials.secretAccessKey
-        mantleArgs.awsSessionToken = cachedCredentials.sessionToken
-      }
     }
     return new MantleClient(mantleArgs) as unknown as Anthropic
   }
