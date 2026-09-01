@@ -179,6 +179,13 @@ export type CommandAvailability =
   // Console API key user (direct api.anthropic.com, not via claude.ai OAuth)
   | 'console'
 
+/** Official 2.1.157 DAz/B59: one slash-argument typeahead row. */
+export type CommandArgumentCompletion = {
+  value: string
+  description?: string
+  isFinal?: boolean
+}
+
 export type CommandBase = {
   availability?: CommandAvailability[]
   description: string
@@ -191,6 +198,14 @@ export type CommandBase = {
   aliases?: string[]
   isMcp?: boolean
   argumentHint?: string // Hint text for command arguments (displayed in gray after command)
+  /**
+   * Official 2.1.157: dynamic argument completions after `/cmd `.
+   * `completed` is argv tokens already accepted; `partial` is the current token.
+   */
+  getArgumentCompletions?: (
+    completed: string[],
+    partial: string,
+  ) => Promise<CommandArgumentCompletion[]>
   whenToUse?: string // From the "Skill" spec. Detailed usage scenarios for when to use this command
   version?: string // Version of the command/skill
   disableModelInvocation?: boolean // Whether to disable this command from being invoked by models

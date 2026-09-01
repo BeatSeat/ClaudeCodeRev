@@ -9,6 +9,7 @@ import {
   logEvent,
 } from 'src/services/analytics/index.js'
 import {
+  collectToolDecisionParameters,
   extractMcpToolDetails,
   extractSkillName,
   extractToolInputForTelemetry,
@@ -1140,11 +1141,18 @@ async function checkPermissionsAndCallTool(
       permissionDecision.decisionReason,
       permissionDecision.behavior,
     )
+    const tool_parameters = collectToolDecisionParameters(
+      tool.name,
+      processedInput,
+    )
     void logOTelEvent('tool_decision', {
       decision,
       source,
       tool_name: sanitizeToolNameForAnalytics(tool.name),
       tool_use_id: toolUseID,
+      ...(Object.keys(tool_parameters).length > 0 && {
+        tool_parameters: jsonStringify(tool_parameters),
+      }),
     })
 
     // Increment code-edit tool decision counter for headless mode

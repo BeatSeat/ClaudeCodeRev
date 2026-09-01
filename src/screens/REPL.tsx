@@ -557,6 +557,7 @@ import { useDeprecationWarningNotification } from 'src/hooks/notifs/useDeprecati
 import { useNpmDeprecationNotification } from 'src/hooks/notifs/useNpmDeprecationNotification.js'
 import { useSudoNpmInstallNotice } from 'src/hooks/notifs/useSudoNpmInstallNotice.js'
 import { useIDEStatusIndicator } from 'src/hooks/notifs/useIDEStatusIndicator.js'
+import { useFotwClaimNotification } from 'src/hooks/notifs/useFotwClaimNotification.js'
 import { useModelMigrationNotifications } from 'src/hooks/notifs/useModelMigrationNotifications.js'
 import { useCanSwitchToExistingSubscription } from 'src/hooks/notifs/useCanSwitchToExistingSubscription.js'
 import { useTeammateLifecycleNotification } from 'src/hooks/notifs/useTeammateShutdownNotification.js'
@@ -1191,6 +1192,7 @@ export function REPL({
   useModelMigrationNotifications()
   useCanSwitchToExistingSubscription()
   useIDEStatusIndicator({ ideSelection, mcpClients, ideInstallationStatus })
+  useFotwClaimNotification(addNotification, removeNotification)
   useMcpConnectivityStatus({ mcpClients })
   useAutoModeUnavailableNotification()
   usePluginInstallationStatus()
@@ -2677,7 +2679,7 @@ export function REPL({
             setAppState,
           })
           removeSessionCronTasks(getSessionCronTasks().map(t => t.id))
-          resurrectSessionCronTasks(messages)
+          resurrectSessionCronTasks(messages, store.getState().tasks)
         } else {
           // Fork: same re-persist as /clear (conversation.ts). The clear
           // above wiped currentSessionWorktree, forkLog doesn't carry it,
@@ -2808,7 +2810,7 @@ export function REPL({
         getAppState: () => store.getState(),
         setAppState,
       })
-      resurrectSessionCronTasks(initialMessages)
+      resurrectSessionCronTasks(initialMessages, store.getState().tasks)
       offerResumeReturn(initialMessages)
     }
     // Only run on mount - initialMessages shouldn't change during component lifetime

@@ -195,6 +195,13 @@ import {
   findUltraplanTriggerPositions,
   findUltrareviewTriggerPositions,
 } from '../../utils/ultraplan/keyword.js'
+import {
+  findWorkflowTriggerPositions,
+  isWorkflowKeywordIgnored,
+  setWorkflowKeywordIgnored,
+  shouldHighlightWorkflowKeyword,
+  subscribeWorkflowKeywordIgnored,
+} from '../../utils/workflows/keyword.js'
 import { AutoModeOptInDialog } from '../AutoModeOptInDialog.js'
 import { BridgeDialog } from '../BridgeDialog.js'
 import { ConfigurableShortcutHint } from '../ConfigurableShortcutHint.js'
@@ -780,6 +787,23 @@ function PromptInput({
     [displayedValue],
   )
 
+  const workflowKeywordIgnored = useSyncExternalStore(
+    subscribeWorkflowKeywordIgnored,
+    isWorkflowKeywordIgnored,
+  )
+  const workflowTriggers = useMemo(
+    () =>
+      shouldHighlightWorkflowKeyword(displayedValue)
+        ? findWorkflowTriggerPositions(displayedValue)
+        : [],
+    [displayedValue],
+  )
+  const workflowToggleShortcut = getShortcutDisplay(
+    'chat:workflowKeywordToggle',
+    'Chat',
+    'alt+w',
+  )
+
   const slashCommandTriggers = useMemo(() => {
     const positions = findSlashCommandPositions(displayedValue)
     // Only highlight valid commands
@@ -1009,6 +1033,20 @@ function PromptInput({
       }
     }
 
+    if (workflowTriggers.length && !workflowKeywordIgnored) {
+      for (const trigger of workflowTriggers) {
+        for (let i = trigger.start; i < trigger.end; i++) {
+          highlights.push({
+            start: i,
+            end: i + 1,
+            color: getRainbowColor(i - trigger.start),
+            shimmerColor: getRainbowColor(i - trigger.start, true),
+            priority: 10,
+          })
+        }
+      }
+    }
+
     // Rainbow for /buddy
     for (const trigger of buddyTriggers) {
       for (let i = trigger.start; i < trigger.end; i++) {
@@ -1041,6 +1079,8 @@ function PromptInput({
     ultraplanTriggers,
     ultrareviewTriggers,
     buddyTriggers,
+    workflowTriggers,
+    workflowKeywordIgnored,
   ])
 
   const { addNotification, removeNotification } = useNotifications()
@@ -1071,6 +1111,36 @@ function PromptInput({
       removeNotification('ultraplan-active')
     }
   }, [addNotification, removeNotification, ultraplanTriggers.length])
+
+  useEffect(() => {
+    if (workflowTriggers.length && !workflowKeywordIgnored) {
+      addNotification({
+        key: 'workflow-keyword-active',
+        text: `Dynamic workflow requested for this turn${
+          workflowToggleShortcut
+            ? ` · ${workflowToggleShortcut} to ignore`
+            : ''
+        }`,
+        priority: 'immediate',
+        timeoutMs: 30000,
+      })
+    } else {
+      removeNotification('workflow-keyword-active')
+    }
+  }, [
+    addNotification,
+    removeNotification,
+    workflowTriggers.length,
+    workflowKeywordIgnored,
+    workflowToggleShortcut,
+  ])
+
+  useEffect(() => {
+    if (workflowTriggers.length === 0 && workflowKeywordIgnored) {
+      setWorkflowKeywordIgnored(false)
+      removeNotification('workflow-keyword-ignored')
+    }
+  }, [workflowTriggers.length, workflowKeywordIgnored, removeNotification])
 
   useEffect(() => {
     if (isUltrareviewEnabled() && ultrareviewTriggers.length) {
@@ -2237,6 +2307,38 @@ function PromptInput({
     context: 'Chat',
     isActive:
       !isModalOverlayActive && isFastModeEnabled() && isFastModeAvailable(),
+  })
+
+  const handleWorkflowKeywordToggle = useCallback(() => {
+    if (workflowTriggers.length === 0) return
+    const nextIgnored = !isWorkflowKeywordIgnored()
+    setWorkflowKeywordIgnored(nextIgnored)
+    if (nextIgnored) {
+      logEvent('tengu_workflow_keyword_dismissed', {})
+      addNotification({
+        key: 'workflow-keyword-ignored',
+        text: `Workflow keyword ignored for this prompt${
+          workflowToggleShortcut
+            ? ` · ${workflowToggleShortcut} to undo`
+            : ''
+        }`,
+        priority: 'immediate',
+        timeoutMs: 5000,
+      })
+    } else {
+      logEvent('tengu_workflow_keyword_restored', {})
+      removeNotification('workflow-keyword-ignored')
+    }
+  }, [
+    workflowTriggers.length,
+    workflowToggleShortcut,
+    addNotification,
+    removeNotification,
+  ])
+
+  useKeybinding('chat:workflowKeywordToggle', handleWorkflowKeywordToggle, {
+    context: 'Chat',
+    isActive: !isModalOverlayActive && workflowTriggers.length > 0,
   })
 
   // Handle help:dismiss keybinding (ESC closes help menu)

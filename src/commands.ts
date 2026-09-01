@@ -236,6 +236,7 @@ import {
 // Re-export types from the centralized location
 export type {
   Command,
+  CommandArgumentCompletion,
   CommandBase,
   CommandResultDisplay,
   LocalCommandResult,

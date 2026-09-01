@@ -36,6 +36,7 @@ import {
 import { has1mContext, is1mContextDisabled } from '../context.js'
 import { getGlobalConfig } from '../config.js'
 import { getGatewayModelOptions } from './gatewayModels.js'
+import { ALL_MODEL_CONFIGS } from './configs.js'
 
 // @[MODEL LAUNCH]: Update all the available and default model option strings below.
 
@@ -402,86 +403,73 @@ function getModelOptionsBase(fastMode = false): ModelOption[] {
   return payg3pOptions
 }
 
-// @[MODEL LAUNCH]: Add the new model ID to the appropriate family pattern below
-// so the "newer version available" hint works correctly.
-/**
- * Map a full model name to its family alias and the marketing name of the
- * version the alias currently resolves to. Used to detect when a user has
- * a specific older version pinned and a newer one is available.
- */
-function getModelFamilyInfo(
-  model: string,
-): { alias: string; currentVersionName: string } | null {
-  const canonical = getCanonicalName(model)
-
-  // Sonnet family
-  if (
-    canonical.includes('claude-sonnet-4-6') ||
-    canonical.includes('claude-sonnet-4-5') ||
-    canonical.includes('claude-sonnet-4-') ||
-    canonical.includes('claude-3-7-sonnet') ||
-    canonical.includes('claude-3-5-sonnet')
-  ) {
-    const currentName = getMarketingNameForModel(getDefaultSonnetModel())
-    if (currentName) {
-      return { alias: 'Sonnet', currentVersionName: currentName }
-    }
-  }
-
-  // Opus family
-  if (canonical.includes('claude-opus-4')) {
-    const currentName = getMarketingNameForModel(getDefaultOpusModel())
-    if (currentName) {
-      return { alias: 'Opus', currentVersionName: currentName }
-    }
-  }
-
-  // Haiku family
-  if (
-    canonical.includes('claude-haiku') ||
-    canonical.includes('claude-3-5-haiku')
-  ) {
-    const currentName = getMarketingNameForModel(getDefaultHaikuModel())
-    if (currentName) {
-      return { alias: 'Haiku', currentVersionName: currentName }
-    }
-  }
-
-  return null
-}
+// Official 2.1.157 `$a6` / `yv8` / `qa6`. Alias picker rows already embed
+// these slogans — do not retarget those. Only the pinned option uses them.
+const SLOGAN_SONNET = 'Best for everyday tasks'
+const SLOGAN_OPUS = 'Most capable for complex work'
+const SLOGAN_HAIKU = 'Fastest for quick answers'
 
 /**
- * Returns a ModelOption for a known Anthropic model with a human-readable
- * label, and an upgrade hint if a newer version is available via the alias.
+ * Official 2.1.157 `Yr_`: pinned /model row. Family slogan + `(${id})`, or
+ * newer-version hint via first-party list index (not marketing-name string).
  * Returns null if the model is not recognized.
  */
 function getKnownModelOption(model: string): ModelOption | null {
   const marketingName = getMarketingNameForModel(model)
   if (!marketingName) return null
 
-  const familyInfo = getModelFamilyInfo(model)
-  if (!familyInfo) {
+  const canonical = getCanonicalName(model)
+  let family: { alias: string; aliasModel: string; slogan: string } | null =
+    null
+  if (canonical.includes('sonnet')) {
+    family = {
+      alias: 'Sonnet',
+      aliasModel: getDefaultSonnetModel(),
+      slogan: SLOGAN_SONNET,
+    }
+  } else if (canonical.includes('opus')) {
+    family = {
+      alias: 'Opus',
+      aliasModel: getDefaultOpusModel(),
+      slogan: SLOGAN_OPUS,
+    }
+  } else if (canonical.includes('haiku')) {
+    family = {
+      alias: 'Haiku',
+      aliasModel: getDefaultHaikuModel(),
+      slogan: SLOGAN_HAIKU,
+    }
+  }
+  if (!family) {
     return {
       value: model,
       label: marketingName,
-      description: model,
+      description: `Custom model (${model})`,
     }
   }
 
-  // Check if the alias currently resolves to a different (newer) version
-  if (marketingName !== familyInfo.currentVersionName) {
+  const aliasMarketingName = getMarketingNameForModel(family.aliasModel)
+  const firstPartyCanonicals = Object.values(ALL_MODEL_CONFIGS).map(cfg =>
+    getCanonicalName(cfg.firstParty),
+  )
+  const pinnedIndex = firstPartyCanonicals.indexOf(canonical)
+  if (
+    aliasMarketingName &&
+    pinnedIndex !== -1 &&
+    pinnedIndex <
+      firstPartyCanonicals.indexOf(getCanonicalName(family.aliasModel))
+  ) {
     return {
       value: model,
       label: marketingName,
-      description: `Newer version available · select ${familyInfo.alias} for ${familyInfo.currentVersionName}`,
+      description: `Newer version available · select ${family.alias} for ${aliasMarketingName}`,
     }
   }
 
-  // Same version as the alias — just show the friendly name
   return {
     value: model,
     label: marketingName,
-    description: model,
+    description: `${family.slogan} (${model})`,
   }
 }
 

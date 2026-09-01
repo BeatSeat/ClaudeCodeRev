@@ -7,7 +7,11 @@ import {
   PERMISSION_MODES,
   type PermissionMode,
 } from '../../types/permissions.js'
+import type { ToolPermissionContext, Tools } from '../../Tool.js'
+import type { Message } from '../../types/message.js'
+import type { NetworkHostPattern, SandboxAskCallback } from '../sandbox/sandbox-adapter.js'
 import { lazySchema } from '../lazySchema.js'
+import { classifySandboxNetworkAccess } from './yoloClassifier.js'
 
 // Re-export for backwards compatibility
 export {
@@ -134,6 +138,11 @@ export function getModeColor(mode: PermissionMode): ModeColorKey {
 /**
  * Auto-resolve sandbox network prompts in modes that should not show a dialog.
  * `true`/`false` is the decision; `null` means ask the user.
+ *
+ * Official `ZF$`/`QBH` maps `auto` to `"classify"`. This helper still maps
+ * `auto` to allow — InboxPoller / REPL call it and must not be treated as
+ * the 2.1.157 `nT9` wrap. Use {@link sandboxNetworkPermissionDecision} for
+ * the four-way official decision.
  */
 export function shouldAutoApproveSandboxNetwork(
   mode: PermissionMode,
@@ -150,4 +159,60 @@ export function shouldAutoApproveSandboxNetwork(
     return false
   }
   return null
+}
+
+/** Official 2.1.157 `QBH` (156 `ZF$` rename) — four-way sandbox-network decision. */
+export type SandboxNetworkPermissionDecision =
+  | 'allow'
+  | 'deny'
+  | 'classify'
+  | 'ask'
+
+export function sandboxNetworkPermissionDecision(
+  mode: PermissionMode,
+  isBypassPermissionsModeAvailable: boolean,
+): SandboxNetworkPermissionDecision {
+  if (mode === 'auto') return 'classify'
+  if (mode === 'bypassPermissions' || (mode === 'plan' && isBypassPermissionsModeAvailable)) {
+    return 'allow'
+  }
+  if (mode === 'dontAsk') return 'deny'
+  return 'ask'
+}
+
+/**
+ * Official 2.1.157 `nT9` — wrap an SDK/print sandbox ask callback with `QBH`.
+ * `auto` classifies via `irH`; bypass/plan-bypass allow; dontAsk denies; else ask.
+ */
+export function wrapSandboxAskCallback(
+  ask: SandboxAskCallback,
+  getContext: () => ToolPermissionContext,
+  getMessages: () => Message[],
+  getTools: () => Tools,
+): SandboxAskCallback {
+  return async (hostPattern: NetworkHostPattern) => {
+    const ctx = getContext()
+    switch (
+      sandboxNetworkPermissionDecision(
+        ctx.mode,
+        ctx.isBypassPermissionsModeAvailable,
+      )
+    ) {
+      case 'allow':
+        return true
+      case 'deny':
+        return false
+      case 'classify':
+        return classifySandboxNetworkAccess(
+          hostPattern.host,
+          hostPattern.port,
+          getMessages(),
+          getTools(),
+          ctx,
+          new AbortController().signal,
+        )
+      case 'ask':
+        return ask(hostPattern)
+    }
+  }
 }
