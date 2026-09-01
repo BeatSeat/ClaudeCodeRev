@@ -5,6 +5,7 @@ import {
   handleAutoModeTransition,
   handlePlanModeTransition,
   setHasExitedPlanMode,
+  setMemoryToggledOff,
   setNeedsAutoModeExitAttachment,
 } from '../../bootstrap/state.js'
 import type {
@@ -938,6 +939,16 @@ export function parseToolListFromCLI(tools: string[]): string[] {
   return result
 }
 
+/** Official 2.1.147 `DfA`: bg children restore the /toggle-memory latch. */
+export function applyBgMemoryToggledOff(): void {
+  if (
+    process.env.CLAUDE_BG_MEMORY_TOGGLED_OFF === '1' &&
+    process.env.CLAUDE_CODE_SESSION_KIND === 'bg'
+  ) {
+    setMemoryToggledOff(true)
+  }
+}
+
 export async function initializeToolPermissionContext({
   allowedToolsCli,
   disallowedToolsCli,
@@ -958,6 +969,9 @@ export async function initializeToolPermissionContext({
   dangerousPermissions: DangerousPermissionInfo[]
   overlyBroadBashPermissions: DangerousPermissionInfo[]
 }> {
+  // Official 2.1.147 `gK9`: restore /toggle-memory before building context.
+  applyBgMemoryToggledOff()
+
   // Parse comma-separated allowed and disallowed tools if provided
   // Normalize legacy tool names (e.g., 'Task' → 'Agent') so that in-memory
   // rule removal in stripDangerousPermissionsForAutoMode matches correctly.

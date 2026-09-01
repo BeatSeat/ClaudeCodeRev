@@ -6,6 +6,7 @@ import type { ToolUseContext } from '../Tool.js'
 import type { Command } from '../types/command.js'
 import { logForDebugging } from '../utils/debug.js'
 import { getBundledSkillsRoot } from '../utils/permissions/filesystem.js'
+import type { EffortValue } from '../utils/effort.js'
 import type { HooksSettings } from '../utils/settings/types.js'
 
 /**
@@ -38,6 +39,8 @@ export type BundledSkillDefinition = {
     args: string,
     context: ToolUseContext,
   ) => Promise<ContentBlockParam[]>
+  /** Official 2.1.147 `d49.getEffort`. */
+  getEffort?: (args: string) => EffortValue | undefined
 }
 
 // Internal registry for bundled skills
@@ -95,6 +98,7 @@ export function registerBundledSkill(definition: BundledSkillDefinition): void {
     isHidden: !(definition.userInvocable ?? true),
     progressMessage: 'running',
     getPromptForCommand,
+    getEffort: definition.getEffort,
   }
   bundledSkills.push(command)
 }

@@ -135,6 +135,7 @@ import {
   setCacheDiagnosisHeaderLatched,
   setFastModeHeaderLatched,
   setLastMainRequestId,
+  setLastMainThreadCacheTtlMs,
   setPromptCache1hAllowlist,
   setThinkingClearLatched,
 } from 'src/bootstrap/state.js'
@@ -1416,6 +1417,17 @@ async function* queryModel(
     options.enablePromptCaching ?? getPromptCachingEnabled(options.model)
   // Snapshot TTL once for every cache_control marker on this request.
   const cacheTtl = getPromptCacheTtl(options.querySource)
+  // Official 2.1.147: record the prompt-cache TTL this main-thread / SDK call
+  // will use, so isMainThreadCacheWarm() can tell whether that cache is still
+  // likely warm for a cache-sharing fork (e.g. rename full-session fork).
+  // Excludes backgrounded sessions, which run inside an agent context.
+  if (
+    !getAgentContext() &&
+    (options.querySource.startsWith('repl_main_thread') ||
+      options.querySource === 'sdk')
+  ) {
+    setLastMainThreadCacheTtlMs(cacheTtl === '1h' ? 3600000 : 300000)
+  }
   const system = buildSystemPromptBlocks(systemPrompt, enablePromptCaching, {
     skipGlobalCacheForSystemPrompt: needsToolBasedCacheMarker,
     cacheTtl,
