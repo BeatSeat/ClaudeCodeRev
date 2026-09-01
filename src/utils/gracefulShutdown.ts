@@ -10,6 +10,7 @@ import {
   getSessionId,
   isSessionPersistenceDisabled,
 } from '../bootstrap/state.js'
+import { registerProcessIOErrorHandlers } from './process.js'
 import instances from '../ink/instances.js'
 import {
   DISABLE_KITTY_KEYBOARD,
@@ -238,6 +239,14 @@ function forceExit(exitCode: number): never {
  * Set up global signal handlers for graceful shutdown
  */
 export const setupGracefulShutdown = memoize(() => {
+  const parentPidAtStart = process.ppid
+  registerProcessIOErrorHandlers((stream, code) => {
+    if (!getIsInteractive()) return
+    logForDiagnosticsNoPII('info', 'shutdown_signal', {
+      signal: `${stream}_${code}`,
+    })
+    void gracefulShutdown(0)
+  })
   // Work around a Bun bug where process.removeListener(sig, fn) resets the
   // kernel sigaction for that signal even when other JS listeners remain —
   // the signal then falls back to its default action (terminate) and our
@@ -269,7 +278,14 @@ export const setupGracefulShutdown = memoize(() => {
     void gracefulShutdown(0)
   })
   process.on('SIGTERM', () => {
-    logForDiagnosticsNoPII('info', 'shutdown_signal', { signal: 'SIGTERM' })
+    logForDiagnosticsNoPII('info', 'shutdown_signal', {
+      signal: 'SIGTERM',
+      uptime_s: Math.round(process.uptime()),
+      ppid_changed: process.ppid !== parentPidAtStart,
+      stdin_at_eof: process.stdin.readableEnded,
+      stdin_destroyed: process.stdin.destroyed,
+      is_tty: process.stdin.isTTY ?? false,
+    })
     void gracefulShutdown(143) // Exit code 143 (128 + 15) for SIGTERM
   })
   if (process.platform !== 'win32') {

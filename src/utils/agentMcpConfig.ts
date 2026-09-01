@@ -1,10 +1,12 @@
-import { filterMcpServersByPolicy } from '../services/mcp/config.js'
+import {
+  doesEnterpriseMcpConfigExist,
+  filterMcpServersByPolicy,
+} from '../services/mcp/config.js'
 import type { ScopedMcpServerConfig } from '../services/mcp/types.js'
 import {
   type AgentDefinition,
   agentMcpSpecsToScopedConfigs,
 } from '../tools/AgentTool/loadAgentsDir.js'
-import { isBareMode } from './envUtils.js'
 
 type MergeAgentFrontmatterMcpOptions = {
   strictMcpConfig?: boolean
@@ -20,7 +22,13 @@ export function mergeAgentFrontmatterMcpConfig(
   agent: AgentDefinition | undefined,
   options?: MergeAgentFrontmatterMcpOptions,
 ): Record<string, ScopedMcpServerConfig> {
-  if (!agent || options?.strictMcpConfig || isBareMode()) {
+  if (!agent) {
+    return existing
+  }
+  if (
+    (options?.strictMcpConfig && agent.source !== 'flagSettings') ||
+    doesEnterpriseMcpConfigExist()
+  ) {
     return existing
   }
   const fromAgent = agentMcpSpecsToScopedConfigs(agent)

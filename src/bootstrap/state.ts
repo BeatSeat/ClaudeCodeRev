@@ -205,6 +205,8 @@ type State = {
   mainThreadAgentHooks: HooksSettings | undefined
   // Remote mode (--remote flag)
   isRemoteMode: boolean
+  // Official 2.1.153 AxH/Xx8: --strict-mcp-config
+  strictMcpConfig: boolean
   // Direct connect server URL (for display in header)
   directConnectServerUrl: string | undefined
   // System prompt section cache state
@@ -416,6 +418,7 @@ function getInitialState(): State {
     mainThreadAgentHooks: undefined,
     // Remote mode
     isRemoteMode: false,
+    strictMcpConfig: false,
     ...(process.env.USER_TYPE === 'ant'
       ? {
           replBridgeActive: false,
@@ -1731,6 +1734,14 @@ export function setIsRemoteMode(value: boolean): void {
   STATE.isRemoteMode = value
 }
 
+export function getStrictMcpConfig(): boolean {
+  return STATE.strictMcpConfig
+}
+
+export function setStrictMcpConfig(value: boolean): void {
+  STATE.strictMcpConfig = value
+}
+
 // System prompt section accessors
 
 export function getSystemPromptSectionCache(): Map<string, string | null> {
@@ -1876,9 +1887,4 @@ export function setPromptId(id: string | null): void {
 /** Compile fallback; the restored tree does not carry the bridge state helper. */
 export function isReplBridgeActive(): boolean {
   return false
-}
-
-/** Compile fallback for the 2.1.153 MCP config setter. */
-export function setStrictMcpConfig(value: boolean): void {
-  state.strictMcpConfig = value
 }

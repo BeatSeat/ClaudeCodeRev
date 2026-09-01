@@ -47,6 +47,7 @@ export type Props = {
   initial: string | null
   sessionModel?: ModelSetting
   onSelect: (model: string | null, effort: EffortLevel | undefined) => void
+  onSetDefault?: (model: string | null) => void
   onCancel?: () => void
   isStandaloneCommand?: boolean
   showFastModeNotice?: boolean
@@ -67,6 +68,7 @@ export function ModelPicker({
   initial,
   sessionModel,
   onSelect,
+  onSetDefault,
   onCancel,
   isStandaloneCommand,
   showFastModeNotice,
@@ -194,6 +196,10 @@ export function ModelPicker({
     {
       'modelPicker:decreaseEffort': () => handleCycleEffort('left'),
       'modelPicker:increaseEffort': () => handleCycleEffort('right'),
+      'modelPicker:thisSessionOnly': () => {
+        if (!onSetDefault || focusedValue === undefined) return
+        handleSelect(focusedValue)
+      },
     },
     { context: 'ModelPicker' },
   )
@@ -243,7 +249,7 @@ export function ModelPicker({
           </Text>
           <Text dimColor>
             {headerText ??
-              'Switch between Claude models. Applies to this session and future Claude Code sessions. For other/previous model names, specify with --model.'}
+              'Switch between Claude models. Your pick becomes the default for new sessions. For other/previous model names, specify with --model.'}
           </Text>
           {sessionModel && (
             <Text dimColor>
@@ -259,7 +265,12 @@ export function ModelPicker({
               defaultValue={initialValue}
               defaultFocusValue={initialFocusValue}
               options={selectOptions}
-              onChange={handleSelect}
+              onChange={value => {
+                if (onSetDefault) {
+                  onSetDefault(value === NO_PREFERENCE ? null : value)
+                }
+                handleSelect(value)
+              }}
               onFocus={handleFocus}
               onCancel={onCancel ?? (() => {})}
               visibleOptionCount={visibleCount}
@@ -314,7 +325,16 @@ export function ModelPicker({
             <>Press {exitState.keyName} again to exit</>
           ) : (
             <Byline>
-              <KeyboardShortcutHint shortcut="Enter" action="confirm" />
+              <KeyboardShortcutHint
+                shortcut="Enter"
+                action={onSetDefault ? 'set as default' : 'confirm'}
+              />
+              {onSetDefault && (
+                <KeyboardShortcutHint
+                  shortcut="s"
+                  action="use this session only"
+                />
+              )}
               <ConfigurableShortcutHint
                 action="select:cancel"
                 context="Select"

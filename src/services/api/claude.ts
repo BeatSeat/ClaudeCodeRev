@@ -730,6 +730,10 @@ export type Options = {
   fetchOverride?: ClientOptions['fetch']
   enablePromptCaching?: boolean
   skipCacheWrite?: boolean
+  // 152/153 fork-point pinning (bundle LJz `_`): uuid of the message a fork
+  // branched from, so the cache-breakpoint marker can be pinned to the shared
+  // prefix. Threaded through query.ts -> Options -> addCacheBreakpoints.
+  forkPointUuid?: string
   temperatureOverride?: number
   effortValue?: EffortValue
   mcpTools: Tools
@@ -1822,6 +1826,7 @@ async function* queryModel(
         consumedCacheEdits,
         consumedPinnedEdits,
         options.skipCacheWrite,
+        options.forkPointUuid,
       ),
       system,
       tools: allTools,
@@ -3410,6 +3415,42 @@ type CachedMCPinnedEdits = {
   block: CachedMCEditsBlock
 }
 
+// Fork-point cache-breakpoint pinning gates. The bundle reads these as pure
+// constant feature reads `FG() && G$("<gate>", !1)`:
+//   FG()  = yY6() && !HVH() — provider in the first-party family
+//           (firstParty / anthropicAws / foundry) AND the
+//           CLAUDE_CODE_DISABLE_EXPERIMENTAL_BETAS kill switch is off.
+//   G$(gate, !1) maps to getFeatureValue_CACHED_MAY_BE_STALE (the tree's sync
+//           GrowthBook read, which already returns the default when GrowthBook
+//           is disabled).
+// The bundle's HVH() additionally short-circuits on a HIPAA-locked build
+// (IYK('hipaa'), a build-time constant list with no tree counterpart) — omitted.
+function isBasaltPinningScopeEnabled(): boolean {
+  const provider = getAPIProvider()
+  return (
+    (provider === 'firstParty' ||
+      provider === 'anthropicAws' ||
+      provider === 'foundry') &&
+    !isEnvTruthy(process.env.CLAUDE_CODE_DISABLE_EXPERIMENTAL_BETAS)
+  )
+}
+
+// 152 pinning-body gate (bundle EH$/O$$) — tengu_basalt_spur
+function isForkPointPinningEnabled(): boolean {
+  return (
+    isBasaltPinningScopeEnabled() &&
+    getFeatureValue_CACHED_MAY_BE_STALE('tengu_basalt_spur', false)
+  )
+}
+
+// 153 refinement gate (bundle HG4) — tengu_basalt_scarp
+function isBasaltScarpEnabled(): boolean {
+  return (
+    isBasaltPinningScopeEnabled() &&
+    getFeatureValue_CACHED_MAY_BE_STALE('tengu_basalt_scarp', false)
+  )
+}
+
 // Exported for testing cache_reference placement constraints
 export function addCacheBreakpoints(
   messages: (UserMessage | AssistantMessage)[],
@@ -3419,27 +3460,71 @@ export function addCacheBreakpoints(
   newCacheEdits?: CachedMCEditsBlock | null,
   pinnedEdits?: CachedMCPinnedEdits[],
   skipCacheWrite = false,
+  // 152/153 bundle LJz param `_`: the uuid of the message a fork branched
+  // from, so the cache-breakpoint marker can be pinned to the shared prefix.
+  // Supplied by fork callers (subagent / background-session subsystem); the
+  // tree's current REPL + forkedAgent callers do not set it, so the pinning
+  // shift below is dormant for them until that producer is ported.
+  forkPointUuid?: string,
 ): MessageParam[] {
+  // Base marker (bundle LJz `A`): the last message, or the second-to-last for
+  // fire-and-forget forks (skipCacheWrite). Exactly one message-level
+  // cache_control marker per request is the base behavior; Mycro's
+  // turn-to-turn eviction (page_manager/index.rs: Index::insert) frees
+  // local-attention KV pages at any cached prefix position NOT in
+  // cache_store_int_token_boundaries, so with a single marker the
+  // second-to-last position's locals are freed immediately, and for
+  // skipCacheWrite forks the marker sits on the last shared-prefix point
+  // (a no-op merge on mycro). The bundle computes this via skip-backward-over
+  // api_system, a no-op here (normalizeMessagesForAPI yields only
+  // user/assistant messages).
+  const baseMarkerIndex = skipCacheWrite ? messages.length - 2 : messages.length - 1
+  const markerIndices = new Set<number>()
+  if (baseMarkerIndex >= 0) markerIndices.add(baseMarkerIndex)
+
+  // Fork-point pinning (152 body, basalt_spur) + basalt_scarp one-earlier
+  // shift (153 delta). When the basalt_spur gate is on a second marker is
+  // pinned to the fork point: for a request carrying forkPointUuid that is
+  // the message with that uuid (clamped to the cached prefix); otherwise, for
+  // a non-skipCacheWrite request, the second-to-last message. 153's
+  // basalt_scarp refinement shifts the pin one message EARLIER when a
+  // skipCacheWrite fork's pin coincides with the base marker, moving the
+  // cached-prefix boundary off the fork's own tail.
+  let forkPointPinned = false
+  if (isForkPointPinningEnabled()) {
+    if (forkPointUuid) {
+      const pinnedIndex = messages.findLastIndex(m => m.uuid === forkPointUuid)
+      if (pinnedIndex >= 0 && pinnedIndex <= baseMarkerIndex) {
+        const effectiveIndex =
+          skipCacheWrite &&
+          pinnedIndex === baseMarkerIndex &&
+          isBasaltScarpEnabled()
+            ? pinnedIndex - 1
+            : pinnedIndex
+        if (effectiveIndex >= 0) {
+          markerIndices.add(effectiveIndex)
+          forkPointPinned = true
+        }
+      }
+    } else if (!skipCacheWrite) {
+      const secondaryMarkerIndex = baseMarkerIndex - 1
+      if (secondaryMarkerIndex >= 0) {
+        markerIndices.add(secondaryMarkerIndex)
+        forkPointPinned = true
+      }
+    }
+  }
+
   logEvent('tengu_api_cache_breakpoints', {
     totalMessageCount: messages.length,
     cachingEnabled: enablePromptCaching,
     skipCacheWrite,
+    forkPointPinned,
+    markerCount: markerIndices.size,
   })
 
-  // Exactly one message-level cache_control marker per request. Mycro's
-  // turn-to-turn eviction (page_manager/index.rs: Index::insert) frees
-  // local-attention KV pages at any cached prefix position NOT in
-  // cache_store_int_token_boundaries. With two markers the second-to-last
-  // position is protected and its locals survive an extra turn even though
-  // nothing will ever resume from there — with one marker they're freed
-  // immediately. For fire-and-forget forks (skipCacheWrite) we shift the
-  // marker to the second-to-last message: that's the last shared-prefix
-  // point, so the write is a no-op merge on mycro (entry already exists)
-  // and the fork doesn't leave its own tail in the KVCC. Dense pages are
-  // refcounted and survive via the new hash either way.
-  const markerIndex = skipCacheWrite ? messages.length - 2 : messages.length - 1
   const result = messages.map((msg, index) => {
-    const addCache = index === markerIndex
+    const addCache = markerIndices.has(index)
     if (msg.type === 'user') {
       return userMessageToMessageParam(
         msg,

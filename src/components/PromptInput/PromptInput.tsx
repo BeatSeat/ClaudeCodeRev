@@ -155,6 +155,7 @@ import {
   isOpus1mMergeEnabled,
   modelDisplayString,
 } from '../../utils/model/model.js'
+import { persistModelAsDefault } from '../../utils/model/persistModelDefault.js'
 import { setAutoModeActive } from '../../utils/permissions/autoModeState.js'
 import {
   cyclePermissionMode,
@@ -365,6 +366,7 @@ function PromptInput({
   voiceInterimRange,
 }: Props): React.ReactNode {
   const mainLoopModel = useMainLoopModel()
+  const persistModelAsDefaultRef = useRef(false)
   // A local-jsx command (e.g., /mcp while agent is running) renders a full-
   // screen dialog on top of PromptInput via the immediate-command path with
   // shouldHidePromptInput: false. Those dialogs don't register in the overlay
@@ -2676,7 +2678,9 @@ function PromptInput({
         }
       })
       setShowModelPicker(false)
-      let message = `Model set to ${modelDisplayString(model)}`
+      const persist = persistModelAsDefaultRef.current
+      persistModelAsDefaultRef.current = false
+      let message = `Model set to ${modelDisplayString(model)}${persist ? ' and saved as your default for new sessions' : ' for this session only'}`
       if (wasFastModeDisabled) {
         message += ' · Fast mode OFF'
       }
@@ -2708,6 +2712,10 @@ function PromptInput({
           initial={mainLoopModel_}
           sessionModel={mainLoopModelForSession}
           onSelect={handleModelSelect}
+          onSetDefault={model => {
+            persistModelAsDefaultRef.current = true
+            persistModelAsDefault(model)
+          }}
           onCancel={handleModelCancel}
           isStandaloneCommand
           showFastModeNotice={

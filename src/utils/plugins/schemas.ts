@@ -1056,6 +1056,12 @@ export const MarketplaceSourceSchema = lazySchema(() =>
             'Example: [".claude-plugin", "plugins"]. ' +
             'If omitted, the full repository is cloned.',
         ),
+      skipLfs: z
+        .boolean()
+        .optional()
+        .describe(
+          'Skip Git LFS smudge during clone and update (sets GIT_LFS_SKIP_SMUDGE=1) so LFS pointer files stay as pointers instead of downloading their content. Use for marketplaces hosted in repos with large LFS objects.',
+        ),
     }),
     z.object({
       source: z.literal('git'),
@@ -1087,6 +1093,12 @@ export const MarketplaceSourceSchema = lazySchema(() =>
             'Use for monorepos where the marketplace lives in a subdirectory. ' +
             'Example: [".claude-plugin", "plugins"]. ' +
             'If omitted, the full repository is cloned.',
+        ),
+      skipLfs: z
+        .boolean()
+        .optional()
+        .describe(
+          'Skip Git LFS smudge during clone and update (sets GIT_LFS_SKIP_SMUDGE=1) so LFS pointer files stay as pointers instead of downloading their content. Use for marketplaces hosted in repos with large LFS objects.',
         ),
     }),
     z.object({

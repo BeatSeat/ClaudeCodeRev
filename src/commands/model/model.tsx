@@ -33,6 +33,7 @@ import {
   renderDefaultModelSetting,
   renderModelName,
 } from '../../utils/model/model.js'
+import { persistModelAsDefault } from '../../utils/model/persistModelDefault.js'
 import { isModelAllowed } from '../../utils/model/modelAllowlist.js'
 import { validateModel } from '../../utils/model/validateModel.js'
 import {
@@ -100,6 +101,7 @@ function ModelPickerWrapper({
     model: string | null
     effort: EffortLevel | undefined
   } | null>(null)
+  const persistAsDefaultRef = React.useRef(false)
 
   function handleCancel(): void {
     logEvent('tengu_model_command_menu', {
@@ -149,7 +151,12 @@ function ModelPickerWrapper({
       mainLoopModelForSession: null,
     }))
 
-    let message = `Set model to ${chalk.bold(renderModelLabel(model))}`
+    const persist = persistAsDefaultRef.current
+    persistAsDefaultRef.current = false
+    if (persist) {
+      persistModelAsDefault(model)
+    }
+    let message = `Set model to ${chalk.bold(renderModelLabel(model))}${persist ? ' and saved as your default for new sessions' : ' for this session only'}`
     if (effort !== undefined) {
       message += ` with ${chalk.bold(effort)} effort`
     }
@@ -202,6 +209,10 @@ function ModelPickerWrapper({
       initial={mainLoopModel}
       sessionModel={mainLoopModelForSession}
       onSelect={handleSelect}
+      onSetDefault={() => {
+        persistAsDefaultRef.current = true
+      }}
+      skipSettingsWrite
       onCancel={handleCancel}
       isStandaloneCommand
       showFastModeNotice={
