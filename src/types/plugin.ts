@@ -305,6 +305,14 @@ export type PluginError =
       installPath: string
     }
   | {
+      type: 'autoupdate-blocked-by-pinner'
+      source: string
+      plugin: string
+      heldAt?: string
+      blockedBy: string[]
+      disabledPinners: string[]
+    }
+  | {
       type: 'generic-error'
       source: string
       plugin?: string
@@ -392,5 +400,14 @@ export function getPluginErrorMessage(error: PluginError): string {
       return `Requires "${error.dependency}" ${error.required}, installed ${error.installed ?? 'version unknown'}`
     case 'plugin-cache-miss':
       return `Plugin "${error.plugin}" not cached at ${error.installPath} — run /plugins to refresh`
+    case 'autoupdate-blocked-by-pinner': {
+      const heldAt = error.heldAt ? ` at ${error.heldAt}` : ''
+      const blockedBy = error.blockedBy.join(', ')
+      const disabledNote =
+        error.disabledPinners.length > 0
+          ? ` (note: ${error.disabledPinners.join(', ')} ${error.disabledPinners.length === 1 ? 'is' : 'are'} currently disabled)`
+          : ''
+      return `Autoupdate held "${error.plugin}"${heldAt} — version constraint from ${blockedBy}${disabledNote}`
+    }
   }
 }

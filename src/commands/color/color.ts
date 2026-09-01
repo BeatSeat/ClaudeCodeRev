@@ -59,6 +59,7 @@ export async function call(
       },
     }))
 
+    syncBridgeSessionColor(context, 'default')
     onDone('Session color reset to default', { display: 'system' })
     return null
   }
@@ -88,6 +89,21 @@ export async function call(
     },
   }))
 
+  syncBridgeSessionColor(context, colorArg)
   onDone(`Session color set to: ${colorArg}`, { display: 'system' })
   return null
+}
+
+/** Official 2.1.118 QZ1: when RC is connected, tag the claude.ai/code session. */
+function syncBridgeSessionColor(
+  context: ToolUseContext & LocalJSXCommandContext,
+  color: string,
+): void {
+  const sessionId = context.getAppState().replBridgeSessionId
+  if (!sessionId) return
+  void import('../../bridge/createSession.js')
+    .then(({ updateBridgeSessionColorTag }) =>
+      updateBridgeSessionColorTag(sessionId, color, AGENT_COLORS),
+    )
+    .catch(() => {})
 }

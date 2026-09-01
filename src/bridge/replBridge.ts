@@ -195,6 +195,9 @@ export type BridgeCoreParams = {
   onRenameSession?: (
     title: string,
   ) => { ok: true } | { ok: false; error: string }
+  onSetColor?: (
+    color: string,
+  ) => { ok: true } | { ok: false; error: string }
   onFileSuggestions?: (
     query: string,
   ) => Promise<Array<{ path: string }>>
@@ -296,6 +299,7 @@ export async function initBridgeCore(
     onSetMaxThinkingTokens,
     onSetPermissionMode,
     onRenameSession,
+    onSetColor,
     onFileSuggestions,
     onStateChange,
     onUserMessage,
@@ -1207,6 +1211,7 @@ export async function initBridgeCore(
           onSetMaxThinkingTokens,
           onSetPermissionMode,
           onRenameSession,
+          onSetColor,
           onFileSuggestions,
         })
 

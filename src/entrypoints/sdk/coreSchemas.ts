@@ -358,6 +358,7 @@ export const HOOK_EVENTS = [
   'PostToolUseFailure',
   'Notification',
   'UserPromptSubmit',
+  'UserPromptExpansion',
   'SessionStart',
   'SessionEnd',
   'Stop',

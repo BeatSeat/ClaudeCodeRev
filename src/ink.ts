@@ -37,7 +37,9 @@ export type { Props as TextProps } from './components/design-system/ThemedText.j
 export { default as Text } from './components/design-system/ThemedText.js'
 export {
   ThemeProvider,
+  useCustomThemes,
   usePreviewTheme,
+  useResolvedTheme,
   useTheme,
   useThemeSetting,
 } from './components/design-system/ThemeProvider.js'

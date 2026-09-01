@@ -9,6 +9,14 @@ export type ParsedCommand =
   | { type: 'disable'; plugin?: string }
   | { type: 'validate'; path?: string }
   | {
+      type: 'tag'
+      path?: string
+      push?: boolean
+      dryRun?: boolean
+      force?: boolean
+      unknownFlag?: string
+    }
+  | {
       type: 'marketplace'
       action?: 'add' | 'remove' | 'update' | 'list'
       target?: string
@@ -79,6 +87,22 @@ export function parsePluginArgs(args?: string): ParsedCommand {
     case 'validate': {
       const target = parts.slice(1).join(' ').trim()
       return { type: 'validate', path: target || undefined }
+    }
+
+    case 'tag': {
+      let path: string | undefined
+      let push = false
+      let dryRun = false
+      let force = false
+      let unknownFlag: string | undefined
+      for (const part of parts.slice(1)) {
+        if (part === '--push') push = true
+        else if (part === '--dry-run') dryRun = true
+        else if (part === '-f' || part === '--force') force = true
+        else if (part.startsWith('-')) unknownFlag = part
+        else if (!path) path = part
+      }
+      return { type: 'tag', path, push, dryRun, force, unknownFlag }
     }
 
     case 'marketplace':

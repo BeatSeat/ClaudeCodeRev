@@ -4,6 +4,8 @@ export function formatErrorMessage(error: PluginError): string {
   switch (error.type) {
     case 'path-not-found':
       return `${error.component} path not found: ${error.path}`
+    case 'path-traversal':
+      return `Path escapes plugin directory: ${error.path}`
     case 'git-auth-failed':
       return `Git ${error.authType.toUpperCase()} authentication failed for ${error.gitUrl}`
     case 'git-timeout':
@@ -62,6 +64,14 @@ export function formatErrorMessage(error: PluginError): string {
       return `LSP server "${error.serverName}" ${error.method} failed: ${error.error}`
     case 'plugin-cache-miss':
       return `Plugin "${error.plugin}" not cached at ${error.installPath}`
+    case 'autoupdate-blocked-by-pinner': {
+      const heldAt = error.heldAt ? ` at ${error.heldAt}` : ''
+      const disabledNote =
+        error.disabledPinners.length > 0
+          ? ` (${error.disabledPinners.join(', ')} ${error.disabledPinners.length === 1 ? 'is' : 'are'} disabled)`
+          : ''
+      return `Autoupdate held${heldAt} — version constraint from ${error.blockedBy.join(', ')}${disabledNote}`
+    }
     case 'generic-error':
       return error.error
   }
@@ -73,6 +83,8 @@ export function getErrorGuidance(error: PluginError): string | null {
   switch (error.type) {
     case 'path-not-found':
       return 'Check that the path in your manifest or marketplace config is correct'
+    case 'path-traversal':
+      return 'Use a path inside the plugin directory'
     case 'git-auth-failed':
       return error.authType === 'ssh'
         ? 'Configure SSH keys or use HTTPS URL instead'
@@ -135,6 +147,15 @@ export function getErrorGuidance(error: PluginError): string | null {
       return 'Check LSP server logs with --debug for details'
     case 'plugin-cache-miss':
       return 'Run /plugins to refresh the plugin cache'
+    case 'autoupdate-blocked-by-pinner': {
+      const target =
+        error.disabledPinners.length > 0
+          ? error.disabledPinners[0]
+          : error.blockedBy[0]
+      return target
+        ? `Update or uninstall "${target}" to unblock${error.disabledPinners.length > 0 ? ' (it is currently disabled)' : ''}`
+        : null
+    }
     case 'marketplace-load-failed':
     case 'generic-error':
       return null

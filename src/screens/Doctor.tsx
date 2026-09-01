@@ -24,6 +24,7 @@ import { Box, Text } from '../ink.js'
 import { useKeybindings } from '../keybindings/useKeybinding.js'
 import { useAppState } from '../state/AppState.js'
 import { getPluginErrorMessage } from '../types/plugin.js'
+import { getAutoupdateHeldErrors } from '../utils/plugins/pluginAutoupdate.js'
 import {
   getGcsDistTags,
   getNpmDistTags,
@@ -162,7 +163,18 @@ export function Doctor({ onDone }: Props): React.ReactNode {
   const agentDefinitions = useAppState(s => s.agentDefinitions)
   const mcpTools = useAppState(s => s.mcp.tools)
   const toolPermissionContext = useAppState(s => s.toolPermissionContext)
-  const pluginsErrors = useAppState(s => s.plugins.errors)
+  const pluginsErrorsFromState = useAppState(s => s.plugins.errors)
+  // Official 2.1.118: autoupdate-held errors may land after startup load.
+  const pluginsErrors = [
+    ...pluginsErrorsFromState,
+    ...getAutoupdateHeldErrors().filter(
+      held =>
+        !pluginsErrorsFromState.some(
+          e =>
+            e.type === held.type && e.source === held.source,
+        ),
+    ),
+  ]
   useExitOnCtrlCDWithKeybindings()
 
   const tools = useMemo(() => {

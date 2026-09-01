@@ -9,8 +9,10 @@ import {
   parseUserSpecifiedModel,
 } from '../../utils/model/model.js'
 import {
+  AUTO_MODE_DEFAULTS_TOKEN,
   type AutoModeRules,
   buildDefaultExternalSystemPrompt,
+  expandAutoModeConfig,
   getDefaultExternalAutoModeRules,
 } from '../../utils/permissions/yoloClassifier.js'
 import { getAutoModeConfig } from '../../utils/settings/settings.js'
@@ -33,17 +35,7 @@ export function autoModeDefaultsHandler(): void {
  * falls through to defaults).
  */
 export function autoModeConfigHandler(): void {
-  const config = getAutoModeConfig()
-  const defaults = getDefaultExternalAutoModeRules()
-  writeRules({
-    allow: config?.allow?.length ? config.allow : defaults.allow,
-    soft_deny: config?.soft_deny?.length
-      ? config.soft_deny
-      : defaults.soft_deny,
-    environment: config?.environment?.length
-      ? config.environment
-      : defaults.environment,
-  })
+  writeRules(expandAutoModeConfig(getAutoModeConfig()))
 }
 
 const CRITIQUE_SYSTEM_PROMPT =
@@ -74,10 +66,11 @@ export async function autoModeCritiqueHandler(options: {
   model?: string
 }): Promise<void> {
   const config = getAutoModeConfig()
+  // 118 lT6: only-`$defaults` is not custom.
   const hasCustomRules =
-    (config?.allow?.length ?? 0) > 0 ||
-    (config?.soft_deny?.length ?? 0) > 0 ||
-    (config?.environment?.length ?? 0) > 0
+    hasNonDefaultAutoModeRules(config?.allow) ||
+    hasNonDefaultAutoModeRules(config?.soft_deny) ||
+    hasNonDefaultAutoModeRules(config?.environment)
 
   if (!hasCustomRules) {
     process.stdout.write(
@@ -148,22 +141,30 @@ export async function autoModeCritiqueHandler(options: {
   }
 }
 
+function hasNonDefaultAutoModeRules(rules: string[] | undefined): boolean {
+  return (rules ?? []).some(rule => rule !== AUTO_MODE_DEFAULTS_TOKEN)
+}
+
 function formatRulesForCritique(
   section: string,
   userRules: string[],
   defaultRules: string[],
 ): string {
-  if (userRules.length === 0) return ''
-  const customLines = userRules.map(r => '- ' + r).join('\n')
+  const custom = userRules.filter(rule => rule !== AUTO_MODE_DEFAULTS_TOKEN)
+  if (custom.length === 0) return ''
+  const alongside = userRules.length !== custom.length
+  const customLines = custom.map(r => '- ' + r).join('\n')
   const defaultLines = defaultRules.map(r => '- ' + r).join('\n')
   return (
     '## ' +
     section +
-    ' (custom rules replacing defaults)\n' +
+    (alongside
+      ? ' (custom rules added alongside the defaults)\n'
+      : ' (custom rules replacing defaults)\n') +
     'Custom:\n' +
     customLines +
     '\n\n' +
-    'Defaults being replaced:\n' +
+    (alongside ? 'Defaults also in effect:\n' : 'Defaults being replaced:\n') +
     defaultLines +
     '\n\n'
   )

@@ -150,6 +150,23 @@ export async function resolveMissingDependencies(
 }
 
 /**
+ * Official 2.1.118 `Nj6`: dep errors for one plugin used by the
+ * already-installed extra gate. Filters to dependency-unsatisfied /
+ * dependency-version-unsatisfied (`tp$`).
+ */
+export async function getAlreadyInstalledDependencyErrors(
+  pluginId: string,
+): Promise<PluginError[]> {
+  const { errors } = await loadAllPlugins()
+  return errors.filter(
+    error =>
+      (error.type === 'dependency-unsatisfied' ||
+        error.type === 'dependency-version-unsatisfied') &&
+      error.source === pluginId,
+  )
+}
+
+/**
  * Official 2.1.117 `emH`: when `plugin install` hits an already-installed
  * plugin, install any missing deps and return a message suffix (or null
  * when there are no unsatisfied-dep errors for this plugin).

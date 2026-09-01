@@ -1,6 +1,7 @@
 import { feature } from 'bun:bundle'
 import React, {
   createContext,
+  useCallback,
   useContext,
   useEffect,
   useMemo,
@@ -9,10 +10,18 @@ import React, {
 import useStdin from '../../ink/hooks/use-stdin.js'
 import { getGlobalConfig, saveGlobalConfig } from '../../utils/config.js'
 import {
+  customThemeSlug,
+  isBuiltInThemeName,
+  loadCustomThemes,
+  mergeTheme,
+  type CustomTheme,
+  watchUserThemes,
+} from '../../utils/customThemes.js'
+import {
   getSystemThemeName,
   type SystemTheme,
 } from '../../utils/systemTheme.js'
-import type { ThemeName, ThemeSetting } from '../../utils/theme.js'
+import { getTheme, type Theme, type ThemeName, type ThemeSetting } from '../../utils/theme.js'
 
 type ThemeContextValue = {
   /** The saved user preference. May be 'auto'. */
@@ -23,6 +32,11 @@ type ThemeContextValue = {
   cancelPreview: () => void
   /** The resolved theme to render with. Never 'auto'. */
   currentTheme: ThemeName
+  resolvedTheme: Theme
+  customThemes: CustomTheme[]
+  activeCustomTheme: CustomTheme | undefined
+  reloadCustomThemes: () => void
+  setPreviewOverrides: (overrides: Partial<Theme> | null) => void
 }
 
 // Non-'auto' default so useTheme() works without a provider (tests, tooling).
@@ -35,6 +49,11 @@ const ThemeContext = createContext<ThemeContextValue>({
   savePreview: () => {},
   cancelPreview: () => {},
   currentTheme: DEFAULT_THEME,
+  resolvedTheme: getTheme(DEFAULT_THEME),
+  customThemes: [],
+  activeCustomTheme: undefined,
+  reloadCustomThemes: () => {},
+  setPreviewOverrides: () => {},
 })
 
 type Props = {
@@ -60,6 +79,18 @@ export function ThemeProvider({
     initialState ?? defaultInitialTheme,
   )
   const [previewTheme, setPreviewTheme] = useState<ThemeSetting | null>(null)
+  const [customThemes, setCustomThemes] = useState<CustomTheme[]>(loadCustomThemes)
+  const [previewOverrides, setPreviewOverrides] = useState<Partial<Theme> | null>(
+    null,
+  )
+
+  const reloadCustomThemes = useCallback((): void => {
+    setCustomThemes(loadCustomThemes())
+  }, [])
+
+  useEffect(() => {
+    return watchUserThemes(reloadCustomThemes)
+  }, [])
 
   // Track terminal theme for 'auto' resolution. Seeds from $COLORFGBG (or
   // 'dark' if unset); the OSC 11 watcher corrects it on first poll.
@@ -93,8 +124,30 @@ export function ThemeProvider({
     }
   }, [activeSetting, internal_querier])
 
+  const customSlug = customThemeSlug(activeSetting)
+  const activeCustomTheme = customSlug
+    ? customThemes.find(t => t.slug === customSlug)
+    : undefined
+
   const currentTheme: ThemeName =
-    activeSetting === 'auto' ? systemTheme : activeSetting
+    activeCustomTheme
+      ? activeCustomTheme.base
+      : activeSetting === 'auto'
+        ? systemTheme
+        : isBuiltInThemeName(activeSetting)
+          ? activeSetting
+          : customSlug
+            ? 'dark'
+            : DEFAULT_THEME
+
+  const resolvedTheme = useMemo(
+    () =>
+      mergeTheme(
+        getTheme(currentTheme),
+        previewOverrides ?? activeCustomTheme?.overrides,
+      ),
+    [currentTheme, previewOverrides, activeCustomTheme],
+  )
 
   const value = useMemo<ThemeContextValue>(
     () => ({
@@ -102,6 +155,7 @@ export function ThemeProvider({
       setThemeSetting: (newSetting: ThemeSetting) => {
         setThemeSetting(newSetting)
         setPreviewTheme(null)
+        setPreviewOverrides(null)
         // Switching to 'auto' restarts the watcher (activeSetting dep), whose
         // first poll fires immediately. Seed from the cache so the OSC
         // round-trip doesn't flash the wrong palette.
@@ -129,8 +183,22 @@ export function ThemeProvider({
         }
       },
       currentTheme,
+      resolvedTheme,
+      customThemes,
+      activeCustomTheme,
+      reloadCustomThemes,
+      setPreviewOverrides,
     }),
-    [themeSetting, previewTheme, currentTheme, onThemeSave],
+    [
+      themeSetting,
+      previewTheme,
+      currentTheme,
+      resolvedTheme,
+      customThemes,
+      activeCustomTheme,
+      reloadCustomThemes,
+      onThemeSave,
+    ],
   )
 
   return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>
@@ -157,4 +225,29 @@ export function usePreviewTheme() {
   const { setPreviewTheme, savePreview, cancelPreview } =
     useContext(ThemeContext)
   return { setPreviewTheme, savePreview, cancelPreview }
+}
+
+/** Official 2.1.118 W4H */
+export function useCustomThemes(): {
+  customThemes: CustomTheme[]
+  activeCustomTheme: CustomTheme | undefined
+  reloadCustomThemes: () => void
+  setPreviewOverrides: (overrides: Partial<Theme> | null) => void
+} {
+  const {
+    customThemes,
+    activeCustomTheme,
+    reloadCustomThemes,
+    setPreviewOverrides,
+  } = useContext(ThemeContext)
+  return {
+    customThemes,
+    activeCustomTheme,
+    reloadCustomThemes,
+    setPreviewOverrides,
+  }
+}
+
+export function useResolvedTheme(): Theme {
+  return useContext(ThemeContext).resolvedTheme
 }

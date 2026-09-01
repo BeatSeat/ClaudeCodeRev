@@ -32,8 +32,10 @@ import { DiscoverPlugins } from './DiscoverPlugins.js'
 import { ManageMarketplaces } from './ManageMarketplaces.js'
 import { ManagePlugins } from './ManagePlugins.js'
 import { formatErrorMessage, getErrorGuidance } from './PluginErrors.js'
+import { getAutoupdateHeldErrors } from '../../utils/plugins/pluginAutoupdate.js'
 import { type ParsedCommand, parsePluginArgs } from './parseArgs.js'
 import type { PluginSettingsProps, ViewState } from './types.js'
+import { TagPlugin } from './TagPlugin.js'
 import { ValidatePlugin } from './ValidatePlugin.js'
 
 type TabId = 'discover' | 'installed' | 'marketplaces' | 'errors'
@@ -384,7 +386,16 @@ function ErrorsTabContent({
   setActiveTab: (tab: TabId) => void
   markPluginsChanged: () => void
 }): React.ReactNode {
-  const errors = useAppState(s => s.plugins.errors)
+  const errorsFromState = useAppState(s => s.plugins.errors)
+  const errors = [
+    ...errorsFromState,
+    ...getAutoupdateHeldErrors().filter(
+      held =>
+        !errorsFromState.some(
+          e => e.type === held.type && e.source === held.source,
+        ),
+    ),
+  ]
   const installationStatus = useAppState(s => s.plugins.installationStatus)
   const setAppState = useSetAppState()
   const [selectedIndex, setSelectedIndex] = useState(0)
@@ -647,6 +658,15 @@ function getInitialViewState(parsedCommand: ParsedCommand): ViewState {
       return { type: 'help' }
     case 'validate':
       return { type: 'validate', path: parsedCommand.path }
+    case 'tag':
+      return {
+        type: 'tag',
+        path: parsedCommand.path,
+        push: parsedCommand.push,
+        dryRun: parsedCommand.dryRun,
+        force: parsedCommand.force,
+        unknownFlag: parsedCommand.unknownFlag,
+      }
     case 'install':
       if (parsedCommand.marketplace) {
         return {
@@ -899,6 +919,10 @@ export function PluginSettings({
           {' '}
           /plugin validate &lt;path&gt; - Validate a manifest file or directory
         </Text>
+        <Text>
+          {' '}
+          /plugin tag [path] - Create a {'{name}--v{version}'} git tag
+        </Text>
         <Text> </Text>
         <Text dimColor>Other:</Text>
         <Text> /plugin - Main plugin menu</Text>
@@ -910,6 +934,19 @@ export function PluginSettings({
 
   if (viewState.type === 'validate') {
     return <ValidatePlugin onComplete={onComplete} path={viewState.path} />
+  }
+
+  if (viewState.type === 'tag') {
+    return (
+      <TagPlugin
+        onComplete={onComplete}
+        path={viewState.path}
+        push={viewState.push}
+        dryRun={viewState.dryRun}
+        force={viewState.force}
+        unknownFlag={viewState.unknownFlag}
+      />
+    )
   }
 
   if (viewState.type === 'marketplace-menu') {

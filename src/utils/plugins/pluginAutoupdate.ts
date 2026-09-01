@@ -11,6 +11,7 @@
  */
 
 import { updatePluginOp } from '../../services/plugins/pluginOperations.js'
+import type { PluginError } from '../../types/plugin.js'
 import { shouldSkipPluginAutoupdate } from '../config.js'
 import { logForDebugging } from '../debug.js'
 import { errorMessage } from '../errors.js'
@@ -43,6 +44,13 @@ let pluginUpdateCallback: PluginAutoUpdateCallback | null = null
 // Store pending updates that occurred before callback was registered
 // This handles the race condition where updates complete before REPL mounts
 let pendingNotification: string[] | null = null
+
+/** Official 2.1.118: autoupdate-held errors surfaced in /doctor + /plugin Errors. */
+let heldAutoupdateErrors: PluginError[] = []
+
+export function getAutoupdateHeldErrors(): PluginError[] {
+  return heldAutoupdateErrors
+}
 
 /**
  * Register a callback to be notified when plugins are auto-updated.
@@ -115,8 +123,10 @@ async function getAutoUpdateEnabledMarketplaces(): Promise<Set<string>> {
 async function updatePlugin(
   pluginId: string,
   installations: Array<{ scope: PluginScope; projectPath?: string }>,
-): Promise<string | null> {
+  disabledSources: Set<string>,
+): Promise<{ updated: string | null; blocked: PluginError | null }> {
   let wasUpdated = false
+  let blocked: PluginError | null = null
 
   for (const { scope } of installations) {
     try {
@@ -129,6 +139,22 @@ async function updatePlugin(
         )
       } else if (result.skipped) {
         logForDebugging(`Plugin autoupdate: ${pluginId} ${result.message}`)
+        if (result.blockedBy && result.blockedBy.length > 0) {
+          const blockedBy = result.blockedBy.map(
+            id => parsePluginIdentifier(id).name,
+          )
+          const disabledPinners = result.blockedBy
+            .filter(id => disabledSources.has(id))
+            .map(id => parsePluginIdentifier(id).name)
+          blocked = {
+            type: 'autoupdate-blocked-by-pinner',
+            source: pluginId,
+            plugin: parsePluginIdentifier(pluginId).name,
+            heldAt: result.oldVersion,
+            blockedBy,
+            disabledPinners,
+          }
+        }
       } else if (!result.alreadyUpToDate) {
         logForDebugging(
           `Plugin autoupdate: failed to update ${pluginId}: ${result.message}`,
@@ -143,7 +169,7 @@ async function updatePlugin(
     }
   }
 
-  return wasUpdated ? pluginId : null
+  return { updated: wasUpdated ? pluginId : null, blocked }
 }
 
 /**
@@ -170,12 +196,22 @@ async function updatePlugin(
 export async function updatePluginsForMarketplaces(
   marketplaceNames: Set<string>,
 ): Promise<string[]> {
+  const { updated } = await updatePluginsForMarketplacesWithHeld(marketplaceNames)
+  return updated
+}
+
+async function updatePluginsForMarketplacesWithHeld(
+  marketplaceNames: Set<string>,
+): Promise<{ updated: string[]; blocked: PluginError[] }> {
   const installedPlugins = loadInstalledPluginsFromDisk()
   const pluginIds = Object.keys(installedPlugins.plugins)
 
   if (pluginIds.length === 0) {
-    return []
+    return { updated: [], blocked: [] }
   }
+
+  const { disabled } = await loadAllPlugins()
+  const disabledSources = new Set(disabled.map(p => p.source))
 
   const results = await Promise.allSettled(
     pluginIds.map(async pluginId => {
@@ -196,16 +232,18 @@ export async function updatePluginsForMarketplaces(
         return null
       }
 
-      return updatePlugin(pluginId, relevantInstallations)
+      return updatePlugin(pluginId, relevantInstallations, disabledSources)
     }),
   )
 
-  return results
-    .filter(
-      (r): r is PromiseFulfilledResult<string> =>
-        r.status === 'fulfilled' && r.value !== null,
-    )
-    .map(r => r.value)
+  const updated: string[] = []
+  const blocked: PluginError[] = []
+  for (const r of results) {
+    if (r.status !== 'fulfilled' || r.value === null) continue
+    if (r.value.updated !== null) updated.push(r.value.updated)
+    if (r.value.blocked !== null) blocked.push(r.value.blocked)
+  }
+  return { updated, blocked }
 }
 
 /**
@@ -214,8 +252,8 @@ export async function updatePluginsForMarketplaces(
  */
 async function updatePlugins(
   autoUpdateEnabledMarketplaces: Set<string>,
-): Promise<string[]> {
-  return updatePluginsForMarketplaces(autoUpdateEnabledMarketplaces)
+): Promise<{ updated: string[]; blocked: PluginError[] }> {
+  return updatePluginsForMarketplacesWithHeld(autoUpdateEnabledMarketplaces)
 }
 
 /**
@@ -275,7 +313,10 @@ export function autoUpdateMarketplacesAndPluginsInBackground(): void {
       }
 
       logForDebugging('Plugin autoupdate: checking installed plugins')
-      const updatedPlugins = await updatePlugins(autoUpdateEnabledMarketplaces)
+      const { updated: updatedPlugins, blocked } = await updatePlugins(
+        autoUpdateEnabledMarketplaces,
+      )
+      heldAutoupdateErrors = blocked
 
       if (updatedPlugins.length > 0) {
         clearPluginCache('autoupdate dep-resolution')
@@ -298,12 +339,10 @@ export function autoUpdateMarketplacesAndPluginsInBackground(): void {
         updatedPlugins.push(...resolved.installed)
       }
 
-      if (updatedPlugins.length > 0) {
+      if (updatedPlugins.length > 0 || blocked.length > 0) {
         if (pluginUpdateCallback) {
-          // Callback is already registered, invoke it immediately
           pluginUpdateCallback(updatedPlugins)
-        } else {
-          // Callback not yet registered (REPL not mounted), store for later delivery
+        } else if (updatedPlugins.length > 0) {
           pendingNotification = updatedPlugins
         }
       }

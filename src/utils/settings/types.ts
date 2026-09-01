@@ -22,6 +22,7 @@ export {
   HooksSchema,
   type HooksSettings,
   type HttpHook,
+  type McpToolHook,
   type PromptHook,
 } from '../../schemas/hooks.js'
 
@@ -345,6 +346,12 @@ export const SettingsSchema = lazySchema(() =>
         .optional()
         .describe(
           'Fraction of the context window (in characters) reserved for the skill listing sent to Claude (default: 0.01 = 1%). When the listing exceeds this, descriptions are shortened to fit. Raise to opt in to higher per-turn context cost.',
+        ),
+      wslInheritsWindowsSettings: z
+        .boolean()
+        .optional()
+        .describe(
+          'When set to true in either admin-only Windows source — the HKLM SOFTWARE/Policies/ClaudeCode registry key or C:/Program Files/ClaudeCode/managed-settings.json — WSL reads managed settings from the full Windows policy chain (HKLM, C:/Program Files/ClaudeCode via DrvFs, HKCU) in addition to /etc/claude-code. Windows sources take priority. The flag is also required in HKCU itself for HKCU policy to apply on WSL (double opt-in: admin enables the chain, user confirms HKCU). On native Windows the flag has no effect.',
         ),
       env: EnvironmentVariablesSchema()
         .optional()
@@ -1045,11 +1052,15 @@ export const SettingsSchema = lazySchema(() =>
                 allow: z
                   .array(z.string())
                   .optional()
-                  .describe('Rules for the auto mode classifier allow section'),
+                  .describe(
+                    'Rules for the auto mode classifier allow section. Include the literal string "$defaults" to inherit the built-in rules at that position.',
+                  ),
                 soft_deny: z
                   .array(z.string())
                   .optional()
-                  .describe('Rules for the auto mode classifier deny section'),
+                  .describe(
+                    'Rules for the auto mode classifier deny section. Include the literal string "$defaults" to inherit the built-in rules at that position.',
+                  ),
                 ...(process.env.USER_TYPE === 'ant'
                   ? {
                       // Back-compat alias for ant users; external users use soft_deny
@@ -1060,7 +1071,7 @@ export const SettingsSchema = lazySchema(() =>
                   .array(z.string())
                   .optional()
                   .describe(
-                    'Entries for the auto mode classifier environment section',
+                    'Entries for the auto mode classifier environment section. Include the literal string "$defaults" to inherit the built-in entries at that position.',
                   ),
               })
               .optional()

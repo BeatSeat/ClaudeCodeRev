@@ -206,15 +206,59 @@ export class Cursor {
     invert: (text: string) => string,
     ghostText?: { text: string; dim: (text: string) => string },
     maxVisibleLines?: number,
+    selectionAnchor?: number,
+    selectionLinewise: boolean = false,
   ) {
-    const { line, column } = this.getPosition()
-    const allLines = this.measuredText.getWrappedText()
-
     const startLine = this.getViewportStartLine(maxVisibleLines)
+    const wrappedLines = this.measuredText.getWrappedLines()
     const endLine =
       maxVisibleLines !== undefined && maxVisibleLines > 0
-        ? Math.min(allLines.length, startLine + maxVisibleLines)
-        : allLines.length
+        ? Math.min(wrappedLines.length, startLine + maxVisibleLines)
+        : wrappedLines.length
+
+    // Official 2.1.118: vim visual / visual-line selection invert.
+    if (selectionAnchor !== undefined) {
+      const selStart = Math.min(selectionAnchor, this.offset)
+      const selEnd = Math.max(selectionAnchor, this.offset)
+      const from = selectionLinewise
+        ? this.findLogicalLineStart(selStart)
+        : selStart
+      const to = selectionLinewise
+        ? this.findLogicalLineEnd(selEnd)
+        : this.measuredText.nextOffset(selEnd)
+      return wrappedLines
+        .slice(startLine, endLine)
+        .map(line => {
+          const display = line.isPrecededByNewline
+            ? line.text
+            : line.text.trimStart()
+          const leading = line.text.length - display.length
+          const lineStart = line.startOffset + leading
+          const lineEnd = lineStart + display.length
+          if (to <= lineStart || from >= lineEnd) {
+            if (
+              lineStart === lineEnd &&
+              from <= lineStart &&
+              (selectionLinewise ? to >= lineEnd : to > lineEnd)
+            ) {
+              return invert(' ')
+            }
+            return display.trimEnd()
+          }
+          if (lineStart === lineEnd) return invert(' ')
+          const hlStart = Math.max(0, from - lineStart)
+          const hlEnd = Math.min(display.length, to - lineStart)
+          return (
+            display.slice(0, hlStart) +
+            invert(display.slice(hlStart, hlEnd)) +
+            display.slice(hlEnd).trimEnd()
+          )
+        })
+        .join('\n')
+    }
+
+    const { line, column } = this.getPosition()
+    const allLines = this.measuredText.getWrappedText()
 
     return allLines
       .slice(startLine, endLine)

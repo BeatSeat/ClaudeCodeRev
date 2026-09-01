@@ -1,6 +1,7 @@
 import figures from 'figures'
 import * as React from 'react'
 import { Box, color, Text, useTheme } from '../../ink.js'
+import { Badge } from '../../components/design-system/Badge.js'
 import { plural } from '../../utils/stringUtils.js'
 import type { UnifiedInstalledItem } from './unifiedTypes.js'
 
@@ -44,7 +45,9 @@ export function UnifiedInstalledCell({
         <Text color={isSelected ? 'suggestion' : undefined}>{item.name}</Text>
         <Text dimColor={!isSelected}>
           {' '}
-          <Text backgroundColor="userMessageBackground">Plugin</Text>
+          <Badge color="userMessageBackground" textColor="text">
+            Plugin
+          </Badge>
         </Text>
         <Text dimColor> · {item.marketplace}</Text>
         <Text dimColor={!isSelected}> · {statusIcon} </Text>
@@ -64,7 +67,9 @@ export function UnifiedInstalledCell({
         <Text color={isSelected ? 'suggestion' : undefined}>{item.name}</Text>
         <Text dimColor={!isSelected}>
           {' '}
-          <Text backgroundColor="userMessageBackground">Plugin</Text>
+          <Badge color="userMessageBackground" textColor="text">
+            Plugin
+          </Badge>
         </Text>
         <Text dimColor> · {item.marketplace}</Text>
         <Text dimColor={!isSelected}> · {statusIcon} </Text>
@@ -85,7 +90,9 @@ export function UnifiedInstalledCell({
         <Text color={isSelected ? 'suggestion' : undefined}>{item.name}</Text>
         <Text dimColor={!isSelected}>
           {' '}
-          <Text backgroundColor="userMessageBackground">Plugin</Text>
+          <Badge color="userMessageBackground" textColor="text">
+            Plugin
+          </Badge>
         </Text>
         <Text dimColor> · {item.marketplace}</Text>
         <Text dimColor={!isSelected}> · {statusIcon} </Text>
@@ -126,7 +133,9 @@ export function UnifiedInstalledCell({
         <Text color={isSelected ? 'suggestion' : undefined}>{item.name}</Text>
         <Text dimColor={!isSelected}>
           {' '}
-          <Text backgroundColor="userMessageBackground">MCP</Text>
+          <Badge color="userMessageBackground" textColor="text">
+            MCP
+          </Badge>
         </Text>
         <Text dimColor={!isSelected}> · {statusIcon} </Text>
         <Text dimColor={!isSelected}>{statusText}</Text>
@@ -142,7 +151,9 @@ export function UnifiedInstalledCell({
       <Text color={isSelected ? 'suggestion' : undefined}>{item.name}</Text>
       <Text dimColor={!isSelected}>
         {' '}
-        <Text backgroundColor="userMessageBackground">MCP</Text>
+        <Badge color="userMessageBackground" textColor="text">
+          MCP
+        </Badge>
       </Text>
       <Text dimColor={!isSelected}> · {statusIcon} </Text>
       <Text dimColor={!isSelected}>{statusText}</Text>

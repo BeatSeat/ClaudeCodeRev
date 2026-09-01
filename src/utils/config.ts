@@ -440,6 +440,9 @@ export type GlobalConfig = {
   // Resume-return dialog tracking (/resume + --resume summarize offer)
   resumeReturnDismissed?: boolean // "Don't ask again" picked
 
+  // Official 2.1.118: auto-mode opt-in "Don't ask again"
+  autoModeOptInDismissed?: boolean
+
   // Opus 4.5 Pro migration tracking
   opusProMigrationComplete?: boolean
   opusProMigrationTimestamp?: number
@@ -1768,6 +1771,11 @@ export function formatAutoUpdaterDisabledReason(
 export function getAutoUpdaterDisabledReason(): AutoUpdaterDisabledReason | null {
   if (process.env.NODE_ENV === 'development') {
     return { type: 'development' }
+  }
+  // Official 2.1.118 CDH: DISABLE_UPDATES blocks ALL update paths
+  // (including `claude update`) and is checked before DISABLE_AUTOUPDATER.
+  if (isEnvTruthy(process.env.DISABLE_UPDATES)) {
+    return { type: 'env', envVar: 'DISABLE_UPDATES' }
   }
   if (isEnvTruthy(process.env.DISABLE_AUTOUPDATER)) {
     return { type: 'env', envVar: 'DISABLE_AUTOUPDATER' }

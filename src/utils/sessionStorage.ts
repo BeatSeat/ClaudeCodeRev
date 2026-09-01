@@ -11,6 +11,7 @@ import {
   mkdir,
   readdir,
   readFile,
+  realpath,
   stat,
   unlink,
   writeFile,
@@ -47,6 +48,7 @@ import {
   type ContextCollapseCommitEntry,
   type ContextCollapseSnapshotEntry,
   type Entry,
+  type ForkContextRefEntry,
   type FileHistorySnapshotMessage,
   type LogOption,
   type PersistedWorktreeSession,
@@ -479,6 +481,70 @@ export function isCustomTitleEnabled(): boolean {
 export const getProjectDir = memoize((projectDir: string): string => {
   return join(getProjectsDir(), sanitizePath(projectDir))
 })
+
+/** 118 `ma7` */
+const SESSION_ALIASES_FILENAME = '.session-aliases'
+
+/**
+ * 118 `Cl8` — write the current session project dir into the added
+ * directory's `.session-aliases` so `--continue`/`--resume` can find it.
+ */
+export async function recordSessionAlias(addedDir: string): Promise<void> {
+  if (isSessionPersistenceDisabled()) {
+    return
+  }
+  let resolved = addedDir
+  try {
+    resolved = (await realpath(addedDir)).normalize('NFC')
+  } catch (e) {
+    if (!isENOENT(e)) {
+      logError(e)
+    }
+  }
+  const currentProjectDir =
+    getSessionProjectDir() ?? getProjectDir(getOriginalCwd())
+  const aliasProjectDir = getProjectDir(resolved)
+  if (aliasProjectDir === currentProjectDir) {
+    return
+  }
+  const aliasFile = join(aliasProjectDir, SESSION_ALIASES_FILENAME)
+  try {
+    const existing = await readFile(aliasFile, 'utf8')
+    if (existing.split('\n').includes(currentProjectDir)) {
+      return
+    }
+  } catch (e) {
+    if (!isENOENT(e)) {
+      logError(e)
+      return
+    }
+    try {
+      await mkdir(dirname(aliasFile), { recursive: true, mode: 0o700 })
+    } catch (err) {
+      logError(err)
+      return
+    }
+  }
+  try {
+    await fsAppendFile(aliasFile, currentProjectDir + '\n', { mode: 0o600 })
+  } catch (e) {
+    logError(e)
+  }
+}
+
+/** 118 `pa7` — project dirs recorded as aliases of `cwd`. */
+export async function readSessionAliases(cwd: string): Promise<string[]> {
+  const aliasFile = join(getProjectDir(cwd), SESSION_ALIASES_FILENAME)
+  try {
+    const text = await readFile(aliasFile, 'utf8')
+    return uniq(text.split('\n').filter(line => line.length > 0))
+  } catch (e) {
+    if (!isENOENT(e)) {
+      logError(e)
+    }
+    return []
+  }
+}
 
 let project: Project | null = null
 let cleanupRegistered = false
@@ -1354,6 +1420,12 @@ class Project {
         ? getAgentTranscriptPath(entry.agentId)
         : sessionFile
       void this.enqueueWrite(targetFile, entry)
+    } else if (entry.type === 'fork-context-ref') {
+      // 118 `Ia7["fork-context-ref"]="route-by-agent"`
+      const targetFile = entry.agentId
+        ? getAgentTranscriptPath(entry.agentId)
+        : sessionFile
+      void this.enqueueWrite(targetFile, entry)
     } else if (entry.type === 'marble-origami-commit') {
       // Always append. Commit order matters for restore (later commits may
       // reference earlier commits' summary messages), so these must be
@@ -1616,6 +1688,49 @@ export async function recordSidechainTranscript(
     agentId,
     startingParentUuid,
   )
+}
+
+/** 118 `ZY6` */
+export async function recordForkContextRef(
+  ref: Omit<ForkContextRefEntry, 'type'>,
+): Promise<void> {
+  await getProject().appendEntry({ type: 'fork-context-ref', ...ref })
+}
+
+const FORK_CONTEXT_REF_CACHE_MAX = 4
+const forkContextRefCache = new Map<UUID, Message[]>()
+
+/** 118 `WQ1` — LRU hydrate parent prefix; max 4. */
+export async function hydrateForkContextRef(
+  ref: ForkContextRefEntry,
+): Promise<Message[]> {
+  const cached = forkContextRefCache.get(ref.parentLastUuid)
+  if (cached) {
+    forkContextRefCache.delete(ref.parentLastUuid)
+    forkContextRefCache.set(ref.parentLastUuid, cached)
+    return cached
+  }
+  const parentFile = getTranscriptPathForSession(ref.parentSessionId)
+  const { messages } = await loadTranscriptFile(parentFile)
+  const parentMsg = messages.get(ref.parentLastUuid)
+  if (!parentMsg) {
+    logForDebugging(
+      `[fork-context-ref] parent uuid ${ref.parentLastUuid} not found in ${parentFile}; returning empty prefix`,
+      { level: 'warn' },
+    )
+    return []
+  }
+  const prefix = buildConversationChain(messages, parentMsg)
+    .filter(msg => !msg.isSidechain)
+    .map(({ isSidechain: _side, parentUuid: _parent, ...msg }) => msg)
+  if (forkContextRefCache.size >= FORK_CONTEXT_REF_CACHE_MAX) {
+    const oldest = forkContextRefCache.keys().next().value
+    if (oldest !== undefined) {
+      forkContextRefCache.delete(oldest)
+    }
+  }
+  forkContextRefCache.set(ref.parentLastUuid, prefix)
+  return prefix
 }
 
 export async function recordQueueOperation(queueOp: QueueOperationMessage) {
@@ -3700,6 +3815,7 @@ export async function loadTranscriptFile(
   attributionSnapshots: Map<UUID, AttributionSnapshotMessage>
   contentReplacements: Map<UUID, ContentReplacementRecord[]>
   agentContentReplacements: Map<AgentId, ContentReplacementRecord[]>
+  forkContextRefs: Map<AgentId, ForkContextRefEntry>
   contextCollapseCommits: ContextCollapseCommitEntry[]
   contextCollapseSnapshot: ContextCollapseSnapshotEntry | undefined
   leafUuids: Set<UUID>
@@ -3724,6 +3840,7 @@ export async function loadTranscriptFile(
     AgentId,
     ContentReplacementRecord[]
   >()
+  const forkContextRefs = new Map<AgentId, ForkContextRefEntry>()
   // Array, not Map — commit order matters (nested collapses).
   const contextCollapseCommits: ContextCollapseCommitEntry[] = []
   // Last-wins — later entries supersede.
@@ -3913,6 +4030,8 @@ export async function loadTranscriptFile(
           contentReplacements.set(entry.sessionId, existing)
           existing.push(...entry.replacements)
         }
+      } else if (entry.type === 'fork-context-ref') {
+        forkContextRefs.set(asAgentId(entry.agentId), entry)
       } else if (entry.type === 'marble-origami-commit') {
         contextCollapseCommits.push(entry)
       } else if (entry.type === 'marble-origami-snapshot') {
@@ -3975,6 +4094,7 @@ export async function loadTranscriptFile(
         attributionSnapshots,
         contentReplacements,
         agentContentReplacements,
+        forkContextRefs,
         contextCollapseCommits,
         contextCollapseSnapshot,
         leafUuids,
@@ -4108,6 +4228,7 @@ export async function loadTranscriptFile(
     attributionSnapshots,
     contentReplacements,
     agentContentReplacements,
+    forkContextRefs,
     contextCollapseCommits,
     contextCollapseSnapshot,
     leafUuids,
@@ -4239,14 +4360,26 @@ export async function getLastSessionLog(
  * @returns List of message logs sorted by date
  */
 export async function loadMessageLogs(limit?: number): Promise<LogOption[]> {
-  const sessionLogs = await fetchLogs(limit)
+  const cwd = getOriginalCwd()
+  const [sessionLogs, aliasDirs] = await Promise.all([
+    fetchLogs(limit),
+    readSessionAliases(cwd),
+  ])
+  let allLogs = sessionLogs
+  if (aliasDirs.length > 0) {
+    const aliasLogs = (
+      await Promise.all(aliasDirs.map(dir => getSessionFilesLite(dir, limit)))
+    )
+      .flat()
+      .map(log => ({ ...log, isAlias: true }))
+    allLogs = deduplicateLogsBySessionId(sessionLogs.concat(aliasLogs))
+    if (limit !== undefined) {
+      allLogs = allLogs.slice(0, limit)
+    }
+  }
   // fetchLogs returns lite (stat-only) logs — enrich them to get metadata.
   // enrichLogs already filters out sidechains, empty sessions, etc.
-  const { logs: enriched } = await enrichLogs(
-    sessionLogs,
-    0,
-    sessionLogs.length,
-  )
+  const { logs: enriched } = await enrichLogs(allLogs, 0, allLogs.length)
 
   // enrichLogs returns fresh unshared objects — mutate in place to avoid
   // re-spreading every 30-field LogOption just to renumber the index.
@@ -4418,11 +4551,37 @@ async function getStatOnlyLogsForWorktrees(
   limit?: number,
 ): Promise<LogOption[]> {
   const projectsDir = getProjectsDir()
+  const cwd = getOriginalCwd()
+  const slash = (p: string) => p.replaceAll('\\', '/')
+  const normalizedCwd = slash(cwd)
+  const parentWorktree = worktreePaths
+    .filter(p => {
+      const n = slash(p)
+      return normalizedCwd === n || normalizedCwd.startsWith(n + '/')
+    })
+    .sort((a, b) => b.length - a.length)[0]
+  const aliasSources =
+    parentWorktree && parentWorktree !== cwd ? [cwd, parentWorktree] : [cwd]
+  const aliasDirs = uniq(
+    (await Promise.all(aliasSources.map(readSessionAliases))).flat(),
+  )
+  const aliasLogs =
+    aliasDirs.length > 0
+      ? (
+          await Promise.all(
+            aliasDirs.map(dir => getSessionFilesLite(dir, limit)),
+          )
+        )
+          .flat()
+          .map(log => ({ ...log, isAlias: true }))
+      : []
 
   if (worktreePaths.length <= 1) {
-    const cwd = getOriginalCwd()
     const projectDir = getProjectDir(cwd)
-    return getSessionFilesLite(projectDir, undefined, cwd)
+    const logs = await getSessionFilesLite(projectDir, undefined, cwd)
+    return aliasLogs.length > 0
+      ? deduplicateLogsBySessionId(logs.concat(aliasLogs))
+      : logs
   }
 
   // On Windows, drive letter case can differ between git worktree list
@@ -4455,7 +4614,14 @@ async function getStatOnlyLogsForWorktrees(
       `Failed to read projects dir ${projectsDir}, falling back to current project: ${e}`,
     )
     const projectDir = getProjectDir(getOriginalCwd())
-    return getSessionFilesLite(projectDir, limit, getOriginalCwd())
+    const fallback = await getSessionFilesLite(
+      projectDir,
+      limit,
+      getOriginalCwd(),
+    )
+    return aliasLogs.length > 0
+      ? deduplicateLogsBySessionId(fallback.concat(aliasLogs))
+      : fallback
   }
 
   for (const dirent of allDirents) {
@@ -4484,7 +4650,7 @@ async function getStatOnlyLogsForWorktrees(
 
   // Deduplicate by sessionId — the same session can appear in multiple
   // worktree project dirs. Keep the entry with the newest modified time.
-  return deduplicateLogsBySessionId(nested.flat())
+  return deduplicateLogsBySessionId(nested.flat().concat(aliasLogs))
 }
 
 /**
@@ -4501,7 +4667,7 @@ export async function getAgentTranscript(agentId: AgentId): Promise<{
   const agentFile = getAgentTranscriptPath(agentId)
 
   try {
-    const { messages, agentContentReplacements } =
+    const { messages, agentContentReplacements, forkContextRefs } =
       await loadTranscriptFile(agentFile)
 
     // Find messages with matching agentId
@@ -4529,12 +4695,16 @@ export async function getAgentTranscript(agentId: AgentId): Promise<{
 
     // Filter to only include messages with this agentId
     const agentTranscript = transcript.filter(msg => msg.agentId === agentId)
+    const sidechain = agentTranscript.map(
+      ({ isSidechain, parentUuid, ...msg }) => msg,
+    )
+    const ref = forkContextRefs.get(agentId)
 
     return {
-      // Convert TranscriptMessage[] to Message[]
-      messages: agentTranscript.map(
-        ({ isSidechain, parentUuid, ...msg }) => msg,
-      ),
+      messages:
+        ref === undefined
+          ? sidechain
+          : (await hydrateForkContextRef(ref)).concat(sidechain),
       contentReplacements: agentContentReplacements.get(agentId) ?? [],
     }
   } catch {

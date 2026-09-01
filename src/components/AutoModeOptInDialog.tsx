@@ -1,6 +1,7 @@
 import React from 'react'
 import { logEvent } from 'src/services/analytics/index.js'
 import { Box, Link, Text } from '../ink.js'
+import { getGlobalConfig, saveGlobalConfig } from '../utils/config.js'
 import { updateSettingsForSource } from '../utils/settings/settings.js'
 import { Select } from './CustomSelect/index.js'
 import { Dialog } from './design-system/Dialog.js'
@@ -25,7 +26,19 @@ export function AutoModeOptInDialog({
     logEvent('tengu_auto_mode_opt_in_dialog_shown', {})
   }, [])
 
-  function onChange(value: 'accept' | 'accept-default' | 'decline') {
+  function onChange(
+    value: 'accept' | 'accept-default' | 'decline' | 'decline-dont-ask',
+  ) {
+    // Official 2.1.118: accepting after a prior "don't ask again" clears the flag.
+    if (
+      (value === 'accept' || value === 'accept-default') &&
+      getGlobalConfig().autoModeOptInDismissed
+    ) {
+      saveGlobalConfig(current => ({
+        ...current,
+        autoModeOptInDismissed: undefined,
+      }))
+    }
     switch (value) {
       case 'accept': {
         logEvent('tengu_auto_mode_opt_in_dialog_accept', {})
@@ -46,6 +59,17 @@ export function AutoModeOptInDialog({
       }
       case 'decline': {
         logEvent('tengu_auto_mode_opt_in_dialog_decline', {})
+        onDecline()
+        break
+      }
+      case 'decline-dont-ask': {
+        logEvent('tengu_auto_mode_opt_in_dialog_decline_dont_ask', {})
+        if (!getGlobalConfig().autoModeOptInDismissed) {
+          saveGlobalConfig(current => ({
+            ...current,
+            autoModeOptInDismissed: true,
+          }))
+        }
         onDecline()
         break
       }
@@ -75,9 +99,23 @@ export function AutoModeOptInDialog({
             label: declineExits ? 'No, exit' : 'No, go back',
             value: 'decline' as const,
           },
+          ...(declineExits
+            ? []
+            : [
+                {
+                  label: "No, don't ask again",
+                  value: 'decline-dont-ask' as const,
+                },
+              ]),
         ]}
         onChange={value =>
-          onChange(value as 'accept' | 'accept-default' | 'decline')
+          onChange(
+            value as
+              | 'accept'
+              | 'accept-default'
+              | 'decline'
+              | 'decline-dont-ask',
+          )
         }
         onCancel={onDecline}
       />

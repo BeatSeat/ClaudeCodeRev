@@ -11,6 +11,7 @@ import {
   type InstallMethod,
   saveGlobalConfig,
 } from 'src/utils/config.js'
+import { isEnvTruthy } from 'src/utils/envUtils.js'
 import { logForDebugging } from 'src/utils/debug.js'
 import { getDoctorDiagnostic } from 'src/utils/doctorDiagnostic.js'
 import { gracefulShutdown } from 'src/utils/gracefulShutdown.js'
@@ -32,6 +33,13 @@ import { gte } from 'src/utils/semver.js'
 import { getInitialSettings } from 'src/utils/settings/settings.js'
 
 export async function update() {
+  // Official 2.1.118 TA5: DISABLE_UPDATES blocks `claude update` entirely.
+  if (isEnvTruthy(process.env.DISABLE_UPDATES)) {
+    writeToStdout(
+      'Updates are disabled by your administrator. Contact your IT team to get the latest version.\n',
+    )
+    await gracefulShutdown(0)
+  }
   logEvent('tengu_update_check', {})
   writeToStdout(`Current version: ${MACRO.VERSION}\n`)
 

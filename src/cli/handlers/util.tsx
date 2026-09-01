@@ -16,6 +16,7 @@ import { MCPConnectionManager } from '../../services/mcp/MCPConnectionManager.js
 import { AppStateProvider } from '../../state/AppState.js'
 import { onChangeAppState } from '../../state/onChangeAppState.js'
 import { isAnthropicAuthEnabled } from '../../utils/auth.js'
+import { isEnvTruthy } from '../../utils/envUtils.js'
 
 export async function setupTokenHandler(root: Root): Promise<void> {
   logEvent('tengu_setup_token_command', {})
@@ -106,6 +107,13 @@ export async function installHandler(
   target: string | undefined,
   options: { force?: boolean },
 ): Promise<void> {
+  // Official 2.1.118 e55: DISABLE_UPDATES blocks `claude install` too.
+  if (isEnvTruthy(process.env.DISABLE_UPDATES)) {
+    process.stdout.write(
+      'Updates are disabled by your administrator. Contact your IT team to get the latest version.\n',
+    )
+    process.exit(0)
+  }
   const { setup } = await import('../../setup.js')
   await setup(cwd(), 'default', false, false, undefined, false)
   const { install } = await import('../../commands/install.js')

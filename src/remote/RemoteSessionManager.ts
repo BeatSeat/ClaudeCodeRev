@@ -12,9 +12,9 @@ import {
   sendEventToRemoteSession,
 } from '../utils/teleport/api.js'
 import {
-  SessionsWebSocket,
-  type SessionsWebSocketCallbacks,
-} from './SessionsWebSocket.js'
+  SessionsV2Client,
+  type SessionsV2ClientCallbacks,
+} from './SessionsV2Client.js'
 
 /**
  * Type guard to check if a message is an SDKMessage (not a control message)
@@ -93,7 +93,7 @@ export type RemoteSessionCallbacks = {
  * - Permission request/response flow
  */
 export class RemoteSessionManager {
-  private websocket: SessionsWebSocket | null = null
+  private client: SessionsV2Client | null = null
   private pendingPermissionRequests: Map<string, SDKControlPermissionRequest> =
     new Map()
 
@@ -110,7 +110,7 @@ export class RemoteSessionManager {
       `[RemoteSessionManager] Connecting to session ${this.config.sessionId}`,
     )
 
-    const wsCallbacks: SessionsWebSocketCallbacks = {
+    const clientCallbacks: SessionsV2ClientCallbacks = {
       onMessage: message => this.handleMessage(message),
       onConnected: () => {
         logForDebugging('[RemoteSessionManager] Connected')
@@ -130,14 +130,14 @@ export class RemoteSessionManager {
       },
     }
 
-    this.websocket = new SessionsWebSocket(
+    this.client = new SessionsV2Client(
       this.config.sessionId,
       this.config.orgUuid,
       this.config.getAccessToken,
-      wsCallbacks,
+      clientCallbacks,
     )
 
-    void this.websocket.connect()
+    void this.client.connect()
   }
 
   /**
@@ -209,7 +209,7 @@ export class RemoteSessionManager {
           error: `Unsupported control request subtype: ${inner.subtype}`,
         },
       }
-      this.websocket?.sendControlResponse(response)
+      this.client?.sendControlResponse(response)
     }
   }
 
@@ -278,14 +278,14 @@ export class RemoteSessionManager {
       `[RemoteSessionManager] Sending permission response: ${result.behavior}`,
     )
 
-    this.websocket?.sendControlResponse(response)
+    this.client?.sendControlResponse(response)
   }
 
   /**
    * Check if connected to the remote session
    */
   isConnected(): boolean {
-    return this.websocket?.isConnected() ?? false
+    return this.client?.isConnected() ?? false
   }
 
   /**
@@ -293,7 +293,7 @@ export class RemoteSessionManager {
    */
   cancelSession(): void {
     logForDebugging('[RemoteSessionManager] Sending interrupt signal')
-    this.websocket?.sendControlRequest({ subtype: 'interrupt' })
+    this.client?.sendControlRequest({ subtype: 'interrupt' })
   }
 
   /**
@@ -308,8 +308,8 @@ export class RemoteSessionManager {
    */
   disconnect(): void {
     logForDebugging('[RemoteSessionManager] Disconnecting')
-    this.websocket?.close()
-    this.websocket = null
+    this.client?.close()
+    this.client = null
     this.pendingPermissionRequests.clear()
   }
 
@@ -318,8 +318,8 @@ export class RemoteSessionManager {
    * Useful when the subscription becomes stale after container shutdown.
    */
   reconnect(): void {
-    logForDebugging('[RemoteSessionManager] Reconnecting WebSocket')
-    this.websocket?.reconnect()
+    logForDebugging('[RemoteSessionManager] Reconnecting SSE stream')
+    this.client?.reconnect()
   }
 }
 

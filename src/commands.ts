@@ -19,7 +19,7 @@ import {
 } from './commands/autocompact/index.js'
 import config from './commands/config/index.js'
 import { context, contextNonInteractive } from './commands/context/index.js'
-import cost from './commands/cost/index.js'
+import usage, { usageNonInteractive } from './commands/usage/index.js'
 import diff from './commands/diff/index.js'
 import ctx_viz from './commands/ctx_viz/index.js'
 import doctor from './commands/doctor/index.js'
@@ -59,7 +59,6 @@ const agentsPlatform =
 import securityReview from './commands/security-review.js'
 import bughunter from './commands/bughunter/index.js'
 import terminalSetup from './commands/terminalSetup/index.js'
-import usage from './commands/usage/index.js'
 import theme from './commands/theme/index.js'
 import tui from './commands/tui/index.js'
 import focus from './commands/focus/index.js'
@@ -196,7 +195,6 @@ import {
 import rateLimitOptions from './commands/rate-limit-options/index.js'
 import statusline from './commands/statusline.js'
 import effort from './commands/effort/index.js'
-import stats from './commands/stats/index.js'
 // insights.ts is 113KB (3200 lines, includes diffLines/html rendering). Lazy
 // shim defers the heavy module until /insights is actually invoked.
 const usageReport: Command = {
@@ -284,7 +282,6 @@ const COMMANDS = memoize((): Command[] => [
   desktop,
   context,
   contextNonInteractive,
-  cost,
   diff,
   doctor,
   effort,
@@ -315,7 +312,6 @@ const COMMANDS = memoize((): Command[] => [
   resume,
   session,
   skills,
-  stats,
   status,
   statusline,
   stickers,
@@ -334,6 +330,7 @@ const COMMANDS = memoize((): Command[] => [
   extraUsageNonInteractive,
   rateLimitOptions,
   usage,
+  usageNonInteractive,
   usageReport,
   ...(webCmd ? [webCmd] : []),
   ...(forkCmd ? [forkCmd] : []),
@@ -644,8 +641,7 @@ export const REMOTE_SAFE_COMMANDS: Set<Command> = new Set([
   help, // Show help
   theme, // Change terminal theme
   color, // Change agent color
-  cost, // Show session cost (local cost tracking)
-  usage, // Show usage info
+  usage, // Show session cost, plan usage, and activity stats
   copy, // Copy last message
   btw, // Quick note
   feedback, // Send feedback
@@ -672,7 +668,7 @@ export const BRIDGE_SAFE_COMMANDS: Set<Command> = new Set(
   [
     compact, // Shrink context — useful mid-session from a phone
     clear, // Wipe transcript
-    cost, // Show session cost
+    usageNonInteractive, // Official 2.1.118 — /usage (aliases /cost /stats) from RC
     summary, // Summarize conversation
     releaseNotes, // Show changelog
     files, // List tracked files

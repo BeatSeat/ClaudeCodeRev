@@ -3495,10 +3495,20 @@ async function assemblePluginLoadResult(
   // 3. Cache plugin settings for synchronous access by the settings cascade
   cachePluginSettings(enabledPlugins)
 
+  // Official 2.1.118: autoupdate-held version-constraint errors belong
+  // in the same list /doctor and /plugin Errors already render.
+  let held: PluginError[] = []
+  try {
+    const { getAutoupdateHeldErrors } = await import('./pluginAutoupdate.js')
+    held = getAutoupdateHeldErrors()
+  } catch {
+    // Cycle-safe: autoupdate module may not be ready during early load.
+  }
+
   return {
     enabled: enabledPlugins,
     disabled: allPlugins.filter(p => !p.enabled),
-    errors: allErrors,
+    errors: held.length > 0 ? [...allErrors, ...held] : allErrors,
   }
 }
 

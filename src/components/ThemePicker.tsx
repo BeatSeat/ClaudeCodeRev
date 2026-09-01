@@ -4,10 +4,15 @@ import { useTerminalSize } from '../hooks/useTerminalSize.js'
 import {
   Box,
   Text,
+  useCustomThemes,
   usePreviewTheme,
   useTheme,
   useThemeSetting,
 } from '../ink.js'
+import {
+  toCustomThemeSetting,
+  type CustomTheme,
+} from '../utils/customThemes.js'
 import { useRegisterKeybindingContext } from '../keybindings/KeybindingContext.js'
 import { useKeybinding } from '../keybindings/useKeybinding.js'
 import { useShortcutDisplay } from '../keybindings/useShortcutDisplay.js'
@@ -24,6 +29,8 @@ import {
 } from './StructuredDiff/colorDiff.js'
 import { StructuredDiff } from './StructuredDiff.js'
 
+const NEW_CUSTOM_THEME = '__new_custom_theme__'
+
 export type ThemePickerProps = {
   onThemeSelect: (setting: ThemeSetting) => void
   showIntroText?: boolean
@@ -34,6 +41,8 @@ export type ThemePickerProps = {
   skipExitHandling?: boolean
   /** Called when the user cancels (presses Escape). If skipExitHandling is true and this is provided, it will be called instead of just saving the preview. */
   onCancel?: () => void
+  /** Official 2.1.118 `$BH.onCustomTheme`. */
+  onCustomTheme?: (initial?: CustomTheme) => void
 }
 
 export function ThemePicker({
@@ -44,6 +53,7 @@ export function ThemePicker({
   hideEscToCancel = false,
   skipExitHandling = false,
   onCancel: onCancelProp,
+  onCustomTheme,
 }: ThemePickerProps): React.ReactNode {
   const [theme] = useTheme()
   const themeSetting = useThemeSetting()
@@ -86,7 +96,9 @@ export function ThemePicker({
     skipExitHandling ? () => {} : undefined,
   )
 
-  const themeOptions: { label: string; value: ThemeSetting }[] = [
+  const { customThemes } = useCustomThemes()
+
+  const themeOptions: { label: string; value: string }[] = [
     { label: 'Auto (match terminal)', value: 'auto' },
     { label: 'Dark mode', value: 'dark' },
     { label: 'Light mode', value: 'light' },
@@ -106,6 +118,13 @@ export function ThemePicker({
       label: 'Light mode (ANSI colors only)',
       value: 'light-ansi',
     },
+    ...customThemes.map(t => ({
+      label: t.name,
+      value: toCustomThemeSetting(t.slug),
+    })),
+    ...(onCustomTheme
+      ? [{ label: 'New custom theme…', value: NEW_CUSTOM_THEME }]
+      : []),
   ]
 
   const content = (
@@ -127,9 +146,19 @@ export function ThemePicker({
         <Select
           options={themeOptions}
           onFocus={setting => {
+            // Official 2.1.118: $w6 cancels preview on focus; editor opens on select.
+            if (setting === NEW_CUSTOM_THEME) {
+              cancelPreview()
+              return
+            }
             setPreviewTheme(setting as ThemeSetting)
           }}
           onChange={(setting: string) => {
+            if (setting === NEW_CUSTOM_THEME) {
+              cancelPreview()
+              onCustomTheme?.()
+              return
+            }
             savePreview()
             onThemeSelect(setting as ThemeSetting)
           }}

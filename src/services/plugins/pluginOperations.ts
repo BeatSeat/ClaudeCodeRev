@@ -54,7 +54,10 @@ import {
   formatResolutionError,
   installResolvedPlugin,
 } from '../../utils/plugins/pluginInstallationHelpers.js'
-import { installMissingDependenciesForPlugin } from '../../utils/plugins/resolveMissingDependencies.js'
+import {
+  getAlreadyInstalledDependencyErrors,
+  installMissingDependenciesForPlugin,
+} from '../../utils/plugins/resolveMissingDependencies.js'
 import {
   cachePlugin,
   copyPluginToVersionedCache,
@@ -411,15 +414,26 @@ export async function installPluginOp(
   const entry = foundPlugin
   const pluginId = `${entry.name}@${foundMarketplace}`
 
-  // Official 2.1.117: already-installed → install missing deps instead of stopping
+  // Official 2.1.117: already-installed → install missing deps instead of stopping.
+  // Official 2.1.118 extra gate: only take that path when every remaining
+  // error is dependency-unsatisfied / not-found. Wrong-version deps fall
+  // through to install so they re-resolve. KEEP 117 installed-unsatisfied.
   if (await isPluginInstalledAtScope(pluginId, scope)) {
-    const missing = await installMissingDependenciesForPlugin(pluginId)
-    return {
-      success: true,
-      message: `Plugin "${pluginId}" is already installed (scope: ${scope})${missing?.suffix ?? ''}`,
-      pluginId,
-      pluginName: entry.name,
-      scope,
+    const forPlugin = await getAlreadyInstalledDependencyErrors(pluginId)
+    if (
+      !forPlugin.some(
+        w =>
+          w.type !== 'dependency-unsatisfied' || w.reason !== 'not-found',
+      )
+    ) {
+      const missing = await installMissingDependenciesForPlugin(pluginId)
+      return {
+        success: true,
+        message: `Plugin "${pluginId}" is already installed (scope: ${scope})${missing?.suffix ?? ''}`,
+        pluginId,
+        pluginName: entry.name,
+        scope,
+      }
     }
   }
 

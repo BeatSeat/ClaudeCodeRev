@@ -232,6 +232,8 @@ export function buildSettingSourcesProperties(): Property[] {
             }
             return 'Enterprise managed settings (file)'
           }
+          case 'parent':
+            return 'Enterprise managed settings (parent process)'
           case 'hkcu':
             return 'Enterprise managed settings (HKCU)'
         }

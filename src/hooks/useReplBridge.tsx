@@ -1,6 +1,6 @@
 import { feature } from 'bun:bundle'
 import React, { useCallback, useEffect, useRef } from 'react'
-import { setMainLoopModelOverride } from '../bootstrap/state.js'
+import { getSessionId, setMainLoopModelOverride } from '../bootstrap/state.js'
 import {
   type BridgePermissionCallbacks,
   type BridgePermissionResponse,
@@ -46,6 +46,15 @@ import {
   transitionPermissionMode,
 } from '../utils/permissions/permissionSetup.js'
 import { getLeaderToolUseConfirmQueue } from '../utils/swarm/leaderPermissionBridge.js'
+import {
+  AGENT_COLORS,
+  type AgentColorName,
+} from '../tools/AgentTool/agentColorManager.js'
+import {
+  getTranscriptPath,
+  saveAgentColor,
+} from '../utils/sessionStorage.js'
+import type { UUID } from 'crypto'
 
 /** How long after a failure before replBridgeEnabled is auto-cleared (stops retries). */
 export const BRIDGE_FAILURE_DISMISS_MS = 10_000
@@ -491,6 +500,41 @@ export function useReplBridge(
                 if (prev.thinkingEnabled === enabled) return prev
                 return { ...prev, thinkingEnabled: enabled }
               })
+            },
+            onSetColor(color) {
+              // Official 2.1.118: inbound set_color from claude.ai/code.
+              const isDefault = color === 'default'
+              if (!isDefault && !AGENT_COLORS.includes(color as AgentColorName)) {
+                return {
+                  ok: false as const,
+                  error: `Unknown color "${color}". Available: ${AGENT_COLORS.join(', ')}, default`,
+                }
+              }
+              const sessionId = getSessionId()
+              if (sessionId) {
+                void saveAgentColor(
+                  sessionId as UUID,
+                  isDefault ? 'default' : color,
+                  getTranscriptPath(),
+                )
+              }
+              setAppState(prev => {
+                const nextColor = isDefault
+                  ? undefined
+                  : (color as AgentColorName)
+                if (prev.standaloneAgentContext?.color === nextColor) {
+                  return prev
+                }
+                return {
+                  ...prev,
+                  standaloneAgentContext: {
+                    ...prev.standaloneAgentContext,
+                    name: prev.standaloneAgentContext?.name ?? '',
+                    color: nextColor,
+                  },
+                }
+              })
+              return { ok: true as const }
             },
             onSetPermissionMode(mode) {
               // Policy guards MUST fire before transitionPermissionMode —

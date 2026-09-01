@@ -402,6 +402,11 @@ export async function initializeKeybindingWatcher(): Promise<void> {
   watcher.on('add', handleChange)
   watcher.on('change', handleChange)
   watcher.on('unlink', handleDelete)
+  watcher.on('error', err =>
+    logForDebugging(`[keybindings] watcher error: ${errorMessage(err)}`, {
+      level: 'warn',
+    }),
+  )
 
   // Register cleanup
   registerCleanup(async () => disposeKeybindingWatcher())

@@ -52,6 +52,12 @@ import {
 import { formatDependencyCountSuffix } from '../../utils/plugins/dependencyResolver.js'
 import { loadAllPlugins } from '../../utils/plugins/pluginLoader.js'
 import { resolveMissingDependencies } from '../../utils/plugins/resolveMissingDependencies.js'
+import {
+  createPluginTag,
+  formatPluginTagDryRun,
+  planPluginTag,
+  PLUGIN_TAG_USAGE,
+} from '../../utils/plugins/pluginTag.js'
 import type { PluginSource } from '../../utils/plugins/schemas.js'
 import {
   type ValidationResult,
@@ -154,6 +160,79 @@ export async function pluginValidateHandler(
     )
     process.exit(2)
   }
+}
+
+export { PLUGIN_TAG_USAGE }
+
+// Official 2.1.118 $A5 pluginTagHandler
+export async function pluginTagHandler(
+  pathArg: string | undefined,
+  options: {
+    push?: boolean
+    dryRun?: boolean
+    force?: boolean
+    message?: string
+    remote?: string
+  },
+): Promise<void> {
+  const planned = await planPluginTag(pathArg ?? '.', { force: options.force })
+  const lines: string[] = []
+  for (const warning of planned.warnings) {
+    lines.push(`${figures.warning} ${warning}`)
+  }
+  if ('error' in planned) {
+    lines.push(`${figures.cross} ${planned.error}`)
+    // biome-ignore lint/suspicious/noConsole:: intentional console output
+    console.log(lines.join('\n'))
+    process.exit(1)
+  }
+  const { plan } = planned
+  lines.push(`Plugin:  ${plan.pluginName}`)
+  lines.push(`Version: ${plan.version} (from ${plan.versionFrom})`)
+  if (plan.marketplace) {
+    lines.push(
+      `Marketplace entry: plugins[${plan.marketplace.entryIndex}] in ${plan.marketplace.path}` +
+        (plan.marketplace.entryVersion
+          ? ` (version: ${plan.marketplace.entryVersion})`
+          : ''),
+    )
+  }
+  lines.push(`Tag:     ${plan.tag}`, '')
+  const remote = options.remote ?? 'origin'
+  const force = options.force ?? false
+  const pushCmd = `git -C ${plan.gitRoot} push ${force ? '--force ' : ''}${remote} refs/tags/${plan.tag}`
+  if (options.dryRun) {
+    const [dryHead, ...dryRest] = formatPluginTagDryRun(plan, {
+      force,
+      remote,
+      message: options.message,
+    })
+    lines.push(`${figures.tick} ${dryHead}`, ...dryRest)
+    // biome-ignore lint/suspicious/noConsole:: intentional console output
+    console.log(lines.join('\n'))
+    process.exit(0)
+  }
+  const created = await createPluginTag(plan, {
+    push: options.push ?? false,
+    force,
+    message: options.message,
+    remote,
+  })
+  if ('error' in created) {
+    lines.push(`${figures.cross} ${created.error}`)
+    // biome-ignore lint/suspicious/noConsole:: intentional console output
+    console.log(lines.join('\n'))
+    process.exit(1)
+  }
+  lines.push(`${figures.tick} Created tag ${plan.tag}`)
+  if (created.pushed) {
+    lines.push(`${figures.tick} Pushed to ${remote}`)
+  } else {
+    lines.push(`  Push with: ${pushCmd}`)
+  }
+  // biome-ignore lint/suspicious/noConsole:: intentional console output
+  console.log(lines.join('\n'))
+  process.exit(0)
 }
 
 // plugin list (lines 5217–5416)

@@ -5,8 +5,8 @@ import type { ClickEvent } from '../../ink/events/click-event.js'
 import type { FocusEvent } from '../../ink/events/focus-event.js'
 import type { KeyboardEvent } from '../../ink/events/keyboard-event.js'
 import type { Color, Styles } from '../../ink/styles.js'
-import { getTheme, type Theme } from '../../utils/theme.js'
-import { useTheme } from './ThemeProvider.js'
+import type { Theme } from '../../utils/theme.js'
+import { useResolvedTheme } from './ThemeProvider.js'
 
 // Color props that accept theme keys
 type ThemedColorProps = {
@@ -82,8 +82,7 @@ function ThemedBox({
   ref,
   ...rest
 }: PropsWithChildren<Props>): React.ReactNode {
-  const [themeName] = useTheme()
-  const theme = getTheme(themeName)
+  const theme = useResolvedTheme()
 
   // Resolve theme keys to raw colors
   const resolvedBorderColor = resolveColor(borderColor, theme)

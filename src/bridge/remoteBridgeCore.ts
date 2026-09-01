@@ -93,6 +93,14 @@ export type EnvLessBridgeParams = {
   getAccessToken: () => string | undefined
   onAuth401?: (staleAccessToken: string) => Promise<boolean>
   /**
+   * Official 2.1.118: refresh OAuth before the proactive JWT /bridge
+   * re-call so a refresh blip does not archive the session.
+   */
+  onProactiveRefresh?: () => Promise<void>
+  /** Official 2.1.118: reattach an existing cse_* instead of creating. */
+  reattachSessionId?: string
+  reattachSequenceNum?: number
+  /**
    * Converts internal Message[] → SDKMessage[] for writeMessages() and the
    * initial-flush/drain paths. Injected rather than imported — mappers.ts
    * transitively pulls in src/commands.ts (entire command registry + React
@@ -121,6 +129,9 @@ export type EnvLessBridgeParams = {
   ) => { ok: true } | { ok: false; error: string }
   onRenameSession?: (
     title: string,
+  ) => { ok: true } | { ok: false; error: string }
+  onSetColor?: (
+    color: string,
   ) => { ok: true } | { ok: false; error: string }
   onFileSuggestions?: (
     query: string,
@@ -152,6 +163,9 @@ export async function initEnvLessBridgeCore(
     title,
     getAccessToken,
     onAuth401,
+    onProactiveRefresh,
+    reattachSessionId,
+    reattachSequenceNum,
     toSDKMessages,
     initialHistoryCap,
     initialMessages,
@@ -163,6 +177,7 @@ export async function initEnvLessBridgeCore(
     onSetMaxThinkingTokens,
     onSetPermissionMode,
     onRenameSession,
+    onSetColor,
     onFileSuggestions,
     onStateChange,
     outboundOnly,
@@ -178,20 +193,28 @@ export async function initEnvLessBridgeCore(
     return null
   }
 
-  const createdSessionId = await withRetry(
-    () =>
-      createCodeSession(baseUrl, accessToken, title, cfg.http_timeout_ms, tags),
-    'createCodeSession',
-    cfg,
-  )
-  if (!createdSessionId) {
-    onStateChange?.('failed', 'Session creation failed — see debug log')
-    logBridgeSkip('v2_session_create_failed', undefined, true)
-    return null
+  const reattaching = !!reattachSessionId
+  let sessionId: string
+  if (reattachSessionId) {
+    sessionId = reattachSessionId
+    logForDebugging(`[remote-bridge] Reattaching to session ${sessionId}`)
+    logForDiagnosticsNoPII('info', 'bridge_repl_v2_session_reattached')
+  } else {
+    const createdSessionId = await withRetry(
+      () =>
+        createCodeSession(baseUrl, accessToken, title, cfg.http_timeout_ms, tags),
+      'createCodeSession',
+      cfg,
+    )
+    if (!createdSessionId) {
+      onStateChange?.('failed', 'Session creation failed — see debug log')
+      logBridgeSkip('v2_session_create_failed', undefined, true)
+      return null
+    }
+    sessionId = createdSessionId
+    logForDebugging(`[remote-bridge] Created session ${sessionId}`)
+    logForDiagnosticsNoPII('info', 'bridge_repl_v2_session_created')
   }
-  const sessionId: string = createdSessionId
-  logForDebugging(`[remote-bridge] Created session ${sessionId}`)
-  logForDiagnosticsNoPII('info', 'bridge_repl_v2_session_created')
 
   // ── 2. Fetch bridge credentials (POST /bridge → worker_jwt, expires_in, api_base_url) ──
   const credentials = await withRetry(
@@ -220,13 +243,15 @@ export async function initEnvLessBridgeCore(
       undefined,
       true,
     )
-    void archiveSession(
-      sessionId,
-      baseUrl,
-      accessToken,
-      orgUUID,
-      cfg.http_timeout_ms,
-    )
+    if (!reattaching) {
+      void archiveSession(
+        sessionId,
+        baseUrl,
+        accessToken,
+        orgUUID,
+        cfg.http_timeout_ms,
+      )
+    }
     return null
   }
   logForDebugging(
@@ -253,6 +278,7 @@ export async function initEnvLessBridgeCore(
       // rebuilt on refresh (rebuildTransport below).
       getAuthToken: () => credentials.worker_jwt,
       outboundOnly,
+      initialSequenceNum: reattachSequenceNum,
     })
   } catch (err) {
     logForDebugging(
@@ -261,13 +287,15 @@ export async function initEnvLessBridgeCore(
     )
     onStateChange?.('failed', `Transport setup failed: ${errorMessage(err)}`)
     logBridgeSkip('v2_transport_setup_failed', undefined, true)
-    void archiveSession(
-      sessionId,
-      baseUrl,
-      accessToken,
-      orgUUID,
-      cfg.http_timeout_ms,
-    )
+    if (!reattaching) {
+      void archiveSession(
+        sessionId,
+        baseUrl,
+        accessToken,
+        orgUUID,
+        cfg.http_timeout_ms,
+      )
+    }
     return null
   }
   logForDebugging(
@@ -337,12 +365,10 @@ export async function initEnvLessBridgeCore(
   const refresh = createTokenRefreshScheduler({
     refreshBufferMs: cfg.token_refresh_buffer_ms,
     getAccessToken: async () => {
-      // Unconditionally refresh OAuth before calling /bridge — getAccessToken()
-      // returns expired tokens as non-null strings (doesn't check expiresAt),
-      // so truthiness doesn't mean valid. Pass the stale token to onAuth401
-      // so handleOAuth401Error's keychain-comparison can detect parallel refresh.
+      // Official 2.1.118: if(f)await f() — proactive OAuth refresh before
+      // /bridge so a JWT blip does not archive the session.
       const stale = getAccessToken()
-      if (onAuth401) await onAuth401(stale ?? '')
+      if (onProactiveRefresh) await onProactiveRefresh()
       return getAccessToken() ?? stale
     },
     onRefresh: (sid, oauthToken) => {
@@ -469,6 +495,7 @@ export async function initEnvLessBridgeCore(
             onSetMaxThinkingTokens,
             onSetPermissionMode,
             onRenameSession,
+            onSetColor,
             onFileSuggestions,
             outboundOnly,
           }),

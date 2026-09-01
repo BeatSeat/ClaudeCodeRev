@@ -954,16 +954,18 @@ export function buildPlanApprovalOptions({
   const options: OptionWithDescription<ResponseValue>[] = []
   const usedLabel = usedPercent !== null ? ` (${usedPercent}% used)` : ''
 
+  // Official 2.1.118 va1: bypass permissions wins over auto when
+  // --dangerously-skip-permissions is available (if(_) else if(K)).
   if (showClearContext) {
-    if (feature('TRANSCRIPT_CLASSIFIER') && isAutoModeAvailable) {
-      options.push({
-        label: `Yes, clear context${usedLabel} and use auto mode`,
-        value: 'yes-auto-clear-context',
-      })
-    } else if (isBypassPermissionsModeAvailable) {
+    if (isBypassPermissionsModeAvailable) {
       options.push({
         label: `Yes, clear context${usedLabel} and bypass permissions`,
         value: 'yes-bypass-permissions',
+      })
+    } else if (feature('TRANSCRIPT_CLASSIFIER') && isAutoModeAvailable) {
+      options.push({
+        label: `Yes, clear context${usedLabel} and use auto mode`,
+        value: 'yes-auto-clear-context',
       })
     } else {
       options.push({
@@ -973,16 +975,15 @@ export function buildPlanApprovalOptions({
     }
   }
 
-  // Slot 2: keep-context with elevated mode (same priority: auto > bypass > edits).
-  if (feature('TRANSCRIPT_CLASSIFIER') && isAutoModeAvailable) {
-    options.push({
-      label: 'Yes, and use auto mode',
-      value: 'yes-resume-auto-mode',
-    })
-  } else if (isBypassPermissionsModeAvailable) {
+  if (isBypassPermissionsModeAvailable) {
     options.push({
       label: 'Yes, and bypass permissions',
       value: 'yes-accept-edits-keep-context',
+    })
+  } else if (feature('TRANSCRIPT_CLASSIFIER') && isAutoModeAvailable) {
+    options.push({
+      label: 'Yes, and use auto mode',
+      value: 'yes-resume-auto-mode',
     })
   } else {
     options.push({
