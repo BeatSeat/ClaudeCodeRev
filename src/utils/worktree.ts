@@ -18,6 +18,7 @@ import { realpath } from 'fs/promises'
 import { basename, dirname, isAbsolute, join, resolve, sep } from 'path'
 import { saveCurrentProjectConfig } from './config.js'
 import { getCwd } from './cwd.js'
+import { getBgSpawnProviderEnv } from './swarm/spawnUtils.js'
 import { logForDebugging } from './debug.js'
 import { errorMessage, getErrnoCode } from './errors.js'
 import { execFileNoThrow, execFileNoThrowWithCwd } from './execFileNoThrow.js'
@@ -222,6 +223,10 @@ export function getBackgroundSessionPromptSection(): string | null {
   if (process.env.CLAUDE_CODE_SESSION_KIND !== 'bg') return null
   const jobDir = process.env.CLAUDE_JOB_DIR
   if (!jobDir) return null
+  // Official 2.1.144 `ay4` is the env bag Pd() copies into bg spawn. Keep
+  // the helper in this bg-session module graph so empty
+  // CLAUDE_SECURESTORAGE_CONFIG_DIR survives bundling.
+  getBgSpawnProviderEnv()
   const isolationHint =
     getBgIsolation() === 'none'
       ? 'This repository is configured with `worktree.bgIsolation: none` \u2014 edit files directly in your working directory; do not call EnterWorktree.'

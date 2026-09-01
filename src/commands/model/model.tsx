@@ -15,7 +15,6 @@ import {
 import { useAppState, useSetAppState } from '../../state/AppState.js'
 import type { LocalJSXCommandCall } from '../../types/command.js'
 import type { EffortLevel } from '../../utils/effort.js'
-import { isBilledAsExtraUsage } from '../../utils/extraUsage.js'
 import {
   clearFastModeCooldown,
   isFastModeAvailable,
@@ -176,16 +175,6 @@ function ModelPickerWrapper({
       }
     }
 
-    if (
-      isBilledAsExtraUsage(
-        model,
-        wasFastModeToggledOn === true,
-        isOpus1mMergeEnabled(),
-      )
-    ) {
-      message += ` · Billed as extra usage`
-    }
-
     if (wasFastModeToggledOn === false) {
       // Fast mode was toggled off, show suffix after extra usage billing
       message += ` · Fast mode OFF`
@@ -320,16 +309,6 @@ function SetModelAndClose({
           message += ` · Fast mode ON`
           wasFastModeToggledOn = true
         }
-      }
-
-      if (
-        isBilledAsExtraUsage(
-          modelValue,
-          wasFastModeToggledOn === true,
-          isOpus1mMergeEnabled(),
-        )
-      ) {
-        message += ` · Billed as extra usage`
       }
 
       if (wasFastModeToggledOn === false) {

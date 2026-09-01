@@ -15,6 +15,7 @@ import { onExit } from 'signal-exit'
 import { flushInteractionTime } from 'src/bootstrap/state.js'
 import { getYogaCounters } from 'src/native-ts/yoga-layout/index.js'
 import { logForDebugging } from 'src/utils/debug.js'
+import { isEnvTruthy } from 'src/utils/envUtils.js'
 import { logError } from 'src/utils/log.js'
 import { format } from 'util'
 import { colorize } from './colorize.js'
@@ -235,6 +236,10 @@ export default class Ink {
   // render() takes; deferring into the atomic block means old content stays
   // visible until the new frame is fully ready.
   private needsEraseBeforePaint = false
+  // Official 2.1.144: CLAUDE_CODE_ALT_SCREEN_FULL_REPAINT diffs against a
+  // blank prev-frame so a missed resize cannot leave stale glyphs.
+  private altScreenFullRepaint = false
+  private fullRepaintBlankScreen: ReturnType<typeof createScreen> | null = null
   // Native cursor positioning: a component (via useDeclaredCursor) declares
   // where the terminal cursor should be parked after each frame. Terminal
   // emulators render IME preedit text at the physical cursor position, and
@@ -249,6 +254,9 @@ export default class Ink {
 
   constructor(private readonly options: Options) {
     autoBind(this)
+    this.altScreenFullRepaint = isEnvTruthy(
+      process.env.CLAUDE_CODE_ALT_SCREEN_FULL_REPAINT,
+    )
 
     if (this.options.patchConsole) {
       this.restoreConsole = this.patchConsole()
@@ -705,7 +713,8 @@ export default class Ink {
       didLayoutShift() ||
       selChanged ||
       hlActive ||
-      this.prevFrameContaminated
+      this.prevFrameContaminated ||
+      (this.altScreenFullRepaint && this.altScreenActive)
     ) {
       frame.screen.damage = {
         x: 0,
@@ -728,6 +737,22 @@ export default class Ink {
     let prevFrame = this.frontFrame
     if (this.altScreenActive) {
       prevFrame = { ...this.frontFrame, cursor: ALT_SCREEN_ANCHOR_CURSOR }
+      if (this.altScreenFullRepaint) {
+        const { width, height } = this.frontFrame.screen
+        if (
+          this.fullRepaintBlankScreen?.width !== width ||
+          this.fullRepaintBlankScreen.height !== height
+        ) {
+          this.fullRepaintBlankScreen = createScreen(
+            width,
+            height,
+            this.stylePool,
+            this.charPool,
+            this.hyperlinkPool,
+          )
+        }
+        prevFrame = { ...prevFrame, screen: this.fullRepaintBlankScreen }
+      }
     }
 
     const tDiff = performance.now()
@@ -804,7 +829,7 @@ export default class Ink {
       // erase+paint lands, then swaps in one go. Writing ERASE_SCREEN
       // synchronously in handleResize would blank the screen for the ~80ms
       // render() takes.
-      if (this.needsEraseBeforePaint) {
+      if (this.needsEraseBeforePaint || this.altScreenFullRepaint) {
         this.needsEraseBeforePaint = false
         optimized.unshift(ERASE_THEN_HOME_PATCH)
       } else {

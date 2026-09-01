@@ -17,7 +17,7 @@ import {
   isReactiveFallbackEnabled,
   shouldStartPrecomputedCompact,
   startPrecomputedCompact,
-  tryPrecomputedSwap,
+  consumePrecomputedCompact,
 } from './services/compact/precomputedCompact.js'
 /* eslint-disable @typescript-eslint/no-require-imports */
 const reactiveCompact = feature('REACTIVE_COMPACT')
@@ -1195,17 +1195,25 @@ async function* queryLoop(
         }
       }
       if ((isWithheld413 || isWithheldMedia) && reactiveCompact) {
-        // Official 2.1.132 precomputed-compact swap (bundle `UsK`): before the
-        // reactive fallback, try to swap in a ready precomputed compact so the
-        // PTL turn is covered without paying the full reactive-compact latency.
-        // The decision is gated on isWithheld413 (PTL) inside tryPrecomputedSwap,
-        // so media-error recovery falls straight through to reactive compact.
+        // Official 2.1.144 precomputed-compact swap (bundle `ct7`): the consume
+        // fn is now called DIRECTLY from the query loop — the 132 `UsK` /
+        // `tryPrecomputedSwap` wrapper is gone. It carries its own gate
+        // (isWithheld413 && !hasAttemptedReactiveCompact && !$w8(querySource)
+        // && YI6()) so a media-only 413 (isWithheld413=false) yields `none` and
+        // falls straight through to reactive compact. The 144 return shape is
+        // `{ outcome, swap, emittedEarlyCompactStart }`; this loop consumes only
+        // `swap` + `emittedEarlyCompactStart` (the `kind`-tagged `outcome` feeds
+        // the 144 unified reactive fn `fe7`, a separate hop).
         const { swap: precomputedSwap, emittedEarlyCompactStart } =
-          await tryPrecomputedSwap({
+          await consumePrecomputedCompact({
             toolUseContext,
             messages: messagesForQuery,
             isWithheld413,
             hasAttemptedReactiveCompact,
+            querySource,
+            // 144 subagent PTL-borrow source key (bundle `F ? precomputeSourceKey`);
+            // undefined on the self path until 144 subagent wiring lands.
+            borrowFrom: undefined,
             ptlDetectedAt: performance.now(),
           })
 

@@ -171,7 +171,7 @@ export function logStartupPerf(): void {
   }
 
   // Compute phase durations
-  const metadata: Record<string, number | undefined> = {}
+  const metadata: Record<string, number | string | undefined> = {}
 
   for (const [phaseName, [startCheckpoint, endCheckpoint]] of Object.entries(
     PHASE_DEFINITIONS,
@@ -186,6 +186,19 @@ export function logStartupPerf(): void {
 
   // Add checkpoint count for debugging
   metadata.checkpoint_count = marks.length
+
+  // Official 2.1.144: CCR spawn-to-first-checkpoint when the parent stamped
+  // the child env.
+  const spawnTs = Number.parseInt(process.env.CCR_SPAWN_TIMESTAMP_MS ?? '', 10)
+  const firstMark = marks[0]?.startTime
+  if (Number.isFinite(spawnTs) && firstMark !== undefined) {
+    metadata.spawn_to_first_checkpoint_ms = Math.round(firstMark - spawnTs)
+  }
+
+  const ccrSessionId = process.env.CLAUDE_CODE_REMOTE_SESSION_ID
+  if (ccrSessionId) {
+    metadata.ccr_session_id = ccrSessionId
+  }
 
   logEvent(
     'tengu_startup_perf',

@@ -16,6 +16,7 @@ import {
   invalidateSessionEnvCache,
 } from './sessionEnvironment.js'
 import { subprocessEnv } from './subprocessEnv.js'
+import { sleep } from './sleep.js'
 import { getPlatform } from './platform.js'
 import { findGitBashPath, windowsPathToPosixPath } from './windowsPaths.js'
 import { getCachedPowerShellPath } from './shell/powershellDetection.js'
@@ -62,6 +63,10 @@ import {
 } from 'src/services/analytics/index.js'
 import { stringWidth } from '../ink/stringWidth.js'
 import { logOTelEvent } from './telemetry/events.js'
+import {
+  emitPluginHookMetrics,
+  getAmberLatticePluginAuthEnv,
+} from './plugins/amberLattice.js'
 import { ALLOWED_OFFICIAL_MARKETPLACE_NAMES } from './plugins/schemas.js'
 import { parsePluginIdentifier } from './plugins/pluginIdentifier.js'
 import { buildPluginTelemetryFields } from './telemetry/pluginTelemetry.js'
@@ -218,6 +223,19 @@ async function persistOrTruncateHookOutput(
  * teardown scripts need more time.
  */
 const SESSION_END_HOOK_TIMEOUT_MS_DEFAULT = 1500
+/** Official 2.1.144 `TS4` / `ad6`. */
+export const ASYNC_REWAKE_FLUSH_TIMEOUT_MS = 30_000
+const pendingAsyncRewake = new Set<Promise<unknown>>()
+
+export async function flushAsyncRewakeHooks(): Promise<void> {
+  if (pendingAsyncRewake.size === 0) return
+  const all = Promise.allSettled([...pendingAsyncRewake])
+  await Promise.race([
+    all,
+    sleep(ASYNC_REWAKE_FLUSH_TIMEOUT_MS, undefined, { unref: true }),
+  ])
+}
+
 export function getSessionEndHookTimeoutMs(): number {
   const raw = process.env.CLAUDE_CODE_SESSIONEND_HOOKS_TIMEOUT_MS
   const parsed = raw ? parseInt(raw, 10) : NaN
@@ -260,7 +278,7 @@ function executeInBackground({
     // handler already no-ops on 'interrupt' reason (user submitted a new
     // message), so the hook survives new prompts. A hard cancel (Escape) WILL
     // kill the hook via the abort handler, which is the desired behavior.
-    void shellCommand.result.then(async result => {
+    const rewake = shellCommand.result.then(async result => {
       // result resolves on 'exit', but stdio 'data' events may still be
       // pending. Yield to I/O so the StreamWrapper data handlers drain into
       // TaskOutput before we read it.
@@ -286,7 +304,10 @@ function executeInBackground({
           mode: 'task-notification',
         })
       }
+    }).finally(() => {
+      pendingAsyncRewake.delete(rewake)
     })
+    pendingAsyncRewake.add(rewake)
     return true
   }
 
@@ -553,6 +574,7 @@ function processHookJSONOutput({
   stderr,
   exitCode,
   durationMs,
+  pluginId,
 }: {
   json: SyncHookJSONOutput
   command: string
@@ -564,11 +586,17 @@ function processHookJSONOutput({
   stderr?: string
   exitCode?: number
   durationMs?: number
+  pluginId?: string
 }): Partial<HookResult> {
   const result: Partial<HookResult> = {}
 
   // At this point we know it's a sync response
   const syncJson = json
+  emitPluginHookMetrics(
+    (syncJson as { metrics?: Record<string, unknown> }).metrics,
+    pluginId,
+    hookEvent,
+  )
 
   // Handle common elements
   if (syncJson.continue === false) {
@@ -980,6 +1008,7 @@ async function execCommandHook(
       envVars.CLAUDE_PLUGIN_DATA = toHookPath(getPluginDataDir(pluginId))
     }
   }
+  Object.assign(envVars, getAmberLatticePluginAuthEnv(pluginId))
   // Expose plugin options as env vars too, so hooks can read them without
   // ${user_config.X} in the command string. Sensitive values included — hooks
   // run the user's own code, same trust boundary as reading keychain directly.
@@ -2558,6 +2587,7 @@ async function* executeHooks({
             stdout: httpResult.body,
             stderr: '',
             exitCode: httpResult.statusCode,
+            pluginId,
           })
           emitHookResponse({
             hookId,
@@ -2701,6 +2731,7 @@ async function* executeHooks({
               stdout: mcpResult.body,
               stderr: '',
               exitCode: 0,
+              pluginId,
             }),
             outcome: 'success' as const,
             hook,
@@ -2834,6 +2865,7 @@ async function* executeHooks({
           stderr: result.stderr,
           exitCode: result.status,
           durationMs,
+          pluginId,
         })
 
         // Handle suppressOutput (skip for async responses)
@@ -3640,6 +3672,13 @@ async function executeHooksOutsideREPL({
               `Parsed JSON output from HTTP hook: ${jsonStringify(httpJson)}`,
               { level: 'verbose' },
             )
+            if (isSyncHookJSONOutput(httpJson)) {
+              emitPluginHookMetrics(
+                (httpJson as { metrics?: Record<string, unknown> }).metrics,
+                pluginId,
+                hookEvent,
+              )
+            }
           }
           const jsonBlocked =
             httpJson &&
@@ -3772,6 +3811,13 @@ async function executeHooksOutsideREPL({
             `Parsed JSON output from hook: ${jsonStringify(json)}`,
             { level: 'verbose' },
           )
+          if (isSyncHookJSONOutput(json)) {
+            emitPluginHookMetrics(
+              (json as { metrics?: Record<string, unknown> }).metrics,
+              pluginId,
+              hookEvent,
+            )
+          }
         }
 
         // Blocked if exit code 2 or JSON decision: 'block'
@@ -4122,22 +4168,24 @@ export async function* executeStopHooks(
       undefined
     : undefined
 
-  const hookInput: StopHookInput | SubagentStopHookInput = subagentId
-    ? {
-        ...createBaseHookInput(permissionMode),
-        hook_event_name: 'SubagentStop',
-        stop_hook_active: stopHookActive,
-        agent_id: subagentId,
-        agent_transcript_path: getAgentTranscriptPath(subagentId),
-        agent_type: agentType ?? '',
-        last_assistant_message: lastAssistantText,
-      }
-    : {
-        ...createBaseHookInput(permissionMode),
-        hook_event_name: 'Stop',
-        stop_hook_active: stopHookActive,
-        last_assistant_message: lastAssistantText,
-      }
+  const hookInput = (
+    subagentId
+      ? {
+          ...createBaseHookInput(permissionMode),
+          hook_event_name: 'SubagentStop',
+          stop_hook_active: stopHookActive,
+          agent_id: subagentId,
+          agent_transcript_path: getAgentTranscriptPath(subagentId),
+          agent_type: agentType ?? '',
+          last_assistant_message: lastAssistantText,
+        }
+      : {
+          ...createBaseHookInput(permissionMode),
+          hook_event_name: 'Stop',
+          stop_hook_active: stopHookActive,
+          last_assistant_message: lastAssistantText,
+        }
+  ) as StopHookInput | SubagentStopHookInput
 
   // Trust check is now centralized in executeHooks()
   yield* executeHooks({

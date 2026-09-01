@@ -1,0 +1,34 @@
+{
+  "version": "2.1.144",
+  "fromVersion": "2.1.143",
+  "expectedFunctionCount": 0,
+  "functions": [],
+  "changelogCoverage": [
+    {
+      "item": "Renamed extra usage to usage credits; /extra-usage is now /usage-credits",
+      "status": "located",
+      "evidence": "Command rename in hop commit plus remaining CLI copy (errors.ts, fastMode, Notifications, RateLimitMessage, Usage.tsx). Alias /extra-usage kept. Bundle leftover extra usage 63→5 is the rate-limit prefix table."
+    },
+    {
+      "item": "Image extension / content mismatch falls back instead of unrecoverable conversation",
+      "status": "located",
+      "evidence": "D7H returns null; WmK; FileRead throw; paste warn+null. Official paste message uses path not WmK."
+    },
+    {
+      "item": "Garbled terminal after missed resize / long-session glyph corruption",
+      "status": "located",
+      "evidence": "CLAUDE_CODE_ALT_SCREEN_FULL_REPAINT consume in ink.tsx (altScreenFullRepaint + fullRepaintBlankScreen). fC4 Windows spawn set deferred-large-infra (stub cli/bg.ts)."
+    },
+    {
+      "item": "macOS bg sessions crashing under FDA-protected folders (2.1.143 regression)",
+      "status": "shared-logic",
+      "evidence": "No 144-unique token beyond 143 LS4 TCC disclaim already folded. Not re-landed."
+    },
+    {
+      "item": "Fewer spurious tool errors during search (head/tail/egrep)",
+      "status": "shared-logic",
+      "evidence": "No 144-unique tools product string. Not invented from CHANGELOG."
+    }
+  ],
+  "notes": "Ast-only product landed: Ia/ZqH/TX$/ay4 CLAUDE_SECURESTORAGE_CONFIG_DIR; ip5/NS4/f$H tengu_amber_lattice (allowlist {}, not default-false); ad6 async-rewake flush; CCR_SPAWN_TIMESTAMP_MS + ccr_session_id; watchdog idle retry; NO_BARE_GLOB_QUAL; exec-form doctor tip; PTY_HOST consume. Deferred-large-infra: ct7 precomputed compact; fC4/Pd full bg/pty-host spawn. Do not pull 145 stopHookSnapshot or 146 LzA into this hop. Four-domain review PASS."
+}

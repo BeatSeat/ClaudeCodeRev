@@ -532,6 +532,75 @@ export const SetupHookInputSchema = lazySchema(() =>
   ),
 )
 
+/**
+ * 2.1.145: in-flight background task descriptor included in Stop/SubagentStop
+ * hook input. Mirrors the task registry's taskRegistry.all() projection.
+ */
+export const StopHookBackgroundTaskSchema = lazySchema(() =>
+  z.object({
+    id: z.string(),
+    type: z
+      .string()
+      .describe(
+        "Friendly task-type label (e.g. 'shell', 'subagent', 'monitor', 'workflow'). " +
+          'Falls back to the raw discriminant for unknown types.',
+      ),
+    status: z.string(),
+    description: z
+      .string()
+      .describe(
+        'Free-text description. Capped at 1000 chars; clipped values append ' +
+          'an in-string "\u2026 [+N chars]" marker.',
+      ),
+    command: z
+      .string()
+      .optional()
+      .describe("Shell command line. Only present for 'shell' tasks."),
+    agent_type: z
+      .string()
+      .optional()
+      .describe("Subagent type name. Only present for 'subagent' tasks."),
+    server: z
+      .string()
+      .optional()
+      .describe("MCP server name. Only present for 'monitor' / 'MCP task' tasks."),
+    tool: z
+      .string()
+      .optional()
+      .describe("MCP tool name. Only present for 'monitor' / 'MCP task' tasks."),
+    name: z
+      .string()
+      .optional()
+      .describe("Workflow name. Only present for 'workflow' tasks."),
+  }),
+)
+
+/**
+ * 2.1.145: session-scoped cron task descriptor included in Stop/SubagentStop
+ * hook input. Cron tasks (CronCreate, ScheduleWakeup, /loop) that will wake
+ * this session later.
+ */
+export const StopHookSessionCronSchema = lazySchema(() =>
+  z.object({
+    id: z.string(),
+    schedule: z
+      .string()
+      .describe('Cron expression, e.g. "0 9 * * 1-5".'),
+    recurring: z
+      .boolean()
+      .describe(
+        'False for one-shot wakeups whose cron field encodes a single fire time; ' +
+          'true for tasks that re-fire on every match.',
+      ),
+    prompt: z
+      .string()
+      .describe(
+        'Prompt text submitted when the cron fires. Capped at 1000 chars; ' +
+          'clipped values append an in-string "\u2026 [+N chars]" marker.',
+      ),
+  }),
+)
+
 export const StopHookInputSchema = lazySchema(() =>
   BaseHookInputSchema().and(
     z.object({
@@ -543,6 +612,21 @@ export const StopHookInputSchema = lazySchema(() =>
         .describe(
           'Text content of the last assistant message before stopping. ' +
             'Avoids the need to read and parse the transcript file.',
+        ),
+      background_tasks: z
+        .array(StopHookBackgroundTaskSchema())
+        .optional()
+        .describe(
+          'In-flight background work (running/pending + backgrounded) registered in this session. ' +
+            'Lets hooks distinguish "session is done" from "session is paused waiting for ' +
+            'background work to wake it". Empty array when nothing is in flight.',
+        ),
+      session_crons: z
+        .array(StopHookSessionCronSchema())
+        .optional()
+        .describe(
+          'Session-scoped cron tasks (CronCreate, ScheduleWakeup, /loop) that will wake ' +
+            'this session later. Empty array when none are scheduled.',
         ),
     }),
   ),
@@ -583,6 +667,21 @@ export const SubagentStopHookInputSchema = lazySchema(() =>
         .describe(
           'Text content of the last assistant message before stopping. ' +
             'Avoids the need to read and parse the transcript file.',
+        ),
+      background_tasks: z
+        .array(StopHookBackgroundTaskSchema())
+        .optional()
+        .describe(
+          'In-flight background work (running/pending + backgrounded) registered in this session. ' +
+            'Lets hooks distinguish "session is done" from "session is paused waiting for ' +
+            'background work to wake it". Empty array when nothing is in flight.',
+        ),
+      session_crons: z
+        .array(StopHookSessionCronSchema())
+        .optional()
+        .describe(
+          'Session-scoped cron tasks (CronCreate, ScheduleWakeup, /loop) that will wake ' +
+            'this session later. Empty array when none are scheduled.',
         ),
     }),
   ),
@@ -944,6 +1043,7 @@ export const SyncHookJSONOutputSchema = lazySchema(() =>
     decision: z.enum(['approve', 'block']).optional(),
     systemMessage: z.string().optional(),
     reason: z.string().optional(),
+    metrics: z.record(z.string(), z.unknown()).optional(),
     hookSpecificOutput: z
       .union([
         PreToolUseHookSpecificOutputSchema(),
