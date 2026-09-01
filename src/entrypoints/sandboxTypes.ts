@@ -6,6 +6,7 @@
  */
 
 import { z } from 'zod/v4'
+import { isAbsolute } from 'node:path'
 import { lazySchema } from '../utils/lazySchema.js'
 
 /**
@@ -159,6 +160,26 @@ export const SandboxSettingsSchema = lazySchema(() =>
         })
         .optional()
         .describe('Custom ripgrep configuration for bundled ripgrep support'),
+      bwrapPath: z
+        .preprocess(
+          v => (typeof v === 'string' && isAbsolute(v) ? v : undefined),
+          z.string(),
+        )
+        .optional()
+        .catch(undefined)
+        .describe(
+          'Linux/WSL only: Absolute path to the bwrap (bubblewrap) binary. Overrides auto-detection via PATH. Only honored from admin-controlled managed settings.',
+        ),
+      socatPath: z
+        .preprocess(
+          v => (typeof v === 'string' && isAbsolute(v) ? v : undefined),
+          z.string(),
+        )
+        .optional()
+        .catch(undefined)
+        .describe(
+          'Linux/WSL only: Absolute path to the socat binary used for the sandbox network isolation. Overrides auto-detection via PATH. Only honored from admin-controlled managed settings.',
+        ),
     })
     .passthrough(),
 )

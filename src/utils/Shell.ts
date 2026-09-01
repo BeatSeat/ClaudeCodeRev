@@ -213,6 +213,7 @@ export type ExecOptions = {
   onStdout?: (data: string) => void
   /** Per-invocation environment set by /env for spawned child processes. */
   sessionEnvVars?: ReadonlyMap<string, string>
+  extraEnv?: Record<string, string>
 }
 
 /**
@@ -233,6 +234,7 @@ export async function exec(
     shouldAutoBackground,
     onStdout,
     sessionEnvVars,
+    extraEnv,
   } = options ?? {}
   const commandTimeout = timeout || DEFAULT_TIMEOUT
 
@@ -425,6 +427,7 @@ export async function exec(
         // USER_TYPE==='ant' before). Official 132 spawn env:
         // CLAUDE_CODE_SESSION_ID:N$() unconditional.
         CLAUDE_CODE_SESSION_ID: getSessionId(),
+        ...extraEnv,
       },
       cwd,
       stdio: spawnStdio(usePipeMode, outputHandle?.fd, applySeccompFd),

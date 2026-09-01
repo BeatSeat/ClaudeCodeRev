@@ -367,7 +367,8 @@ async function getOrCreateWorktree(
 
   let baseBranch: string
   let baseSha: string | null = null
-  if (options?.fromHead) {
+  const baseRefSetting = getInitialSettings().worktree?.baseRef
+  if (options?.fromHead && baseRefSetting === 'head') {
     // Official 2.1.128 EnterWorktree: branch from local HEAD, not origin/.
     baseBranch = 'HEAD'
   } else if (options?.prNumber) {

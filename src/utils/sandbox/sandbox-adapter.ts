@@ -20,10 +20,10 @@ import {
   SandboxRuntimeConfigSchema,
   SandboxViolationStore,
 } from '@anthropic-ai/sandbox-runtime'
-import { rmSync, statSync } from 'fs'
+import { accessSync, constants, rmSync, statSync } from 'fs'
 import { open, readFile } from 'fs/promises'
 import { memoize } from 'lodash-es'
-import { join, resolve, sep } from 'path'
+import { isAbsolute, join, resolve, sep } from 'path'
 import {
   getAdditionalDirectoriesForClaudeMd,
   getCwdState,
@@ -45,6 +45,38 @@ import {
   updateSettingsForSource,
 } from '../settings/settings.js'
 import type { SettingsJson } from '../settings/types.js'
+import { whichSync } from '../which.js'
+
+/** Official 2.1.133 `i1$`. */
+export function getManagedSandboxBwrapPath(): string | undefined {
+  return getAllManagedSettingsSources()
+    .map(s => s.sandbox?.bwrapPath)
+    .find(p => p != null)
+}
+
+/** Official 2.1.133 `eIK`. */
+export function getManagedSandboxSocatPath(): string | undefined {
+  return getAllManagedSettingsSources()
+    .map(s => s.sandbox?.socatPath)
+    .find(p => p != null)
+}
+
+/** Official 2.1.133 `Pi$`. */
+export function resolveSandboxBwrapPath(): string | null {
+  const managed = getManagedSandboxBwrapPath()
+  if (managed) {
+    if (isAbsolute(managed)) {
+      try {
+        accessSync(managed, constants.X_OK)
+        return managed
+      } catch {
+        return null
+      }
+    }
+    return whichSync(managed)
+  }
+  return whichSync('bwrap')
+}
 
 // ============================================================================
 // Settings Converter
@@ -407,6 +439,9 @@ export function convertToSandboxRuntimeConfig(
   }
 
   return {
+    // Official 2.1.133 `i1$` / `eIK` — first managed-settings win.
+    bwrapPath: getManagedSandboxBwrapPath(),
+    socatPath: getManagedSandboxSocatPath(),
     network: {
       allowedDomains,
       deniedDomains,
