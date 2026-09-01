@@ -30,6 +30,11 @@ export const NON_REBINDABLE: ReservedShortcut[] = [
       'Cannot be rebound - identical to Enter in terminals (both send CR)',
     severity: 'error',
   },
+  {
+    key: 'capslock',
+    reason: 'Caps Lock is not delivered to terminal applications',
+    severity: 'error',
+  },
 ]
 
 /**
@@ -92,6 +97,20 @@ export function normalizeKeyForComparison(key: string): string {
   return key.trim().split(/\s+/).map(normalizeStep).join(' ')
 }
 
+/** Official 122 iW1 — Caps Lock aliases plus common key name folds. */
+const KEY_ALIASES: Record<string, string> = {
+  esc: 'escape',
+  return: 'enter',
+  del: 'delete',
+  '↑': 'up',
+  '↓': 'down',
+  '←': 'left',
+  '→': 'right',
+  caps: 'capslock',
+  'caps-lock': 'capslock',
+  caps_lock: 'capslock',
+}
+
 function normalizeStep(step: string): string {
   const parts = step.split('+')
   const modifiers: string[] = []
@@ -118,7 +137,7 @@ function normalizeStep(step: string): string {
       else if (lower === 'command' || lower === 'cmd') modifiers.push('cmd')
       else modifiers.push(lower)
     } else {
-      mainKey = lower
+      mainKey = KEY_ALIASES[lower] ?? lower
     }
   }
 
