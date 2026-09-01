@@ -87,6 +87,35 @@ import {
 } from './permissionRuleParser.js'
 
 /**
+ * Official 2.1.146 `LzA`. Bg children restore session allow/deny from env.
+ * Returns undefined when unset, not a bg session, or JSON is invalid.
+ */
+export function parseBgSessionPermissionRules(): {
+  allow: string[]
+  deny: string[]
+} | undefined {
+  const raw = process.env.CLAUDE_BG_SESSION_PERMISSION_RULES
+  if (!raw || process.env.CLAUDE_CODE_SESSION_KIND !== 'bg') {
+    return undefined
+  }
+  try {
+    const parsed = JSON.parse(raw) as {
+      allow?: unknown
+      deny?: unknown
+    }
+    if (Array.isArray(parsed.allow) && Array.isArray(parsed.deny)) {
+      return {
+        allow: parsed.allow.filter((x): x is string => typeof x === 'string'),
+        deny: parsed.deny.filter((x): x is string => typeof x === 'string'),
+      }
+    }
+    return undefined
+  } catch {
+    return undefined
+  }
+}
+
+/**
  * Checks if a Bash permission rule is dangerous for auto mode.
  * A rule is dangerous if it would auto-allow commands that execute arbitrary code,
  * bypassing the classifier's safety evaluation.
@@ -1051,12 +1080,21 @@ export async function initializeToolPermissionContext({
     )
   }
 
+  // Official 2.1.146 `LzA`: bg children restore allow/deny from the spawn env.
+  const bgSessionRules = parseBgSessionPermissionRules()
+
   let toolPermissionContext = applyPermissionRulesToPermissionContext(
     {
       mode: permissionMode,
       additionalWorkingDirectories,
-      alwaysAllowRules: { cliArg: parsedAllowedToolsCli },
-      alwaysDenyRules: { cliArg: parsedDisallowedToolsCli },
+      alwaysAllowRules: {
+        cliArg: parsedAllowedToolsCli,
+        ...(bgSessionRules ? { session: bgSessionRules.allow } : {}),
+      },
+      alwaysDenyRules: {
+        cliArg: parsedDisallowedToolsCli,
+        ...(bgSessionRules ? { session: bgSessionRules.deny } : {}),
+      },
       alwaysAskRules: {},
       isBypassPermissionsModeAvailable,
       ...(feature('TRANSCRIPT_CLASSIFIER')

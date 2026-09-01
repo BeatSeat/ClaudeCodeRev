@@ -139,6 +139,7 @@ import type { ToolPermissionContext } from './Tool.js'
 import { getDenyRuleForTool } from './utils/permissions/permissions.js'
 import { hasEmbeddedSearchTools } from './utils/embeddedTools.js'
 import { isEnvTruthy } from './utils/envUtils.js'
+import { isWorkflowsEnabled } from './utils/workflows/enabled.js'
 import {
   isBashShellAvailable,
   isPowerShellToolEnabled,
@@ -236,7 +237,7 @@ export function getAllBaseTools(): Tools {
       : []),
     ...(VerifyPlanExecutionTool ? [VerifyPlanExecutionTool] : []),
     ...(process.env.USER_TYPE === 'ant' && REPLTool ? [REPLTool] : []),
-    ...(WorkflowTool ? [WorkflowTool] : []),
+    ...(WorkflowTool && isWorkflowsEnabled() ? [WorkflowTool] : []),
     ...(SleepTool ? [SleepTool] : []),
     ...cronTools,
     ...(RemoteTriggerTool ? [RemoteTriggerTool] : []),
@@ -293,6 +294,9 @@ export const getTools = (permissionContext: ToolPermissionContext): Tools => {
         coordinatorModeModule?.isCoordinatorMode()
       ) {
         replSimple.push(TaskStopTool, getSendMessageTool())
+        if (WorkflowTool && isWorkflowsEnabled()) {
+          replSimple.push(WorkflowTool)
+        }
       }
       return filterToolsByDenyRules(replSimple, permissionContext)
     }
@@ -305,6 +309,9 @@ export const getTools = (permissionContext: ToolPermissionContext): Tools => {
       coordinatorModeModule?.isCoordinatorMode()
     ) {
       simpleTools.push(AgentTool, TaskStopTool, getSendMessageTool())
+      if (WorkflowTool && isWorkflowsEnabled()) {
+        simpleTools.push(WorkflowTool)
+      }
     }
     return filterToolsByDenyRules(simpleTools, permissionContext)
   }
