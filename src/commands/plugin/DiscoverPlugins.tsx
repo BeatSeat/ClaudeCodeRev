@@ -33,7 +33,15 @@ import {
 } from '../../utils/plugins/marketplaceHelpers.js'
 import { loadKnownMarketplacesConfig } from '../../utils/plugins/marketplaceManager.js'
 import { OFFICIAL_MARKETPLACE_NAME } from '../../utils/plugins/officialMarketplace.js'
+import {
+  getPluginSuggestionMarketplaces,
+  isMarketplaceSourceDeclaredInManagedSettings,
+} from '../../utils/plugins/pluginSuggestionTips.js'
 import { installPluginFromMarketplace } from '../../utils/plugins/pluginInstallationHelpers.js'
+import {
+  matchDiscoverRelevance,
+  parseDiscoverRelevanceSignals,
+} from './pluginDiscoverMatch.js'
 import { installMissingDependenciesForPlugin } from '../../utils/plugins/resolveMissingDependencies.js'
 import { isPluginBlockedByPolicy } from '../../utils/plugins/pluginPolicy.js'
 import { plural } from '../../utils/stringUtils.js'
@@ -91,6 +99,10 @@ export function DiscoverPlugins({
     string,
     number
   > | null>(null)
+  // Official 2.1.154 uI4 `Z` — pluginIds whose relevance signals match cwd
+  const [suggestedPluginIds, setSuggestedPluginIds] = useState<Set<string>>(
+    () => new Set(),
+  )
 
   // Search state
   const [isSearchMode, setIsSearchModeRaw] = useState(false)
@@ -223,7 +235,49 @@ export function DiscoverPlugins({
           )
         }
 
-        setAvailablePlugins(uninstalledPlugins)
+        // Official 2.1.154: pin cwd-matching plugins (wk8 + Dk8). Do not
+        // annotate on signals-present alone.
+        const matched = new Set<string>()
+        try {
+          const allowedMarketplaces = new Set(getPluginSuggestionMarketplaces())
+          for (const plugin of uninstalledPlugins) {
+            if (plugin.marketplaceName !== OFFICIAL_MARKETPLACE_NAME) {
+              if (!allowedMarketplaces.has(plugin.marketplaceName)) continue
+              const source = config[plugin.marketplaceName]?.source
+              if (
+                !source ||
+                !isMarketplaceSourceDeclaredInManagedSettings(
+                  plugin.marketplaceName,
+                  source,
+                )
+              ) {
+                continue
+              }
+            }
+            const parsed = parseDiscoverRelevanceSignals(
+              plugin.entry.name,
+              plugin.entry.relevance,
+            )
+            if (!parsed) continue
+            if (await matchDiscoverRelevance(parsed, undefined)) {
+              matched.add(plugin.pluginId)
+            }
+          }
+        } catch (error) {
+          logForDebugging(
+            `Failed to compute plugin suggestions: ${errorMessage(error)}`,
+          )
+        }
+        setSuggestedPluginIds(matched)
+        const pinned =
+          matched.size > 0
+            ? [
+                ...uninstalledPlugins.filter(p => matched.has(p.pluginId)),
+                ...uninstalledPlugins.filter(p => !matched.has(p.pluginId)),
+              ]
+            : uninstalledPlugins
+
+        setAvailablePlugins(pinned)
 
         // Detect empty reason if no plugins available
         const configuredCount = Object.keys(config).length
@@ -787,6 +841,9 @@ export function DiscoverPlugins({
                     : figures.radioOff}{' '}
                 {plugin.entry.name}
                 <Text dimColor> · {plugin.marketplaceName}</Text>
+                {suggestedPluginIds.has(plugin.pluginId) && (
+                  <Text dimColor> · suggested for this directory</Text>
+                )}
                 {plugin.entry.tags?.includes('community-managed') && (
                   <Text dimColor> [Community Managed]</Text>
                 )}

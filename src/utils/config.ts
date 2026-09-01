@@ -357,6 +357,10 @@ export type GlobalConfig = {
 
   // Opus 1M merge notice tracking
   opus1mMergeNoticeSeenCount?: number // Number of times the opus-1m-merge notice has been shown
+  // Official 2.1.154 De6/ZKz: first-party launch notice (DKz=8)
+  opus48LaunchSeenCount?: number
+  // Tree-local alias kept so existing callers still compile
+  opus48NoticeSeenCount?: number
 
   // Experiment enrollment notice tracking (keyed by experiment id)
   experimentNoticesSeenCount?: Record<string, number>
@@ -487,6 +491,8 @@ export type GlobalConfig = {
   unpinOpus47LaunchEffort?: boolean
   /** Official 2.1.111 `qUY` / `vr8`: cap `gdK` impressions (`tgY` = 12). */
   opus47LaunchSeenCount?: number
+  /** Official 2.1.154 SI: pin Opus 4.8 launch default (high) until /effort. */
+  unpinOpus48LaunchEffort?: boolean
 
   // Fullscreen in-app text selection behavior
   copyOnSelect?: boolean // Auto-copy to clipboard on mouse-up (undefined → true; lets cmd+c "work" via no-op)
@@ -658,6 +664,7 @@ function createDefaultGlobalConfig(): GlobalConfig {
     respectGitignore: true,
     copyFullResponse: false,
     unpinOpus47LaunchEffort: false,
+    unpinOpus48LaunchEffort: false,
   }
 }
 

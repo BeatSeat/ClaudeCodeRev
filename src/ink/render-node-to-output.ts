@@ -7,7 +7,11 @@ import { LayoutDisplay, LayoutEdge, type LayoutNode } from './layout/node.js'
 import { nodeCache, pendingClears } from './node-cache.js'
 import type Output from './output.js'
 import renderBorder from './render-border.js'
-import type { Screen } from './screen.js'
+import {
+  SoftWrapKind,
+  type Screen,
+  type SoftWrapKind as SoftWrapKindValue,
+} from './screen.js'
 import {
   type StyledSegment,
   squashTextNodesToSegments,
@@ -16,6 +20,7 @@ import type { Color } from './styles.js'
 import { logForDebugging } from '../utils/debug.js'
 import { isXtermJs } from './terminal.js'
 import { widestLine } from './widest-line.js'
+import { stringWidth } from './stringWidth.js'
 import wrapText from './wrap-text.js'
 
 // Matches detectXtermJsWheel() in ScrollKeybindingHandler.tsx — the curve
@@ -215,6 +220,7 @@ function applyStylesToWrappedText(
   charToSegment: number[],
   originalPlain: string,
   trimEnabled: boolean = false,
+  softWrap?: SoftWrapKindValue[],
 ): string {
   const lines = wrappedPlain.split('\n')
   const resultLines: string[] = []
@@ -285,12 +291,25 @@ function applyStylesToWrappedText(
 
     resultLines.push(styledLine)
 
-    // Skip newline character in original that corresponds to this line break.
-    // This is needed when the original text contains actual newlines (not just
-    // wrapping-inserted newlines). Without this, charIndex gets out of sync
-    // because the newline is in originalPlain/charToSegment but not in the
-    // split lines.
+    // Official 2.1.154 hf5: skip `\r` then `\n` (arK normalizes `\r\n`
+    // in the wrapped string but originalPlain may still have CR).
+    if (
+      charIndex < originalPlain.length &&
+      originalPlain[charIndex] === '\r'
+    ) {
+      charIndex++
+    }
     if (charIndex < originalPlain.length && originalPlain[charIndex] === '\n') {
+      charIndex++
+    }
+    // Official: `z?.[O+1]===br.ContinuationElidedSep && K[f]===" "` —
+    // the wrap strip ate a leading space on the next line; keep the
+    // original index in sync so styles don't shift.
+    if (
+      softWrap?.[lineIdx + 1] === SoftWrapKind.ContinuationElidedSep &&
+      charIndex < originalPlain.length &&
+      originalPlain[charIndex] === ' '
+    ) {
       charIndex++
     }
 
@@ -337,21 +356,36 @@ function wrapWithSoftWrap(
   plainText: string,
   maxWidth: number,
   textWrap: Parameters<typeof wrapText>[2],
-): { wrapped: string; softWrap: boolean[] | undefined } {
+): { wrapped: string; softWrap: SoftWrapKindValue[] | undefined } {
   if (textWrap !== 'wrap' && textWrap !== 'wrap-trim') {
     return {
       wrapped: wrapText(plainText, maxWidth, textWrap),
       softWrap: undefined,
     }
   }
-  const origLines = plainText.split('\n')
+  // Official 2.1.154 `arK`: normalize CRLF then mark each piece with `br`.
+  const origLines = plainText.replace(/\r\n?/g, '\n').split('\n')
   const outLines: string[] = []
-  const softWrap: boolean[] = []
+  const softWrap: SoftWrapKindValue[] = []
   for (const orig of origLines) {
     const pieces = wrapText(orig, maxWidth, textWrap).split('\n')
     for (let i = 0; i < pieces.length; i++) {
-      outLines.push(pieces[i]!)
-      softWrap.push(i > 0)
+      const piece = pieces[i]!
+      if (i === 0) {
+        outLines.push(piece)
+        softWrap.push(SoftWrapKind.HardBreak)
+        continue
+      }
+      // Official 2.1.154 arK: strip a continuation leading space unless
+      // that would empty the visual line (CHANGELOG wrap-space row).
+      const stripped = piece.startsWith(' ') ? piece.slice(1) : piece
+      const kept = stringWidth(stripped) > 0 ? stripped : piece
+      outLines.push(kept)
+      softWrap.push(
+        kept.length < piece.length
+          ? SoftWrapKind.ContinuationElidedSep
+          : SoftWrapKind.Continuation,
+      )
     }
   }
   return { wrapped: outLines.join('\n'), softWrap }
@@ -366,7 +400,7 @@ function wrapWithSoftWrap(
 function applyPaddingToText(
   node: DOMElement,
   text: string,
-  softWrap?: boolean[],
+  softWrap?: SoftWrapKindValue[],
 ): string {
   const yogaNode = node.childNodes[0]?.yogaNode
 
@@ -375,9 +409,12 @@ function applyPaddingToText(
     const offsetY = yogaNode.getComputedTop()
     text = '\n'.repeat(offsetY) + indentString(text, offsetX)
     if (softWrap && offsetY > 0) {
-      // Prepend `false` for each padding line so indices stay aligned
-      // with text.split('\n'). Mutate in place — caller owns the array.
-      softWrap.unshift(...Array<boolean>(offsetY).fill(false))
+      // Official Sf5: prepend HardBreak for each padding line so indices
+      // stay aligned with text.split('\n'). Mutate in place — caller owns
+      // the array.
+      softWrap.unshift(
+        ...Array<SoftWrapKindValue>(offsetY).fill(SoftWrapKind.HardBreak),
+      )
     }
   }
 
@@ -573,7 +610,7 @@ function renderNodeToOutput(
         const needsWrapping = widestLine(plainText) > maxWidth
 
         let text: string
-        let softWrap: boolean[] | undefined
+        let softWrap: SoftWrapKindValue[] | undefined
         if (needsWrapping && segments.length === 1) {
           // Single segment: wrap plain text first, then apply styles to each line
           const segment = segments[0]!
@@ -606,6 +643,7 @@ function renderNodeToOutput(
             charToSegment,
             plainText,
             textWrap === 'wrap-trim',
+            w.softWrap,
           )
           // Hyperlinks are handled per-run in applyStylesToWrappedText via
           // wrapWithOsc8Link, similar to how styles are applied per-run.

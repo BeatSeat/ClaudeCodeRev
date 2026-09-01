@@ -2,8 +2,9 @@ import * as React from 'react'
 import { useEffect, useRef, useState } from 'react'
 import { TEARDROP_ASTERISK } from '../../constants/figures.js'
 import { Box, Text, useAnimationFrame } from '../../ink.js'
+import { isXtermJs } from '../../ink/terminal.js'
 import { getInitialSettings } from '../../utils/settings/settings.js'
-import { hueToRgb, toRGBColor } from '../Spinner/utils.js'
+import { hueToRgb, quantizeHue, toRGBColor } from '../Spinner/utils.js'
 
 const SWEEP_DURATION_MS = 1500
 const SWEEP_COUNT = 2
@@ -47,7 +48,9 @@ export function AnimatedAsterisk({
     startTimeRef.current = time
   }
   const elapsed = time - startTimeRef.current
-  const hue = ((elapsed / SWEEP_DURATION_MS) * 360) % 360
+  const rawHue = ((elapsed / SWEEP_DURATION_MS) * 360) % 360
+  // Official 2.1.154 `PL()?h78(f):f` — cap distinct spinner colors in VS Code.
+  const hue = isXtermJs() ? quantizeHue(rawHue) : rawHue
 
   return (
     <Box ref={ref}>

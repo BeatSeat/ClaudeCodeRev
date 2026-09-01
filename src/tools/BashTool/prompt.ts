@@ -257,7 +257,7 @@ function getSimpleSandboxSection(): string {
 
   const items: Array<string | string[]> = [
     ...sandboxOverrideItems,
-    'For temporary files, always use the `$TMPDIR` environment variable. TMPDIR is automatically set to the correct sandbox-writable directory in sandbox mode. Do NOT use `/tmp` directly - use `$TMPDIR` instead.',
+    'For temporary files, always use the `$TMPDIR` environment variable. TMPDIR is set to the same sandbox-writable directory for both sandboxed and unsandboxed commands. Do NOT use `/tmp` directly - use `$TMPDIR` instead.',
   ]
 
   return [

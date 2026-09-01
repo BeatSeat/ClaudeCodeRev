@@ -13,8 +13,10 @@ import {
   type AnalyticsMetadata_I_VERIFIED_THIS_IS_PII_TAGGED,
   logEvent,
 } from '../../services/analytics/index.js'
+import type { LoadedPlugin } from '../../types/plugin.js'
 import { getOriginalCwd } from '../../bootstrap/state.js'
 import { getCwd } from '../cwd.js'
+import { SETTING_SOURCES } from '../settings/constants.js'
 import { toError } from '../errors.js'
 import { getFsImplementation } from '../fsOperations.js'
 import { logForDebugging } from '../debug.js'
@@ -179,7 +181,8 @@ export async function cacheAndRegisterPlugin(
 ): Promise<{
   path: string
   dependencies?: string[]
-  depConstraints?: import('../../types/plugin.js').LoadedPlugin['depConstraints']
+  depConstraints?: LoadedPlugin['depConstraints']
+  defaultEnabled?: boolean
 }> {
   // For local plugins, we need the resolved absolute path
   // Cast to PluginSource since cachePlugin handles any string path at runtime
@@ -280,6 +283,7 @@ export async function cacheAndRegisterPlugin(
     path: finalPath,
     dependencies: cacheResult.manifest.dependencies,
     depConstraints: cacheResult.depConstraints,
+    defaultEnabled: cacheResult.manifest.defaultEnabled,
   }
 }
 
@@ -415,7 +419,8 @@ export function formatResolutionError(
  *      location (would silently no-op otherwise).
  *   2. Resolves the transitive dependency closure (when PLUGIN_DEPENDENCIES
  *      is on; trivial single-plugin closure otherwise).
- *   3. Writes the entire closure to enabledPlugins in one settings update.
+ *   3. Writes the closure to enabledPlugins via xw7 (honors
+ *      defaultEnabled; does not force-true every member).
  *   4. Caches each closure member (downloads/copies sources as needed).
  *   5. Clears memoization caches.
  *
@@ -478,6 +483,107 @@ async function collectExtraManifestDependencies(params: {
     ids.push(dep)
   }
   return { ok: true, ids }
+}
+
+type EnabledPluginSetting = boolean | string[] | undefined
+
+/**
+ * Official 2.1.154 `xw7`. Seed enabled ids from prior / explicit /
+ * `defaultEnabled ?? true` / root-required-by-dependent, then BFS-enable
+ * `dependenciesById` members that are in the closure.
+ */
+export function solveDefaultEnabled({
+  closure,
+  rootId,
+  rootRequiredByDependent,
+  priorEnabled,
+  explicitAnywhere,
+  defaultsById,
+  dependenciesById,
+}: {
+  closure: readonly string[]
+  rootId: string
+  rootRequiredByDependent: boolean
+  priorEnabled: Readonly<Record<string, EnabledPluginSetting>>
+  explicitAnywhere: ReadonlySet<string>
+  defaultsById: ReadonlyMap<string, boolean>
+  dependenciesById: ReadonlyMap<string, readonly string[]>
+}): Map<string, boolean> {
+  const inClosure = new Set(closure)
+  const enabled = new Set<string>()
+  for (const id of closure) {
+    const prior = priorEnabled[id]
+    const defaultOn = defaultsById.get(id) ?? true
+    if (prior !== undefined) {
+      if (prior !== false || defaultOn) enabled.add(id)
+      continue
+    }
+    if (
+      explicitAnywhere.has(id) ||
+      defaultOn ||
+      (id === rootId && rootRequiredByDependent)
+    ) {
+      enabled.add(id)
+    }
+  }
+  const queue = [...enabled]
+  while (queue.length > 0) {
+    const id = queue.pop()
+    if (id === undefined) break
+    for (const dep of dependenciesById.get(id) ?? []) {
+      if (inClosure.has(dep) && !enabled.has(dep)) {
+        enabled.add(dep)
+        queue.push(dep)
+      }
+    }
+  }
+  return new Map(closure.map(id => [id, enabled.has(id)]))
+}
+
+function collectExplicitEnabledPlugins(): {
+  explicitAnywhere: Set<string>
+  enabledById: Record<string, EnabledPluginSetting>
+} {
+  const enabledById: Record<string, EnabledPluginSetting> = {}
+  for (const source of SETTING_SOURCES) {
+    Object.assign(
+      enabledById,
+      getSettingsForSource(source)?.enabledPlugins ?? {},
+    )
+  }
+  const explicitAnywhere = new Set(
+    Object.keys(enabledById).filter(id => enabledById[id] !== undefined),
+  )
+  return { explicitAnywhere, enabledById }
+}
+
+function isPluginEffectivelyEnabled(
+  plugin: LoadedPlugin,
+  enabledById: Readonly<Record<string, EnabledPluginSetting>>,
+): boolean {
+  const explicit = enabledById[plugin.source]
+  if (explicit !== undefined) {
+    return explicit === true || Array.isArray(explicit)
+  }
+  return plugin.manifest.defaultEnabled !== false
+}
+
+function isRootRequiredByEnabledDependent(
+  rootId: string,
+  loaded: readonly LoadedPlugin[],
+  enabledById: Readonly<Record<string, EnabledPluginSetting>>,
+): boolean {
+  const rootName = parsePluginIdentifier(rootId).name
+  return loaded.some(plugin => {
+    if (plugin.source === rootId) return false
+    if (!isPluginEffectivelyEnabled(plugin, enabledById)) return false
+    return (plugin.manifest.dependencies ?? []).some(raw => {
+      const dep = qualifyDependency(raw, plugin.source)
+      return parsePluginIdentifier(dep).marketplace
+        ? dep === rootId
+        : dep === rootName
+    })
+  })
 }
 
 export async function installResolvedPlugin({
@@ -590,12 +696,67 @@ export async function installResolvedPlugin({
     }
   }
 
-  // ── ACTION: write entire closure to settings in one call ──
-  const closureEnabled: Record<string, true> = {}
-  for (const id of resolution.closure) closureEnabled[id] = true
+  // Load existing plugins before the settings write so xw7 can see
+  // enabled dependents (rootRequiredByDependent) and version ranges.
+  let loadedPlugins: LoadedPlugin[] = []
+  try {
+    const loaded = await loadAllPluginsCacheOnly()
+    loadedPlugins = loaded.enabled.concat(loaded.disabled)
+  } catch (error) {
+    logForDebugging(
+      `installResolvedPlugin: could not load existing plugins for version-range checks: ${toError(error).message}`,
+      { level: 'warn' },
+    )
+  }
+
+  const priorEnabled: Record<string, EnabledPluginSetting> = {
+    ...getSettingsForSource(settingSource)?.enabledPlugins,
+  }
+  const { explicitAnywhere, enabledById } = collectExplicitEnabledPlugins()
+  const rootRequiredByDependent = isRootRequiredByEnabledDependent(
+    pluginId,
+    loadedPlugins,
+    enabledById,
+  )
+
+  function marketplaceEntryFor(id: string): PluginMarketplaceEntry | undefined {
+    return id === pluginId ? entry : depInfo.get(id)?.entry
+  }
+
+  const defaultsById = new Map<string, boolean>()
+  const dependenciesById = new Map<string, string[]>()
+  for (const id of resolution.closure) {
+    const marketplaceEntry = marketplaceEntryFor(id)
+    defaultsById.set(id, marketplaceEntry?.defaultEnabled ?? true)
+    dependenciesById.set(
+      id,
+      (marketplaceEntry?.dependencies ?? []).map(raw =>
+        qualifyDependency(raw, id),
+      ),
+    )
+  }
+
+  // Official 2.1.154 `xw7`: honor defaultEnabled; do not force-true the closure.
+  const solved = solveDefaultEnabled({
+    closure: resolution.closure,
+    rootId: pluginId,
+    rootRequiredByDependent,
+    priorEnabled,
+    explicitAnywhere,
+    defaultsById,
+    dependenciesById,
+  })
+  const firstWrite = new Map<string, boolean | string[]>()
+  const closureEnabled: Record<string, boolean | string[]> = {}
+  for (const id of resolution.closure) {
+    const prior = priorEnabled[id]
+    const value = Array.isArray(prior) ? prior : (solved.get(id) ?? true)
+    closureEnabled[id] = value
+    firstWrite.set(id, value)
+  }
   const { error } = updateSettingsForSource(settingSource, {
     enabledPlugins: {
-      ...getSettingsForSource(settingSource)?.enabledPlugins,
+      ...priorEnabled,
       ...closureEnabled,
     },
   })
@@ -611,6 +772,7 @@ export async function installResolvedPlugin({
   const projectPath = scope !== 'user' ? getCwd() : undefined
   const closureIds = [...resolution.closure]
   let rootManifestDeps: string[] | undefined
+  const manifestDefaults = new Map<string, boolean | undefined>()
 
   // Official 2.1.111 `wd1`: intersect version ranges from already-loaded
   // plugins (outside this closure) plus constraints discovered while
@@ -619,27 +781,19 @@ export async function installResolvedPlugin({
   const fromClosure = new Map<string, string[]>()
   const closureSet = new Set(resolution.closure)
   const installedVersions = new Map<string, string | undefined>()
-  try {
-    const loaded = await loadAllPluginsCacheOnly()
-    for (const plugin of loaded.enabled.concat(loaded.disabled)) {
-      installedVersions.set(
-        plugin.source,
-        plugin.resolvedVersion ?? plugin.manifest.version,
-      )
-      if (!plugin.depConstraints || closureSet.has(plugin.source)) continue
-      for (const [raw, constraint] of Object.entries(plugin.depConstraints)) {
-        if (constraint.version === undefined) continue
-        const dep = qualifyDependency(raw, plugin.source)
-        const list = fromLoaded.get(dep)
-        if (list) list.push(constraint.version)
-        else fromLoaded.set(dep, [constraint.version])
-      }
-    }
-  } catch (error) {
-    logForDebugging(
-      `installResolvedPlugin: could not load existing plugins for version-range checks: ${toError(error).message}`,
-      { level: 'warn' },
+  for (const plugin of loadedPlugins) {
+    installedVersions.set(
+      plugin.source,
+      plugin.resolvedVersion ?? plugin.manifest.version,
     )
+    if (!plugin.depConstraints || closureSet.has(plugin.source)) continue
+    for (const [raw, constraint] of Object.entries(plugin.depConstraints)) {
+      if (constraint.version === undefined) continue
+      const dep = qualifyDependency(raw, plugin.source)
+      const list = fromLoaded.get(dep)
+      if (list) list.push(constraint.version)
+      else fromLoaded.set(dep, [constraint.version])
+    }
   }
 
   async function materializeOne(
@@ -699,6 +853,7 @@ export async function installResolvedPlugin({
       localSourcePath,
       id !== pluginId,
     )
+    manifestDefaults.set(id, cached.defaultEnabled)
     if (id === pluginId) {
       rootManifestDeps = cached.dependencies
     }
@@ -779,6 +934,7 @@ export async function installResolvedPlugin({
     for (const id of extra.ids) {
       closureIds.push(id)
       extraEnabled[id] = true
+      firstWrite.set(id, true)
     }
     const { error: extraError } = updateSettingsForSource(settingSource, {
       enabledPlugins: {
@@ -810,6 +966,58 @@ export async function installResolvedPlugin({
           `Marketplace entry for ${pluginId} lists dependency "${dep}" not present in plugin.json — catalog may be stale`,
         )
       }
+    }
+  }
+
+  // Official 2.1.154: re-run xw7 after extra plugin.json deps and apply
+  // diffs. Extra ids were force-true'd above; defaultEnabled:false ones
+  // that are not deps of an enabled member get corrected off.
+  const correctionDefaults = new Map<string, boolean>()
+  const correctionDeps = new Map<string, string[]>()
+  for (const id of closureIds) {
+    const marketplaceEntry = marketplaceEntryFor(id)
+    correctionDefaults.set(
+      id,
+      marketplaceEntry?.defaultEnabled ?? manifestDefaults.get(id) ?? true,
+    )
+    const deps = (marketplaceEntry?.dependencies ?? []).map(raw =>
+      qualifyDependency(raw, id),
+    )
+    if (id === pluginId) {
+      for (const raw of rootManifestDeps ?? []) {
+        deps.push(qualifyDependency(raw, pluginId))
+      }
+    }
+    correctionDeps.set(id, deps)
+  }
+  const corrected = solveDefaultEnabled({
+    closure: closureIds,
+    rootId: pluginId,
+    rootRequiredByDependent,
+    priorEnabled,
+    explicitAnywhere,
+    defaultsById: correctionDefaults,
+    dependenciesById: correctionDeps,
+  })
+  const correction: Record<string, boolean> = {}
+  for (const id of closureIds) {
+    const prior = priorEnabled[id]
+    const next = corrected.get(id) ?? true
+    if (prior !== undefined && prior !== next) continue
+    if (firstWrite.get(id) !== next) correction[id] = next
+  }
+  if (Object.keys(correction).length > 0) {
+    const { error: correctionError } = updateSettingsForSource(settingSource, {
+      enabledPlugins: {
+        ...getSettingsForSource(settingSource)?.enabledPlugins,
+        ...correction,
+      },
+    })
+    if (correctionError) {
+      logForDebugging(
+        `Failed to apply defaultEnabled correction for ${pluginId}: ${correctionError.message}`,
+        { level: 'warn' },
+      )
     }
   }
 

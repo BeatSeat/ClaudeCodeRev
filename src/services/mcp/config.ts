@@ -58,7 +58,15 @@ import {
   type McpWebSocketServerConfig,
   type ScopedMcpServerConfig,
 } from './types.js'
-import { getProjectMcpServerStatus } from './utils.js'
+import {
+  getProjectMcpServerStatus,
+  getRawProjectMcpServerStatus,
+} from './utils.js'
+
+/** Official 2.1.154 `V8H`/`u5H` options. */
+export type McpConfigLoadOptions = {
+  includePendingProjectServers?: boolean
+}
 
 /** Official 2.1.128 `pH$`: MCP server name reserved for the workspace connector. */
 export const WORKSPACE_MCP_SERVER_NAME = 'workspace'
@@ -498,7 +506,7 @@ function isMcpServerDenied(
  * @param config Optional server config for command/URL-based matching
  * @returns true if allowed, false if blocked by policy
  */
-function isMcpServerAllowedByPolicy(
+export function isMcpServerAllowedByPolicy(
   serverName: string,
   config?: McpServerConfig,
 ): boolean {
@@ -1157,9 +1165,11 @@ export function getMcpConfigByName(name: string): ScopedMcpServerConfig | null {
  */
 export async function getClaudeCodeMcpConfigs(
   dynamicServers: Record<string, ScopedMcpServerConfig> = {},
+  options: McpConfigLoadOptions = {},
 ): Promise<{
   servers: Record<string, ScopedMcpServerConfig>
   errors: PluginError[]
+  pendingProjectServers: Set<string>
 }> {
   const { servers: enterpriseServers } = getMcpConfigsByScope('enterprise')
 
@@ -1176,7 +1186,7 @@ export async function getClaudeCodeMcpConfigs(
       filtered[name] = serverConfig
     }
 
-    return { servers: filtered, errors: [] }
+    return { servers: filtered, errors: [], pendingProjectServers: new Set() }
   }
 
   // Load other scopes — unless the managed policy locks MCP to plugin-only.
@@ -1245,11 +1255,24 @@ export async function getClaudeCodeMcpConfigs(
     }
   }
 
-  // Filter project servers to only include approved ones
+  // Official 2.1.154 `u5H`: includePending uses raw NP$ (no piped auto-approve).
+  const projectStatusOf = options.includePendingProjectServers
+    ? getRawProjectMcpServerStatus
+    : getProjectMcpServerStatus
+  const pendingProjectServers = new Set<string>()
   const approvedProjectServers: Record<string, ScopedMcpServerConfig> = {}
   for (const [name, config] of Object.entries(projectServers)) {
-    if (getProjectMcpServerStatus(name) === 'approved') {
+    const status = projectStatusOf(name)
+    if (status === 'approved') {
       approvedProjectServers[name] = config
+    } else if (
+      status === 'pending' &&
+      options.includePendingProjectServers &&
+      !localServers[name] &&
+      !userServers[name]
+    ) {
+      approvedProjectServers[name] = config
+      pendingProjectServers.add(name)
     }
   }
 
@@ -1268,6 +1291,7 @@ export async function getClaudeCodeMcpConfigs(
     ...dynamicServers,
   })) {
     if (
+      !pendingProjectServers.has(name) &&
       !isMcpServerDisabled(name) &&
       isMcpServerAllowedByPolicy(name, config)
     ) {
@@ -1329,7 +1353,14 @@ export async function getClaudeCodeMcpConfigs(
     filtered[name] = serverConfig as ScopedMcpServerConfig
   }
 
-  return { servers: filtered, errors: mcpErrors }
+  for (const name of pendingProjectServers) {
+    const scope = filtered[name]?.scope
+    if (scope !== 'project' && scope !== 'dynamic') {
+      pendingProjectServers.delete(name)
+    }
+  }
+
+  return { servers: filtered, errors: mcpErrors, pendingProjectServers }
 }
 
 /**
@@ -1337,36 +1368,52 @@ export async function getClaudeCodeMcpConfigs(
  * This may be slow due to network calls - use getClaudeCodeMcpConfigs() for fast startup.
  * @returns All server configurations with appropriate scopes
  */
-export async function getAllMcpConfigs(): Promise<{
+export async function getAllMcpConfigs(
+  options: McpConfigLoadOptions = {},
+): Promise<{
   servers: Record<string, ScopedMcpServerConfig>
   errors: PluginError[]
+  pendingProjectServers: Set<string>
 }> {
   // Official 2.1.149 `CJ$`: enterprise exclusive-control unless
   // allowAllClaudeAiMcps is set in any managed settings source.
   if (shouldSuppressClaudeAiMcps()) {
-    return getClaudeCodeMcpConfigs()
+    return getClaudeCodeMcpConfigs({}, options)
   }
 
   // Kick off the claude.ai fetch before getClaudeCodeMcpConfigs so it overlaps
   // with loadAllPluginsCacheOnly() inside. Memoized — the awaited call below is a cache hit.
   const claudeaiPromise = fetchClaudeAIMcpConfigsIfEligible()
-  const { servers: claudeCodeServers, errors } = await getClaudeCodeMcpConfigs()
+  const {
+    servers: claudeCodeServers,
+    errors,
+    pendingProjectServers,
+  } = await getClaudeCodeMcpConfigs({}, options)
   const { allowed: claudeaiMcpServers } = filterMcpServersByPolicy(
     await claudeaiPromise,
   )
+
+  // Official 2.1.154 `V8H`: pending .mcp.json servers are not dedup targets.
+  const dedupTargets = options.includePendingProjectServers
+    ? Object.fromEntries(
+        Object.entries(claudeCodeServers).filter(
+          ([name]) => !pendingProjectServers.has(name),
+        ),
+      )
+    : claudeCodeServers
 
   // Suppress claude.ai connectors that duplicate an enabled manual server.
   // Keys never collide (`slack` vs `claude.ai Slack`) so the merge below
   // won't catch this — need content-based dedup by URL signature.
   const { servers: dedupedClaudeAi } = dedupClaudeAiMcpServers(
     claudeaiMcpServers,
-    claudeCodeServers,
+    dedupTargets,
   )
 
   // Merge with claude.ai having lowest precedence
   const servers = Object.assign({}, dedupedClaudeAi, claudeCodeServers)
 
-  return { servers, errors }
+  return { servers, errors, pendingProjectServers }
 }
 
 /**

@@ -243,6 +243,10 @@ const MarketplaceNameSchema = lazySchema(() =>
     })
     .refine(name => name.toLowerCase() !== 'builtin', {
       message: 'Marketplace name "builtin" is reserved for built-in plugins',
+    })
+    .refine(name => name.toLowerCase() !== 'skills-dir', {
+      message:
+        'Marketplace name "skills-dir" is reserved for plugins auto-loaded from .claude/skills/',
     }),
 )
 
@@ -317,6 +321,12 @@ const PluginManifestMetadataSchema = lazySchema(() =>
       .array(z.string())
       .optional()
       .describe('Tags for plugin discovery and categorization'),
+    defaultEnabled: z
+      .boolean()
+      .optional()
+      .describe(
+        'Whether the plugin starts enabled when the user has no explicit enabled/disabled setting for it (default: true). Explicit enabledPlugins values always win, and a plugin required by an enabled dependent is enabled regardless of this value.',
+      ),
     dependencies: z
       .array(DependencyRefSchema())
       .optional()
@@ -1413,6 +1423,23 @@ const PluginRelevanceSignalsSchema = lazySchema(() =>
       .describe(
         'Hostnames (e.g. ["api.stripe.com"]) — exact, case-insensitive match against ' +
           'hostnames seen in https?:// URLs in bash commands run this session. Bare hostname only: lowercase, no scheme, no port, no path.',
+      ),
+    // Official 2.1.154 EF$: Discover pin (wk8/Dk8) + tips. filePath kept for 152 WNz.
+    filesRead: z
+      .array(z.string().max(256))
+      .max(10)
+      .optional()
+      .describe(
+        'Glob patterns (e.g. ["**/*.tf"]) — the plugin is relevant when a file Claude has read ' +
+          'this session matches any pattern. Matched against read-file paths, forward-slash normalized, case-insensitive.',
+      ),
+    cwd: z
+      .array(z.string().max(256))
+      .max(10)
+      .optional()
+      .describe(
+        'Glob patterns (e.g. ["Engine/Source/Runtime/Renderer/**"]) — the plugin is relevant when the ' +
+          "session's working directory is at or under a directory matching the pattern. Matched against the cwd both relative to the enclosing git repo root and as an absolute path, forward-slash normalized, case-insensitive. A bare directory (no glob characters) means \"cwd is at or under this directory\". Known at session start, so this signal can surface a suggestion before the first turn.",
       ),
     filePath: z
       .string()

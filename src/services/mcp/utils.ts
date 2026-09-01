@@ -371,7 +371,8 @@ export function parseHeaders(headerArray: string[]): Record<string, string> {
   return headers
 }
 
-export function getProjectMcpServerStatus(
+/** Official 2.1.154 `NP$`: raw .mcp.json approval, no piped auto-approve. */
+export function getRawProjectMcpServerStatus(
   serverName: string,
 ): 'approved' | 'rejected' | 'pending' {
   const settings = getSettings_DEPRECATED()
@@ -395,6 +396,16 @@ export function getProjectMcpServerStatus(
   ) {
     return 'approved'
   }
+
+  return 'pending'
+}
+
+/** Official 2.1.154 `XrH`: NP$ plus skip-dangerous / non-interactive auto-approve. */
+export function getProjectMcpServerStatus(
+  serverName: string,
+): 'approved' | 'rejected' | 'pending' {
+  const raw = getRawProjectMcpServerStatus(serverName)
+  if (raw !== 'pending') return raw
 
   // In bypass permissions mode (--dangerously-skip-permissions), there's no way
   // to show an approval popup. Auto-approve if projectSettings is enabled since

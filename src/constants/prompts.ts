@@ -62,6 +62,10 @@ import { loadMemoryPrompt } from '../memdir/memdir.js'
 import { isUndercover } from '../utils/undercover.js'
 import { isMcpInstructionsDeltaEnabled } from '../utils/mcpInstructionsDelta.js'
 import { getThinkingGuidanceSection } from '../utils/thinking.js'
+import {
+  getLeanSystemPromptSections,
+  isSimpleSystemPrompt,
+} from '../utils/simpleSystemPrompt.js'
 
 // Dead code elimination: conditional imports for feature-gated modules
 /* eslint-disable @typescript-eslint/no-require-imports */
@@ -264,6 +268,8 @@ function getInvestigateFirstMode(model: string): InvestigateFirstMode {
   if (env === 'additive' || env === 'compact') return env
   if (isEnvTruthy(env)) return 'additive'
   if (env === 'off' || isEnvDefinedFalsy(env)) return 'off'
+  // Official 2.1.154 rKq: lean prompt (X3) turns investigate-first off.
+  if (isSimpleSystemPrompt(model)) return 'off'
   const gb = getFeatureValue_CACHED_MAY_BE_STALE<string>(
     'tengu_slate_harrier',
     'off',
@@ -584,15 +590,20 @@ ${CYBER_RISK_INSTRUCTION}`,
 
   return [
     // --- Static content (cacheable) ---
-    getSimpleIntroSection(outputStyleConfig),
-    getSimpleSystemSection(),
-    outputStyleConfig === null ||
-    outputStyleConfig.keepCodingInstructions === true
-      ? getSimpleDoingTasksSection()
-      : null,
-    getActionsSection(model),
-    getUsingYourToolsSection(enabledTools),
-    getSimpleToneAndStyleSection(),
+    // Official 2.1.154 N0: X3 lean prefix is oXz + lean uXz/mXz, not the fat suite.
+    ...(isSimpleSystemPrompt(model)
+      ? getLeanSystemPromptSections(outputStyleConfig)
+      : [
+          getSimpleIntroSection(outputStyleConfig),
+          getSimpleSystemSection(),
+          outputStyleConfig === null ||
+          outputStyleConfig.keepCodingInstructions === true
+            ? getSimpleDoingTasksSection()
+            : null,
+          getActionsSection(model),
+          getUsingYourToolsSection(enabledTools),
+          getSimpleToneAndStyleSection(),
+        ]),
     // Official 2.1.100 dropped static gnY (# Output efficiency / ant-only
     // Communicating with the user). Official 108 still omits it.
     // === BOUNDARY MARKER - DO NOT MOVE OR REMOVE ===
@@ -772,6 +783,8 @@ function getKnowledgeCutoff(modelId: string): string | null {
   const canonical = getCanonicalName(modelId)
   if (canonical.includes('claude-sonnet-4-6')) {
     return 'August 2025'
+  } else if (canonical.includes('claude-opus-4-8')) {
+    return 'January 2026'
   } else if (canonical.includes('claude-opus-4-6')) {
     return 'May 2025'
   } else if (canonical.includes('claude-opus-4-5')) {

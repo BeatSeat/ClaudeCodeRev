@@ -292,9 +292,9 @@ function EffortSlider({
       <Box height={1} />
       <Box flexDirection="column" alignItems="center" width="100%">
         <Box>
-          <Text>Speed</Text>
+          <Text>Faster</Text>
           <Text>{headerPad}</Text>
-          <Text>Intelligence</Text>
+          <Text>Smarter</Text>
         </Box>
         <Box>
           <Text dimColor>{leftTrack}</Text>
@@ -327,7 +327,7 @@ export async function call(
 
   if (COMMON_HELP_ARGS.includes(args)) {
     onDone(
-      'Usage: /effort [low|medium|high|xhigh|max|auto]\n\nEffort levels:\n- low: Quick, straightforward implementation\n- medium: Balanced approach with standard testing\n- high: Comprehensive implementation with extensive testing\n- xhigh: Extended reasoning with thorough analysis (Opus 4.7 only)\n- max: Maximum capability with deepest reasoning (Opus 4.6/4.7 only)\n- auto: Use the default effort level for your model',
+      'Usage: /effort [low|medium|high|xhigh|max|auto]\n\nEffort levels:\n- low: Quick, straightforward implementation\n- medium: Balanced approach with standard testing\n- high: Comprehensive implementation with extensive testing\n- xhigh: Extended reasoning with thorough analysis (Opus 4.8/4.7 only)\n- max: Maximum capability with deepest reasoning (Opus 4.6+, Sonnet 4.6)\n- auto: Use the default effort level for your model',
     )
     return
   }

@@ -3415,7 +3415,8 @@ export type SessionPluginSource = {
  * Load session-only plugins from the --plugin-dir / --plugin-url CLI flags.
  *
  * These plugins are loaded directly without going through the marketplace system.
- * They appear with source='plugin-name@inline' and are always enabled for the current session.
+ * They appear with source='plugin-name@inline'. Enabled follows an explicit
+ * enabledPlugins entry, else `manifest.defaultEnabled !== false`.
  *
  * @param sessionPluginSources - Plugin directories and .zip URLs from CLI
  * @returns LoadedPlugin objects and any errors encountered
@@ -3426,6 +3427,13 @@ async function loadSessionOnlyPlugins(
   if (sessionPluginSources.length === 0) {
     return { plugins: [], errors: [] }
   }
+
+  // Official 2.1.154: explicit enabledPlugins wins; else defaultEnabled !== false.
+  const explicitBySource = new Map(
+    Object.entries(getSettings_DEPRECATED().enabledPlugins ?? {}).map(
+      ([id, value]) => [id.toLowerCase(), value],
+    ),
+  )
 
   // Official 2.1.129: parallel, so one slow --plugin-url doesn't serialize
   // the rest of session plugin loading.
@@ -3482,13 +3490,18 @@ async function loadSessionOnlyPlugins(
           const { plugin, errors: pluginErrors } = await createPluginFromPath(
             resolvedPath,
             `${dirName}@inline`, // temporary, will be updated after we know the real name
-            true, // always enabled
+            true,
             dirName,
           )
 
           // Update source to use the actual plugin name from manifest
           plugin.source = `${plugin.name}@inline`
           plugin.repository = `${plugin.name}@inline`
+          const explicit = explicitBySource.get(plugin.source.toLowerCase())
+          plugin.enabled =
+            explicit !== undefined
+              ? explicit !== false
+              : plugin.manifest.defaultEnabled !== false
 
           logForDebugging(`Loaded inline plugin from path: ${plugin.name}`)
           return { plugin, errors: pluginErrors }
