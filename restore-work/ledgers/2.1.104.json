@@ -1,0 +1,8 @@
+{
+  "version": "2.1.104",
+  "fromVersion": "2.1.101",
+  "expectedFunctionCount": 0,
+  "functions": [],
+  "changelogCoverage": [],
+  "notes": "Official CHANGELOG has no ## 2.1.104 section. astdiff 2.1.101→2.1.104 is 100% structurally similar (+5/-4, 48 string-only); tengu_/CLAUDE_ string delta is empty. Added u9_ was vendor-misclassified (nearby GCP metadata) — it is the first-party SSE byte-level idle wrapper. Engineered FAILs vs 101 TS: StreamIdleTimeoutError + withByteLevelStreamIdleTimeout in buildFetch (1P / anthropicAws SSE, Math.max(CLAUDE_STREAM_IDLE_TIMEOUT_MS||90000, 15000)); event watchdog logs tier:event; catch treats OV8 as watchdog tier:byte; idle error text is 'partial response received' when newMessages.length>0; already-yielded streams throw fallback_cause:partial_yield instead of non-streaming retry. Do not pull 2.1.105's 5-minute always-on abort into this hop."
+}
