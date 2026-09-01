@@ -11,6 +11,34 @@ const METRICS_CARDINALITY_DEFAULTS = {
   OTEL_METRICS_INCLUDE_SESSION_ID: true,
   OTEL_METRICS_INCLUDE_VERSION: false,
   OTEL_METRICS_INCLUDE_ACCOUNT_UUID: true,
+  OTEL_METRICS_INCLUDE_ENTRYPOINT: false,
+}
+
+const ENTRYPOINT_ALLOWLIST = new Set([
+  'cli',
+  'mcp',
+  'sdk-cli',
+  'sdk-ts',
+  'sdk-py',
+  'bench',
+  'claude-vscode',
+  'claude-code-github-action',
+  'local-agent',
+  'claude-desktop',
+  'remote',
+  'remote_baku',
+  'remote_cowork',
+  'remote_desktop',
+  'remote_mobile',
+  'claude_in_slack',
+  'claude-desktop-3p',
+  'ssh-remote',
+])
+
+/** Official 2.1.152 `tYH`. */
+function getMetricsEntrypoint(): string | undefined {
+  const value = process.env.CLAUDE_CODE_ENTRYPOINT
+  return value && ENTRYPOINT_ALLOWLIST.has(value) ? value : undefined
 }
 
 function shouldIncludeAttribute(
@@ -39,6 +67,10 @@ export function getTelemetryAttributes(): Attributes {
   }
   if (shouldIncludeAttribute('OTEL_METRICS_INCLUDE_VERSION')) {
     attributes['app.version'] = MACRO.VERSION
+  }
+  if (shouldIncludeAttribute('OTEL_METRICS_INCLUDE_ENTRYPOINT')) {
+    const entrypoint = getMetricsEntrypoint()
+    if (entrypoint) attributes['app.entrypoint'] = entrypoint
   }
 
   // Only include OAuth account data when actively using OAuth authentication

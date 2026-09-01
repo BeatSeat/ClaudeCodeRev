@@ -10,28 +10,5 @@
       "evidence": "astdiff +135 B; 2 genuine are memory-dream minify; tengu_heron_brook empty default — not landed"
     }
   ],
-  "notes": "NO_DELTA hop. Four-domain review PASS. Do not land tengu_heron_brook.",
-  "astdiff": {
-    "version": "2.1.150",
-    "from": "2.1.149",
-    "from_bundle": "/root/projects/ClaudeCodeRev/restore-work/artifacts/cometix/2.1.149/cli.js",
-    "to_bundle": "/root/projects/ClaudeCodeRev/restore-work/artifacts/cometix/2.1.150/cli.js",
-    "from_sha256": "9203352bd044459eec87b54fcea89842c422884d7440055d9f10d263be011752",
-    "to_sha256": "c8e8ceaf3959bdd3d94fa0fab7ebaa47b91674dfa6a84706c0f82e0e9db6d0eb",
-    "method": "astdiff-v0.2.0+tree-sitter0.25",
-    "parser": "tree-sitter 0.25 / tree-sitter-javascript 0.25",
-    "similarity": 100.0,
-    "matched_declarations": 24054,
-    "total_declarations_from": 24056,
-    "total_declarations_to": 24055,
-    "change_total": 2923,
-    "added": 1,
-    "removed": 2,
-    "structural": 2853,
-    "string_only": 67,
-    "command": "astdiff /root/projects/ClaudeCodeRev/restore-work/artifacts/cometix/2.1.149/cli.js /root/projects/ClaudeCodeRev/restore-work/artifacts/cometix/2.1.150/cli.js --format json",
-    "full_json": "/root/projects/Zhiman/projects/ccr-swarm/integration/astdiff-full/using/2.1.150.json",
-    "elapsed_seconds": 14.5,
-    "generated_at": "2026-11-14T15:06:57Z"
-  }
+  "notes": "NO_DELTA hop. Four-domain review PASS. Do not land tengu_heron_brook."
 }

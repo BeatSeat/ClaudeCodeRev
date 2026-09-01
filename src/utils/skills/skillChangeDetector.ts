@@ -309,3 +309,11 @@ export const skillChangeDetector = {
   subscribe,
   resetForTesting,
 }
+
+/** Official session-start /reload-skills: flush skill caches and notify listeners. */
+export function notifySkillsChanged(): void {
+  clearSkillCaches()
+  clearCommandsCache()
+  resetSentSkillNames()
+  skillsChanged.emit()
+}

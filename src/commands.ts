@@ -13,8 +13,6 @@ import copy from './commands/copy/index.js'
 import desktop from './commands/desktop/index.js'
 import commitPushPr from './commands/commit-push-pr.js'
 import compact from './commands/compact/index.js'
-import scrollSpeed from './commands/scroll-speed/index.js'
-import goal, { goalNonInteractive } from './commands/goal/index.js'
 import {
   autocompact,
   autocompactNonInteractive,
@@ -47,6 +45,7 @@ import rename from './commands/rename/index.js'
 import resume from './commands/resume/index.js'
 import review, { ultrareview } from './commands/review.js'
 import session from './commands/session/index.js'
+import scrollSpeed from './commands/scroll-speed/index.js'
 import share from './commands/share/index.js'
 import skills from './commands/skills/index.js'
 import status from './commands/status/index.js'
@@ -144,6 +143,7 @@ import branch from './commands/branch/index.js'
 import agents from './commands/agents/index.js'
 import plugin from './commands/plugin/index.js'
 import reloadPlugins from './commands/reload-plugins/index.js'
+import reloadSkills from './commands/reload-skills/index.js'
 import rewind from './commands/rewind/index.js'
 import recap from './commands/recap/index.js'
 import heapDump from './commands/heapdump/index.js'
@@ -163,6 +163,7 @@ import setupVertex from './commands/setup-vertex/index.js'
 import chrome from './commands/chrome/index.js'
 import stickers from './commands/stickers/index.js'
 import advisor from './commands/advisor/index.js'
+import goal, { goalNonInteractive } from './commands/goal/index.js'
 import stopHook from './commands/stop-hook/index.js'
 import teamOnboarding from './commands/team-onboarding/index.js'
 import { logError } from './utils/log.js'
@@ -290,9 +291,6 @@ const COMMANDS = memoize((): Command[] => [
   clear,
   color,
   compact,
-  goal,
-  goalNonInteractive,
-  scrollSpeed,
   config,
   copy,
   desktop,
@@ -306,6 +304,8 @@ const COMMANDS = memoize((): Command[] => [
   files,
   focus,
   wellbeing,
+  goal,
+  goalNonInteractive,
   heapDump,
   help,
   powerup,
@@ -325,9 +325,11 @@ const COMMANDS = memoize((): Command[] => [
   pr_comments,
   releaseNotes,
   reloadPlugins,
+  reloadSkills,
   rename,
   resume,
   session,
+  scrollSpeed,
   skills,
   status,
   statusline,

@@ -357,6 +357,10 @@ export const outputSchema = lazySchema(() => {
       .array(z.string())
       .optional()
       .describe('Tools allowed by this skill'),
+    disallowedTools: z
+      .array(z.string())
+      .optional()
+      .describe('Tools denied by this skill'),
     model: z.string().optional().describe('Model override if specified'),
     status: z.literal('inline').optional().describe('Execution status'),
   })
@@ -759,6 +763,9 @@ export const SkillTool: Tool<InputSchema, Output, Progress> = buildTool({
 
     // Extract metadata from the command
     const allowedTools = processedCommand.allowedTools || []
+    // Official 2.1.152 E54: zS(H.disallowedTools??[]); JW8 union is applied
+    // inside processPromptSlashCommand (getMessagesForPromptSlashCommand).
+    const disallowedTools = processedCommand.disallowedTools || []
     const model = processedCommand.model
     const effort =
       command?.type === 'prompt'
@@ -888,6 +895,8 @@ export const SkillTool: Tool<InputSchema, Output, Progress> = buildTool({
         success: true,
         commandName,
         allowedTools: allowedTools.length > 0 ? allowedTools : undefined,
+        disallowedTools:
+          disallowedTools.length > 0 ? disallowedTools : undefined,
         model,
       },
       newMessages,

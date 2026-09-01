@@ -1,7 +1,10 @@
+import { isUltrareviewEnabled } from '../../commands/review/ultrareviewEnabled.js'
 import { AGENT_TOOL_NAME } from '../../tools/AgentTool/constants.js'
 import type { ToolUseContext } from '../../Tool.js'
+import { isCommandEnabled } from '../../types/command.js'
 import {
   convertEffortValueToLevel,
+  EFFORT_LEVELS,
   isEffortLevel,
   resolveAppliedEffort,
   type EffortLevel,
@@ -9,36 +12,69 @@ import {
 } from '../../utils/effort.js'
 import { registerBundledSkill } from '../bundledSkills.js'
 
-/** Official 2.1.147 `g49`. */
+/** Official 2.1.152 `sv8`. */
+function parseFlagArgs(
+  args: string,
+  flags: string[],
+): { rawFirstToken: string; flags: Set<string>; rest: string } {
+  let rest = args.trim()
+  const rawFirstToken = rest.split(/\s+/, 1)[0] ?? ''
+  const found = new Set<string>()
+  for (const flag of flags) {
+    const next = rest.replace(
+      new RegExp(`(?:^|\\s)--${flag}(?=\\s|$)`, 'g'),
+      '',
+    )
+    if (next !== rest) found.add(flag)
+    rest = next.trim()
+  }
+  return { rawFirstToken, flags: found, rest }
+}
+
+/** Official 2.1.147 `g49` / 2.1.152 `a9q`. */
 export function parseCodeReviewArgs(args: string): {
   explicit: EffortLevel | undefined
   target: string
   comment: boolean
+  fix: boolean
   unrecognizedLevel: string | undefined
+  ultraFallback: boolean
 } {
-  let trimmed = args.trim()
-  const comment = /(?:^|\s)--comment(?:\s|$)/.test(trimmed)
-  if (comment) {
-    trimmed = trimmed.replace(/(?:^|\s)--comment(?=\s|$)/g, '').trim()
-  }
-  const parts = trimmed.split(/\s+/).filter(Boolean)
+  const { rawFirstToken, flags, rest } = parseFlagArgs(args, ['comment', 'fix'])
+  const comment = flags.has('comment')
+  const fix = flags.has('fix')
+  const parts = rest.split(/\s+/).filter(Boolean)
   const first = parts[0] ?? ''
+  if (rawFirstToken.toLowerCase() === 'ultra') {
+    return {
+      explicit: undefined,
+      target: parts.slice(1).join(' '),
+      comment,
+      fix,
+      unrecognizedLevel: undefined,
+      ultraFallback: true,
+    }
+  }
   const alias = first.trim().toLowerCase()
-  const mapped = alias === 'med' ? 'medium' : alias
-  if (isEffortLevel(mapped)) {
+  const mapped = alias === 'ultra' ? undefined : alias === 'med' ? 'medium' : alias
+  if (mapped !== undefined && isEffortLevel(mapped)) {
     return {
       explicit: mapped,
       target: parts.slice(1).join(' '),
       comment,
+      fix,
       unrecognizedLevel: undefined,
+      ultraFallback: false,
     }
   }
   const looksLikeLevel = /^(low|med|hig|xhi|max)[a-z]*$/i.test(first)
   return {
     explicit: undefined,
-    target: trimmed,
+    target: rest,
     comment,
+    fix,
     unrecognizedLevel: looksLikeLevel ? first : undefined,
+    ultraFallback: false,
   }
 }
 
@@ -54,6 +90,19 @@ const SWEEP = "## Phase 3 — Sweep for gaps\n\nRun **one more finder** as a fre
 const ANGLES_DE_TMPL = "${ANGLE}\n### Angle D — language-pitfall specialist\n\nScan for the classic pitfalls of the diff's language/framework — for example:\nJS falsy-zero, `==` coercion, closure-captured loop var; Python mutable default\nargs, late-binding closures; Go nil-map write, range-var capture; SQL injection;\ntimezone/DST drift; float equality. Flag any instance the diff introduces.\n\n### Angle E — wrapper/proxy correctness\n\nWhen the PR adds or modifies a type that wraps another (cache, proxy, decorator,\nadapter): check that every method routes to the wrapped instance and not back\nthrough a registry/session/global — e.g. a caching provider holding a\n`delegate` field that resolves IDs via `session.get(...)` instead of\n`delegate.get(...)` will re-enter the cache or recurse. Also check that the\nwrapper forwards all the methods the callers actually use.\n"
 const OUTPUT_TMPL = "## Output\n\nReturn findings as a JSON array of at most ${H} objects:\n\n```json\n[\n  {\n    \"file\": \"path/to/file.ext\",\n    \"line\": 123,\n    \"summary\": \"one-sentence statement of the bug\",\n    \"failure_scenario\": \"concrete inputs/state → wrong output/crash\"\n  }\n]\n```\n\nRanked most-severe first. If more than ${H} survive, keep the ${H} most\nsevere. If nothing survives verification, return `[]`.\n"
 const LOW_PROMPT = "`low effort → 1 diff pass → no verify → ≤4 findings`\n\n## Turn 1 — read\n\nOne tool call: read the unified diff (`git diff @{upstream}...HEAD; git diff HEAD`\nto cover both committed and uncommitted changes, or `git diff main...HEAD` /\nthe target passed as an argument). Skip test/fixture\nhunks (`test/`, `spec/`, `__tests__/`, `*_test.*`, `*.test.*`,\n`fixtures/`, `testdata/`) — test-file changes are not reviewed at this level.\nNo subagents, no full-file reads.\n\n## Turn 2 — findings\n\nFlag only runtime-correctness bugs visible from the hunk alone: inverted/wrong\ncondition, off-by-one, null/undefined deref where adjacent lines show the value\ncan be absent, removed guard, falsy-zero check, missing `await`,\nwrong-variable copy-paste, error swallowed in a catch that should propagate.\n\nDo **not** flag style, naming, perf, missing tests, or anything outside the\nhunk.\n\nOutput at most **4 findings**, most-severe first, one line each:\n`path/to/file.ext:123 — what's wrong and the concrete failure`. If nothing\nqualifies, output exactly `(none)`.\n"
+const FIX_APPENDIX = `
+
+## Applying fixes (--fix)
+
+The \`--fix\` flag was passed. After producing the findings list, apply the
+findings to the working tree instead of stopping at the report: fix each one
+directly \u2014 correctness bugs and reuse/simplification/efficiency cleanups alike.
+Skip any finding whose fix would change intended behavior, require changes well
+outside the reviewed diff, or that you judge to be a false positive \u2014 note the
+skip rather than arguing with it. Finish with a brief summary of what was fixed
+and what was skipped.
+`
+
 const GITHUB_COMMENT_APPENDIX = "\n\n## Posting to GitHub (--comment)\n\nThe `--comment` flag was passed. After producing the findings list, if the\nreview target is a GitHub PR, post each finding as an inline PR comment via\n`mcp__github_inline_comment__create_inline_comment` (one call per finding;\ninclude a suggestion block only when it fully fixes the issue). If that tool\nis not available in this session, fall back to `gh api` (repos/{owner}/{repo}/pulls/{pr}/comments)\nor print the findings instead. If the target is not a PR, print the findings\nto the terminal and note that `--comment` was ignored.\n"
 const MEDIUM_TMPL = "`medium effort → 3 angles × 6 candidates → 1-vote verify → ≤8 findings`\n\nYou are reviewing for **precision** at medium effort: every finding you surface\nshould be one a maintainer would act on.\n\n${PHASE0}\n## Phase 1 — Find candidates (3 angles, up to 6 each)\n\nRun **3 independent finder angles** via the ${AGENT} tool. Each\nsurfaces **up to 6 candidate findings** with `file`, `line`, a one-line\n`summary`, and a concrete `failure_scenario`.\n\n${ANGLE}\nPass every candidate with a nameable failure scenario through — finders that\nsilently drop half-believed candidates bypass the verify step and are the\ndominant cause of misses.\n\n${VERIFY_P}\n${OUT8}"
 const HIGH_TMPL = "`high effort → 3 angles × 6 candidates → 1-vote verify (recall-biased) → ≤10 findings`\n\nYou are reviewing for **recall** at high effort: catch every real bug a careful\nreviewer would catch in one sitting. At this level, catching real bugs matters\nmore than avoiding false positives. Err on the side of surfacing.\n\n${PHASE0}\n## Phase 1 — Find candidates (3 angles, up to 6 each)\n\nRun **3 independent finder angles** via the ${AGENT} tool. Each\nsurfaces **up to 6 candidate findings** with `file`, `line`, a one-line\n`summary`, and a concrete `failure_scenario`.\n\n${ANGLE}\nPass every candidate with a nameable failure scenario through — finders that\nsilently drop half-believed candidates bypass the verify step and are the\ndominant cause of misses.\n\n${VERIFY_R}\n${OUT10}"
@@ -120,40 +169,106 @@ const GOA: Record<EffortLevel, () => string> = {
   max: () => extraHighPrompt('max'),
 }
 
+/** Official 2.1.152 `ihz`. */
+function ihz(): string {
+  return `Review the current diff for correctness bugs and reuse/simplification/efficiency cleanups at the given effort level (low/medium: fewer, high-confidence findings; high\u2192max: broader coverage, may include uncertain findings${isUltrareviewEnabled() ? '; ultra: deep multi-agent review in the cloud' : ''}). Pass --comment to post findings as inline PR comments, or --fix to apply the findings to the working tree after the review.`
+}
+
+/** Official 2.1.152 `rhz`. */
+function rhz(): string {
+  const levels = EFFORT_LEVELS.join('|')
+  return `[${isUltrareviewEnabled() ? `${levels}|ultra` : levels}] [--fix] [--comment] [<target>]`
+}
+
+/** Official 2.1.152 `ohz`. */
+function ohz({
+  ultraFallback,
+  fix,
+  unrecognizedLevel,
+  level,
+  context,
+}: {
+  ultraFallback: boolean
+  fix: boolean
+  unrecognizedLevel: string | undefined
+  level: EffortLevel
+  context: ToolUseContext
+}): string {
+  if (ultraFallback) {
+    if (!isUltrareviewEnabled()) {
+      if (fix) {
+        return `(Running a local ${level}-effort review and applying its findings.)\n\n`
+      }
+      return `(ultra (cloud review) isn't available in this environment \u2014 see https://code.claude.com/docs/en/ultrareview. Falling back to a local ${level}-effort review.)\n\n`
+    }
+    const hasUltrareview =
+      context.options?.commands?.some(
+        cmd => cmd.name === 'ultrareview' && isCommandEnabled(cmd),
+      ) ?? false
+    if (fix) {
+      return hasUltrareview
+        ? `(Claude can't launch the cloud review directly \u2014 type \`/code-review ultra --fix\` to review in the cloud and apply the findings locally when it completes. Running a local ${level}-effort review and applying its findings for now.)\n\n`
+        : `(Running a local ${level}-effort review and applying its findings.)\n\n`
+    }
+    return hasUltrareview
+      ? `(Claude can't launch the cloud review directly \u2014 type \`/code-review ultra\` to run it. Falling back to a local ${level}-effort review for now.)\n\n`
+      : `(Claude can't launch the cloud review directly \u2014 the user can run \`claude ultrareview\` from a terminal to start it. Falling back to a local ${level}-effort review for now.)\n\n`
+  }
+  if (unrecognizedLevel !== undefined) {
+    return `(Ignoring unrecognized effort "${unrecognizedLevel}"; valid: ${EFFORT_LEVELS.join(', ')}. Using ${level}.)\n\n`
+  }
+  return ''
+}
+
+/** Official 2.1.152 `_J9`. */
+async function codeReviewPrompt(
+  args: string,
+  context: ToolUseContext,
+): Promise<{ type: 'text'; text: string }[]> {
+  const { explicit, target, comment, fix, unrecognizedLevel, ultraFallback } =
+    parseCodeReviewArgs(args)
+  const requested = ultraFallback ? 'max' : explicit
+  const model = context.options.mainLoopModel
+  const resolved = model
+    ? (resolveAppliedEffort(model, requested ?? sessionEffort(context)) ??
+      requested)
+    : (requested ?? sessionEffort(context))
+  const level: EffortLevel =
+    resolved === undefined ? 'medium' : convertEffortValueToLevel(resolved)
+  const warning = ohz({
+    ultraFallback,
+    fix,
+    unrecognizedLevel,
+    level,
+    context,
+  })
+  const targetBlock = target ? `Review target: \`${target}\`\n\n` : ''
+  return [
+    {
+      type: 'text',
+      text: `${warning}${targetBlock}${GOA[level]()}${comment ? GITHUB_COMMENT_APPENDIX : ''}${fix ? FIX_APPENDIX : ''}`,
+    },
+  ]
+}
+
 export function registerSimplifySkill(): void {
   registerBundledSkill({
     name: 'code-review',
-    aliases: ['simplify'],
+    description: ihz(),
+    argumentHint: rhz(),
+    userInvocable: true,
+    getEffort: args => parseCodeReviewArgs(args).explicit,
+    getPromptForCommand: codeReviewPrompt,
+  })
+  registerBundledSkill({
+    name: 'simplify',
     description:
-      'Review the current diff for correctness bugs at the given effort level ' +
-      '(low/medium: fewer, high-confidence findings; high→max: broader coverage, ' +
-      'may include uncertain findings). Pass --comment to post findings as inline PR comments.',
-    argumentHint: '[low|medium|high|xhigh|max] [--comment] [<target>]',
+      'Review the current diff and apply the fixes — equivalent to /code-review --fix.',
+    argumentHint: `[${EFFORT_LEVELS.join('|')}] [--comment] [<target>]`,
     userInvocable: true,
     getEffort: args => parseCodeReviewArgs(args).explicit,
     async getPromptForCommand(args, context) {
-      const { explicit, target, comment, unrecognizedLevel } =
-        parseCodeReviewArgs(args)
-      const model = context.options.mainLoopModel
-      const resolved = model
-        ? (resolveAppliedEffort(model, explicit ?? sessionEffort(context)) ??
-          explicit)
-        : (explicit ?? sessionEffort(context))
-      const level: EffortLevel =
-        resolved === undefined ? 'medium' : convertEffortValueToLevel(resolved)
-      const warning =
-        unrecognizedLevel !== undefined
-          ? `(Ignoring unrecognized effort "${unrecognizedLevel}"; valid: low, medium, high, xhigh, max. Using ${level}.)\n\n`
-          : ''
-      const targetBlock = target
-        ? `Review target: \`${target}\`\n\n`
-        : ''
-      return [
-        {
-          type: 'text',
-          text: `${warning}${targetBlock}${GOA[level]()}${comment ? GITHUB_COMMENT_APPENDIX : ''}`,
-        },
-      ]
+      return codeReviewPrompt(`${args} --fix`.trim(), context)
     },
   })
 }

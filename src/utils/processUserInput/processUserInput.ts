@@ -55,6 +55,7 @@ import {
   createSystemMessage,
   createUserMessage,
 } from '../messages.js'
+import { applyAlwaysDenyCommandRulesFromContext } from '../permissions/alwaysDenyCommandRules.js'
 import { queryCheckpoint } from '../queryProfiler.js'
 import { parseSlashCommand } from '../slashCommandParsing.js'
 import {
@@ -78,6 +79,8 @@ export type ProcessUserInputBaseResult = {
   )[]
   shouldQuery: boolean
   allowedTools?: string[]
+  /** Official 2.1.152 `E54`/`JW8`: skill `disallowed-tools` → alwaysDenyRules.command */
+  disallowedTools?: string[]
   model?: string
   effort?: EffortValue
   // Output text for non-interactive mode (e.g., forked commands)
@@ -177,6 +180,16 @@ export async function processUserInput({
     preExpansionInput,
   )
   queryCheckpoint('query_process_user_input_base_end')
+
+  // Official 2.1.152 JW8: after aGz, replace alwaysDenyRules.command with
+  // this turn's skill disallowedTools (empty → clear). Skip when already
+  // processing so nested input does not clobber the outer turn.
+  if (!isAlreadyProcessing) {
+    applyAlwaysDenyCommandRulesFromContext(
+      context,
+      result.disallowedTools ?? [],
+    )
+  }
 
   if (!result.shouldQuery) {
     return result

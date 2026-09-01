@@ -32,7 +32,8 @@ import { widestLine } from './widest-line.js'
  * is just property reads + setCellAt — no stringWidth, no style interning,
  * no hyperlink extraction per frame.
  *
- * styleId is safe to cache: StylePool is session-lived (never reset).
+ * styleId is safe to cache within a StylePool generation. Official 2.1.152
+ * recycles the pool via needsCompaction/compact when live size grows.
  * hyperlink is stored as a string (not interned ID) since hyperlinkPool
  * resets every 5 min; setCellAt interns it per-frame (cheap Map.get).
  */

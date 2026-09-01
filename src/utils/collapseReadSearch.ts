@@ -328,6 +328,19 @@ function getCollapsibleToolInfo(
 /**
  * Check if a message is assistant text that should break a group.
  */
+/** Official 2.1.152 `ob_`: extract a thinking block from an assistant message. */
+function getThinkingFromMessage(
+  msg: RenderableMessage,
+): { message: RenderableMessage; text: string } | undefined {
+  if (msg.type !== 'assistant') return undefined
+  const content = msg.message.content[0]
+  if (content?.type !== 'thinking' || !content.thinking.trim()) return undefined
+  return { message: msg, text: content.thinking }
+}
+
+/** Official 2.1.152 `vp6`: cap per-block thinking duration at 10 minutes. */
+const THINKING_DURATION_CAP_MS = 600_000
+
 function isTextBreaker(msg: RenderableMessage): boolean {
   if (msg.type === 'assistant') {
     const content = msg.message.content[0]
@@ -599,6 +612,9 @@ type GroupAccumulator = {
   nonMemSearchArgs: string[]
   /** Most recently added non-memory operation, pre-formatted for display */
   latestDisplayHint: string | undefined
+  /** Official 2.1.152 `thoughtForMs` / `latestThinkingSummary` */
+  thoughtForMs: number
+  latestThinkingSummary: string | undefined
   // MCP tool calls (tracked separately so display says "Queried slack" not "Read N files")
   mcpCallCount?: number
   mcpServerNames?: Set<string>
@@ -635,6 +651,8 @@ function createEmptyGroup(): GroupAccumulator {
     memoryWriteCount: 0,
     nonMemSearchArgs: [],
     latestDisplayHint: undefined,
+    thoughtForMs: 0,
+    latestThinkingSummary: undefined,
     hookTotalMs: 0,
     hookCount: 0,
     hookInfos: [],
@@ -748,6 +766,10 @@ function createCollapsedGroup(
   if (group.relevantMemories && group.relevantMemories.length > 0) {
     result.relevantMemories = group.relevantMemories
   }
+  if (group.thoughtForMs > 0) result.thoughtForMs = group.thoughtForMs
+  if (group.latestThinkingSummary !== undefined) {
+    result.latestThinkingSummary = group.latestThinkingSummary
+  }
   return result
 }
 
@@ -766,6 +788,7 @@ export function collapseReadSearchGroups(
   const result: RenderableMessage[] = []
   let currentGroup = createEmptyGroup()
   let deferredSkippable: RenderableMessage[] = []
+  let lastTimestamp: string | undefined
 
   function flushGroup(): void {
     if (currentGroup.messages.length === 0) {
@@ -780,7 +803,12 @@ export function collapseReadSearchGroups(
   }
 
   for (const msg of messages) {
+    const thinking = isCollapsibleToolUse(msg, tools)
+      ? undefined
+      : getThinkingFromMessage(msg)
     if (isCollapsibleToolUse(msg, tools)) {
+      // Official 2.1.152: a tool use clears the live thinking summary.
+      currentGroup.latestThinkingSummary = undefined
       // This is a collapsible tool use - type predicate narrows to CollapsibleMessage
       const toolInfo = getCollapsibleToolInfo(msg, tools)!
 
@@ -915,6 +943,19 @@ export function collapseReadSearchGroups(
       // memoryReadCount after the readCount subtraction instead.
       currentGroup.relevantMemories ??= []
       currentGroup.relevantMemories.push(...msg.attachment.memories)
+    } else if (thinking !== undefined) {
+      // Official 2.1.152: absorb thinking into the group (summary + duration).
+      currentGroup.latestThinkingSummary = thinking.text
+        .trim()
+        .replace(/\s+/g, ' ')
+      if (lastTimestamp !== undefined && 'timestamp' in msg) {
+        const delta =
+          Date.parse(String(msg.timestamp)) - Date.parse(lastTimestamp)
+        if (Number.isFinite(delta) && delta > 0) {
+          currentGroup.thoughtForMs += Math.min(delta, THINKING_DURATION_CAP_MS)
+        }
+      }
+      currentGroup.messages.push(thinking.message)
     } else if (shouldSkipMessage(msg)) {
       // Don't flush the group for skippable messages (thinking, attachments, system)
       // If a group is in progress, defer these messages to output after the collapsed group
@@ -937,6 +978,9 @@ export function collapseReadSearchGroups(
       // User messages with non-collapsible tool results break the group
       flushGroup()
       result.push(msg)
+    }
+    if ('timestamp' in msg && typeof msg.timestamp === 'string') {
+      lastTimestamp = msg.timestamp
     }
   }
 

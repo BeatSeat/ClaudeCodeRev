@@ -84,9 +84,16 @@ export function clearSessionCaches(
   // 'session_start' on the next getMemoryFiles() call.
   resetGetMemoryFilesCache('session_start')
 
-  // Clear stored image paths cache
+  // Clear stored image paths cache. Official 2.1.152 Rn6 also resets
+  // displayedMessageContent on the same session-clear path.
   if (setAppState) {
     clearStoredImagePaths(setAppState)
+    setAppState(previousState => {
+      if (Object.keys(previousState.displayedMessageContent).length === 0) {
+        return previousState
+      }
+      return { ...previousState, displayedMessageContent: {} }
+    })
   }
 
   // Clear all session ingress caches (lastUuidMap, sequentialAppendBySession)
