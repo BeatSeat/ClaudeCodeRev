@@ -9,7 +9,6 @@ import { getPlatform } from './platform.js'
 
 // Track warnings to avoid spam — bounded to prevent unbounded memory growth
 export const MAX_WARNING_KEYS = 1000
-const warningCounts = new Map<string, number>()
 
 // Check if running from a build directory (development mode)
 // This is a sync version of the logic in getCurrentInstallationType()
@@ -45,24 +44,17 @@ function isInternalWarning(warning: Error): boolean {
   return INTERNAL_WARNINGS.some(pattern => pattern.test(warningStr))
 }
 
-// Store reference to our warning handler so we can detect if it's already installed
-let warningHandler: ((warning: Error) => void) | null = null
+const activeDisposers = new Set<() => void>()
 
 // For testing only - allows resetting the warning handler state
 export function resetWarningHandler(): void {
-  if (warningHandler) {
-    process.removeListener('warning', warningHandler)
+  for (const dispose of [...activeDisposers]) {
+    dispose()
   }
-  warningHandler = null
-  warningCounts.clear()
 }
 
-export function initializeWarningHandler(): void {
-  // Only set up handler once - check if our handler is already installed
-  const currentListeners = process.listeners('warning')
-  if (warningHandler && currentListeners.includes(warningHandler)) {
-    return
-  }
+export function initializeWarningHandler(): () => void {
+  const warningCounts = new Map<string, number>()
 
   // For external users, remove default Node.js handler to suppress stderr output
   // For internal users, only keep default warnings for development builds
@@ -75,7 +67,7 @@ export function initializeWarningHandler(): void {
   }
 
   // Create and store our warning handler
-  warningHandler = (warning: Error) => {
+  const warningHandler = (warning: Error) => {
     try {
       const warningKey = `${warning.name}: ${warning.message.slice(0, 50)}`
       const count = warningCounts.get(warningKey) || 0
@@ -118,4 +110,15 @@ export function initializeWarningHandler(): void {
 
   // Install the warning handler
   process.on('warning', warningHandler)
+
+  let disposed = false
+  const dispose = () => {
+    if (disposed) return
+    disposed = true
+    process.removeListener('warning', warningHandler)
+    warningCounts.clear()
+    activeDisposers.delete(dispose)
+  }
+  activeDisposers.add(dispose)
+  return dispose
 }

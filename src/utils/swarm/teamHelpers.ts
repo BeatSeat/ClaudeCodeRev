@@ -175,10 +175,13 @@ function writeTeamFile(teamName: string, teamFile: TeamFile): void {
 export async function writeTeamFileAsync(
   teamName: string,
   teamFile: TeamFile,
+  options?: { exclusive?: boolean },
 ): Promise<void> {
   const teamDir = getTeamDir(teamName)
   await mkdir(teamDir, { recursive: true })
-  await writeFile(getTeamFilePath(teamName), jsonStringify(teamFile, null, 2))
+  await writeFile(getTeamFilePath(teamName), jsonStringify(teamFile, null, 2), {
+    flag: options?.exclusive ? 'wx' : 'w',
+  })
 }
 
 /**

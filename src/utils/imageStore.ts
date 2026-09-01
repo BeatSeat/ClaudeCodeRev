@@ -1,6 +1,7 @@
 import { mkdir, open } from 'fs/promises'
 import { join } from 'path'
 import { getSessionId } from '../bootstrap/state.js'
+import type { AppState } from '../state/AppStateStore.js'
 import type { PastedContent } from './config.js'
 import { logForDebugging } from './debug.js'
 import { getClaudeConfigHomeDir } from './envUtils.js'
@@ -9,8 +10,7 @@ import { getFsImplementation } from './fsOperations.js'
 const IMAGE_STORE_DIR = 'image-cache'
 const MAX_STORED_IMAGE_PATHS = 200
 
-// In-memory cache of stored image paths
-const storedImagePaths = new Map<number, string>()
+type SetAppState = (updater: (previousState: AppState) => AppState) => void
 
 /**
  * Get the image store directory for the current session.
@@ -38,13 +38,20 @@ function getImagePath(imageId: number, mediaType: string): string {
 /**
  * Cache the image path immediately (fast, no file I/O).
  */
-export function cacheImagePath(content: PastedContent): string | null {
+export function cacheImagePath(
+  content: PastedContent,
+  setAppState: SetAppState,
+): string | null {
   if (content.type !== 'image') {
     return null
   }
   const imagePath = getImagePath(content.id, content.mediaType || 'image/png')
-  evictOldestIfAtCap()
-  storedImagePaths.set(content.id, imagePath)
+  setAppState(previousState => {
+    const imagePaths = new Map(previousState.imagePaths ?? [])
+    evictOldestIfAtCap(imagePaths)
+    imagePaths.set(content.id, imagePath)
+    return { ...previousState, imagePaths }
+  })
   return imagePath
 }
 
@@ -68,8 +75,6 @@ export async function storeImage(
     } finally {
       await fh.close()
     }
-    evictOldestIfAtCap()
-    storedImagePaths.set(content.id, imagePath)
     logForDebugging(`Stored image ${content.id} to ${imagePath}`)
     return imagePath
   } catch (error) {
@@ -101,22 +106,28 @@ export async function storeImages(
 /**
  * Get the file path for a stored image by ID.
  */
-export function getStoredImagePath(imageId: number): string | null {
-  return storedImagePaths.get(imageId) ?? null
+export function getStoredImagePath(
+  imageId: number,
+  imagePaths: ReadonlyMap<number, string>,
+): string | null {
+  return imagePaths.get(imageId) ?? null
 }
 
 /**
  * Clear the in-memory cache of stored image paths.
  */
-export function clearStoredImagePaths(): void {
-  storedImagePaths.clear()
+export function clearStoredImagePaths(setAppState: SetAppState): void {
+  setAppState(previousState => ({
+    ...previousState,
+    imagePaths: new Map(),
+  }))
 }
 
-function evictOldestIfAtCap(): void {
-  while (storedImagePaths.size >= MAX_STORED_IMAGE_PATHS) {
-    const oldest = storedImagePaths.keys().next().value
+function evictOldestIfAtCap(imagePaths: Map<number, string>): void {
+  while (imagePaths.size >= MAX_STORED_IMAGE_PATHS) {
+    const oldest = imagePaths.keys().next().value
     if (oldest !== undefined) {
-      storedImagePaths.delete(oldest)
+      imagePaths.delete(oldest)
     } else {
       break
     }

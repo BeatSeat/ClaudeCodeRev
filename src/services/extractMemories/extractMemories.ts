@@ -46,6 +46,7 @@ import type {
 } from '../../types/message.js'
 import { createAbortController } from '../../utils/abortController.js'
 import { count, uniq } from '../../utils/array.js'
+import { parseForSecurity } from '../../utils/bash/ast.js'
 import { logForDebugging } from '../../utils/debug.js'
 import {
   createCacheSafeParams,
@@ -217,9 +218,47 @@ function denyAutoMemTool(tool: Tool, reason: string) {
 }
 
 /**
+ * True when `command` is a single `rm` of auto-memory `.md` files: no
+ * redirects, env, recursion, or globs; every path is absolute and inside
+ * the memory directory. Official 2.1.94 (KHY) / 2.1.108 (HPY).
+ */
+async function isSafeAutoMemRm(command: string): Promise<boolean> {
+  const parsed = await parseForSecurity(command)
+  if (parsed.kind !== 'simple') return false
+  if (parsed.commands.length !== 1) return false
+  const cmd = parsed.commands[0]
+  if (!cmd) return false
+  if (cmd.argv[0] !== 'rm') return false
+  if (cmd.redirects.length > 0) return false
+  if (cmd.envVars.length > 0) return false
+  let pathCount = 0
+  let seenDoubleDash = false
+  for (let i = 1; i < cmd.argv.length; i++) {
+    const arg = cmd.argv[i]
+    if (arg === undefined) continue
+    if (!seenDoubleDash) {
+      if (arg === '--') {
+        seenDoubleDash = true
+        continue
+      }
+      if (arg.startsWith('-')) {
+        if (arg === '--recursive' || /^-[a-zA-Z]*[rR]/.test(arg)) return false
+        continue
+      }
+    }
+    if (/[*?[]/.test(arg)) return false
+    if (!arg.startsWith('/') || !arg.endsWith('.md')) return false
+    if (!isAutoMemPath(arg)) return false
+    pathCount++
+  }
+  return pathCount > 0
+}
+
+/**
  * Creates a canUseTool function that allows Read/Grep/Glob (unrestricted),
- * read-only Bash commands, and Edit/Write only for paths within the
- * auto-memory directory. Shared by extractMemories and autoDream.
+ * read-only Bash plus `rm` of memory-dir `.md` files, and Edit/Write only
+ * for paths within the auto-memory directory. Shared by extractMemories
+ * and autoDream.
  */
 export function createAutoMemCanUseTool(memoryDir: string): CanUseToolFn {
   return async (tool: Tool, input: Record<string, unknown>) => {
@@ -250,16 +289,22 @@ export function createAutoMemCanUseTool(memoryDir: string): CanUseToolFn {
       return { behavior: 'allow' as const, updatedInput: input }
     }
 
-    // Allow Bash only for commands that pass BashTool.isReadOnly.
-    // `tool` IS BashTool here — no static import needed.
+    // Allow Bash for read-only commands, or a single safe `rm` of memory .md
+    // files. `tool` IS BashTool here — no static import needed.
     if (tool.name === BASH_TOOL_NAME) {
       const parsed = tool.inputSchema.safeParse(input)
-      if (parsed.success && tool.isReadOnly(parsed.data)) {
-        return { behavior: 'allow' as const, updatedInput: input }
+      if (parsed.success) {
+        if (tool.isReadOnly(parsed.data)) {
+          return { behavior: 'allow' as const, updatedInput: input }
+        }
+        const command = parsed.data.command
+        if (typeof command === 'string' && (await isSafeAutoMemRm(command))) {
+          return { behavior: 'allow' as const, updatedInput: input }
+        }
       }
       return denyAutoMemTool(
         tool,
-        'Only read-only shell commands are permitted in this context (ls, find, grep, cat, stat, wc, head, tail, and similar)',
+        `Only read-only shell commands and rm with all paths inside ${memoryDir} are permitted in this context (ls, find, grep, cat, stat, wc, head, tail, and similar)`,
       )
     }
 

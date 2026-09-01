@@ -15,6 +15,19 @@ import { nodeCache } from './node-cache.js'
  * Returns the hit node even if it has no onClick — dispatchClick walks up
  * via parentNode to find handlers.
  */
+function containsPoint(
+  rect: { x: number; y: number; width: number; height: number },
+  col: number,
+  row: number,
+): boolean {
+  return (
+    col >= rect.x &&
+    col < rect.x + rect.width &&
+    row >= rect.y &&
+    row < rect.y + rect.height
+  )
+}
+
 export function hitTest(
   node: DOMElement,
   col: number,
@@ -22,22 +35,36 @@ export function hitTest(
 ): DOMElement | null {
   const rect = nodeCache.get(node)
   if (!rect) return null
-  if (
-    col < rect.x ||
-    col >= rect.x + rect.width ||
-    row < rect.y ||
-    row >= rect.y + rect.height
-  ) {
+  const inside = containsPoint(rect, col, row)
+  // Official 2.1.91: overflowing position:absolute descendants remain
+  // clickable even when the pointer is outside this node's box.
+  if (!inside && !node.hasAbsoluteDescendant) {
     return null
   }
-  // Later siblings paint on top; reversed traversal returns topmost hit.
+  let best: DOMElement | null = null
+  let bestOverflow = false
+  // Later siblings paint on top; reversed traversal prefers topmost hits.
   for (let i = node.childNodes.length - 1; i >= 0; i--) {
     const child = node.childNodes[i]!
     if (child.nodeName === '#text') continue
-    const hit = hitTest(child, col, row)
-    if (hit) return hit
+    const childEl = child as DOMElement
+    const childRect = nodeCache.get(childEl)
+    if (!childRect) continue
+    const childInside = containsPoint(childRect, col, row)
+    if (!childInside && !childEl.hasAbsoluteDescendant) continue
+    // Already have a hit that sits inside its own rect — skip other
+    // in-bounds siblings (paint-order already walked top-first).
+    if (best !== null && childInside) continue
+    const hit = hitTest(childEl, col, row)
+    if (!hit) continue
+    const overflow = !childInside
+    if (best === null || (overflow && !bestOverflow)) {
+      best = hit
+      bestOverflow = overflow
+    }
+    if (bestOverflow) break
   }
-  return node
+  return best ?? (inside ? node : null)
 }
 
 /**

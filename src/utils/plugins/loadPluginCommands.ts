@@ -309,6 +309,13 @@ function createPluginCommand(
         : parseBooleanFrontmatter(userInvocableValue)
 
     const shell = parseShellFrontmatter(frontmatter.shell, commandName)
+    const isPluginSkill = isSkill || config.isSkillMode
+    const commandContext =
+      isPluginSkill && frontmatter.context === 'fork' ? 'fork' : undefined
+    const agent =
+      isPluginSkill && frontmatter.agent != null
+        ? String(frontmatter.agent)
+        : undefined
 
     let hooks: Command['hooks']
     if ((isSkill || config.isSkillMode) && frontmatter.hooks) {
@@ -336,6 +343,8 @@ function createPluginCommand(
       effort,
       disableModelInvocation,
       userInvocable,
+      context: commandContext,
+      agent,
       contentLength: content.length,
       source: 'plugin' as const,
       loadedFrom: isSkill || config.isSkillMode ? 'plugin' : undefined,

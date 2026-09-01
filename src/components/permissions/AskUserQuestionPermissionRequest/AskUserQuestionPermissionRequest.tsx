@@ -19,7 +19,7 @@ import {
   type AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
   logEvent,
 } from '../../../services/analytics/index.js'
-import { useAppState } from '../../../state/AppState.js'
+import { useAppState, useSetAppState } from '../../../state/AppState.js'
 import type { Question } from '../../../tools/AskUserQuestionTool/AskUserQuestionTool.js'
 import { AskUserQuestionTool } from '../../../tools/AskUserQuestionTool/AskUserQuestionTool.js'
 import {
@@ -79,6 +79,7 @@ function AskUserQuestionPermissionRequestBody({
 }: PermissionRequestProps & {
   highlight: CliHighlight | null
 }): React.ReactNode {
+  const setAppState = useSetAppState()
   // Memoize parse result: safeParse returns a new object (and new `questions`
   // array) on every call. Without this, the render-body ref writes below make
   // React Compiler bail out on this component, so nothing is auto-memoized —
@@ -201,7 +202,7 @@ function AskUserQuestionPermissionRequestBody({
       filename: filename || 'Pasted image',
       dimensions,
     }
-    cacheImagePath(newContent)
+    cacheImagePath(newContent, setAppState)
     void storeImage(newContent)
     setPastedContentsByQuestion(prev => ({
       ...prev,

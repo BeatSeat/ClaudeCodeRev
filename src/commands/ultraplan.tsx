@@ -1,7 +1,7 @@
 import { readFileSync } from 'fs'
 import { REMOTE_CONTROL_DISCONNECTED_MSG } from '../bridge/types.js'
 import type { Command } from '../commands.js'
-import { DIAMOND_OPEN } from '../constants/figures.js'
+import { DIAMOND_FILLED, DIAMOND_OPEN } from '../constants/figures.js'
 import { getRemoteSessionUrl } from '../constants/product.js'
 import { getFeatureValue_CACHED_MAY_BE_STALE } from '../services/analytics/growthbook.js'
 import {
@@ -23,6 +23,7 @@ import { logError } from '../utils/log.js'
 import { enqueuePendingNotification } from '../utils/messageQueueManager.js'
 import { ALL_MODEL_CONFIGS } from '../utils/model/configs.js'
 import { updateTaskState } from '../utils/task/framework.js'
+import { deleteRemoteAgentMetadata } from '../utils/sessionStorage.js'
 import { archiveRemoteSession, teleportToRemote } from '../utils/teleport.js'
 import {
   pollForApprovedExitPlanMode,
@@ -102,9 +103,11 @@ function startDetachedPoll(
   url: string,
   getAppState: () => AppState,
   setAppState: (f: (prev: AppState) => AppState) => void,
+  onStatusMessage?: (message: string) => void,
 ): void {
   const started = Date.now()
   let failed = false
+  let planReadyNotified = false
   void (async () => {
     try {
       const { plan, rejectCount, executionTarget } =
@@ -112,8 +115,18 @@ function startDetachedPoll(
           sessionId,
           getUltraplanTimeoutMs(),
           phase => {
+            if (getAppState().tasks?.[taskId]?.status !== 'running') return
             if (phase === 'needs_input')
               logEvent('tengu_ultraplan_awaiting_input', {})
+            if (phase === 'plan_ready' && !planReadyNotified) {
+              planReadyNotified = true
+              onStatusMessage?.(buildPlanReadyMessage(url))
+              enqueuePendingNotification({
+                value: `The remote ultraplan session produced a plan and is waiting for approval. Tell the user to open ${url} to review it.`,
+                mode: 'task-notification',
+                isMeta: true,
+              })
+            }
             updateTaskState<RemoteAgentTaskState>(taskId, setAppState, t => {
               if (t.status !== 'running') return t
               const next = phase === 'running' ? undefined : phase
@@ -139,6 +152,9 @@ function startDetachedPoll(
         // doesn't notify for a killed session.
         const task = getAppState().tasks?.[taskId]
         if (task?.status !== 'running') return
+        void deleteRemoteAgentMetadata(taskId).catch(err =>
+          logForDebugging(`ultraplan meta delete failed: ${String(err)}`),
+        )
         updateTaskState<RemoteAgentTaskState>(taskId, setAppState, t =>
           t.status !== 'running'
             ? t
@@ -235,6 +251,10 @@ function buildLaunchMessage(disconnectedBridge?: boolean): string {
 
 function buildSessionReadyMessage(url: string): string {
   return `${DIAMOND_OPEN} ultraplan · Monitor progress in Claude Code on the web ${url}\nYou can continue working — when the ${DIAMOND_OPEN} fills, press ↓ to view results`
+}
+
+function buildPlanReadyMessage(url: string): string {
+  return `${DIAMOND_FILLED} ultraplan ready · ${url}\nPress ↓ to view results`
 }
 
 function buildAlreadyActiveMessage(url: string | undefined): string {
@@ -400,6 +420,8 @@ async function launchDetached(opts: {
 
     const prompt = buildUltraplanPrompt(blurb, seedPlan)
     let bundleFailMsg: string | undefined
+    let bundleFailureType: 'git_error' | 'too_large' | 'empty_repo' | undefined
+    let createFailMsg: string | undefined
     const session = await teleportToRemote({
       initialMessage: prompt,
       description: blurb || 'Refine local plan',
@@ -408,18 +430,25 @@ async function launchDetached(opts: {
       ultraplan: true,
       signal,
       useDefaultEnvironment: true,
-      onBundleFail: msg => {
+      onBundleFail: (msg, failureType) => {
         bundleFailMsg = msg
+        bundleFailureType = failureType
+      },
+      onCreateFail: msg => {
+        createFailMsg = msg
       },
     })
     if (!session) {
+      const failDetail = bundleFailMsg ?? createFailMsg
       logEvent('tengu_ultraplan_create_failed', {
-        reason: (bundleFailMsg
-          ? 'bundle_fail'
-          : 'teleport_null') as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
+        reason: (bundleFailureType
+          ? `${bundleFailureType}_fail`
+          : createFailMsg
+            ? 'create_api_fail'
+            : 'teleport_null') as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
       })
       enqueuePendingNotification({
-        value: `ultraplan: session creation failed${bundleFailMsg ? ` — ${bundleFailMsg}` : ''}. See --debug for details.`,
+        value: `ultraplan: session creation failed${failDetail ? ` — ${failDetail}` : '. See --debug for details.'}`,
         mode: 'task-notification',
       })
       return
@@ -451,7 +480,14 @@ async function launchDetached(opts: {
       },
       isUltraplan: true,
     })
-    startDetachedPoll(taskId, session.id, url, getAppState, setAppState)
+    startDetachedPoll(
+      taskId,
+      session.id,
+      url,
+      getAppState,
+      setAppState,
+      onSessionReady,
+    )
   } catch (e) {
     logError(e)
     logEvent('tengu_ultraplan_create_failed', {

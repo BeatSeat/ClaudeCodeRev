@@ -1,51 +1,32 @@
-# Quality gates
+# Quality Gates for Incremental Restore
 
-`quality-gate.mjs` is necessary, not sufficient. A hop is done only when all of the following hold.
+A version hop is done only when all quality criteria are met.
 
-## Script gate
+## Verification Checklist
 
-```bash
-node .cursor/skills/incremental-ts-restore/scripts/quality-gate.mjs --ledger restore-work/ledgers/<ver>.json
-```
+### 1. Structural Comparison Review (astdiff)
 
-Fails if:
+- Run `astdiff <from>/cli.js <to>/cli.js --summary` to confirm matched declarations and overall similarity.
+- Inspect all modified, added, and removed declarations via `astdiff`.
+- Verify that every structural modification correlates with either:
+  1. A feature or bugfix described in the official CHANGELOG for that version.
+  2. Internal refactoring, dependency updates, or bundler changes evident in the AST diff.
 
-- missing `version` / `fromVersion`
-- a function has an unknown `class`
-- `small-edit` / `rewrite` / `added` lack `evidence`
-- `unchanged` has `rewrittenByLlm: true`
-- `expectedFunctionCount` mismatches
-- a CHANGELOG item is missing from `changelogCoverage`
-- 2.1.113 lacks `bridge.unpatchedSeaPath`
+### 2. TypeScript Compilation Gate
 
-## Human / agent gate (not scripted yet)
+- Run `bun run typecheck` across the entire workspace.
+- **Must pass with 0 errors**.
 
-- `bun run typecheck` on the restored tree
-- `bun run build` produces `dist/cli.js`
-- α-normalized coverage vs the **target** `cli.js` is recorded in the ledger (`coverage` field, optional until the matcher lands)
-- no hop skipped (88→89→…→112, then 113…)
+### 3. Build & Bundler Gate
 
-## Ledger shape
+- Run `bun run build`.
+- Must successfully compile and bundle to `dist/cli.js` without resolution or runtime syntax failures.
 
-See `restore-work/ledgers/_template.json`. Minimum function row:
+### 4. CHANGELOG Completeness Gate
 
-```json
-{
-  "id": "stringHash:skeletonHash",
-  "class": "small-edit",
-  "fromId": "…",
-  "srcFile": "src/…",
-  "evidence": "string 'defer' + PreToolUse hook shape",
-  "rewrittenByLlm": true
-}
-```
+- Every item in the official CHANGELOG under `## <version>` must be mapped to corresponding structural AST changes in `cli.js` or confirmed as absent (e.g. docs, packaging, VS Code extension only).
 
-Minimum changelog row:
+### 5. Special Hop Gates
 
-```json
-{
-  "item": "Added \"defer\" permission decision to PreToolUse hooks — …",
-  "status": "located",
-  "evidence": "src/hooks/… + target strings"
-}
-```
+- **2.1.112 → 2.1.113 Bridge**: Must compare unpatched SEA `cli.js` against official 2.1.112 first to verify product changes, and compare unpatched SEA vs Cometix patched `cli.js` to isolate known Cometix P1–P9 compatibility patches.
+- **Sequential progression**: No hop skipped in the version walk path.

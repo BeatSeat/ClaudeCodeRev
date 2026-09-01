@@ -355,6 +355,7 @@ import {
   isEphemeralToolProgress,
   isLoggableMessage,
   saveWorktreeState,
+  savePermissionMode,
   getAgentTranscript,
 } from '../utils/sessionStorage.js'
 import { deserializeMessages } from '../utils/conversationRecovery.js'
@@ -724,11 +725,12 @@ function TranscriptSearchBar({
   // nearest-ptr, same highlights). User can edit or clear.
   initialQuery: string
 }): React.ReactNode {
-  const { query, cursorOffset } = useSearchInput({
+  const { query, cursorOffset, handleKeyDown, handlePaste } = useSearchInput({
     isActive: true,
     initialQuery,
     onExit: () => onClose(query),
     onCancel,
+    useGlobalInputFallback: false,
   })
   // Index warm-up runs before the query effect so it measures the real
   // cost — otherwise setSearchQuery fills the cache first and warm
@@ -779,22 +781,28 @@ function TranscriptSearchBar({
   const off = cursorOffset
   const cursorChar = off < query.length ? query[off] : ' '
   return (
-    <Box
-      borderTopDimColor
-      borderBottom={false}
-      borderLeft={false}
-      borderRight={false}
-      borderStyle="single"
-      marginTop={1}
-      paddingLeft={2}
-      width="100%"
+    <ink-box
+      tabIndex={0}
+      autoFocus
+      onKeyDown={handleKeyDown}
+      onPaste={handlePaste}
+      style={{
+        borderTopDimColor: true,
+        borderBottom: false,
+        borderLeft: false,
+        borderRight: false,
+        borderStyle: 'single',
+        marginTop: 1,
+        paddingLeft: 2,
+        width: '100%',
+        noSelect: true,
+      }}
       // applySearchHighlight scans the whole screen buffer. The query
       // text rendered here IS on screen — /foo matches its own 'foo' in
       // the bar. With no content matches that's the ONLY visible match →
       // gets CURRENT → underlined. noSelect makes searchHighlight.ts:76
       // skip these cells (same exclusion as gutters). You can't text-
       // select the bar either; it's transient chrome, fine.
-      noSelect
     >
       <Text>/</Text>
       <Text>{query.slice(0, off)}</Text>
@@ -817,13 +825,38 @@ function TranscriptSearchBar({
           {'  '}
         </Text>
       ) : null}
-    </Box>
+    </ink-box>
   )
 }
 
 const TITLE_ANIMATION_FRAMES = ['⠂', '⠐']
 const TITLE_STATIC_PREFIX = '✳'
 const TITLE_ANIMATION_INTERVAL_MS = 960
+
+// Official 2.1.101 five-stage sequence. Later versions retain the copy but
+// shorten the delays; keep the 2.1.101 timings for this restoration hop.
+const THINKING_ENCOURAGEMENT = [
+  {
+    afterMs: 30_000,
+    text: 'Thinking a bit longer… still working on it…',
+  },
+  {
+    afterMs: 60_000,
+    text: 'Hang tight… really working through this one…',
+  },
+  {
+    afterMs: 90_000,
+    text: 'This is a harder one… it might take another minute…',
+  },
+  {
+    afterMs: 150_000,
+    text: 'Still going… thanks for hanging in there…',
+  },
+  {
+    afterMs: 240_000,
+    text: 'Taking the time to get this right… thanks for your patience…',
+  },
+]
 
 /**
  * Sets the terminal tab title, with an animated prefix glyph while a query
@@ -1195,6 +1228,12 @@ export function REPL({
     isRemoteSession ? EMPTY_MCP_CLIENTS : mcpClients,
     toolPermissionContext.mode,
   )
+
+  // Official 2.1.90: persist permission mode on the transcript so --resume
+  // can restore it (cache is written by materialize/reAppend).
+  useEffect(() => {
+    savePermissionMode(toolPermissionContext.mode)
+  }, [toolPermissionContext.mode])
 
   // Initialize swarm features: teammate hooks and context
   // Handles both fresh spawns and resumed teammate sessions
@@ -2054,6 +2093,7 @@ export function REPL({
       initialContentReplacements,
     ),
   }))
+  const [sessionEnvVars] = useState(() => new Map<string, string>())
   const [bashRerunAliasesRef] = useState(() => ({
     current: createBashRerunAliases(),
   }))
@@ -2213,6 +2253,21 @@ export function REPL({
       return () => clearTimeout(timer)
     }
   }, [toolPermissionContext.mode, setMessages])
+
+  const [thinkingEncouragementIndex, setThinkingEncouragementIndex] =
+    useState(-1)
+  useEffect(() => {
+    if (streamMode !== 'thinking' || !isLoading) {
+      setThinkingEncouragementIndex(-1)
+      return
+    }
+    const timers = THINKING_ENCOURAGEMENT.map((step, i) =>
+      setTimeout(setThinkingEncouragementIndex, step.afterMs, i),
+    )
+    return () => {
+      for (const timer of timers) clearTimeout(timer)
+    }
+  }, [streamMode, isLoading])
 
   // If worktree creation was slow and sparse-checkout isn't configured,
   // nudge the user toward settings.worktree.sparsePaths.
@@ -3270,6 +3325,7 @@ export function REPL({
         },
         onChangeAPIKey: reverify,
         readFileState: readFileState.current,
+        sessionEnvVars,
         setToolJSX,
         addNotification,
         appendSystemMessage: msg => setMessages(prev => [...prev, msg]),
@@ -6252,6 +6308,16 @@ export function REPL({
                   verbose={verbose}
                 />
               )}
+              {showSpinner &&
+                thinkingEncouragementIndex >= 0 &&
+                streamMode === 'thinking' && (
+                  <Box marginTop={1} paddingLeft={2}>
+                    <Text dimColor>
+                      {figures.pointerSmall}{' '}
+                      {THINKING_ENCOURAGEMENT[thinkingEncouragementIndex]?.text}
+                    </Text>
+                  </Box>
+                )}
               {toolJSX &&
                 !(toolJSX.isLocalJSXCommand && toolJSX.isImmediate) &&
                 !toolJsxCentered && (
@@ -6959,14 +7025,14 @@ export function REPL({
 
                       const messageIndex = compactMessages.indexOf(message)
                       if (messageIndex === -1) {
-                        // Selected a snipped or pre-compact message that the
-                        // selector still shows (REPL keeps full history for
-                        // scrollback). Surface why nothing happened instead
-                        // of silently no-oping.
+                        // Selected a message the selector still shows (REPL
+                        // keeps full history for scrollback) that is gone
+                        // from the compact/active window. Surface why
+                        // nothing happened instead of silently no-oping.
                         setMessages(prev => [
                           ...prev,
                           createSystemMessage(
-                            'That message is no longer in the active context (snipped or pre-compact). Choose a more recent message.',
+                            'That message is no longer in the active context. Choose a more recent message.',
                             'warning',
                           ),
                         ])
@@ -7052,7 +7118,10 @@ export function REPL({
                         proactiveModule?.setContextBlocked(false)
                       }
                       setConversationId(randomUUID())
-                      runPostCompactCleanup(context.options.querySource)
+                        runPostCompactCleanup(
+                          context.options.querySource,
+                          setAppState,
+                        )
 
                       if (direction === 'from') {
                         const r = textForResubmit(message)

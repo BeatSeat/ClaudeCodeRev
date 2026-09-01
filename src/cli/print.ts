@@ -188,7 +188,11 @@ import {
   type PromptVariant,
 } from 'src/services/PromptSuggestion/promptSuggestion.js'
 import { getLastCacheSafeParams } from 'src/utils/forkedAgent.js'
-import { getAccountInformation } from 'src/utils/auth.js'
+import {
+  getAccountInformation,
+  SDK_OAUTH_REFRESH_ENTRYPOINTS,
+  setSdkOAuthTokenRefreshCallback,
+} from 'src/utils/auth.js'
 import { OAuthService } from 'src/services/oauth/index.js'
 import { installOAuthTokens } from 'src/cli/handlers/auth.js'
 import { getAPIProvider } from 'src/utils/model/providers.js'
@@ -206,6 +210,7 @@ import { parseSessionIdentifier } from 'src/utils/sessionUrl.js'
 import {
   hydrateRemoteSession,
   hydrateFromCCRv2InternalEvents,
+  getSessionIdFromLog,
   resetSessionFilePointer,
   doesMessageExistInSession,
   findUnresolvedToolUse,
@@ -214,6 +219,9 @@ import {
   saveMode,
   saveAiGeneratedTitle,
   restoreSessionMetadata,
+  searchSessionsByCustomTitle,
+  setSessionMirror,
+  flushSessionStorage,
 } from 'src/utils/sessionStorage.js'
 import { incrementPromptCount } from 'src/utils/commitAttribution.js'
 import {
@@ -296,6 +304,10 @@ import {
   setAllowedChannels,
   type ChannelEntry,
 } from 'src/bootstrap/state.js'
+import {
+  endInteractionSpan,
+  runWithInteractionContext,
+} from 'src/utils/telemetry/sessionTracing.js'
 import { runWithWorkload, WORKLOAD_CRON } from 'src/utils/workloadContext.js'
 import type { UUID } from 'crypto'
 import { randomUUID } from 'crypto'
@@ -513,6 +525,8 @@ export async function runHeadless(
     sdkUrl: string | undefined
     replayUserMessages: boolean | undefined
     includePartialMessages: boolean | undefined
+    excludeDynamicSections: boolean | undefined
+    sessionMirror?: boolean | undefined
     forkSession: boolean | undefined
     rewindFiles: string | undefined
     enableAuthStatus: boolean | undefined
@@ -617,6 +631,16 @@ export async function runHeadless(
   }
 
   const structuredIO = getStructuredIO(inputPrompt, options)
+  if (
+    isEnvTruthy(process.env.CLAUDE_CODE_SDK_HAS_OAUTH_REFRESH) &&
+    SDK_OAUTH_REFRESH_ENTRYPOINTS.has(
+      process.env.CLAUDE_CODE_ENTRYPOINT ?? '',
+    )
+  ) {
+    setSdkOAuthTokenRefreshCallback(() =>
+      structuredIO.requestOAuthTokenRefresh(),
+    )
+  }
 
   // When emitting NDJSON for SDK clients, any stray write to stdout (debug
   // prints, dependency console.log, library banners) breaks the client's
@@ -937,6 +961,7 @@ export async function runHeadless(
       ) &&
       message.type !== 'stream_event' &&
       message.type !== 'keep_alive' &&
+      message.type !== 'transcript_mirror' &&
       message.type !== 'streamlined_text' &&
       message.type !== 'streamlined_tool_use_summary' &&
       message.type !== 'prompt_suggestion'
@@ -1033,6 +1058,9 @@ function runHeadlessStreaming(
     fallbackModel: string | undefined
     replayUserMessages?: boolean | undefined
     includePartialMessages?: boolean | undefined
+    excludeDynamicSections?: boolean | undefined
+    outputFormat?: string | undefined
+    sessionMirror?: boolean | undefined
     enableAuthStatus?: boolean | undefined
     agent?: string | undefined
     setSDKStatus?: (status: SDKStatus) => void
@@ -1056,6 +1084,17 @@ function runHeadlessStreaming(
   let abortController: AbortController | undefined
   // Same queue sendRequest() enqueues to — one FIFO for everything.
   const output = structuredIO.outbound
+
+  // Official 2.1.97: parent SessionStore peels transcript_mirror off stdout.
+  if (options.outputFormat === 'stream-json' && options.sessionMirror) {
+    setSessionMirror((filePath, entries) => {
+      void structuredIO.write({
+        type: 'transcript_mirror',
+        filePath,
+        entries,
+      })
+    })
+  }
 
   // Ctrl+C in -p mode: abort the in-flight query, then shut down gracefully.
   // gracefulShutdown persists session state and flushes analytics, with a
@@ -2182,6 +2221,8 @@ function runHeadlessStreaming(
           // inside the closure.
           const cmd = command
           await runWithWorkload(cmd.workload ?? options.workload, async () => {
+            await runWithInteractionContext(input, async () => {
+            try {
             for await (const message of ask({
               commands: uniqBy(
                 [...currentCommands, ...appState.mcp.commands],
@@ -2224,6 +2265,7 @@ function runHeadlessStreaming(
               abortController,
               replayUserMessages: options.replayUserMessages,
               includePartialMessages: options.includePartialMessages,
+              excludeDynamicSections: options.excludeDynamicSections,
               handleElicitation: (serverName, params, elicitSignal) =>
                 structuredIO.handleElicitation(
                   serverName,
@@ -2271,6 +2313,9 @@ function runHeadlessStreaming(
                   heldBackResult = message
                 } else {
                   heldBackResult = null
+                  if (options.sessionMirror) {
+                    await flushSessionStorage()
+                  }
                   output.enqueue(message)
                 }
               } else {
@@ -2283,6 +2328,9 @@ function runHeadlessStreaming(
               }
             }
             pendingDeferredToolUse = undefined
+            } finally {
+              endInteractionSpan()
+            }
             })
           }) // end runWithWorkload
 
@@ -2447,6 +2495,9 @@ function runHeadlessStreaming(
       } while (waitingForAgents)
 
       if (heldBackResult) {
+        if (options.sessionMirror) {
+          await flushSessionStorage()
+        }
         output.enqueue(heldBackResult)
         heldBackResult = null
         if (suggestionState.pendingSuggestion) {
@@ -2466,6 +2517,9 @@ function runHeadlessStreaming(
       // Emit error result message before shutting down
       // Write directly to structuredIO to ensure immediate delivery
       try {
+        if (options.sessionMirror) {
+          await flushSessionStorage()
+        }
         await structuredIO.write({
           type: 'result',
           subtype: 'error_during_execution',
@@ -2496,6 +2550,12 @@ function runHeadlessStreaming(
       // Flush pending internal events before going idle
       await structuredIO.flushInternalEvents()
       runPhase = 'finally_post_flush'
+      if (!isShuttingDown()) {
+        await Promise.race([
+          structuredIO.flushDeliveryAcks(),
+          sleep(5000, undefined, { unref: true }),
+        ])
+      }
       if (!isShuttingDown()) {
         notifySessionStateChanged('idle')
         // Drain so the idle session_state_changed SDK event (plus any
@@ -4920,9 +4980,8 @@ function emitLoadError(
       errors: [message],
     }
     process.stdout.write(jsonStringify(errorResult) + '\n')
-  } else {
-    process.stderr.write(message + '\n')
   }
+  process.stderr.write(message + '\n')
 }
 
 /**
@@ -5086,21 +5145,46 @@ async function loadInitialMessages(
     }
   }
 
-  // Handle resume in print mode (accepts session ID or URL)
+  // Handle resume in print mode (accepts session ID, exact title, or URL)
   // URLs are [ANT-ONLY]
   if (options.resume) {
     try {
       logEvent('tengu_resume_print', {})
 
-      // In print mode - we require a valid session ID, JSONL file or URL
-      const parsedSessionId = parseSessionIdentifier(
-        typeof options.resume === 'string' ? options.resume : '',
-      )
+      const resumeValue =
+        typeof options.resume === 'string' ? options.resume.trim() : ''
+      let parsedSessionId = parseSessionIdentifier(resumeValue)
+
+      if (!parsedSessionId && resumeValue) {
+        const titleMatches = await searchSessionsByCustomTitle(resumeValue, {
+          exact: true,
+        })
+        if (titleMatches.length === 1) {
+          const matchedSessionId = getSessionIdFromLog(titleMatches[0]!)
+          if (matchedSessionId) {
+            parsedSessionId = parseSessionIdentifier(matchedSessionId)
+          }
+        } else if (titleMatches.length > 1) {
+          const choices = titleMatches
+            .map(
+              match =>
+                `  ${getSessionIdFromLog(match) ?? '(unknown)'}  (modified ${match.modified.toISOString()})`,
+            )
+            .join('\n')
+          emitLoadError(
+            `Error: --resume "${resumeValue}" matches ${titleMatches.length} sessions. Pass one of these session IDs to disambiguate:\n${choices}`,
+            options.outputFormat,
+          )
+          gracefulShutdownSync(1)
+          return { messages: [] }
+        }
+      }
+
       if (!parsedSessionId) {
         let errorMessage =
-          'Error: --resume requires a valid session ID when used with --print. Usage: claude -p --resume <session-id>'
-        if (typeof options.resume === 'string') {
-          errorMessage += `. Session IDs must be in UUID format (e.g., 550e8400-e29b-41d4-a716-446655440000). Provided value "${options.resume}" is not a valid UUID`
+          'Error: --resume requires a valid session ID or session title when used with --print. Usage: claude -p --resume <session-id|title>'
+        if (resumeValue) {
+          errorMessage += `. Provided value "${resumeValue}" is not a UUID and does not match any session title.`
         }
         emitLoadError(errorMessage, options.outputFormat)
         gracefulShutdownSync(1)

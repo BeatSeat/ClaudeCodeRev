@@ -355,10 +355,12 @@ function ChordInterceptor({
           break
 
         case 'unbound':
-          // Key is explicitly unbound - clear pending state and swallow
-          // the keystroke (it was part of a chord sequence).
+          // Key is explicitly unbound. Only swallow if this completed a
+          // pending chord; otherwise let the keystroke propagate (2.1.92).
           setPendingChord(null)
-          event.stopImmediatePropagation()
+          if (wasInChord) {
+            event.stopImmediatePropagation()
+          }
           break
 
         case 'none':

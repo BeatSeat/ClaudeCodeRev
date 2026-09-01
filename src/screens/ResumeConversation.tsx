@@ -4,6 +4,7 @@ import React from 'react'
 import { useTerminalSize } from 'src/hooks/useTerminalSize.js'
 import { getOriginalCwd, switchSession } from '../bootstrap/state.js'
 import type { Command } from '../commands.js'
+import { KeyboardShortcutHint } from '../components/design-system/KeyboardShortcutHint.js'
 import { LogSelector } from '../components/LogSelector.js'
 import { Spinner } from '../components/Spinner.js'
 import { restoreCostStateForSession } from '../cost-tracker.js'
@@ -441,7 +442,15 @@ function NoConversationsMessage(): React.ReactNode {
   return (
     <Box flexDirection="column">
       <Text>No conversations found to resume.</Text>
-      <Text dimColor>Press Ctrl+C to exit and start a new conversation.</Text>
+      <Text dimColor>
+        Press{' '}
+        <KeyboardShortcutHint
+          chord="ctrl+c"
+          action="exit and start a new conversation"
+          format={{ modCase: 'title', charCase: 'upper' }}
+        />
+        .
+      </Text>
     </Box>
   )
 }

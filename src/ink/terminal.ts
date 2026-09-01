@@ -221,7 +221,7 @@ export function writeDiffToTerminal(
         }
         break
       case 'clearTerminal':
-        buffer += getClearTerminalSequence()
+        buffer += getClearTerminalSequence(!patch.altScreen)
         break
       case 'cursorHide':
         buffer += HIDE_CURSOR

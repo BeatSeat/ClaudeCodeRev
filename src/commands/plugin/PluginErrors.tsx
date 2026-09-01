@@ -46,6 +46,8 @@ export function formatErrorMessage(error: PluginError): string {
       return error.reason === 'not-enabled'
         ? `Dependency "${error.dependency}" is disabled`
         : `Dependency "${error.dependency}" is not installed`
+    case 'dependency-version-unsatisfied':
+      return `Requires "${error.dependency}" ${error.required}, installed ${error.installed ?? 'version unknown'}`
     case 'lsp-config-invalid':
       return `Invalid LSP server config for "${error.serverName}": ${error.validationError}`
     case 'lsp-server-start-failed':
@@ -122,6 +124,8 @@ export function getErrorGuidance(error: PluginError): string | null {
       return error.reason === 'not-enabled'
         ? `Enable "${error.dependency}" or uninstall "${error.plugin}"`
         : `Install "${error.dependency}" or uninstall "${error.plugin}"`
+    case 'dependency-version-unsatisfied':
+      return `Update "${error.dependency}" to satisfy ${error.required}, or uninstall "${error.plugin}"`
     case 'lsp-config-invalid':
       return 'Check LSP server configuration in the plugin manifest'
     case 'lsp-server-start-failed':

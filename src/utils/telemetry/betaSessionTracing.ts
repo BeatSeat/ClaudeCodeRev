@@ -29,7 +29,11 @@ import type { Span } from '@opentelemetry/api'
 import { createHash } from 'crypto'
 import { getIsNonInteractiveSession } from '../../bootstrap/state.js'
 import { getFeatureValue_CACHED_MAY_BE_STALE } from '../../services/analytics/growthbook.js'
-import { sanitizeToolNameForAnalytics } from '../../services/analytics/metadata.js'
+import {
+  isToolContentLoggingEnabled,
+  isToolDetailsLoggingEnabled,
+  sanitizeToolNameForAnalytics,
+} from '../../services/analytics/metadata.js'
 import type { AssistantMessage, UserMessage } from '../../types/message.js'
 import { isEnvTruthy } from '../envUtils.js'
 import { jsonParse, jsonStringify } from '../slowOperations.js'
@@ -224,7 +228,10 @@ export function addBetaInteractionAttributes(
   span: Span,
   userPrompt: string,
 ): void {
-  if (!isBetaTracingEnabled()) {
+  if (
+    !isBetaTracingEnabled() ||
+    !isEnvTruthy(process.env.OTEL_LOG_USER_PROMPTS)
+  ) {
     return
   }
 
@@ -253,8 +260,11 @@ export function addBetaLLMRequestAttributes(
     return
   }
 
+  const canLogUserPrompts = isEnvTruthy(process.env.OTEL_LOG_USER_PROMPTS)
+  const canLogToolDetails = isToolDetailsLoggingEnabled()
+
   // Add system prompt info to the span
-  if (newContext?.systemPrompt) {
+  if (canLogUserPrompts && newContext?.systemPrompt) {
     const promptHash = hashSystemPrompt(newContext.systemPrompt)
     const preview = newContext.systemPrompt.slice(0, 500)
 
@@ -282,7 +292,7 @@ export function addBetaLLMRequestAttributes(
   }
 
   // Add tools info to the span
-  if (newContext?.tools) {
+  if (canLogToolDetails && newContext?.tools) {
     try {
       const toolsArray = jsonParse(newContext.tools) as Record<
         string,
@@ -331,7 +341,12 @@ export function addBetaLLMRequestAttributes(
   }
 
   // Add new_context using hash-based tracking (visible to all users)
-  if (messagesForAPI && messagesForAPI.length > 0 && newContext?.querySource) {
+  if (
+    canLogUserPrompts &&
+    messagesForAPI &&
+    messagesForAPI.length > 0 &&
+    newContext?.querySource
+  ) {
     const querySource = newContext.querySource
     const lastHash = lastReportedMessageHash.get(querySource)
 
@@ -410,7 +425,11 @@ export function addBetaLLMResponseAttributes(
     thinkingOutput?: string
   },
 ): void {
-  if (!isBetaTracingEnabled() || !metadata) {
+  if (
+    !isBetaTracingEnabled() ||
+    !isEnvTruthy(process.env.OTEL_LOG_USER_PROMPTS) ||
+    !metadata
+  ) {
     return
   }
 
@@ -451,7 +470,7 @@ export function addBetaToolInputAttributes(
   toolName: string,
   toolInput: string,
 ): void {
-  if (!isBetaTracingEnabled()) {
+  if (!isBetaTracingEnabled() || !isToolDetailsLoggingEnabled()) {
     return
   }
 
@@ -476,7 +495,7 @@ export function addBetaToolResultAttributes(
   toolName: string | number | boolean,
   toolResult: string,
 ): void {
-  if (!isBetaTracingEnabled()) {
+  if (!isBetaTracingEnabled() || !isToolContentLoggingEnabled()) {
     return
   }
 

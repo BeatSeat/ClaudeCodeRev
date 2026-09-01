@@ -159,9 +159,15 @@ export async function resumeAgentBackground({
     ...appState.toolPermissionContext,
     mode: selectedAgent.permissionMode ?? 'acceptEdits',
   }
+  const parentOptionMcpTools = toolUseContext.options.tools.filter(
+    tool => tool.isMcp,
+  )
   const workerTools = isResumedFork
     ? toolUseContext.options.tools
-    : assembleToolPool(workerPermissionContext, appState.mcp.tools)
+    : assembleToolPool(workerPermissionContext, [
+        ...toolUseContext.getAppState().mcp.tools,
+        ...parentOptionMcpTools,
+      ])
 
   const runAgentParams: Parameters<typeof runAgent>[0] = {
     agentDefinition: selectedAgent,

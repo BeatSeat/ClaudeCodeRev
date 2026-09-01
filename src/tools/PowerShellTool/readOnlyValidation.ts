@@ -768,7 +768,14 @@ export const CMDLET_ALLOWLIST: Record<string, CommandConfig> = Object.assign(
       allowAllFlags: true,
     },
     arp: {
-      safeFlags: ['-a', '-g', '-v', '-N'],
+      safeFlags: ['-a', '-g', '-v', '-n'],
+      additionalCommandIsDangerousCallback: (
+        _cmd: string,
+        element?: ParsedCommandElement,
+      ) => {
+        // Official 2.1.90: reject any positional (non-flag) argument.
+        return (element?.args ?? []).some(a => !a.startsWith('-'))
+      },
     },
     route: {
       safeFlags: ['print', 'PRINT', '-4', '-6'],
@@ -1425,6 +1432,24 @@ export function isAllowlistedCommand(
   }
 
   const canonical = resolveToCanonical(cmd.name)
+
+  // PS 5.1 argument-splitting: an external-command arg that contains both a
+  // double-quote and whitespace is not safely auto-allowable (CreateProcess
+  // argv splitting). Prompt instead. Official 2.1.89 cj6.
+  if (
+    getPlatform() === 'windows' &&
+    (cmd.nameType === 'application' ||
+      canonical === 'git' ||
+      canonical === 'gh' ||
+      canonical === 'docker' ||
+      canonical === 'dotnet')
+  ) {
+    for (const arg of cmd.args) {
+      if (arg.includes('"') && /\s/.test(arg)) {
+        return false
+      }
+    }
+  }
 
   // Handle external commands via shared validation
   if (

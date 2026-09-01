@@ -32,6 +32,7 @@ import {
 } from '../utils/stats.js'
 import { resolveThemeSetting } from '../utils/systemTheme.js'
 import { getTheme, themeColorToAnsi } from '../utils/theme.js'
+import { KeyboardShortcutHint } from './design-system/KeyboardShortcutHint.js'
 import { Pane } from './design-system/Pane.js'
 import { Tab, Tabs, useTabHeaderFocus } from './design-system/Tabs.js'
 import { Spinner } from './Spinner.js'
@@ -735,7 +736,13 @@ function ModelsTab({
             {canScrollUp ? figures.arrowUp : ' '}{' '}
             {canScrollDown ? figures.arrowDown : ' '} {scrollOffset + 1}-
             {Math.min(scrollOffset + VISIBLE_MODELS, modelEntries.length)} of{' '}
-            {modelEntries.length} models (↑↓ to scroll)
+            {modelEntries.length} models{' '}
+            <KeyboardShortcutHint
+              chord={['up', 'down']}
+              action="scroll"
+              format={{ arrowSep: '' }}
+              parens
+            />
           </Text>
         </Box>
       )}

@@ -30,7 +30,7 @@ import { resetGetMemoryFilesCache } from '../../utils/claudemd.js'
 import { clearRepositoryCaches } from '../../utils/detectRepository.js'
 import { clearResolveGitDirCache } from '../../utils/git/gitFilesystem.js'
 import { clearStoredImagePaths } from '../../utils/imageStore.js'
-import { clearSessionEnvVars } from '../../utils/sessionEnvVars.js'
+import type { AppState } from '../../state/AppStateStore.js'
 
 /**
  * Clear all session-related caches.
@@ -46,6 +46,7 @@ import { clearSessionEnvVars } from '../../utils/sessionEnvVars.js'
  */
 export function clearSessionCaches(
   preservedAgentIds: ReadonlySet<string> = new Set(),
+  setAppState?: (updater: (previousState: AppState) => AppState) => void,
 ): void {
   const hasPreserved = preservedAgentIds.size > 0
   // Clear context caches
@@ -71,7 +72,7 @@ export function clearSessionCaches(
   // Run post-compaction cleanup (clears system prompt sections, microcompact tracking,
   // classifier approvals, speculative checks, and — for main-thread compacts — memory
   // files cache with load_reason 'compact').
-  runPostCompactCleanup()
+  runPostCompactCleanup(undefined, setAppState)
   // Reset sent skill names so the skill listing is re-sent after /clear.
   // runPostCompactCleanup intentionally does NOT reset this (post-compact
   // re-injection costs ~4K tokens), but /clear wipes messages entirely so
@@ -84,7 +85,9 @@ export function clearSessionCaches(
   resetGetMemoryFilesCache('session_start')
 
   // Clear stored image paths cache
-  clearStoredImagePaths()
+  if (setAppState) {
+    clearStoredImagePaths(setAppState)
+  }
 
   // Clear all session ingress caches (lastUuidMap, sequentialAppendBySession)
   clearAllSessions()
@@ -123,8 +126,6 @@ export function clearSessionCaches(
   resetAllLSPDiagnosticState()
   // Clear tracked magic docs
   clearTrackedMagicDocs()
-  // Clear session environment variables
-  clearSessionEnvVars()
   // Clear WebFetch URL cache (up to 50MB of cached page content)
   void import('../../tools/WebFetchTool/utils.js').then(
     ({ clearWebFetchCache }) => clearWebFetchCache(),

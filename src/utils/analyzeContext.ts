@@ -203,6 +203,8 @@ export interface ContextData {
   readonly systemTools?: SystemToolDetail[]
   /** Ant-only: per-section breakdown of system prompt */
   readonly systemPromptSections?: SystemPromptSectionDetail[]
+  /** Tokens for system+memory content redirected out of the prompt when excludeDynamicSections is on (official 2.1.97). */
+  readonly redirectedContextTokens?: number
   readonly agents: Agent[]
   readonly slashCommands?: SlashCommandInfo
   /** Skill statistics */
@@ -271,12 +273,18 @@ function extractSectionName(content: string): string {
 
 async function countSystemTokens(
   effectiveSystemPrompt: readonly string[],
+  excludeDynamicSections = false,
 ): Promise<{
   systemPromptTokens: number
   systemPromptSections: SystemPromptSectionDetail[]
+  redirectedContextTokens: number
 }> {
   // Get system context (gitStatus, etc.) which is always included
   const systemContext = await getSystemContext()
+
+  // Official 2.1.97: when dynamic sections are excluded from the prompt,
+  // keep them out of the named breakdown and count the redirected blob instead.
+  const namedContext = excludeDynamicSections ? {} : systemContext
 
   // Build named entries: system prompt parts + system context values
   // Skip empty strings and the global-cache boundary marker
@@ -287,13 +295,35 @@ async function countSystemTokens(
           content.length > 0 && content !== SYSTEM_PROMPT_DYNAMIC_BOUNDARY,
       )
       .map(content => ({ name: extractSectionName(content), content })),
-    ...Object.entries(systemContext)
+    ...Object.entries(namedContext)
       .filter(([, content]) => content.length > 0)
       .map(([name, content]) => ({ name, content })),
   ]
 
+  let redirectedContextTokens = 0
+  if (excludeDynamicSections) {
+    const memoryFilesData = filterInjectedMemoryFiles(await getMemoryFiles())
+    const redirected = [
+      ...Object.values(systemContext),
+      ...memoryFilesData.map(f => f.content ?? ''),
+    ]
+      .filter(content => content.length > 0)
+      .join('\n')
+    if (redirected.length > 0) {
+      redirectedContextTokens =
+        (await countTokensWithFallback(
+          [{ role: 'user', content: redirected }],
+          [],
+        )) || 0
+    }
+  }
+
   if (namedEntries.length < 1) {
-    return { systemPromptTokens: 0, systemPromptSections: [] }
+    return {
+      systemPromptTokens: 0,
+      systemPromptSections: [],
+      redirectedContextTokens,
+    }
   }
 
   const systemTokenCounts = await Promise.all(
@@ -314,7 +344,7 @@ async function countSystemTokens(
     0,
   )
 
-  return { systemPromptTokens, systemPromptSections }
+  return { systemPromptTokens, systemPromptSections, redirectedContextTokens }
 }
 
 async function countMemoryFileTokens(): Promise<{
@@ -948,7 +978,7 @@ export async function analyzeContextUsage(
 
   // Critical operations that should not fail due to skills
   const [
-    { systemPromptTokens, systemPromptSections },
+    { systemPromptTokens, systemPromptSections, redirectedContextTokens },
     { claudeMdTokens, memoryFileDetails },
     {
       builtInToolTokens,
@@ -961,7 +991,11 @@ export async function analyzeContextUsage(
     { slashCommandTokens, commandInfo },
     messageBreakdown,
   ] = await Promise.all([
-    countSystemTokens(effectiveSystemPrompt),
+    countSystemTokens(
+      effectiveSystemPrompt,
+      (toolUseContext?.options as { excludeDynamicSections?: boolean })
+        ?.excludeDynamicSections === true,
+    ),
     countMemoryFileTokens(),
     countBuiltInToolTokens(
       tools,
@@ -1095,6 +1129,39 @@ export async function analyzeContextUsage(
     })
   }
 
+  // Reconcile estimates with the API's usage total before deriving either the
+  // category grid or free space. The API cannot attribute tokens to our local
+  // categories, so any difference belongs to Messages (the unattributed
+  // remainder) rather than only replacing the header total afterward.
+  const apiUsage = getCurrentUsage(originalMessages ?? messages)
+  const totalFromAPI = apiUsage
+    ? apiUsage.input_tokens +
+      apiUsage.cache_creation_input_tokens +
+      apiUsage.cache_read_input_tokens
+    : null
+  if (totalFromAPI !== null) {
+    const messagesCategory = cats.find(category => category.name === 'Messages')
+    const estimatedUsage = cats.reduce(
+      (sum, category) => sum + (category.isDeferred ? 0 : category.tokens),
+      0,
+    )
+    const existingMessageTokens = messagesCategory?.tokens ?? 0
+    const attributedNonMessageTokens = estimatedUsage - existingMessageTokens
+    const reconciledMessageTokens = Math.max(
+      0,
+      totalFromAPI - attributedNonMessageTokens,
+    )
+    if (messagesCategory) {
+      messagesCategory.tokens = reconciledMessageTokens
+    } else if (reconciledMessageTokens > 0) {
+      cats.push({
+        name: 'Messages',
+        tokens: reconciledMessageTokens,
+        color: 'purple_FOR_SUBAGENTS_ONLY',
+      })
+    }
+  }
+
   // Calculate actual content usage (before adding reserved buffers)
   // Exclude deferred categories from the usage calculation
   const actualUsage = cats.reduce(
@@ -1155,23 +1222,8 @@ export async function analyzeContextUsage(
     color: 'promptBorder',
   })
 
-  // Total for display (everything except free space)
-  const totalIncludingReserved = actualUsage
-
-  // Extract API usage from original messages (if provided) to match status line
-  // This uses the same source of truth as the status line for consistency
-  const apiUsage = getCurrentUsage(originalMessages ?? messages)
-
-  // When API usage is available, use it for total to match status line calculation
-  // Status line uses: input_tokens + cache_creation_input_tokens + cache_read_input_tokens
-  const totalFromAPI = apiUsage
-    ? apiUsage.input_tokens +
-      apiUsage.cache_creation_input_tokens +
-      apiUsage.cache_read_input_tokens
-    : null
-
-  // Use API total if available, otherwise fall back to estimated total
-  const finalTotalTokens = totalFromAPI ?? totalIncludingReserved
+  // Header, categories, and free-space all derive from this reconciled total.
+  const finalTotalTokens = actualUsage
 
   // Pre-calculate grid based on model context window and terminal width
   // For narrow screens (< 80 cols), use 5x5 for 200k models, 5x10 for 1M+ models
@@ -1356,6 +1408,7 @@ export async function analyzeContextUsage(
       process.env.USER_TYPE === 'ant' ? systemToolDetails : undefined,
     systemPromptSections:
       process.env.USER_TYPE === 'ant' ? systemPromptSections : undefined,
+    redirectedContextTokens,
     agents: agentDetails,
     slashCommands:
       slashCommandTokens > 0

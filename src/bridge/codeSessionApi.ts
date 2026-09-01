@@ -90,13 +90,51 @@ export type RemoteCredentials = {
   worker_epoch: number
 }
 
+/** Official 2.1.91: POST /bridge 403 untrusted_device — caller must enroll. */
+export type UntrustedDeviceBridgeResponse = {
+  terminal: true
+  reason: 'untrusted_device'
+}
+
+export type RemoteCredentialsResult =
+  | RemoteCredentials
+  | UntrustedDeviceBridgeResponse
+  | null
+
+export const UNTRUSTED_DEVICE_ENROLL_MSG =
+  'run /login to enroll this device'
+
+export function isUntrustedDeviceBridgeResponse(
+  value: RemoteCredentialsResult,
+): value is UntrustedDeviceBridgeResponse {
+  return value !== null && 'terminal' in value
+}
+
+function isUntrustedDeviceBridgeError(
+  data: unknown,
+  detail: string | undefined,
+): boolean {
+  if (
+    data !== null &&
+    typeof data === 'object' &&
+    'error' in data &&
+    data.error !== null &&
+    typeof data.error === 'object' &&
+    'resource' in data.error &&
+    data.error.resource === 'untrusted_device'
+  ) {
+    return true
+  }
+  return detail?.includes('trusted device') ?? false
+}
+
 export async function fetchRemoteCredentials(
   sessionId: string,
   baseUrl: string,
   accessToken: string,
   timeoutMs: number,
   trustedDeviceToken?: string,
-): Promise<RemoteCredentials | null> {
+): Promise<RemoteCredentialsResult> {
   const url = `${baseUrl}/v1/code/sessions/${sessionId}/bridge`
   const headers = oauthHeaders(accessToken)
   if (trustedDeviceToken) {
@@ -125,6 +163,12 @@ export async function fetchRemoteCredentials(
     logForDebugging(
       `[code-session] /bridge failed ${response.status}${detail ? `: ${detail}` : ''}`,
     )
+    if (
+      response.status === 403 &&
+      isUntrustedDeviceBridgeError(response.data, detail)
+    ) {
+      return { terminal: true, reason: 'untrusted_device' }
+    }
     return null
   }
 

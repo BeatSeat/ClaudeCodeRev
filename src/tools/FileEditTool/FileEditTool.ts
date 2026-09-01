@@ -110,6 +110,15 @@ export const FileEditTool = buildTool({
   get outputSchema() {
     return outputSchema()
   },
+  stripForStorage(output) {
+    if (typeof output !== 'object' || output === null) {
+      return output
+    }
+    if (output.originalFile === '') {
+      return output
+    }
+    return { ...output, originalFile: '' }
+  },
   toAutoClassifierInput(input) {
     return `${input.file_path}: ${input.new_string}`
   },

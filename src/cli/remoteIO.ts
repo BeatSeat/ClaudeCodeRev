@@ -218,6 +218,10 @@ export class RemoteIO extends StructuredIO {
     return this.ccrClient?.flushInternalEvents() ?? Promise.resolve()
   }
 
+  override flushDeliveryAcks(): Promise<void> {
+    return this.ccrClient?.flushDeliveryAcks() ?? Promise.resolve()
+  }
+
   override get internalEventsPending(): number {
     return this.ccrClient?.internalEventsPending ?? 0
   }
@@ -229,6 +233,10 @@ export class RemoteIO extends StructuredIO {
    * in debug mode.
    */
   async write(message: StdoutMessage): Promise<void> {
+    // Official 2.1.97: transcript_mirror is local SDK plumbing, not CCR/stdout.
+    if (message.type === 'transcript_mirror') {
+      return
+    }
     if (this.ccrClient) {
       await this.ccrClient.writeEvent(message)
     } else {

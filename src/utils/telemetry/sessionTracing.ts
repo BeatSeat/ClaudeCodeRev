@@ -73,10 +73,14 @@ interface SpanContext {
 // it and the WeakRef goes stale.
 const interactionContext = new AsyncLocalStorage<SpanContext | undefined>()
 const toolContext = new AsyncLocalStorage<SpanContext | undefined>()
+// Official 2.1.97 gc1 / 2.1.108 Ei1: tool.execution is ALS-bound so nested
+// async work can parent against the live execution span.
+const toolExecutionContext = new AsyncLocalStorage<SpanContext | undefined>()
 const activeSpans = new Map<string, WeakRef<SpanContext>>()
-// Spans not stored in ALS (LLM request, blocked-on-user, tool execution, hook)
-// need a strong reference to prevent GC from collecting the SpanContext before
-// the corresponding end* function retrieves it.
+// Spans not stored in ALS (LLM request, blocked-on-user, hook) need a strong
+// reference to prevent GC from collecting the SpanContext before the
+// corresponding end* function retrieves it. tool.execution is ALS-bound as
+// of 2.1.97 but still kept in strongSpans while the span is open.
 const strongSpans = new Map<string, SpanContext>()
 let interactionSequence = 0
 let _cleanupIntervalStarted = false
@@ -85,6 +89,26 @@ const SPAN_TTL_MS = 30 * 60 * 1000 // 30 minutes
 
 function getSpanId(span: Span): string {
   return span.spanContext().spanId || ''
+}
+
+/**
+ * Official 2.1.97 SC8 / 2.1.108 rI8: prefer the live ALS interaction span,
+ * else the most recent unended interaction WeakRef (ALS can be cleared while
+ * the span is still open).
+ */
+function getLiveInteractionSpanContext(): SpanContext | undefined {
+  const store = interactionContext.getStore()
+  if (store && !store.ended) {
+    return store
+  }
+  return Array.from(activeSpans.values())
+    .findLast(ref => {
+      const ctx = ref.deref()
+      return (
+        !!ctx && !ctx.ended && ctx.attributes['span.type'] === 'interaction'
+      )
+    })
+    ?.deref()
 }
 
 /**
@@ -221,10 +245,11 @@ export function startInteractionSpan(userPrompt: string): Span {
       const spanContextObj: SpanContext = {
         span: dummySpan,
         startTime: Date.now(),
-        attributes: {},
+        attributes: { 'span.type': 'interaction' },
         perfettoSpanId,
       }
       activeSpans.set(spanId, new WeakRef(spanContextObj))
+      strongSpans.set(spanId, spanContextObj)
       interactionContext.enterWith(spanContextObj)
       return dummySpan
     }
@@ -260,6 +285,7 @@ export function startInteractionSpan(userPrompt: string): Span {
     perfettoSpanId,
   }
   activeSpans.set(spanId, new WeakRef(spanContextObj))
+  strongSpans.set(spanId, spanContextObj)
 
   interactionContext.enterWith(spanContextObj)
 
@@ -267,7 +293,7 @@ export function startInteractionSpan(userPrompt: string): Span {
 }
 
 export function endInteractionSpan(): void {
-  const spanContext = interactionContext.getStore()
+  const spanContext = getLiveInteractionSpanContext()
   if (!spanContext) {
     return
   }
@@ -284,6 +310,7 @@ export function endInteractionSpan(): void {
   if (!isAnyTracingEnabled()) {
     spanContext.ended = true
     activeSpans.delete(getSpanId(spanContext.span))
+    strongSpans.delete(getSpanId(spanContext.span))
     // Clear the store so async continuations created after this point (timers,
     // promise callbacks, I/O) do not inherit a reference to the ended span.
     // enterWith(undefined) is intentional: exit(() => {}) is a no-op because it
@@ -300,6 +327,7 @@ export function endInteractionSpan(): void {
   spanContext.span.end()
   spanContext.ended = true
   activeSpans.delete(getSpanId(spanContext.span))
+  strongSpans.delete(getSpanId(spanContext.span))
   interactionContext.enterWith(undefined)
 }
 
@@ -337,7 +365,7 @@ export function startLLMRequestSpan(
   }
 
   const tracer = getTracer()
-  const parentSpanCtx = interactionContext.getStore()
+  const parentSpanCtx = getLiveInteractionSpanContext()
 
   const attributes = createSpanAttributes('llm_request', {
     model: model,
@@ -517,6 +545,7 @@ export function startToolSpan(
         perfettoSpanId,
       }
       activeSpans.set(spanId, new WeakRef(spanContextObj))
+      strongSpans.set(spanId, spanContextObj)
       toolContext.enterWith(spanContextObj)
       return dummySpan
     }
@@ -524,7 +553,7 @@ export function startToolSpan(
   }
 
   const tracer = getTracer()
-  const parentSpanCtx = interactionContext.getStore()
+  const parentSpanCtx = getLiveInteractionSpanContext()
 
   const attributes = createSpanAttributes('tool', {
     tool_name: toolName,
@@ -549,6 +578,7 @@ export function startToolSpan(
     perfettoSpanId,
   }
   activeSpans.set(spanId, new WeakRef(spanContextObj))
+  strongSpans.set(spanId, spanContextObj)
 
   toolContext.enterWith(spanContextObj)
 
@@ -682,6 +712,7 @@ export function startToolExecutionSpan(): Span {
   }
   activeSpans.set(spanId, new WeakRef(spanContextObj))
   strongSpans.set(spanId, spanContextObj)
+  toolExecutionContext.enterWith(spanContextObj)
 
   return span
 }
@@ -694,9 +725,11 @@ export function endToolExecutionSpan(metadata?: {
     return
   }
 
-  const executionSpanContext = Array.from(activeSpans.values())
-    .findLast(r => r.deref()?.attributes['span.type'] === 'tool.execution')
-    ?.deref()
+  const executionSpanContext =
+    toolExecutionContext.getStore() ??
+    Array.from(activeSpans.values())
+      .findLast(r => r.deref()?.attributes['span.type'] === 'tool.execution')
+      ?.deref()
 
   if (!executionSpanContext) {
     return
@@ -718,6 +751,7 @@ export function endToolExecutionSpan(metadata?: {
   const spanId = getSpanId(executionSpanContext.span)
   activeSpans.delete(spanId)
   strongSpans.delete(spanId)
+  toolExecutionContext.enterWith(undefined)
 }
 
 export function endToolSpan(toolResult?: string, resultTokens?: number): void {
@@ -738,6 +772,7 @@ export function endToolSpan(toolResult?: string, resultTokens?: number): void {
   if (!isAnyTracingEnabled()) {
     const spanId = getSpanId(toolSpanContext.span)
     activeSpans.delete(spanId)
+    strongSpans.delete(spanId)
     // Same reasoning as interactionContext above: clear so subsequent async
     // work doesn't hold a stale reference to the ended tool span.
     toolContext.enterWith(undefined)
@@ -764,6 +799,7 @@ export function endToolSpan(toolResult?: string, resultTokens?: number): void {
 
   const spanId = getSpanId(toolSpanContext.span)
   activeSpans.delete(spanId)
+  strongSpans.delete(spanId)
   toolContext.enterWith(undefined)
 }
 
@@ -884,7 +920,7 @@ export function startHookSpan(
   }
 
   const tracer = getTracer()
-  const parentSpanCtx = toolContext.getStore() ?? interactionContext.getStore()
+  const parentSpanCtx = toolContext.getStore() ?? getLiveInteractionSpanContext()
 
   const attributes = createSpanAttributes('hook', {
     hook_event: hookEvent,

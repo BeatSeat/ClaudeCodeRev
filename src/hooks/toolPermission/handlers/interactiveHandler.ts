@@ -117,7 +117,10 @@ function handleInteractivePermission(
         return
       }
       userInteracted = true
-      clearClassifierChecking(ctx.toolUseID)
+      clearClassifierChecking(
+        ctx.toolUseID,
+        ctx.toolUseContext.setAppState,
+      )
       clearClassifierIndicator()
     },
     onDismissCheckmark() {
@@ -258,7 +261,10 @@ function handleInteractivePermission(
       response => {
         if (!claim()) return // Local user/hook/classifier already responded
         signal.removeEventListener('abort', unsubscribe)
-        clearClassifierChecking(ctx.toolUseID)
+        clearClassifierChecking(
+          ctx.toolUseID,
+          ctx.toolUseContext.setAppState,
+        )
         clearClassifierIndicator()
         ctx.removeFromQueue()
         channelUnsubscribe?.()
@@ -365,7 +371,10 @@ function handleInteractivePermission(
         response => {
           if (!claim()) return // Another racer won
           channelUnsubscribe?.() // both: map delete + listener remove
-          clearClassifierChecking(ctx.toolUseID)
+          clearClassifierChecking(
+            ctx.toolUseID,
+            ctx.toolUseContext.setAppState,
+          )
           clearClassifierIndicator()
           ctx.removeFromQueue()
           // Bridge is the other remote — tell it we're done.
@@ -440,7 +449,7 @@ function handleInteractivePermission(
     // UI indicator for "classifier running" — set here (not in
     // toolExecution.ts) so commands that auto-allow via prefix rules
     // don't flash the indicator for a split second before allow returns.
-    setClassifierChecking(ctx.toolUseID)
+    setClassifierChecking(ctx.toolUseID, ctx.toolUseContext.setAppState)
     void executeAsyncClassifierCheck(
       result.pendingClassifierCheck,
       ctx.toolUseContext.abortController.signal,
@@ -448,7 +457,10 @@ function handleInteractivePermission(
       {
         shouldContinue: () => !isResolved() && !userInteracted,
         onComplete: () => {
-          clearClassifierChecking(ctx.toolUseID)
+          clearClassifierChecking(
+            ctx.toolUseID,
+            ctx.toolUseContext.setAppState,
+          )
           clearClassifierIndicator()
         },
         onAllow: decisionReason => {
@@ -457,7 +469,10 @@ function handleInteractivePermission(
             bridgeCallbacks.cancelRequest(bridgeRequestId)
           }
           channelUnsubscribe?.()
-          clearClassifierChecking(ctx.toolUseID)
+          clearClassifierChecking(
+            ctx.toolUseID,
+            ctx.toolUseContext.setAppState,
+          )
 
           const matchedRule =
             decisionReason.type === 'classifier'
@@ -480,9 +495,17 @@ function handleInteractivePermission(
             decisionReason.type === 'classifier'
           ) {
             if (decisionReason.classifier === 'auto-mode') {
-              setYoloClassifierApproval(ctx.toolUseID, decisionReason.reason)
+              setYoloClassifierApproval(
+                ctx.toolUseID,
+                decisionReason.reason,
+                ctx.toolUseContext.setAppState,
+              )
             } else if (matchedRule) {
-              setClassifierApproval(ctx.toolUseID, matchedRule)
+              setClassifierApproval(
+                ctx.toolUseID,
+                matchedRule,
+                ctx.toolUseContext.setAppState,
+              )
             }
           }
 

@@ -674,7 +674,11 @@ function getSpinnerHintParts(
     ...(isLoading && !hasSelection
       ? [
           <Text dimColor key="esc">
-            <KeyboardShortcutHint shortcut={escShortcut} action="interrupt" />
+            <KeyboardShortcutHint
+              chord={escShortcut}
+              format={{ keyCase: 'lower' }}
+              action="interrupt"
+            />
           </Text>,
         ]
       : []),
@@ -682,7 +686,8 @@ function getSpinnerHintParts(
       ? [
           <Text dimColor key="kill-agents">
             <KeyboardShortcutHint
-              shortcut={killAgentsShortcut}
+              chord={killAgentsShortcut}
+              format={{ keyCase: 'lower' }}
               action="stop agents"
             />
           </Text>,
@@ -692,7 +697,8 @@ function getSpinnerHintParts(
       ? [
           <Text dimColor key="toggle-tasks">
             <KeyboardShortcutHint
-              shortcut={todosShortcut}
+              chord={todosShortcut}
+              format={{ keyCase: 'lower' }}
               action={toggleAction}
             />
           </Text>,

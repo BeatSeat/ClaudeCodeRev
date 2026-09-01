@@ -856,6 +856,35 @@ export function dangerousRemovalDeny(path: string): PermissionResult {
   }
 }
 
+/** Official 2.1.90 Taz: -Recurse / -r / -Recurse:$true (prefix match). */
+function hasRecurseSwitch(args: readonly string[]): boolean {
+  return args.some(raw => {
+    const withDash = (raw.length > 0 ? '-' + raw.slice(1) : raw).toLowerCase()
+    const colon = withDash.indexOf(':')
+    const flag = colon > 0 ? withDash.slice(0, colon) : withDash
+    return flag.length >= 2 && '-recurse'.startsWith(flag)
+  })
+}
+
+/**
+ * True when -Recurse target is cwd or a parent of cwd (would wipe .git/.claude).
+ * Official 2.1.90 Taz; still present in 2.1.108.
+ */
+function removeItemRecurseDeletesCwd(
+  filePath: string,
+  cwd: string,
+): boolean {
+  const cwdReal = safeResolvePath(getFsImplementation(), cwd).resolvedPath
+  const clean = expandTilde(filePath.replace(/^['"]|['"]$/g, ''))
+  const abs = isAbsolute(clean) ? clean : resolve(cwd, clean)
+  const targetReal = safeResolvePath(getFsImplementation(), abs).resolvedPath
+  return (
+    targetReal === cwdReal ||
+    cwdReal.startsWith(targetReal + '/') ||
+    cwdReal.startsWith(targetReal + '\\')
+  )
+}
+
 /**
  * Checks if a resolved path is allowed for the given operation type.
  * Mirrors the logic in BashTool/pathValidation.ts isPathAllowed.
@@ -1726,6 +1755,21 @@ function checkPathConstraintsForStatement(
     // Port: remove-item (and aliases rm/del/ri/rd/rmdir/erase → resolveToCanonical)
     // on a dangerous path → deny (not ask). User cannot approve system32 deletion.
     const isRemoval = resolveToCanonical(cmd.name) === 'remove-item'
+
+    // Official 2.1.90: Remove-Item -Recurse on cwd or a parent of cwd would
+    // delete .git/.claude. Ask (do not auto-allow). Nested-command loop in
+    // official Taz does not repeat this check.
+    if (isRemoval && hasRecurseSwitch(cmd.args)) {
+      for (const filePath of paths) {
+        if (removeItemRecurseDeletesCwd(filePath, cwd)) {
+          firstAsk ??= {
+            behavior: 'ask',
+            message: `Remove-Item -Recurse targeting '${filePath}' would delete the working directory including .git and .claude — requires manual approval`,
+          }
+          break
+        }
+      }
+    }
 
     for (const filePath of paths) {
       // Hard-deny removal of dangerous system paths (/, ~, /etc, etc.).

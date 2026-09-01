@@ -84,6 +84,7 @@ import { sanitizePath } from './path.js'
 import {
   extractJsonStringField,
   extractLastJsonStringField,
+  extractLastJsonlTypedField,
   LITE_READ_BUF_SIZE,
   readHeadAndTail,
   readTranscriptForLoad,
@@ -544,6 +545,26 @@ export function setInternalEventWriter(writer: InternalEventWriter): void {
   getProject().setInternalEventWriter(writer)
 }
 
+export type SessionMirror = (filePath: string, entries: unknown[]) => void
+
+/** Official 2.1.97 HO7: parent SDK registers a transcript_mirror sink. */
+export function setSessionMirror(mirror: SessionMirror | undefined): void {
+  getProject().setMirror(mirror)
+}
+
+/** Official 2.1.97 zU1: notify the sink after a successful transcript write. */
+export function fireSessionMirror(
+  filePath: string,
+  entries: unknown[],
+): void {
+  getProject().fireMirror(filePath, entries)
+}
+
+/** Official 2.1.97 YU1: count an external transcript write toward flush(). */
+export function trackExternalWrite<T>(fn: () => Promise<T>): Promise<T> {
+  return getProject().trackExternalWrite(fn)
+}
+
 type InternalEventReader = () => Promise<
   { payload: Record<string, unknown>; agent_id?: string }[] | null
 >
@@ -580,6 +601,7 @@ class Project {
   currentSessionLastPrompt: string | undefined
   currentSessionAgentSetting: string | undefined
   currentSessionMode: 'coordinator' | 'normal' | undefined
+  currentSessionPermissionMode: string | undefined
   // Tri-state: undefined = never touched (don't write), null = exited worktree,
   // object = currently in worktree. reAppendSessionMetadata writes null so
   // --resume knows the session exited (vs. crashed while inside).
@@ -610,6 +632,7 @@ class Project {
   private agentFileWrittenUuids = new Map<string, Set<UUID>>()
   private flushTimer: ReturnType<typeof setTimeout> | null = null
   private activeDrain: Promise<void> | null = null
+  private mirror: SessionMirror | undefined
   private FLUSH_INTERVAL_MS = 100
   private readonly MAX_CHUNK_BYTES = 100 * 1024 * 1024
 
@@ -624,6 +647,28 @@ class Project {
     this.activeDrain = null
     this.writeQueues = new Map()
     this.agentFileWrittenUuids = new Map()
+    this.mirror = undefined
+  }
+
+  setMirror(mirror: SessionMirror | undefined): void {
+    this.mirror = mirror
+  }
+
+  fireMirror(filePath: string, entries: unknown[]): void {
+    if (!this.mirror) {
+      return
+    }
+    try {
+      this.mirror(filePath, entries)
+    } catch (err) {
+      logForDebugging(`[SessionMirror] mirror failed for ${filePath}: ${err}`, {
+        level: 'error',
+      })
+    }
+  }
+
+  trackExternalWrite<T>(fn: () => Promise<T>): Promise<T> {
+    return this.trackWrite(fn)
   }
 
   private incrementPendingWrites(): void {
@@ -695,31 +740,51 @@ class Project {
         continue
       }
       const batch = queue.splice(0)
+      let flushed = 0
 
-      let content = ''
-      const resolvers: Array<() => void> = []
+      try {
+        let content = ''
+        const resolvers: Array<() => void> = []
+        const mirrored: Entry[] | undefined = this.mirror ? [] : undefined
 
-      for (const { entry, resolve } of batch) {
-        const line = jsonStringify(entry) + '\n'
+        for (const { entry, resolve } of batch) {
+          const line = jsonStringify(entry) + '\n'
 
-        if (content.length + line.length >= this.MAX_CHUNK_BYTES) {
-          // Flush chunk and resolve its entries before starting a new one
+          if (content.length + line.length >= this.MAX_CHUNK_BYTES) {
+            // Flush chunk and resolve its entries before starting a new one
+            await this.appendToFile(filePath, content)
+            if (mirrored) {
+              this.fireMirror(filePath, mirrored.slice())
+              mirrored.length = 0
+            }
+            for (const r of resolvers) {
+              r()
+            }
+            flushed += resolvers.length
+            resolvers.length = 0
+            content = ''
+          }
+
+          content += line
+          resolvers.push(resolve)
+          mirrored?.push(entry)
+        }
+
+        if (content.length > 0) {
           await this.appendToFile(filePath, content)
+          if (mirrored) {
+            this.fireMirror(filePath, mirrored)
+          }
           for (const r of resolvers) {
             r()
           }
-          resolvers.length = 0
-          content = ''
+          flushed += resolvers.length
         }
-
-        content += line
-        resolvers.push(resolve)
-      }
-
-      if (content.length > 0) {
-        await this.appendToFile(filePath, content)
-        for (const r of resolvers) {
-          r()
+      } catch (err) {
+        // Official 2.1.108: disk-full / write errors used to drop silently.
+        logError(err)
+        for (let i = flushed; i < batch.length; i++) {
+          batch[i]!.resolve()
         }
       }
     }
@@ -859,6 +924,13 @@ class Project {
       appendEntryToFile(this.sessionFile, {
         type: 'mode',
         mode: this.currentSessionMode,
+        sessionId,
+      })
+    }
+    if (this.currentSessionPermissionMode) {
+      appendEntryToFile(this.sessionFile, {
+        type: 'permission-mode',
+        permissionMode: this.currentSessionPermissionMode,
         sessionId,
       })
     }
@@ -1082,6 +1154,9 @@ class Project {
         ) {
           effectiveParentUuid = message.sourceToolAssistantUUID
         }
+        if (effectiveParentUuid === message.uuid) {
+          logEvent('tengu_chain_self_reference_write', {})
+        }
 
         const transcriptMessage: TranscriptMessage = {
           parentUuid: isCompactBoundary ? null : effectiveParentUuid,
@@ -1249,6 +1324,8 @@ class Project {
       void this.enqueueWrite(sessionFile, entry)
     } else if (entry.type === 'mode') {
       // Mode entries can always be appended
+      void this.enqueueWrite(sessionFile, entry)
+    } else if (entry.type === 'permission-mode') {
       void this.enqueueWrite(sessionFile, entry)
     } else if (entry.type === 'worktree-state') {
       void this.enqueueWrite(sessionFile, entry)
@@ -2142,6 +2219,7 @@ function findTimestampFallbackParent(
   let bestDelta = Infinity
   for (const candidate of messages.values()) {
     if (seen.has(candidate.uuid)) continue
+    if (candidate.isSidechain !== current.isSidechain) continue
     const candidateTs = new Date(candidate.timestamp).getTime()
     if (Number.isNaN(candidateTs)) continue
     const delta = currentTs - candidateTs
@@ -2173,7 +2251,7 @@ export function buildConversationChain(
     seen.add(currentMsg.uuid)
     transcript.push(currentMsg)
     const parentUuid = currentMsg.parentUuid
-    if (!parentUuid) break
+    if (!parentUuid || parentUuid === currentMsg.uuid) break
     let parent = messages.get(parentUuid)
     if (!parent) {
       parent = findTimestampFallbackParent(messages, currentMsg, seen)
@@ -2675,6 +2753,7 @@ function appendEntryToFile(
     fs.mkdirSync(dirname(fullPath), { mode: 0o700 })
     fs.appendFileSync(fullPath, line, { mode: 0o600 })
   }
+  getProject().fireMirror(fullPath, [entry])
 }
 
 /**
@@ -2857,6 +2936,7 @@ export function restoreSessionMetadata(meta: {
   agentColor?: string
   agentSetting?: string
   mode?: 'coordinator' | 'normal'
+  permissionMode?: string
   worktreeSession?: PersistedWorktreeSession | null
   prNumber?: number
   prUrl?: string
@@ -2871,6 +2951,8 @@ export function restoreSessionMetadata(meta: {
   if (meta.agentColor) project.currentSessionAgentColor = meta.agentColor
   if (meta.agentSetting) project.currentSessionAgentSetting = meta.agentSetting
   if (meta.mode) project.currentSessionMode = meta.mode
+  if (meta.permissionMode)
+    project.currentSessionPermissionMode = meta.permissionMode
   if (meta.worktreeSession !== undefined)
     project.currentSessionWorktree = meta.worktreeSession
   if (meta.prNumber !== undefined)
@@ -2893,6 +2975,7 @@ export function clearSessionMetadata(): void {
   project.currentSessionLastPrompt = undefined
   project.currentSessionAgentSetting = undefined
   project.currentSessionMode = undefined
+  project.currentSessionPermissionMode = undefined
   project.currentSessionWorktree = undefined
   project.currentSessionPrNumber = undefined
   project.currentSessionPrUrl = undefined
@@ -2976,6 +3059,11 @@ export { subscribeSessionTitleChanged } from './sessionTitleStore.js'
  */
 export function saveMode(mode: 'coordinator' | 'normal'): void {
   getProject().currentSessionMode = mode
+}
+
+/** Cache toolPermissionContext.mode for transcript resume (official 2.1.90). */
+export function savePermissionMode(mode: string): void {
+  getProject().currentSessionPermissionMode = mode
 }
 
 /**
@@ -3069,6 +3157,7 @@ export async function loadFullLog(log: LogOption): Promise<LogOption> {
       prUrls,
       prRepositories,
       modes,
+      permissionModes,
       worktreeStates,
       fileHistorySnapshots,
       attributionSnapshots,
@@ -3112,6 +3201,9 @@ export async function loadFullLog(log: LogOption): Promise<LogOption> {
       agentColor: sessionId ? agentColors.get(sessionId) : log.agentColor,
       agentSetting: sessionId ? agentSettings.get(sessionId) : log.agentSetting,
       mode: sessionId ? (modes.get(sessionId) as LogOption['mode']) : log.mode,
+      permissionMode: sessionId
+        ? permissionModes.get(sessionId)
+        : log.permissionMode,
       worktreeSession:
         sessionId && worktreeStates.has(sessionId)
           ? worktreeStates.get(sessionId)
@@ -3216,12 +3308,13 @@ const METADATA_TYPE_MARKERS = [
   '"type":"agent-color"',
   '"type":"agent-setting"',
   '"type":"mode"',
+  '"type":"permission-mode"',
   '"type":"worktree-state"',
   '"type":"pr-link"',
 ]
 const METADATA_MARKER_BUFS = METADATA_TYPE_MARKERS.map(m => Buffer.from(m))
-// Longest marker is 22 bytes; +1 for leading `{` = 23.
-const METADATA_PREFIX_BOUND = 25
+// Longest marker is `"type":"permission-mode"` (24 bytes); +1 for leading `{`.
+const METADATA_PREFIX_BOUND = 26
 
 // null = carry spans whole chunk. Skips concat when carry provably isn't
 // a metadata line (markers sit at byte 1 after `{`).
@@ -3582,6 +3675,7 @@ export async function loadTranscriptFile(
   prUrls: Map<UUID, string>
   prRepositories: Map<UUID, string>
   modes: Map<UUID, string>
+  permissionModes: Map<UUID, string>
   worktreeStates: Map<UUID, PersistedWorktreeSession | null>
   fileHistorySnapshots: Map<UUID, FileHistorySnapshotMessage>
   attributionSnapshots: Map<UUID, AttributionSnapshotMessage>
@@ -3602,6 +3696,7 @@ export async function loadTranscriptFile(
   const prUrls = new Map<UUID, string>()
   const prRepositories = new Map<UUID, string>()
   const modes = new Map<UUID, string>()
+  const permissionModes = new Map<UUID, string>()
   const worktreeStates = new Map<UUID, PersistedWorktreeSession | null>()
   const fileHistorySnapshots = new Map<UUID, FileHistorySnapshotMessage>()
   const attributionSnapshots = new Map<UUID, AttributionSnapshotMessage>()
@@ -3699,6 +3794,8 @@ export async function loadTranscriptFile(
           agentSettings.set(entry.sessionId, entry.agentSetting)
         } else if (entry.type === 'mode' && entry.sessionId) {
           modes.set(entry.sessionId, entry.mode)
+        } else if (entry.type === 'permission-mode' && entry.sessionId) {
+          permissionModes.set(entry.sessionId, entry.permissionMode)
         } else if (entry.type === 'worktree-state' && entry.sessionId) {
           worktreeStates.set(entry.sessionId, entry.worktreeSession)
         } else if (entry.type === 'pr-link' && entry.sessionId) {
@@ -3767,6 +3864,8 @@ export async function loadTranscriptFile(
         agentSettings.set(entry.sessionId, entry.agentSetting)
       } else if (entry.type === 'mode' && entry.sessionId) {
         modes.set(entry.sessionId, entry.mode)
+      } else if (entry.type === 'permission-mode' && entry.sessionId) {
+        permissionModes.set(entry.sessionId, entry.permissionMode)
       } else if (entry.type === 'worktree-state' && entry.sessionId) {
         worktreeStates.set(entry.sessionId, entry.worktreeSession)
       } else if (entry.type === 'pr-link' && entry.sessionId) {
@@ -3899,6 +3998,7 @@ export async function loadTranscriptFile(
     prUrls,
     prRepositories,
     modes,
+    permissionModes,
     worktreeStates,
     fileHistorySnapshots,
     attributionSnapshots,
@@ -4239,7 +4339,7 @@ async function getStatOnlyLogsForWorktrees(
   })
   indexed.sort((a, b) => b.prefix.length - a.prefix.length)
 
-  const allLogs: LogOption[] = []
+  const jobs: Array<{ projectDir: string; wtPath: string }> = []
   const seenDirs = new Set<string>()
 
   let allDirents: Dirent[]
@@ -4262,21 +4362,25 @@ async function getStatOnlyLogsForWorktrees(
     for (const { path: wtPath, prefix } of indexed) {
       if (dirName === prefix || dirName.startsWith(prefix + '-')) {
         seenDirs.add(dirName)
-        allLogs.push(
-          ...(await getSessionFilesLite(
-            join(projectsDir, dirent.name),
-            undefined,
-            wtPath,
-          )),
-        )
+        jobs.push({
+          projectDir: join(projectsDir, dirent.name),
+          wtPath,
+        })
         break
       }
     }
   }
 
+  // Official 2.1.90: load worktree session files in parallel for /resume.
+  const nested = await Promise.all(
+    jobs.map(({ projectDir, wtPath }) =>
+      getSessionFilesLite(projectDir, undefined, wtPath),
+    ),
+  )
+
   // Deduplicate by sessionId — the same session can appear in multiple
   // worktree project dirs. Keep the entry with the newest modified time.
-  return deduplicateLogsBySessionId(allLogs)
+  return deduplicateLogsBySessionId(nested.flat())
 }
 
 /**
@@ -4721,6 +4825,7 @@ export async function loadAllLogsFromSessionFile(
     prUrls,
     prRepositories,
     modes,
+    permissionModes,
     fileHistorySnapshots,
     attributionSnapshots,
     contentReplacements,
@@ -4783,6 +4888,7 @@ export async function loadAllLogsFromSessionFile(
       agentColor: agentColors.get(sessionId),
       agentSetting: agentSettings.get(sessionId),
       mode: modes.get(sessionId) as LogOption['mode'],
+      permissionMode: permissionModes.get(sessionId),
       prNumber: prNumbers.get(sessionId),
       prUrl: prUrls.get(sessionId),
       prRepository: prRepositories.get(sessionId),
@@ -4886,7 +4992,7 @@ async function readLiteMetadata(
     extractLastJsonStringField(head, 'customTitle') ??
     extractLastJsonStringField(tail, 'aiTitle') ??
     extractLastJsonStringField(head, 'aiTitle')
-  const summary = extractLastJsonStringField(tail, 'summary')
+  const summary = extractLastJsonlTypedField(tail, 'summary', 'summary')
   const tag = extractLastJsonStringField(tail, 'tag')
   const gitBranch =
     extractLastJsonStringField(tail, 'gitBranch') ??

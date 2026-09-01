@@ -1,0 +1,129 @@
+{
+  "version": "2.1.108",
+  "fromVersion": "2.1.107",
+  "expectedFunctionCount": 0,
+  "functions": [],
+  "changelogCoverage": [
+    {
+      "item": "Added `ENABLE_PROMPT_CACHING_1H` env var to opt into 1-hour prompt cache TTL on API key, Bedrock, Vertex, and Foundry (`ENABLE_PROMPT_CACHING_1H_BEDROCK` is deprecated but still honored), and `FORCE_PROMPT_CACHING_5M` to force 5-minute TTL",
+      "status": "located",
+      "evidence": "src/services/api/claude.ts should1hCacheTTL = official MoY: FORCE_PROMPT_CACHING_5M → false; ENABLE_PROMPT_CACHING_1H or (bedrock && ENABLE_PROMPT_CACHING_1H_BEDROCK) → true; else subscriber + tengu_prompt_cache_1h_config allowlist. Also the DISABLE_TELEMETRY default-allowlist fix."
+    },
+    {
+      "item": "Added recap feature to provide context when returning to a session, configurable in `/config` and manually invocable with `/recap`; force with `CLAUDE_CODE_ENABLE_AWAY_SUMMARY` if telemetry disabled.",
+      "status": "located",
+      "evidence": "src/services/awaySummary.ts isAwaySummaryEnabled = official uh6 (env falsy/truthy, then tengu_sedge_lantern, non-interactive, settings.awaySummaryEnabled). /recap local command official ecY; /config Session recap when GB on."
+    },
+    {
+      "item": "The model can now discover and invoke built-in slash commands like `/init`, `/review`, and `/security-review` via the Skill tool",
+      "status": "located",
+      "evidence": "src/commands.ts getSkillToolCommands = official knY (builtin prompt commands + bundled/skills). SkillTool validateInput unknown/non-prompt copy. Official sh8 skillOverrides stub left unwired."
+    },
+    {
+      "item": "`/undo` is now an alias for `/rewind`",
+      "status": "located",
+      "evidence": "src/commands/rewind/index.ts aliases: checkpoint, undo"
+    },
+    {
+      "item": "Improved `/model` to warn before switching models mid-conversation, since the next response re-reads the full history uncached",
+      "status": "located",
+      "evidence": "src/commands/model/CacheMissWarningDialog.tsx + model.tsx ModelPickerWrapper = official yiK; gate getTotalOutputTokens()>0 && parseUserSpecifiedModel differs. Not on PromptInput picker or /model name inline."
+    },
+    {
+      "item": "Improved `/resume` picker to default to sessions from the current directory; press `Ctrl+A` to show all projects",
+      "status": "located",
+      "evidence": "src/commands/resume/resume.tsx showAllProjects default false, loadLogs(false), Ctrl+A toggle — already in tree; official 108 footer still 'show all projects'"
+    },
+    {
+      "item": "Improved error messages: server rate limits are now distinguished from plan usage limits; 5xx/529 errors show a link to status.claude.com; unknown slash commands suggest the closest match",
+      "status": "located",
+      "evidence": "src/services/api/errors.ts 429 server-vs-plan + STATUS_CLAUDE_COM; 5xx/529 statusLink when isFirstPartyApiFamily. src/utils/fuzzyCommandMatch.ts + processSlashCommand 'Unknown command: /X. Did you mean /Y?' = official fg8/l7Y"
+    },
+    {
+      "item": "Reduced memory footprint for file reads, edits, and syntax highlighting by loading language grammars on demand",
+      "status": "located",
+      "evidence": "src/utils/highlighter/lazyHighlight.ts = official mL6/SV/qJz (highlight.js/lib/core + Kc1/_c1/Mb4). color-diff detectLanguage calls ensureLanguage. cliHighlight Ekz/ykz/Nkz no longer import full highlight.js or cli-highlight."
+    },
+    {
+      "item": "Added \"verbose\" indicator when viewing the detailed transcript (`Ctrl+O`)",
+      "status": "located",
+      "evidence": "src/screens/REPL.tsx 'Showing detailed transcript · {toggleShortcut} to toggle' already present; official 108 unchanged"
+    },
+    {
+      "item": "Added a warning at startup when prompt caching is disabled via `DISABLE_PROMPT_CACHING*` environment variables",
+      "status": "located",
+      "evidence": "src/components/LogoV2/PromptCachingDisabledNotice.tsx = official Nw7/YmY; wired next to Opus1mMergeNotice in LogoV2"
+    },
+    {
+      "item": "Fixed paste not working in the `/login` code prompt (regression in 2.1.105)",
+      "status": "located",
+      "evidence": "Official 107 and 108 login TextInput both mask:'*' + 'Paste code here if prompted'. TS ConsoleOAuthFlow + useTextInput stripAnsi paste already present; 105 regression is fixed in both official 108 and current TS. No extra 108-only sanitizer."
+    },
+    {
+      "item": "Fixed subscribers who set `DISABLE_TELEMETRY` falling back to 5-minute prompt cache TTL instead of 1 hour",
+      "status": "located",
+      "evidence": "Same MoY path: default allowlist repl_main_thread*/sdk/auto_mode is no longer ant-only / telemetry-gated"
+    },
+    {
+      "item": "Fixed Agent tool prompting for permission in auto mode when the safety classifier's transcript exceeded its context window",
+      "status": "located",
+      "evidence": "src/utils/permissions/permissions.ts classifierResult.transcriptTooLong: headless AbortError, interactive fallback to manual approval. Official 108 still has the same path."
+    },
+    {
+      "item": "Fixed Bash tool producing no output when `CLAUDE_ENV_FILE` (e.g. `~/.zprofile`) ends with a `#` comment line",
+      "status": "located",
+      "evidence": "src/utils/shell/bashProvider.ts commandParts.push(`${sessionEnvScript}\\n:`) = official D.push(`${Z}\\n:`)"
+    },
+    {
+      "item": "Fixed `claude --resume ` losing the session's custom name and color set via `/rename`",
+      "status": "located",
+      "evidence": "restoreSessionMetadata (official Mn) already restores customTitle/agentColor/agentName; sessionRestore/print/REPL/ResumeConversation call it"
+    },
+    {
+      "item": "Fixed session titles showing placeholder example text when the first message is a short greeting",
+      "status": "located",
+      "evidence": "src/utils/sessionTitle.ts generateSessionTitle returns null when trim.length < 10 = official pe/xxY"
+    },
+    {
+      "item": "Fixed terminal escape codes appearing as garbage text in the prompt input after `--teleport`",
+      "status": "located",
+      "evidence": "Official 108 has no stripAnsi/stripVTControlCharacters/teleport-specific sanitizer (astdiff + string scan). TS PromptInput paste and useTextInput already stripAnsi. No remaining official-only behavior to add."
+    },
+    {
+      "item": "Fixed `/feedback` retry: pressing Enter to resubmit after a failure now works without first editing the description",
+      "status": "located",
+      "evidence": "src/components/Feedback.tsx onSubmit setError(null)+setStep('consent') = official 108 P(null),O('consent')"
+    },
+    {
+      "item": "Fixed `--teleport` and `--resume ` precondition errors (e.g. dirty git tree, session not found) exiting silently instead of showing the error message",
+      "status": "located",
+      "evidence": "interactive main.tsx exitWithError(root, ...); print.ts emitLoadError + process.exit(1). Official mY8(...,K.outputFormat),$5(1)"
+    },
+    {
+      "item": "Fixed Remote Control session titles set in the web UI being overwritten by auto-generated titles after the third message",
+      "status": "located",
+      "evidence": "src/bridge/initReplBridge.ts generateAndPatch skips when getCurrentSessionTitle is set; onUserMessage checks hasExplicitTitle. Official Ao8 writes ai-title; readers prefer customTitle"
+    },
+    {
+      "item": "Fixed `--resume` truncating sessions when the transcript contained a self-referencing message",
+      "status": "located",
+      "evidence": "src/utils/sessionStorage.ts insertMessageChain logs tengu_chain_self_reference_write; buildConversationChain treats parentUuid===uuid as root"
+    },
+    {
+      "item": "Fixed transcript write failures (e.g., disk full) being silently dropped instead of being logged",
+      "status": "located",
+      "evidence": "sessionStorage drainWriteQueue try/catch logError and still resolve the queue = official $6(Y)+resolve"
+    },
+    {
+      "item": "Fixed diacritical marks (accents, umlauts, cedillas) being dropped from responses when the `language` setting is configured",
+      "status": "located",
+      "evidence": "src/constants/prompts.ts getLanguageSection official orthographic-correctness paragraph (nao/não, fur/für, loeschen/löschen)"
+    },
+    {
+      "item": "Fixed policy-managed plugins never auto-updating when running from a different project than where they were first installed",
+      "status": "located",
+      "evidence": "isInstallationRelevantToCurrentProject = official C_7 (user|managed|projectPath===cwd). pluginAutoupdate already filters with it"
+    }
+  ],
+  "notes": "astdiff 2.1.107→2.1.108: structural similarity 98.6%, +261/-108, 7816 structural, 59 string-only. Filter: product 258, unknown 1178, vendor 170, rename-only-100% 6790. Reviewed all 258 product hits. Real 108 adds engineered: MoY 1h cache, knY Skill builtin slash, fg8/l7Y unknown-command suggest, Nw7 DISABLE_PROMPT_CACHING notice, yiK /model cache-miss, uh6/ecY recap, SV/Kc1/Mb4 lazy grammar, JOA tengu_mcp_retry_failed_remote default true (print + interactive), pe/xxY title min 10, Feedback P(null) retry, bash CLAUDE_ENV_FILE `\\n:`, chain self-ref, transcript write logError, jQK/OpY/ApY/zpY ultrareview always-confirm + hasSeenUltrareviewTerms. Default-false GBs left unwired: tengu_slate_harbor/CLAUDE_CODE_REPL (aH/po6/Bo6/m0K REPL), tengu_birch_compass, tengu_bridge_requires_action_details. Other added product names are minify splits (session-memory getters, marketplace git URL, Ink table Ce, OAuth callback, input-value store z1Y/PC6/zg8) or 107-already-present. string-only product hits are VERSION/BUILD_TIME/minify. Do not pull 109 rotating thinking hint, 110 /tui /focus, or 111 Opus 4.7 xhigh into this hop."
+}

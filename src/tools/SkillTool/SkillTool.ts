@@ -9,6 +9,8 @@ import {
   getCommands,
   type PromptCommand,
 } from 'src/commands.js'
+import { getCommandName } from 'src/types/command.js'
+import { closestCommandName } from 'src/utils/fuzzyCommandMatch.js'
 import type {
   Tool,
   ToolCallProgress,
@@ -401,9 +403,18 @@ export const SkillTool: Tool<InputSchema, Output, Progress> = buildTool({
     // Check if command exists
     const foundCommand = findCommand(normalizedCommandName, commands)
     if (!foundCommand) {
+      const suggestion = closestCommandName(
+        normalizedCommandName,
+        commands.map(cmd => ({
+          name: getCommandName(cmd),
+          aliases: cmd.aliases,
+        })),
+      )
       return {
         result: false,
-        message: `Unknown skill: ${normalizedCommandName}`,
+        message: suggestion
+          ? `Unknown skill: ${normalizedCommandName}. Did you mean ${suggestion}?`
+          : `Unknown skill: ${normalizedCommandName}`,
         errorCode: 2,
       }
     }
@@ -419,9 +430,10 @@ export const SkillTool: Tool<InputSchema, Output, Progress> = buildTool({
 
     // Check if command is a prompt-based command
     if (foundCommand.type !== 'prompt') {
+      const kind = foundCommand.type === 'local-jsx' ? 'UI' : 'built-in CLI'
       return {
         result: false,
-        message: `Skill ${normalizedCommandName} is not a prompt-based skill`,
+        message: `${normalizedCommandName} is a ${kind} command, not a skill. Ask the user to run /${normalizedCommandName} themselves — it cannot be invoked via the ${SKILL_TOOL_NAME} tool.`,
         errorCode: 5,
       }
     }

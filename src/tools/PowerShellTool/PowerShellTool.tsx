@@ -625,6 +625,7 @@ export const PowerShellTool = buildTool({
         isMainThread,
         toolUseId: toolUseContext.toolUseId,
         agentId: toolUseContext.agentId,
+        sessionEnvVars: toolUseContext.sessionEnvVars,
       })
 
       let generatorResult
@@ -869,6 +870,7 @@ async function* runPowerShellCommand({
   isMainThread,
   toolUseId,
   agentId,
+  sessionEnvVars,
 }: {
   input: PowerShellToolInput
   abortController: AbortController
@@ -878,6 +880,7 @@ async function* runPowerShellCommand({
   isMainThread?: boolean
   toolUseId?: string
   agentId?: AgentId
+  sessionEnvVars?: ReadonlyMap<string, string>
 }): AsyncGenerator<
   {
     type: 'progress'
@@ -960,6 +963,7 @@ async function* runPowerShellCommand({
           ? false
           : shouldUseSandbox({ command, dangerouslyDisableSandbox }),
       shouldAutoBackground,
+      sessionEnvVars,
     })
   } catch (e) {
     logError(e)

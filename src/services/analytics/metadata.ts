@@ -88,6 +88,15 @@ export function isToolDetailsLoggingEnabled(): boolean {
 }
 
 /**
+ * Check whether tool result content may be included in OpenTelemetry output.
+ * This is separate from tool details because results can contain source code,
+ * command output, and other sensitive user data.
+ */
+export function isToolContentLoggingEnabled(): boolean {
+  return isEnvTruthy(process.env.OTEL_LOG_TOOL_CONTENT)
+}
+
+/**
  * Check if detailed tool name logging (MCP server/tool names) is enabled
  * for analytics events.
  *

@@ -1296,11 +1296,10 @@ export function ManagePlugins({
           if (!result.success) {
             throw new Error(result.message)
           }
-          // If already up to date, show message and exit
-          if (result.alreadyUpToDate) {
-            setResult(
-              `${selectedPlugin.plugin.name} is already at the latest version (${result.newVersion}).`,
-            )
+          // Preserve operation details, including stale-refresh warnings and
+          // dependency-version update skips.
+          if (result.alreadyUpToDate || result.skipped) {
+            setResult(result.message)
             if (onManageComplete) {
               await onManageComplete()
             }

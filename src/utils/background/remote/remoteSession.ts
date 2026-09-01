@@ -6,7 +6,6 @@ import { isEnvTruthy } from '../../envUtils.js'
 import type { TodoList } from '../../todo/types.js'
 import {
   checkGithubAppInstalled,
-  checkHasRemoteEnvironment,
   checkIsInGitRepo,
   checkNeedsClaudeAiLogin,
 } from './preconditions.js'
@@ -55,18 +54,13 @@ export async function checkBackgroundRemoteSessionEligibility({
     return errors
   }
 
-  const [needsLogin, hasRemoteEnv, repository] = await Promise.all([
+  const [needsLogin, repository] = await Promise.all([
     checkNeedsClaudeAiLogin(),
-    checkHasRemoteEnvironment(),
     detectCurrentRepositoryWithHost(),
   ])
 
   if (needsLogin) {
     errors.push({ type: 'not_logged_in' })
-  }
-
-  if (!hasRemoteEnv) {
-    errors.push({ type: 'no_remote_environment' })
   }
 
   // When bundle seeding is on, in-git-repo is enough — CCR can seed from

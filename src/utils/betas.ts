@@ -29,6 +29,8 @@ import { getCanonicalName } from './model/model.js'
 import { get3PModelCapabilityOverride } from './model/modelSupportOverrides.js'
 import {
   getAPIProvider,
+  getAPIProviderForModel,
+  isCapabilityApiFamily,
   isFirstPartyApiFamily,
   isFirstPartyAnthropicBaseUrl,
 } from './model/providers.js'
@@ -145,9 +147,9 @@ export function modelSupportsContextManagement(model: string): boolean {
 // @[MODEL LAUNCH]: Add the new model ID to this list if it supports structured outputs.
 export function modelSupportsStructuredOutputs(model: string): boolean {
   const canonical = getCanonicalName(model)
-  const provider = getAPIProvider()
-  // Structured outputs only supported on firstParty and Foundry (not Bedrock/Vertex yet)
-  if (!isFirstPartyApiFamily(provider) && provider !== 'foundry') {
+  const provider = getAPIProviderForModel(model)
+  // Structured outputs: 1P / Foundry / Mantle (not Bedrock/Vertex yet)
+  if (!isCapabilityApiFamily(provider)) {
     return false
   }
   return (

@@ -90,8 +90,14 @@ import {
 import { ESCALATED_MAX_TOKENS } from './utils/context.js'
 import { getFeatureValue_CACHED_MAY_BE_STALE } from './services/analytics/growthbook.js'
 import { SLEEP_TOOL_NAME } from './tools/SleepTool/prompt.js'
+import {
+  BRIEF_ENFORCE_SENTINEL,
+  BRIEF_TOOL_NAME,
+  LEGACY_BRIEF_TOOL_NAME,
+} from './tools/BriefTool/prompt.js'
+import { isBriefEnabled } from './tools/BriefTool/BriefTool.js'
 import { executePostSamplingHooks } from './utils/hooks/postSamplingHooks.js'
-import { executeStopFailureHooks } from './utils/hooks.js'
+import { executeStopFailureHooks, getStopHookMessage } from './utils/hooks.js'
 import type { QuerySource } from './constants/querySource.js'
 import { createDumpPromptsFetch } from './services/api/dumpPrompts.js'
 import { StreamingToolExecutor } from './services/tools/StreamingToolExecutor.js'
@@ -111,6 +117,7 @@ import {
 } from './bootstrap/state.js'
 import { createBudgetTracker, checkTokenBudget } from './query/tokenBudget.js'
 import { count } from './utils/array.js'
+import { isHumanTurn } from './utils/messagePredicates.js'
 
 /* eslint-disable @typescript-eslint/no-require-imports */
 const snipModule = feature('HISTORY_SNIP')
@@ -1285,6 +1292,61 @@ async function* queryLoop(
         return { reason: 'completed' }
       }
 
+      // Brief mode's visible response must go through SendUserMessage. Treat
+      // a missing call as Stop-hook feedback so configured Stop hooks still
+      // run before the one corrective turn.
+      let briefEnforcementMessage: Message | undefined
+      try {
+        const briefToolIsAvailable =
+          querySource === 'repl_main_thread' &&
+          !toolUseContext.agentId &&
+          isBriefEnabled() &&
+          Boolean(findToolByName(toolUseContext.options.tools, BRIEF_TOOL_NAME))
+        if (briefToolIsAvailable) {
+          const lastHumanTurnIndex = messagesForQuery.findLastIndex(isHumanTurn)
+          const messagesAfterLastHumanTurn = messagesForQuery.slice(
+            lastHumanTurnIndex + 1,
+          )
+          const responseMessages = [
+            ...messagesAfterLastHumanTurn,
+            ...assistantMessages,
+          ]
+          const calledBriefTool = responseMessages.some(
+            message =>
+              message.type === 'assistant' &&
+              message.message.content.some(
+                content =>
+                  content.type === 'tool_use' &&
+                  (content.name === BRIEF_TOOL_NAME ||
+                    content.name === LEGACY_BRIEF_TOOL_NAME),
+              ),
+          )
+          const alreadyEnforced =
+            !calledBriefTool &&
+            messagesAfterLastHumanTurn.some(
+              message =>
+                message.type === 'user' &&
+                message.isMeta &&
+                typeof message.message.content === 'string' &&
+                message.message.content.includes(BRIEF_ENFORCE_SENTINEL),
+            )
+
+          if (!calledBriefTool && !alreadyEnforced) {
+            briefEnforcementMessage = createUserMessage({
+              content: getStopHookMessage({
+                blockingError: BRIEF_ENFORCE_SENTINEL,
+                command: 'brief-mode-enforce',
+              }),
+              isMeta: true,
+            })
+          }
+        }
+      } catch (error) {
+        logForDebugging(`Brief mode enforcement failed: ${String(error)}`, {
+          level: 'error',
+        })
+      }
+
       const stopHookResult = yield* handleStopHooks(
         messagesForQuery,
         assistantMessages,
@@ -1300,12 +1362,19 @@ async function* queryLoop(
         return { reason: 'stop_hook_prevented' }
       }
 
-      if (stopHookResult.blockingErrors.length > 0) {
+      if (briefEnforcementMessage) {
+        yield briefEnforcementMessage
+      }
+      const blockingErrors = briefEnforcementMessage
+        ? [...stopHookResult.blockingErrors, briefEnforcementMessage]
+        : stopHookResult.blockingErrors
+
+      if (blockingErrors.length > 0) {
         const next: State = {
           messages: [
             ...messagesForQuery,
             ...assistantMessages,
-            ...stopHookResult.blockingErrors,
+            ...blockingErrors,
           ],
           toolUseContext,
           autoCompactTracking: tracking,
@@ -1320,7 +1389,11 @@ async function* queryLoop(
           pendingToolUseSummary: undefined,
           stopHookActive: true,
           turnCount,
-          transition: { reason: 'stop_hook_blocking' },
+          transition: {
+            reason: briefEnforcementMessage
+              ? 'brief_mode_enforce'
+              : 'stop_hook_blocking',
+          },
         }
         state = next
         continue

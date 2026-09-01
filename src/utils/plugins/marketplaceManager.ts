@@ -119,8 +119,17 @@ export function getMarketplacesCacheDir(): string {
 /**
  * Clear all cached marketplace data (for testing)
  */
+const inFlightMarketplaceRefresh = new Map<
+  string,
+  {
+    promise: Promise<void>
+    listeners: Array<(message: string) => void>
+  }
+>()
+
 export function clearMarketplacesCache(): void {
   getMarketplace.cache?.clear?.()
+  inFlightMarketplaceRefresh.clear()
 }
 
 /**
@@ -2372,6 +2381,39 @@ export async function refreshAllMarketplaces(): Promise<void> {
  * @throws If marketplace not found or refresh fails
  */
 export async function refreshMarketplace(
+  name: string,
+  onProgress?: MarketplaceProgressCallback,
+  options?: { disableCredentialHelper?: boolean; skipIfRecent?: boolean },
+): Promise<void> {
+  // Official 2.1.97: coalesce concurrent refreshes of the same marketplace
+  // (and credential-helper mode) onto one in-flight promise.
+  const key = `${name}:${options?.disableCredentialHelper ? 1 : 0}`
+  const existing = inFlightMarketplaceRefresh.get(key)
+  if (existing) {
+    if (onProgress) {
+      existing.listeners.push(onProgress)
+    }
+    return existing.promise
+  }
+  const listeners: Array<(message: string) => void> = onProgress
+    ? [onProgress]
+    : []
+  const promise = refreshMarketplaceUncoalesced(
+    name,
+    message => {
+      for (const listener of listeners) {
+        listener(message)
+      }
+    },
+    options,
+  ).finally(() => {
+    inFlightMarketplaceRefresh.delete(key)
+  })
+  inFlightMarketplaceRefresh.set(key, { promise, listeners })
+  return promise
+}
+
+async function refreshMarketplaceUncoalesced(
   name: string,
   onProgress?: MarketplaceProgressCallback,
   options?: { disableCredentialHelper?: boolean; skipIfRecent?: boolean },

@@ -190,6 +190,7 @@ import { checkQuotaStatus } from './services/claudeAiLimits.js'
 import {
   getMcpToolsCommandsAndResources,
   prefetchAllMcpResources,
+  retryFailedRemoteMcpServers,
 } from './services/mcp/client.js'
 import {
   VALID_INSTALLABLE_SCOPES,
@@ -409,6 +410,7 @@ import {
   DirectConnectError,
 } from './server/createDirectConnectSession.js'
 import { initializeLspServerManager } from './services/lsp/manager.js'
+import { isAwaySummaryEnabled } from './services/awaySummary.js'
 import { shouldEnablePromptSuggestion } from './services/PromptSuggestion/promptSuggestion.js'
 import {
   type AppState,
@@ -539,8 +541,8 @@ function logSessionTelemetry(): void {
     .catch(err => logError(err))
 }
 
-function getCertEnvVarTelemetry(): Record<string, boolean> {
-  const result: Record<string, boolean> = {}
+function getCertEnvVarTelemetry(): Record<string, boolean | string> {
+  const result: Record<string, boolean | string> = {}
   if (process.env.NODE_EXTRA_CA_CERTS) {
     result.has_node_extra_ca_certs = true
   }
@@ -552,6 +554,9 @@ function getCertEnvVarTelemetry(): Record<string, boolean> {
   }
   if (hasNodeOption('--use-openssl-ca')) {
     result.has_use_openssl_ca = true
+  }
+  if (process.env.CLAUDE_CODE_CERT_STORE) {
+    result.cert_store = process.env.CLAUDE_CODE_CERT_STORE
   }
   return result
 }
@@ -671,6 +676,12 @@ export function startDeferredPrefetches(): void {
   if (
     isEnvTruthy(process.env.CLAUDE_CODE_USE_BEDROCK) &&
     !isEnvTruthy(process.env.CLAUDE_CODE_SKIP_BEDROCK_AUTH)
+  ) {
+    void prefetchAwsCredentialsAndBedRockInfoIfSafe()
+  }
+  if (
+    isEnvTruthy(process.env.CLAUDE_CODE_USE_ANTHROPIC_AWS) &&
+    !isEnvTruthy(process.env.CLAUDE_CODE_SKIP_ANTHROPIC_AWS_AUTH)
   ) {
     void prefetchAwsCredentialsAndBedRockInfoIfSafe()
   }
@@ -882,9 +893,10 @@ export async function main() {
   process.env.NoDefaultCurrentDirectoryInExePath = '1'
 
   // Initialize warning handler early to catch warnings
-  initializeWarningHandler()
+  const disposeWarningHandler = initializeWarningHandler()
 
   process.on('exit', () => {
+    disposeWarningHandler()
     resetCursor()
   })
   process.on('SIGINT', () => {
@@ -3853,6 +3865,24 @@ async function run(): Promise<CommanderCommand> {
             )
             .finally(() => {
               for (const resolve of settle.values()) resolve()
+              if (
+                getFeatureValue_CACHED_MAY_BE_STALE(
+                  'tengu_mcp_retry_failed_remote',
+                  true,
+                )
+              ) {
+                void retryFailedRemoteMcpServers(configs, {
+                  getClients: () => headlessStore.getState().mcp.clients,
+                  applyMcpUpdate: updater => {
+                    headlessStore.setState(prev => ({
+                      ...prev,
+                      mcp: { ...prev.mcp, ...updater(prev.mcp) },
+                    }))
+                  },
+                }).catch(err =>
+                  logForDebugging(`[MCP] ${label} retry error: ${err}`),
+                )
+              }
             })
           return perServer
         }
@@ -4247,6 +4277,7 @@ async function run(): Promise<CommanderCommand> {
         attribution: createEmptyAttributionState(),
         thinkingEnabled,
         promptSuggestionEnabled: shouldEnablePromptSuggestion(),
+        awaySummaryEnabled: isAwaySummaryEnabled(),
         sessionHooks: new Map(),
         inbox: {
           messages: [],

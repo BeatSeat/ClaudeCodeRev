@@ -13,6 +13,7 @@ import type {
 } from '../../Tool.js'
 import { getCwd } from '../cwd.js'
 import { isEnvTruthy } from '../envUtils.js'
+import { isSubprocessEnvScrubEnabled } from '../subprocessEnv.js'
 import type { SettingSource } from '../settings/constants.js'
 import { SETTING_SOURCES } from '../settings/constants.js'
 import {
@@ -540,12 +541,20 @@ export function stripDangerousPermissionsForAutoMode(
     )
   }
   // Mirror removeDangerousPermissions' source filter so stash == what was actually removed.
-  const stripped: ToolPermissionRulesBySource = {}
+  const stripped: ToolPermissionRulesBySource = {
+    ...Object.fromEntries(
+      Object.entries(context.strippedDangerousRules ?? {}).map(
+        ([source, rules]) => [source, [...(rules ?? [])]],
+      ),
+    ),
+  }
   for (const perm of dangerousPermissions) {
     if (!isPermissionUpdateDestination(perm.source)) continue
-    ;(stripped[perm.source] ??= []).push(
-      permissionRuleValueToString(perm.ruleValue),
-    )
+    const ruleString = permissionRuleValueToString(perm.ruleValue)
+    const list = (stripped[perm.source] ??= [])
+    if (!list.includes(ruleString)) {
+      list.push(ruleString)
+    }
   }
   return {
     ...removeDangerousPermissions(context, dangerousPermissions),
@@ -694,6 +703,19 @@ export function initialPermissionModeFromCLI({
   permissionModeCli: string | undefined
   dangerouslySkipPermissions: boolean | undefined
 }): { mode: PermissionMode; notification?: string } {
+  if (isSubprocessEnvScrubEnabled()) {
+    const forced =
+      Boolean(dangerouslySkipPermissions) ||
+      Boolean(permissionModeCli && permissionModeCli !== 'default')
+    const notification =
+      'Permission mode forced to default — CLAUDE_CODE_SUBPROCESS_ENV_SCRUB is set ' +
+      '(allowed_non_write_users hardening). Declare allowedTools explicitly, or set CLAUDE_CODE_SUBPROCESS_ENV_SCRUB=0 to opt out.'
+    if (forced) {
+      process.stderr.write(`⚠ ${notification}\n`)
+    }
+    return { mode: 'default', notification: forced ? notification : undefined }
+  }
+
   const settings = getSettings_DEPRECATED() || {}
 
   // Check GrowthBook gate first - highest precedence
@@ -1567,6 +1589,10 @@ export function transitionPlanAutoMode(
   context: ToolPermissionContext,
 ): ToolPermissionContext {
   if (!feature('TRANSCRIPT_CLASSIFIER')) return context
+  // Official 2.1.97: re-strip while already in auto (settings reload).
+  if (context.mode === 'auto') {
+    return stripDangerousPermissionsForAutoMode(context)
+  }
   if (context.mode !== 'plan') return context
   // Mirror prepareContextForPlanMode's entry-time exclusion — never activate
   // auto mid-plan when the user entered from a dangerous mode.

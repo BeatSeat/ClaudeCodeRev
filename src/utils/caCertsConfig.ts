@@ -15,6 +15,7 @@
 
 import { getGlobalConfig } from './config.js'
 import { logForDebugging } from './debug.js'
+import { isSettingSourceEnabled } from './settings/constants.js'
 import { getSettingsForSource } from './settings/settings.js'
 
 /**
@@ -63,7 +64,9 @@ function getExtraCertsPathFromConfig(): string | undefined {
     // Only read from user-controlled settings (~/.claude/settings.json),
     // not project-level settings, to prevent malicious projects from
     // injecting CA certs before the trust dialog.
-    const settings = getSettingsForSource('userSettings')
+    const settings = isSettingSourceEnabled('userSettings')
+      ? getSettingsForSource('userSettings')
+      : null
     const settingsEnv = settings?.env
 
     logForDebugging(

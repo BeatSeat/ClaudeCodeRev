@@ -16,6 +16,7 @@ import {
   truncateToWidth,
 } from '../../utils/format.js'
 import { toInkColor } from '../../utils/ink.js'
+import { KeyboardShortcutHint } from '../design-system/KeyboardShortcutHint.js'
 import { TEAMMATE_SELECT_HINT } from './teammateSelectHint.js'
 
 type Props = {
@@ -284,7 +285,17 @@ export function TeammateSpinnerLine({
         )}
         {/* Hints: select hint when highlighted, view hint when selected but not foregrounded */}
         {showSelectHint && <Text dimColor> · {TEAMMATE_SELECT_HINT}</Text>}
-        {showViewHint && <Text dimColor> · enter to view</Text>}
+        {showViewHint && (
+          <Text dimColor>
+            {' '}
+            ·{' '}
+            <KeyboardShortcutHint
+              chord="enter"
+              action="view"
+              format={{ keyCase: 'lower' }}
+            />
+          </Text>
+        )}
       </Box>
       {/* Preview lines */}
       {previewLines.map((line, idx) => (

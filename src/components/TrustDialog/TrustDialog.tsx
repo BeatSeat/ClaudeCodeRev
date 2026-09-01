@@ -15,6 +15,8 @@ import {
 import { getCwd } from '../../utils/cwd.js'
 import { getFsImplementation } from '../../utils/fsOperations.js'
 import { gracefulShutdownSync } from '../../utils/gracefulShutdown.js'
+import { Byline } from '../design-system/Byline.js'
+import { KeyboardShortcutHint } from '../design-system/KeyboardShortcutHint.js'
 import { Select } from '../CustomSelect/index.js'
 import { PermissionDialog } from '../permissions/PermissionDialog.js'
 import {
@@ -221,7 +223,10 @@ export function TrustDialog({ onDone, commands }: Props): React.ReactNode {
           {exitState.pending ? (
             <>Press {exitState.keyName} again to exit</>
           ) : (
-            <>Enter to confirm · Esc to cancel</>
+            <Byline>
+              <KeyboardShortcutHint chord="enter" action="confirm" />
+              <KeyboardShortcutHint chord="escape" action="cancel" />
+            </Byline>
           )}
         </Text>
       </Box>

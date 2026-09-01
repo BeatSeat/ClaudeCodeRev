@@ -147,7 +147,8 @@ function getLanguageSection(
   if (!languagePreference) return null
 
   return `# Language
-Always respond in ${languagePreference}. Use ${languagePreference} for all explanations, comments, and communications with the user. Technical terms and code identifiers should remain in their original form.`
+Always respond in ${languagePreference}. Use ${languagePreference} for all explanations, comments, and communications with the user. Technical terms and code identifiers should remain in their original form.
+Maintain full orthographic correctness for ${languagePreference}, including all required diacritical marks, accents, and special characters. Never substitute accented characters with their ASCII equivalents (e.g., never write "nao" for "não", "fur" for "für", or "loeschen" for "löschen").`
 }
 
 function getOutputStyleSection(
@@ -401,8 +402,6 @@ function getSessionSpecificGuidanceSection(
   return ['# Session-specific guidance', ...prependBullets(items)].join('\n')
 }
 
-// Official 2.1.100 removed the ant-only "Communicating with the user"
-// branch (bundle gnY / quiet_salted_ember). Everyone gets output efficiency.
 function getSimpleToneAndStyleSection(): string {
   const items = [
     `Only use emojis if the user explicitly requests it. Avoid using emojis in all communication unless asked.`,
@@ -422,10 +421,14 @@ export async function getSystemPrompt(
   model: string,
   additionalWorkingDirectories?: string[],
   mcpClients?: MCPServerConnection[],
+  options?: { excludeDynamicSections?: boolean },
 ): Promise<string[]> {
+  const excludeDynamicSections = options?.excludeDynamicSections === true
   if (isEnvTruthy(process.env.CLAUDE_CODE_SIMPLE)) {
     return [
-      `You are Claude Code, Anthropic's official CLI for Claude.\n\nCWD: ${getCwd()}\nDate: ${getSessionStartDate()}`,
+      excludeDynamicSections
+        ? `You are Claude Code, Anthropic's official CLI for Claude.`
+        : `You are Claude Code, Anthropic's official CLI for Claude.\n\nCWD: ${getCwd()}\nDate: ${getSessionStartDate()}`,
     ]
   }
 
@@ -465,21 +468,28 @@ ${CYBER_RISK_INSTRUCTION}`,
   }
 
   const dynamicSections = [
-    // Official 2.1.107 NeY — after anti_verbosity (removed in 2.1.100 for
-    // everyone), before session_guidance. Null when FH7/loud_sugary_rock is off.
+    // Official 2.1.107 NeY — after anti_verbosity (still ember-gated in
+    // 100/108; do not pull 108's later heading), before session_guidance.
+    // Null when FH7/loud_sugary_rock is off.
     systemPromptSection('thinking_guidance', () =>
       getThinkingGuidanceSection(model),
     ),
     systemPromptSection('session_guidance', () =>
       getSessionSpecificGuidanceSection(enabledTools, skillToolCommands),
     ),
-    systemPromptSection('memory', () => loadMemoryPrompt()),
+    ...(excludeDynamicSections
+      ? []
+      : [systemPromptSection('memory', () => loadMemoryPrompt())]),
     systemPromptSection('ant_model_override', () =>
       getAntModelOverrideSection(),
     ),
-    systemPromptSection('env_info_simple', () =>
-      computeSimpleEnvInfo(model, additionalWorkingDirectories),
-    ),
+    ...(excludeDynamicSections
+      ? []
+      : [
+          systemPromptSection('env_info_simple', () =>
+            computeSimpleEnvInfo(model, additionalWorkingDirectories),
+          ),
+        ]),
     systemPromptSection('language', () =>
       getLanguageSection(settings.language),
     ),
@@ -550,7 +560,8 @@ ${CYBER_RISK_INSTRUCTION}`,
     getActionsSection(),
     getUsingYourToolsSection(enabledTools),
     getSimpleToneAndStyleSection(),
-    // Official 2.1.100 dropped static gnY (# Output efficiency).
+    // Official 2.1.100 dropped static gnY (# Output efficiency / ant-only
+    // Communicating with the user). Official 108 still omits it.
     // === BOUNDARY MARKER - DO NOT MOVE OR REMOVE ===
     ...(shouldUseGlobalCacheScope() ? [SYSTEM_PROMPT_DYNAMIC_BOUNDARY] : []),
     // --- Dynamic content (registry-managed) ---
@@ -689,6 +700,38 @@ export async function computeSimpleEnvInfo(
     `You have been invoked in the following environment: `,
     ...prependBullets(envItems),
   ].join(`\n`)
+}
+
+function parseExcludedSection(body: string): [string, string] {
+  const newline = body.indexOf('\n')
+  const heading = newline === -1 ? body : body.slice(0, newline)
+  if (!heading.startsWith('# ')) {
+    throw new Error(
+      `getExcludedDynamicSectionsContent: expected section body to start with a "# <heading>" line, got "${heading}"`,
+    )
+  }
+  return [heading.slice(2), newline === -1 ? '' : body.slice(newline + 1)]
+}
+
+/** Move cwd/env/memory out of the system prompt for cross-user cache reuse. */
+export async function getExcludedDynamicSectionsContent(
+  model: string,
+  additionalWorkingDirectories?: string[],
+): Promise<{ [k: string]: string }> {
+  const [env, memory] = await Promise.all([
+    computeSimpleEnvInfo(model, additionalWorkingDirectories),
+    loadMemoryPrompt(),
+  ])
+  const out: { [k: string]: string } = {}
+  if (env) {
+    const parsed = parseExcludedSection(env)
+    out[parsed[0]] = parsed[1]
+  }
+  if (memory) {
+    const parsed = parseExcludedSection(memory)
+    out[parsed[0]] = parsed[1]
+  }
+  return out
 }
 
 // @[MODEL LAUNCH]: Add a knowledge cutoff date for the new model.

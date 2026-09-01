@@ -17,6 +17,7 @@ import type { PromptInputMode, VimMode } from '../../types/textInputTypes.js'
 import type { AutoUpdaterResult } from '../../utils/autoUpdater.js'
 import { isFullscreenEnvEnabled } from '../../utils/fullscreen.js'
 import { isUndercover } from '../../utils/undercover.js'
+import { KeyboardShortcutHint } from '../design-system/KeyboardShortcutHint.js'
 import {
   CoordinatorTaskPanel,
   useCoordinatorTaskCount,
@@ -120,6 +121,9 @@ function PromptInputFooter({
   const isFullscreen = isFullscreenEnvEnabled()
   const briefTranscript = useAppState(s => s.briefTranscript)
   const isShort = isFullscreen && rows < 15
+  const footerRowLabels = [false, isFullscreen && briefTranscript && 'focus'].filter(
+    (label): label is string => Boolean(label),
+  )
 
   // Pill highlights when tasks is the active footer item AND no specific
   // agent row is selected. When coordinatorTaskIndex >= 0 the pointer has
@@ -223,7 +227,9 @@ function PromptInputFooter({
             <Text dimColor>undercover</Text>
           )}
           <BridgeStatusIndicator bridgeSelected={bridgeSelected} />
-          {isFullscreen && briefTranscript && <Text dimColor>Focus</Text>}
+          {footerRowLabels.length > 0 && (
+            <Text dimColor>{footerRowLabels.join(' & ')}</Text>
+          )}
         </Box>
       </Box>
       {"external" === 'ant' && <CoordinatorTaskPanel />}
@@ -275,7 +281,12 @@ function BridgeStatusIndicator({
       wrap="truncate"
     >
       {status.label}
-      {bridgeSelected && <Text dimColor> · Enter to view</Text>}
+      {bridgeSelected && (
+        <Text dimColor>
+          {' · '}
+          <KeyboardShortcutHint chord="enter" action="view" />
+        </Text>
+      )}
     </Text>
   )
 }

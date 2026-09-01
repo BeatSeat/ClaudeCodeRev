@@ -12,7 +12,9 @@ import {
 import { syncPermissionRulesFromDisk } from '../permissions/permissions.js'
 import { loadAllPermissionRulesFromDisk } from '../permissions/permissionsLoader.js'
 import type { SettingSource } from './constants.js'
+import { isAwaySummaryEnabled } from '../../services/awaySummary.js'
 import { getInitialSettings } from './settings.js'
+import type { ToolPermissionRulesBySource } from '../../types/permissions.js'
 
 /**
  * Apply a settings change to app state. Re-reads settings from disk,
@@ -72,6 +74,26 @@ export function applySettingsChange(
       newContext = createDisabledBypassPermissionsContext(newContext)
     }
 
+    // Official 2.1.97: drop disk-source stash on reload so auto-mode exit
+    // cannot restore stale user/project/local dangerous rules. Keep
+    // session/cliArg/command stash.
+    if (newContext.strippedDangerousRules !== undefined) {
+      const diskSources = new Set([
+        'userSettings',
+        'projectSettings',
+        'localSettings',
+      ])
+      const kept: ToolPermissionRulesBySource = {}
+      for (const [source, rules] of Object.entries(
+        newContext.strippedDangerousRules,
+      )) {
+        if (rules && !diskSources.has(source)) {
+          kept[source as keyof ToolPermissionRulesBySource] = [...rules]
+        }
+      }
+      newContext = { ...newContext, strippedDangerousRules: kept }
+    }
+
     newContext = transitionPlanAutoMode(newContext)
 
     // Sync effortLevel from settings to top-level AppState when it changes
@@ -81,11 +103,15 @@ export function applySettingsChange(
     const prevEffort = prev.settings.effortLevel
     const newEffort = newSettings.effortLevel
     const effortChanged = prevEffort !== newEffort
+    const awaySummaryEnabled = isAwaySummaryEnabled()
 
     return {
       ...prev,
       settings: newSettings,
       toolPermissionContext: newContext,
+      ...(prev.awaySummaryEnabled !== awaySummaryEnabled
+        ? { awaySummaryEnabled }
+        : {}),
       // Only propagate a defined new value — when the disk key is absent
       // (e.g. /effort max for non-ants writes undefined; --effort CLI flag),
       // prev.settings.effortLevel can be stale (internal writes suppress the

@@ -110,6 +110,35 @@ export function extractLastJsonStringField(
   return lastValue
 }
 
+/**
+ * Official 2.1.97 ZUY / 2.1.108 AiY: scan a JSONL tail backward for a line
+ * whose type is `type`, then extract `field` from that line only.
+ * Avoids picking up the same field name from a different entry type.
+ */
+export function extractLastJsonlTypedField(
+  text: string,
+  type: string,
+  field: string,
+): string | undefined {
+  const prefix = `{"type":"${type}"`
+  let end = text.length
+  while (end > 0) {
+    const newlineIdx = text.lastIndexOf('\n', end - 1)
+    const line = text.slice(newlineIdx + 1, end)
+    end = newlineIdx
+    if (line.startsWith(prefix)) {
+      const value = extractJsonStringField(line, field)
+      if (value !== undefined) {
+        return value
+      }
+    }
+    if (newlineIdx < 0) {
+      break
+    }
+  }
+  return undefined
+}
+
 // ---------------------------------------------------------------------------
 // First prompt extraction from head chunk
 // ---------------------------------------------------------------------------
@@ -313,9 +342,7 @@ export function sanitizePath(name: string): string {
   if (sanitized.length <= MAX_SANITIZED_LENGTH) {
     return sanitized
   }
-  const hash =
-    typeof Bun !== 'undefined' ? Bun.hash(name).toString(36) : simpleHash(name)
-  return `${sanitized.slice(0, MAX_SANITIZED_LENGTH)}-${hash}`
+  return `${sanitized.slice(0, MAX_SANITIZED_LENGTH)}-${simpleHash(name)}`
 }
 
 // ---------------------------------------------------------------------------

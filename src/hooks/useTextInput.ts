@@ -41,6 +41,7 @@ export type UseTextInputProps = {
   onSubmit?: (value: string) => void
   onExit?: () => void
   onExitMessage?: (show: boolean, key?: string) => void
+  onLeftArrowOnEmpty?: () => void
   onHistoryUp?: () => void
   onHistoryDown?: () => void
   onHistoryReset?: () => void
@@ -76,6 +77,7 @@ export function useTextInput({
   onSubmit,
   onExit,
   onExitMessage,
+  onLeftArrowOnEmpty,
   onHistoryUp,
   onHistoryDown,
   onHistoryReset,
@@ -102,7 +104,7 @@ export function useTextInput({
 
   const offset = externalOffset
   const setOffset = onOffsetChange
-  const cursor = Cursor.fromText(originalValue, columns, offset)
+  let cursor = Cursor.fromText(originalValue, columns, offset)
   const { addNotification, removeNotification } = useNotifications()
 
   const handleCtrlC = useDoublePress(
@@ -263,7 +265,7 @@ export function useTextInput({
     if (env.terminal === 'Apple_Terminal' && isModifierPressed('shift')) {
       return cursor.insert('\n')
     }
-    onSubmit?.(originalValue)
+    onSubmit?.(cursor.text)
   }
 
   function upOrHistoryUp() {
@@ -377,6 +379,12 @@ export function useTextInput({
       case key.downArrow && !key.shift:
         return downOrHistoryDown
       case key.leftArrow:
+        if (onLeftArrowOnEmpty && !key.shift && cursor.text === '') {
+          return () => {
+            onLeftArrowOnEmpty()
+            return cursor
+          }
+        }
         return () => cursor.left()
       case key.rightArrow:
         return () => cursor.right()
@@ -483,6 +491,9 @@ export function useTextInput({
           onChange(nextCursor.text)
         }
         setOffset(nextCursor.offset)
+        if (key.backspace || key.delete) {
+          cursor = nextCursor
+        }
       }
       // SSH-coalesced Enter: on slow links, "o" + Enter can arrive as one
       // chunk "o\r". parseKeypress only matches s === '\r', so it hit the

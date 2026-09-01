@@ -217,11 +217,27 @@ function UltraplanSessionDetail({
         <Select
           options={[
             {
-              label: 'Review in Claude Code on the web',
+              label:
+                phase === 'plan_ready'
+                  ? 'Review in Claude Code on the web'
+                  : phase === 'needs_input'
+                    ? 'Answer in Claude Code on the web'
+                    : 'Open in Claude Code on the web',
               value: 'open' as const,
+              ...(phase === 'plan_ready' && {
+                description: 'Approve, edit, or comment on the plan',
+              }),
             },
             ...(onKill && running
-              ? [{ label: 'Stop ultraplan', value: 'stop' as const }]
+              ? [
+                  {
+                    label: 'Stop ultraplan',
+                    value: 'stop' as const,
+                    ...(phase === 'plan_ready' && {
+                      description: 'Discard the generated plan',
+                    }),
+                  },
+                ]
               : []),
             { label: 'Back', value: 'back' as const },
           ]}
@@ -563,8 +579,13 @@ export function RemoteSessionDetailDialog({
             <Text>Press {exitState.keyName} again to exit</Text>
           ) : (
             <Byline>
-              {onBack && <KeyboardShortcutHint shortcut="←" action="go back" />}
-              <KeyboardShortcutHint shortcut="Esc/Enter/Space" action="close" />
+              {onBack && (
+                <KeyboardShortcutHint chord="left" action="go back" />
+              )}
+              <KeyboardShortcutHint
+                chord={['escape', 'enter', 'space']}
+                action="close"
+              />
               {!isTeleporting && (
                 <KeyboardShortcutHint shortcut="t" action="teleport" />
               )}

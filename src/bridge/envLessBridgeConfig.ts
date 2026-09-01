@@ -2,7 +2,6 @@ import { z } from 'zod/v4'
 import { getFeatureValue_DEPRECATED } from '../services/analytics/growthbook.js'
 import { lazySchema } from '../utils/lazySchema.js'
 import { lt } from '../utils/semver.js'
-import { isEnvLessBridgeEnabled } from './bridgeEnabled.js'
 
 export type EnvLessBridgeConfig = {
   // withRetry — init-phase backoff (createSession, POST /bridge, recovery /bridge)
@@ -154,12 +153,10 @@ export async function checkEnvLessBridgeMinVersion(): Promise<string | null> {
 
 /**
  * Whether to nudge users toward upgrading their claude.ai app when a
- * Remote Control session starts. True only when the v2 bridge is active
- * AND the should_show_app_upgrade_message config bit is set — lets us
- * roll the v2 bridge before the app ships the new session-list query.
+ * Remote Control session starts. Official 2.1.97: the config bit alone
+ * (no isEnvLessBridgeEnabled gate).
  */
 export async function shouldShowAppUpgradeMessage(): Promise<boolean> {
-  if (!isEnvLessBridgeEnabled()) return false
   const cfg = await getEnvLessBridgeConfig()
   return cfg.should_show_app_upgrade_message
 }

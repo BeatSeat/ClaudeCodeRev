@@ -48,6 +48,7 @@ export type LogOption = {
   prUrl?: string // Full URL to the linked PR
   prRepository?: string // Repository in "owner/repo" format
   mode?: 'coordinator' | 'normal' // Session mode for coordinator/normal detection
+  permissionMode?: string // toolPermissionContext.mode persisted for resume (2.1.90+)
   worktreeSession?: PersistedWorktreeSession | null // Worktree state at session end (null = exited, undefined = never entered)
   contentReplacements?: ContentReplacementRecord[] // Replacement decisions for resume reconstruction
 }
@@ -138,6 +139,13 @@ export type ModeEntry = {
   type: 'mode'
   sessionId: UUID
   mode: 'coordinator' | 'normal'
+}
+
+/** Permission mode (default/plan/auto/…) cached for --resume. Official 2.1.90. */
+export type PermissionModeEntry = {
+  type: 'permission-mode'
+  sessionId: UUID
+  permissionMode: string
 }
 
 /**
@@ -311,6 +319,7 @@ export type Entry =
   | QueueOperationMessage
   | SpeculationAcceptMessage
   | ModeEntry
+  | PermissionModeEntry
   | WorktreeStateEntry
   | ContentReplacementEntry
   | ContextCollapseCommitEntry

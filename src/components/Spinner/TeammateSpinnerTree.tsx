@@ -5,6 +5,7 @@ import { useAppState } from '../../state/AppState.js'
 import { getRunningTeammatesSorted } from '../../tasks/InProcessTeammateTask/InProcessTeammateTask.js'
 import { formatNumber } from '../../utils/format.js'
 import { TeammateSpinnerLine } from './TeammateSpinnerLine.js'
+import { KeyboardShortcutHint } from '../design-system/KeyboardShortcutHint.js'
 import { TEAMMATE_SELECT_HINT } from './teammateSelectHint.js'
 
 type Props = {
@@ -91,7 +92,15 @@ export function TeammateSpinnerTree({
             <Text dimColor> · {TEAMMATE_SELECT_HINT}</Text>
           )}
           {isLeaderSelected && !isLeaderForegrounded && (
-            <Text dimColor> · enter to view</Text>
+            <Text dimColor>
+              {' '}
+              ·{' '}
+              <KeyboardShortcutHint
+                chord="enter"
+                action="view"
+                format={{ keyCase: 'lower' }}
+              />
+            </Text>
           )}
         </Box>
       }
@@ -124,7 +133,16 @@ function HideRow({ isSelected }: { isSelected: boolean }): React.ReactNode {
       <Text dimColor={!isSelected} bold={isSelected}>
         hide
       </Text>
-      {isSelected && <Text dimColor> · enter to collapse</Text>}
+      {isSelected && (
+        <Text dimColor>
+          {' · '}
+          <KeyboardShortcutHint
+            chord="enter"
+            action="collapse"
+            format={{ keyCase: 'lower' }}
+          />
+        </Text>
+      )}
     </Box>
   )
 }

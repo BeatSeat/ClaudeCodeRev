@@ -196,7 +196,11 @@ function createPermissionContext(
                 /^Allowed by prompt rule: "(.+)"$/,
               )?.[1]
               if (matchedRule) {
-                setClassifierApproval(toolUseID, matchedRule)
+                setClassifierApproval(
+                  toolUseID,
+                  matchedRule,
+                  toolUseContext.setAppState,
+                )
               }
             }
             logPermissionDecision(

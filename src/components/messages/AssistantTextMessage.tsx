@@ -26,6 +26,7 @@ import {
   getDefaultSonnetModel,
   renderModelName,
 } from '../../utils/model/model.js'
+import { isEnvTruthy } from '../../utils/envUtils.js'
 import { isMacOsKeychainLocked } from '../../utils/secureStorage/macOsKeychainStorage.js'
 import { CtrlOToExpand } from '../CtrlOToExpand.js'
 import { InterruptedByUser } from '../InterruptedByUser.js'
@@ -96,7 +97,10 @@ export function AssistantTextMessage({
       return (
         <MessageResponse height={1}>
           <Text color="error">
-            Context limit reached · /compact or /clear to continue
+            Context limit reached ·{' '}
+            {isEnvTruthy(process.env.DISABLE_COMPACT)
+              ? '/clear to continue'
+              : '/compact or /clear to continue'}
             {upgradeHint ? ` · ${upgradeHint}` : ''}
           </Text>
         </MessageResponse>

@@ -225,7 +225,7 @@ export function ExitPlanModePermissionRequest({
   // selecting it would dismiss the dialog and reject locally before
   // launchUltraplan can notice the session exists and return "already polling".
   // feature() must sit directly in an if/ternary (bun:bundle DCE constraint).
-  // Official 2.1.101 On() && !session && !launching
+  // Official 2.1.101/108 On()/$n() && !session && !launching (no async v0K).
   const showUltraplan = feature('ULTRAPLAN')
     ? !ultraplanSessionUrl &&
       !ultraplanLaunching &&
@@ -272,7 +272,7 @@ export function ExitPlanModePermissionRequest({
       filename: filename || 'Pasted image',
       dimensions,
     }
-    cacheImagePath(newContent)
+    cacheImagePath(newContent, setAppState)
     void storeImage(newContent)
     setPastedContents(prev => ({ ...prev, [pasteId]: newContent }))
   }

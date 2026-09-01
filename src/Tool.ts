@@ -181,6 +181,8 @@ export type ToolUseContext = {
   }
   abortController: AbortController
   readFileState: FileStateCache
+  /** Environment variables set by /env for child processes in this session. */
+  sessionEnvVars?: Map<string, string>
   getAppState(): AppState
   setAppState(f: (prev: AppState) => AppState): void
   /**
@@ -576,6 +578,11 @@ export type Tool<
     content: Output,
     toolUseID: string,
   ): ToolResultBlockParam
+  /**
+   * Optional. Strip bulky fields before persisting a tool result (2.1.92).
+   * FileEdit blanks originalFile so transcripts do not keep the pre-edit copy.
+   */
+  stripForStorage?(output: Output): Output
   /**
    * Optional. When omitted, the tool result renders nothing (same as returning
    * null). Omit for tools whose results are surfaced elsewhere (e.g., TodoWrite

@@ -424,6 +424,12 @@ export async function fetchProfileInfo(accessToken: string): Promise<{
  * @returns The organization UUID or null if not authenticated
  */
 export async function getOrganizationUUID(): Promise<string | null> {
+  const environmentOrganizationUUID =
+    process.env.CLAUDE_CODE_ORGANIZATION_UUID
+  if (environmentOrganizationUUID) {
+    return environmentOrganizationUUID
+  }
+
   // Check global config first to avoid unnecessary API call
   const globalConfig = getGlobalConfig()
   const orgUUID = globalConfig.oauthAccount?.organizationUuid

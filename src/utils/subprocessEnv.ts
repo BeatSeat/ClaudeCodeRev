@@ -1,4 +1,9 @@
+import { homedir, tmpdir } from 'os'
+import { dirname, join } from 'path'
+import { getOriginalCwd } from '../bootstrap/state.js'
+import { uniq } from './array.js'
 import { isEnvTruthy } from './envUtils.js'
+import { whichSync } from './which.js'
 
 /**
  * Env vars to strip from subprocess environments when running inside GitHub
@@ -98,4 +103,266 @@ export function subprocessEnv(): NodeJS.ProcessEnv {
     delete env[`INPUT_${k}`]
   }
   return env
+}
+
+/** Official 2.1.98 Ub1 — dotenv stubs for Linux env-scrub bwrap isolation. */
+const DOTENV_STUB_NAMES = [
+  '.env',
+  '.env.local',
+  '.env.development',
+  '.env.development.local',
+  '.env.test',
+  '.env.test.local',
+  '.env.production',
+  '.env.production.local',
+] as const
+
+type ScrubIsolationSnapshot = {
+  home: string
+  originalCwd: string
+  claudeConfigDir: string | undefined
+  GITHUB_PATH: string | undefined
+  GITHUB_ENV: string | undefined
+  GITHUB_OUTPUT: string | undefined
+  GITHUB_STEP_SUMMARY: string | undefined
+  GITHUB_STATE: string | undefined
+  GITHUB_ACTION_PATH: string | undefined
+  GITHUB_EVENT_PATH: string | undefined
+}
+
+let scrubEnabledCache: boolean | undefined
+let linuxBwrapCache: boolean | undefined
+let isolationSnapshot: ScrubIsolationSnapshot | undefined
+
+/** Official 2.1.98 ZP. */
+export function isSubprocessEnvScrubEnabled(): boolean {
+  if (scrubEnabledCache === undefined) {
+    scrubEnabledCache = isEnvTruthy(process.env.CLAUDE_CODE_SUBPROCESS_ENV_SCRUB)
+  }
+  return scrubEnabledCache
+}
+
+/** Official 2.1.98 eo — linux && bwrap, cached after isolation init. */
+export function isLinuxBwrapAvailable(): boolean {
+  if (linuxBwrapCache !== undefined) {
+    return linuxBwrapCache
+  }
+  return process.platform === 'linux' && !!whichSync('bwrap')
+}
+
+export type ScrubSandboxFilesystemPolicy = {
+  filesystem: {
+    allowWrite: string[]
+    denyRead: string[]
+    denyWrite: string[]
+  }
+}
+
+/** Official 2.1.98 lb1. */
+export function getScrubSandboxPolicy(): ScrubSandboxFilesystemPolicy {
+  const snap = isolationSnapshot
+  const home = snap?.home ?? homedir()
+  const cwd = snap?.originalCwd ?? getOriginalCwd()
+  const actionPath = snap?.GITHUB_ACTION_PATH ?? process.env.GITHUB_ACTION_PATH
+  return {
+    filesystem: {
+      allowWrite: ['home', 'root', 'tmp', 'var', 'opt', 'run', 'mnt'].map(
+        name => `/${name}`,
+      ),
+      denyRead: [
+        '/run/docker.sock',
+        '/run/containerd/containerd.sock',
+        '/run/podman/podman.sock',
+        '/run/buildkit/buildkitd.sock',
+      ],
+      denyWrite: [
+        `${home}/.bash_profile`,
+        `${home}/.bashrc`,
+        `${home}/.bash_aliases`,
+        `${home}/.bash_login`,
+        `${home}/.bash_logout`,
+        `${home}/.profile`,
+        `${home}/.zshrc`,
+        `${home}/.zprofile`,
+        `${home}/.zshenv`,
+        `${home}/.zlogin`,
+        `${home}/.zlogout`,
+        `${home}/.claude`,
+        `${home}/.claude.json`,
+        snap?.claudeConfigDir ?? process.env.CLAUDE_CONFIG_DIR,
+        `${home}/.gitconfig`,
+        `${home}/.config/git`,
+        `${home}/.bunfig.toml`,
+        `${cwd}/bunfig.toml`,
+        `${cwd}/package.json`,
+        ...DOTENV_STUB_NAMES.map(name => `${cwd}/${name}`),
+        `${home}/.npmrc`,
+        `${cwd}/.npmrc`,
+        `${home}/.yarnrc`,
+        `${home}/.yarnrc.yml`,
+        `${cwd}/.yarnrc`,
+        `${cwd}/.yarnrc.yml`,
+        `${home}/.config/pip`,
+        `${home}/.pip`,
+        `${cwd}/package-lock.json`,
+        `${cwd}/yarn.lock`,
+        `${cwd}/pnpm-lock.yaml`,
+        `${cwd}/node_modules/.bin`,
+        `${cwd}/.git/modules`,
+        `${cwd}/scripts`,
+        `${cwd}/.claude`,
+        `${cwd}/.github`,
+        `${home}/.local/bin`,
+        snap?.GITHUB_PATH ?? process.env.GITHUB_PATH,
+        snap?.GITHUB_ENV ?? process.env.GITHUB_ENV,
+        snap?.GITHUB_OUTPUT ?? process.env.GITHUB_OUTPUT,
+        snap?.GITHUB_STEP_SUMMARY ?? process.env.GITHUB_STEP_SUMMARY,
+        snap?.GITHUB_STATE ?? process.env.GITHUB_STATE,
+        actionPath,
+        actionPath?.includes('/_actions/')
+          ? actionPath.slice(0, actionPath.indexOf('/_actions/') + 9)
+          : undefined,
+        snap?.GITHUB_EVENT_PATH ?? process.env.GITHUB_EVENT_PATH,
+        `${home}/.config/gh`,
+        `${home}/.netrc`,
+        `${home}/.ssh`,
+        `${cwd}/.git/hooks`,
+        `${cwd}/.git/config`,
+        `${cwd}/.gitmodules`,
+        `${cwd}/.git/info/exclude`,
+      ].filter((path): path is string => !!path),
+    },
+  }
+}
+
+/**
+ * Official 2.1.98 Qb1 — require bwrap on Linux, create stub files so bwrap
+ * deny-write mounts have somewhere to bind.
+ */
+export async function initSubprocessEnvScrubIsolation(): Promise<void> {
+  if (!isSubprocessEnvScrubEnabled()) {
+    return
+  }
+  const home = homedir()
+  const cwd = getOriginalCwd()
+  linuxBwrapCache = process.platform === 'linux' && !!whichSync('bwrap')
+  isolationSnapshot = {
+    home,
+    originalCwd: cwd,
+    claudeConfigDir: process.env.CLAUDE_CONFIG_DIR,
+    GITHUB_PATH: process.env.GITHUB_PATH,
+    GITHUB_ENV: process.env.GITHUB_ENV,
+    GITHUB_OUTPUT: process.env.GITHUB_OUTPUT,
+    GITHUB_STEP_SUMMARY: process.env.GITHUB_STEP_SUMMARY,
+    GITHUB_STATE: process.env.GITHUB_STATE,
+    GITHUB_ACTION_PATH: process.env.GITHUB_ACTION_PATH,
+    GITHUB_EVENT_PATH: process.env.GITHUB_EVENT_PATH,
+  }
+  if (process.platform !== 'linux') {
+    return
+  }
+  if (!whichSync('bwrap')) {
+    throw new Error(
+      'bubblewrap is required for subprocess env scrubbing and isolation. Install with: sudo apt-get install -y bubblewrap, or set CLAUDE_CODE_SUBPROCESS_ENV_SCRUB=0 to disable (loses subprocess isolation).',
+    )
+  }
+  const { appendFile, mkdir, open } = await import('fs/promises')
+  const uid = process.getuid?.() ?? 0
+  await mkdir(join(tmpdir(), `claude-${uid}`), { recursive: true }).catch(
+    () => {},
+  )
+  const stubFiles = [
+    `${home}/.gitconfig`,
+    `${home}/.bash_profile`,
+    `${home}/.bashrc`,
+    `${home}/.bash_aliases`,
+    `${home}/.profile`,
+    `${home}/.zshrc`,
+    `${home}/.bunfig.toml`,
+    `${home}/.netrc`,
+    `${home}/.npmrc`,
+    `${home}/.yarnrc`,
+    `${home}/.yarnrc.yml`,
+    `${cwd}/.npmrc`,
+    `${cwd}/.yarnrc`,
+    `${cwd}/.yarnrc.yml`,
+    `${cwd}/bunfig.toml`,
+    `${cwd}/package.json`,
+    `${cwd}/.gitmodules`,
+    `${cwd}/package-lock.json`,
+    `${cwd}/yarn.lock`,
+    `${cwd}/pnpm-lock.yaml`,
+    ...DOTENV_STUB_NAMES.map(name => `${cwd}/${name}`),
+  ]
+  for (const file of stubFiles) {
+    try {
+      await mkdir(dirname(file), { recursive: true })
+      await (await open(file, 'a')).close()
+    } catch {
+      // best-effort stubs
+    }
+  }
+  for (const dir of [
+    `${home}/.config/gh`,
+    `${home}/.config/git`,
+    `${home}/.config/pip`,
+    `${home}/.pip`,
+    `${cwd}/.claude/commands`,
+    `${cwd}/.claude/agents`,
+    `${cwd}/node_modules/.bin`,
+  ]) {
+    try {
+      await mkdir(dir, { recursive: true })
+    } catch {
+      // best-effort stubs
+    }
+  }
+  const excludeNames = [
+    'bunfig.toml',
+    'package.json',
+    '.npmrc',
+    '.yarnrc',
+    '.yarnrc.yml',
+    '.gitmodules',
+    'package-lock.json',
+    'yarn.lock',
+    'pnpm-lock.yaml',
+    ...DOTENV_STUB_NAMES,
+  ]
+  await mkdir(`${cwd}/.git/info`, { recursive: true }).catch(() => {})
+  await mkdir(`${cwd}/.git/modules`, { recursive: true }).catch(() => {})
+  try {
+    await appendFile(
+      `${cwd}/.git/info/exclude`,
+      `\n# claude-code scrub-mode stubs\n${excludeNames.map(name => `/${name}`).join('\n')}\n`,
+    )
+  } catch {
+    // best-effort exclude
+  }
+}
+
+export function mergeScrubSandboxConfig<T extends { filesystem?: { allowWrite?: string[]; denyWrite?: string[]; denyRead?: string[] } }>(
+  policy: ScrubSandboxFilesystemPolicy,
+  userAllowWrite: string[],
+  userDenyRead: string[],
+  denyWithinAllow: string[],
+): T {
+  const denyWrite = policy.filesystem.denyWrite
+  const allowWrite = uniq([
+    ...policy.filesystem.allowWrite,
+    ...userAllowWrite.filter(path => path !== '/' && path.length > 0),
+  ])
+  const extraDeny = denyWithinAllow.filter(
+    path =>
+      allowWrite.some(allow => path === allow || path.startsWith(`${allow}/`)) &&
+      !denyWrite.some(deny => path === deny || path.startsWith(`${deny}/`)),
+  )
+  return {
+    ...policy,
+    filesystem: {
+      allowWrite,
+      denyWrite: uniq([...denyWrite, ...extraDeny]),
+      denyRead: uniq([...policy.filesystem.denyRead, ...userDenyRead]),
+    },
+  } as T
 }

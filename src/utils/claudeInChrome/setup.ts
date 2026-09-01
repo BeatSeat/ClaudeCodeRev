@@ -250,18 +250,24 @@ export async function installChromeNativeHostManifest(
 
   // Restart the native host if we have rewritten any manifest
   if (anyManifestUpdated) {
-    void isChromeExtensionInstalled().then(isInstalled => {
-      if (isInstalled) {
+    void isChromeExtensionInstalled()
+      .then(isInstalled => {
+        if (isInstalled) {
+          logForDebugging(
+            `[Claude in Chrome] First-time install detected, opening reconnect page in browser`,
+          )
+          void openInChrome(CHROME_EXTENSION_RECONNECT_URL)
+        } else {
+          logForDebugging(
+            `[Claude in Chrome] First-time install detected, but extension not installed, skipping reconnect`,
+          )
+        }
+      })
+      .catch(error => {
         logForDebugging(
-          `[Claude in Chrome] First-time install detected, opening reconnect page in browser`,
+          `[Claude in Chrome] Failed to check extension installation during manifest install: ${error}`,
         )
-        void openInChrome(CHROME_EXTENSION_RECONNECT_URL)
-      } else {
-        logForDebugging(
-          `[Claude in Chrome] First-time install detected, but extension not installed, skipping reconnect`,
-        )
-      }
-    })
+      })
   }
 }
 

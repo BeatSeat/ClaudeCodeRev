@@ -8,6 +8,7 @@ import {
   mkdir,
   readdir,
   readFile,
+  rm,
   stat,
   symlink,
   utimes,
@@ -245,6 +246,86 @@ function worktreePathFor(repoRoot: string, slug: string): string {
   return join(worktreesDir(repoRoot), flattenSlug(slug))
 }
 
+async function removeOrphanedWorktreeDirectoryIfSafe(
+  repoRoot: string,
+  worktreePath: string,
+  worktreeBranch: string,
+): Promise<void> {
+  let gitDirectoryPointer: string
+  try {
+    const dotGitContents = await readFile(join(worktreePath, '.git'), 'utf-8')
+    const pointerMatch = dotGitContents.trim().match(/^gitdir:\s*(.+)$/)
+    if (!pointerMatch?.[1]) return
+    gitDirectoryPointer = isAbsolute(pointerMatch[1])
+      ? pointerMatch[1]
+      : resolve(worktreePath, pointerMatch[1])
+  } catch {
+    return
+  }
+
+  try {
+    await stat(gitDirectoryPointer)
+    return
+  } catch (error) {
+    if (getErrnoCode(error) !== 'ENOENT') return
+  }
+
+  const remoteResult = await execFileNoThrowWithCwd(gitExe(), ['remote'], {
+    cwd: repoRoot,
+  })
+  if (remoteResult.code !== 0) {
+    throw new Error(
+      `Orphaned worktree dir at ${worktreePath} but \`git remote\` failed (${remoteResult.stderr.trim()}) - refusing to self-heal. Remove ${worktreePath} manually if it has no work to keep.`,
+    )
+  }
+
+  const branchResult = await execFileNoThrowWithCwd(
+    gitExe(),
+    ['rev-parse', '--verify', '--quiet', worktreeBranch],
+    { cwd: repoRoot },
+  )
+  if (branchResult.code !== 0 && branchResult.stderr.trim().length > 0) {
+    throw new Error(
+      `Orphaned worktree dir at ${worktreePath} but rev-parse on ${worktreeBranch} failed (${branchResult.stderr.trim()}) - refusing to self-heal. Remove ${worktreePath} manually if it has no work to keep.`,
+    )
+  }
+
+  if (remoteResult.stdout.trim().length > 0 && branchResult.code === 0) {
+    const unpushedResult = await execFileNoThrowWithCwd(
+      gitExe(),
+      [
+        'rev-list',
+        '--max-count=1',
+        worktreeBranch,
+        '--not',
+        '--remotes',
+      ],
+      { cwd: repoRoot },
+    )
+    if (unpushedResult.code !== 0) {
+      throw new Error(
+        `Orphaned worktree dir at ${worktreePath} but rev-list on ${worktreeBranch} failed (${unpushedResult.stderr.trim()}) - refusing to self-heal. Remove ${worktreePath} manually if it has no work to keep.`,
+      )
+    }
+    if (unpushedResult.stdout.trim().length > 0) {
+      throw new Error(
+        `Orphaned worktree dir at ${worktreePath} but branch ${worktreeBranch} has unpushed commits - refusing to self-heal. Push or delete the branch, then retry.`,
+      )
+    }
+  }
+
+  try {
+    await rm(worktreePath, { recursive: true, force: true })
+    logForDebugging(
+      `[worktree] removed orphaned worktree directory at ${worktreePath}`,
+    )
+  } catch (error) {
+    throw new Error(
+      `Cannot self-heal orphaned worktree at ${worktreePath}: ${errorMessage(error)}. Remove manually to proceed.`,
+    )
+  }
+}
+
 /**
  * Creates a new git worktree for the given slug, or resumes it if it already exists.
  * Named worktrees reuse the same path across invocations, so the existence check
@@ -272,6 +353,12 @@ async function getOrCreateWorktree(
       existed: true,
     }
   }
+
+  await removeOrphanedWorktreeDirectoryIfSafe(
+    repoRoot,
+    worktreePath,
+    worktreeBranch,
+  )
 
   // New worktree: fetch base branch then add
   await mkdir(worktreesDir(repoRoot), { recursive: true })
@@ -344,7 +431,7 @@ async function getOrCreateWorktree(
   }
   // -B (not -b): reset any orphan branch left behind by a removed worktree dir.
   // Saves a `git branch -D` subprocess (~15ms spawn overhead) on every create.
-  addArgs.push('-B', worktreeBranch, worktreePath, baseBranch)
+  addArgs.push('--no-track', '-B', worktreeBranch, worktreePath, baseBranch)
 
   const { code: createCode, stderr: createStderr } =
     await execFileNoThrowWithCwd(gitExe(), addArgs, { cwd: repoRoot })
@@ -1365,7 +1452,8 @@ export async function hasWorktreeChanges(
   if (revListCode !== 0) {
     return true
   }
-  if (parseInt(revListOutput.trim(), 10) > 0) {
+  const commitsAhead = Number.parseInt(revListOutput.trim(), 10)
+  if (!Number.isFinite(commitsAhead) || commitsAhead > 0) {
     return true
   }
 

@@ -539,7 +539,12 @@ function buildNamespace(targetDir: string, baseDir: string): string {
     return ''
   }
 
-  const relativePath = targetDir.slice(normalizedBaseDir.length + 1)
+  const prefix = normalizedBaseDir + pathSep
+  if (!targetDir.startsWith(prefix)) {
+    return ''
+  }
+
+  const relativePath = targetDir.slice(prefix.length)
   return relativePath ? relativePath.split(pathSep).join(':') : ''
 }
 

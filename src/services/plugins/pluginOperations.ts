@@ -12,6 +12,7 @@
  * - Can throw errors for unexpected failures
  */
 import { dirname, join } from 'path'
+import { coerce, satisfies, valid } from 'semver'
 import { getOriginalCwd } from '../../bootstrap/state.js'
 import { isBuiltinPluginId } from '../../plugins/builtinPlugins.js'
 import type { LoadedPlugin, PluginManifest } from '../../types/plugin.js'
@@ -24,6 +25,7 @@ import {
   markPluginVersionOrphaned,
 } from '../../utils/plugins/cacheUtils.js'
 import {
+  findReverseDependencyConstraints,
   findReverseDependents,
   formatReverseDependentsSuffix,
 } from '../../utils/plugins/dependencyResolver.js'
@@ -160,6 +162,8 @@ export type PluginUpdateResult = {
   newVersion?: string
   oldVersion?: string
   alreadyUpToDate?: boolean
+  skipped?: boolean
+  blockedBy?: string[]
   scope?: PluginScope
 }
 
@@ -955,6 +959,7 @@ async function performPluginUpdate({
   let newVersion: string
   let shouldCleanupSource = false
   let gitCommitSha: string | undefined
+  let sourceManifestVersion: string | undefined
 
   // Handle remote vs local plugins
   if (typeof entry.source !== 'string') {
@@ -965,6 +970,7 @@ async function performPluginUpdate({
     sourcePath = cacheResult.path
     shouldCleanupSource = true
     gitCommitSha = cacheResult.gitCommitSha
+    sourceManifestVersion = cacheResult.manifest?.version
 
     // Calculate version from downloaded plugin. For git-subdir sources,
     // cachePlugin captured the commit SHA before discarding the ephemeral
@@ -1034,6 +1040,7 @@ async function performPluginUpdate({
     } catch {
       // Failed to load - will use other version sources
     }
+    sourceManifestVersion = pluginManifest?.version
 
     // Calculate version from plugin source path
     newVersion = await calculatePluginVersion(
@@ -1047,6 +1054,33 @@ async function performPluginUpdate({
 
   // Use try/finally to ensure temp directory cleanup on any error
   try {
+    const loadedPlugins = await loadAllPlugins()
+    const reverseDependencies = findReverseDependencyConstraints(pluginId, [
+      ...loadedPlugins.enabled,
+      ...loadedPlugins.disabled,
+    ])
+    const normalizedSourceVersion = sourceManifestVersion
+      ? (valid(sourceManifestVersion) ?? coerce(sourceManifestVersion)?.version)
+      : undefined
+    const blockedBy = reverseDependencies
+      .filter(({ constraint }) => {
+        if (!constraint.version || !normalizedSourceVersion) return false
+        return !satisfies(normalizedSourceVersion, constraint.version)
+      })
+      .map(({ plugin: dependentPlugin }) => dependentPlugin.source)
+
+    if (blockedBy.length > 0) {
+      return {
+        success: true,
+        skipped: true,
+        message: `Skipped — ${blockedBy.join(', ')} requires ${pluginName} at a version range that ${sourceManifestVersion ?? newVersion} does not satisfy`,
+        pluginId,
+        scope,
+        blockedBy,
+        oldVersion,
+      }
+    }
+
     // Check if this version already exists in cache
     let versionedPath = getVersionedCachePath(pluginId, newVersion)
 

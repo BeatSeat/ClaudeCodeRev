@@ -21,7 +21,7 @@ import {
   SandboxViolationStore,
 } from '@anthropic-ai/sandbox-runtime'
 import { rmSync, statSync } from 'fs'
-import { readFile } from 'fs/promises'
+import { open, readFile } from 'fs/promises'
 import { memoize } from 'lodash-es'
 import { join, resolve, sep } from 'path'
 import {
@@ -54,9 +54,42 @@ import { FILE_EDIT_TOOL_NAME } from 'src/tools/FileEditTool/constants.js'
 import { FILE_READ_TOOL_NAME } from 'src/tools/FileReadTool/prompt.js'
 import { WEB_FETCH_TOOL_NAME } from 'src/tools/WebFetchTool/prompt.js'
 import { errorMessage } from '../errors.js'
+import { isInBundledMode } from '../bundledMode.js'
 import { getClaudeTempDir } from '../permissions/filesystem.js'
 import type { PermissionRuleValue } from '../permissions/PermissionRule.js'
 import { ripgrepCommand } from '../ripgrep.js'
+
+/** Official 2.1.92: inherit `/proc/self/exe` on stdio fd 3 for apply-seccomp. */
+const EMBEDDED_APPLY_SECCOMP_FD = 3
+
+function shouldUseEmbeddedApplySeccomp(): boolean {
+  return process.platform === 'linux' && isInBundledMode()
+}
+
+const openSelfExeForSeccomp = memoize(async () => {
+  if (!shouldUseEmbeddedApplySeccomp()) return
+  try {
+    return await open('/proc/self/exe', 'r')
+  } catch (err) {
+    logForDebugging(`seccomp: failed to open /proc/self/exe: ${err}`)
+    return
+  }
+})
+
+/** Fd to pass as spawn stdio[3] so `/proc/self/fd/3` stays live inside bwrap. */
+export async function getEmbeddedApplySeccompFd(): Promise<number | undefined> {
+  return (await openSelfExeForSeccomp())?.fd
+}
+
+function getEmbeddedApplySeccompConfig(): SandboxRuntimeConfig['seccomp'] {
+  if (!shouldUseEmbeddedApplySeccomp()) return
+  // argv0 is the 92+ multicall dispatch; sandbox-runtime 0.0.44's schema
+  // strips unknown keys, but official 92/108 still pass it.
+  return {
+    applyPath: `/proc/self/fd/${EMBEDDED_APPLY_SECCOMP_FD}`,
+    argv0: 'apply-seccomp',
+  } as SandboxRuntimeConfig['seccomp']
+}
 
 // Local copies to avoid circular dependency
 // (permissions.ts imports SandboxManager, bashPermissions.ts imports permissions.ts)
@@ -378,6 +411,7 @@ export function convertToSandboxRuntimeConfig(
     enableWeakerNetworkIsolation:
       settings.sandbox?.enableWeakerNetworkIsolation,
     ripgrep: ripgrepConfig,
+    seccomp: getEmbeddedApplySeccompConfig(),
   }
 }
 

@@ -2,7 +2,12 @@ import * as React from 'react'
 import { useState } from 'react'
 import { Box, Text } from 'src/ink.js'
 import { formatAPIError } from 'src/services/api/errorUtils.js'
+import {
+  extractRateLimitFromError,
+  getRateLimitDisplayName,
+} from 'src/services/claudeAiLimits.js'
 import { isImmediateNetworkError } from 'src/utils/errors.js'
+import { formatDuration, formatResetTime } from 'src/utils/format.js'
 import type { SystemAPIErrorMessage } from 'src/types/message.js'
 import { useInterval } from 'usehooks-ts'
 import { CtrlOToExpand } from '../CtrlOToExpand.js'
@@ -26,21 +31,54 @@ export function SystemAPIErrorMessage({
     retryAttempt < 4 &&
     !isImmediateNetworkError(error)
 
+  const rateLimit = extractRateLimitFromError(error)
+  const resetTime = rateLimit?.resetsAt
+    ? formatResetTime(rateLimit.resetsAt)
+    : undefined
   const [countdownMs, setCountdownMs] = useState(0)
-  const done = countdownMs >= retryInMs
+  const remainingMs = Math.max(0, retryInMs - countdownMs)
+  const updateIntervalMs = remainingMs > 60_000 ? 60_000 : 1000
   useInterval(
-    () => setCountdownMs(ms => ms + 1000),
-    hidden || done ? null : 1000,
+    () => setCountdownMs(ms => ms + updateIntervalMs),
+    hidden || remainingMs === 0 ? null : updateIntervalMs,
   )
 
   if (hidden) {
     return null
   }
 
-  const retryInSecondsLive = Math.max(
-    0,
-    Math.round((retryInMs - countdownMs) / 1000),
+  const retryDuration = formatDuration(remainingMs, {
+    mostSignificantOnly: true,
+  })
+  const resetSuffix = resetTime ? ` (${resetTime})` : ''
+  const retryStatus = (
+    <Text dimColor>
+      Retrying in {retryDuration}
+      {resetSuffix} · attempt {retryAttempt}/{maxRetries}
+      {process.env.API_TIMEOUT_MS
+        ? ` · API_TIMEOUT_MS=${process.env.API_TIMEOUT_MS}ms, try increasing it`
+        : ''}
+    </Text>
   )
+
+  if (rateLimit) {
+    const displayName = rateLimit.rateLimitType
+      ? getRateLimitDisplayName(rateLimit.rateLimitType)
+      : 'usage limit'
+    return (
+      <MessageResponse>
+        <Box flexDirection="column">
+          <Text>
+            <Text color="error">
+              {displayName.charAt(0).toUpperCase() + displayName.slice(1)}{' '}
+              reached
+            </Text>
+          </Text>
+          {retryStatus}
+        </Box>
+      </MessageResponse>
+    )
+  }
 
   const formatted = formatAPIError(error)
   const truncated = !verbose && formatted.length > MAX_API_ERROR_CHARS
@@ -54,14 +92,7 @@ export function SystemAPIErrorMessage({
             : formatted}
         </Text>
         {truncated && <CtrlOToExpand />}
-        <Text dimColor>
-          Retrying in {retryInSecondsLive}{' '}
-          {retryInSecondsLive === 1 ? 'second' : 'seconds'}… (attempt{' '}
-          {retryAttempt}/{maxRetries})
-          {process.env.API_TIMEOUT_MS
-            ? ` · API_TIMEOUT_MS=${process.env.API_TIMEOUT_MS}ms, try increasing it`
-            : ''}
-        </Text>
+        {retryStatus}
       </Box>
     </MessageResponse>
   )

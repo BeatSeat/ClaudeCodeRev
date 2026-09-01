@@ -30,8 +30,9 @@ import {
   type SettingsJson,
   SettingsSchema,
 } from '../../utils/settings/types.js'
+import { filterSettingsWarnings } from '../../utils/settings/validation.js'
 import { sleep } from '../../utils/sleep.js'
-import { jsonStringify } from '../../utils/slowOperations.js'
+import { clone, jsonStringify } from '../../utils/slowOperations.js'
 import { getClaudeCodeUserAgent } from '../../utils/userAgent.js'
 import { getRetryDelay } from '../api/withRetry.js'
 import {
@@ -53,6 +54,12 @@ import {
 const SETTINGS_TIMEOUT_MS = 10000 // 10 seconds for settings fetch
 const DEFAULT_MAX_RETRIES = 5
 const POLLING_INTERVAL_MS = 60 * 60 * 1000 // 1 hour
+
+function cloneAndFilterRemoteSettings(settings: SettingsJson): SettingsJson {
+  const filteredSettings = clone(settings)
+  filterSettingsWarnings(filteredSettings, 'remote managed settings')
+  return filteredSettings
+}
 
 // Background polling state
 let pollingIntervalId: ReturnType<typeof setInterval> | null = null
@@ -316,11 +323,14 @@ async function fetchRemoteManagedSettings(
       return {
         success: false,
         error: 'Invalid remote settings format',
+        skipRetry: true,
       }
     }
 
-    // Full validation of settings structure
-    const settingsValidation = SettingsSchema().safeParse(parsed.data.settings)
+    // Warning-level problems are removed from a clone for validation. Preserve
+    // and return the raw object so the cache/checksum remains server-authored.
+    const filteredSettings = cloneAndFilterRemoteSettings(parsed.data.settings)
+    const settingsValidation = SettingsSchema().safeParse(filteredSettings)
     if (!settingsValidation.success) {
       logForDebugging(
         `Remote settings: Settings validation failed - ${settingsValidation.error.message}`,
@@ -328,13 +338,14 @@ async function fetchRemoteManagedSettings(
       return {
         success: false,
         error: 'Invalid settings structure',
+        skipRetry: true,
       }
     }
 
     logForDebugging('Remote settings: Fetched successfully')
     return {
       success: true,
-      settings: settingsValidation.data,
+      settings: parsed.data.settings,
       checksum: parsed.data.checksum,
     }
   } catch (error) {
@@ -465,8 +476,8 @@ async function fetchAndLoadRemoteManagedSettings(): Promise<RemoteSettingsFetchL
     if (hasContent) {
       // Check for dangerous settings changes before applying
       const securityResult = await checkManagedSettingsSecurity(
-        cachedSettings,
-        newSettings,
+        cachedSettings ? cloneAndFilterRemoteSettings(cachedSettings) : null,
+        cloneAndFilterRemoteSettings(newSettings),
       )
       if (!handleSecurityCheckResult(securityResult)) {
         // User rejected - don't apply settings, return cached or null

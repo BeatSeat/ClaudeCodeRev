@@ -271,6 +271,7 @@ type Props = {
   showBashesDialog: string | boolean
   setShowBashesDialog: (show: string | boolean) => void
   onExit: () => void
+  onLeftArrowOnEmpty?: () => void
   getToolUseContext: (
     messages: Message[],
     newMessages: Message[],
@@ -342,6 +343,7 @@ function PromptInput({
   showBashesDialog,
   setShowBashesDialog,
   onExit,
+  onLeftArrowOnEmpty,
   getToolUseContext,
   onSubmit: onSubmitProp,
   onAgentSubmit,
@@ -1566,7 +1568,7 @@ function PromptInput({
     }
 
     // Cache path immediately (fast) so links work on render
-    cacheImagePath(newContent)
+    cacheImagePath(newContent, setAppState)
 
     // Store image to disk in background
     void storeImage(newContent)
@@ -2888,6 +2890,7 @@ function PromptInput({
     onHistoryReset: resetHistory,
     placeholder,
     onExit,
+    onLeftArrowOnEmpty,
     onExitMessage: (show, key) => setExitMessage({ show, key }),
     onImagePaste,
     columns: textInputColumns,

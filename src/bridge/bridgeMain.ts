@@ -19,7 +19,11 @@ import { errorMessage } from '../utils/errors.js'
 import { truncateToWidth } from '../utils/format.js'
 import { logError } from '../utils/log.js'
 import { sleep } from '../utils/sleep.js'
-import { createAgentWorktree, removeAgentWorktree } from '../utils/worktree.js'
+import {
+  createAgentWorktree,
+  hasWorktreeChanges,
+  removeAgentWorktree,
+} from '../utils/worktree.js'
 import {
   BridgeFatalError,
   createBridgeApiClient,
@@ -180,6 +184,7 @@ export async function runBridgeLoop(
       worktreeBranch?: string
       gitRoot?: string
       hookBased?: boolean
+      headCommit?: string
     }
   >()
   // Track sessions killed by the timeout watchdog so onSessionDone can
@@ -537,12 +542,37 @@ export async function runBridgeLoop(
       if (wt) {
         sessionWorktrees.delete(sessionId)
         trackCleanup(
-          removeAgentWorktree(
-            wt.worktreePath,
-            wt.worktreeBranch,
-            wt.gitRoot,
-            wt.hookBased,
-          ).catch((err: unknown) =>
+          (async () => {
+            const canRemoveWithoutGitCheck =
+              wt.hookBased === true && wt.headCommit === undefined
+            if (
+              !canRemoveWithoutGitCheck &&
+              (!wt.headCommit ||
+                (await hasWorktreeChanges(wt.worktreePath, wt.headCommit)))
+            ) {
+              logger.logStatus(
+                `kept worktree ${wt.worktreePath} - changes or git check failure`,
+              )
+              logForDebugging(
+                `[bridge:worktree] kept ${wt.worktreePath} because it is dirty, ahead, or indeterminate`,
+              )
+              return
+            }
+
+            const removed = await removeAgentWorktree(
+              wt.worktreePath,
+              wt.worktreeBranch,
+              wt.gitRoot,
+              wt.hookBased,
+            )
+            if (removed) {
+              logger.logStatus(`removed worktree ${wt.worktreePath}`)
+            } else {
+              logger.logStatus(
+                `worktree removal failed, kept: ${wt.worktreePath}`,
+              )
+            }
+          })().catch((err: unknown) =>
             logger.logVerbose(
               `Failed to remove worktree ${wt.worktreePath}: ${errorMessage(err)}`,
             ),
@@ -989,6 +1019,7 @@ export async function runBridgeLoop(
                 worktreeBranch: wt.worktreeBranch,
                 gitRoot: wt.gitRoot,
                 hookBased: wt.hookBased,
+                headCommit: wt.headCommit,
               })
               sessionDir = wt.worktreePath
               logForDebugging(

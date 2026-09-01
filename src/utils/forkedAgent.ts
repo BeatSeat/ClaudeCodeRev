@@ -384,6 +384,7 @@ export function createSubagentContext(
     readFileState: cloneFileStateCache(
       overrides?.readFileState ?? parentContext.readFileState,
     ),
+    sessionEnvVars: parentContext.sessionEnvVars,
     nestedMemoryAttachmentTriggers: new Set<string>(),
     loadedNestedMemoryPaths: new Set<string>(),
     dynamicSkillDirTriggers: new Set<string>(),

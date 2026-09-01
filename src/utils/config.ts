@@ -43,6 +43,7 @@ const ccrAutoConnect = feature('CCR_AUTO_CONNECT')
 /* eslint-enable @typescript-eslint/no-require-imports */
 import type { ImageDimensions } from './imageResizer.js'
 import type { ModelOption } from './model/modelOptions.js'
+import type { ModelCosts } from './modelCost.js'
 import { jsonParse, jsonStringify } from './slowOperations.js'
 
 // Re-entrancy guard: prevents getConfig → logEvent → getGlobalConfig → getConfig
@@ -225,6 +226,7 @@ export type GlobalConfig = {
   hasAcknowledgedCostThreshold?: boolean
   hasSeenUndercoverAutoNotice?: boolean // ant-only: whether the one-time auto-undercover explainer has been shown
   hasSeenUltraplanTerms?: boolean // ant-only: whether the one-time CCR terms notice has been shown in the ultraplan launch dialog
+  hasSeenUltrareviewTerms?: boolean // Official 2.1.108 zpY/ApY: first /ultrareview launch shows CCR terms
   hasResetAutoModeOptInForDefaultOffer?: boolean // ant-only: one-shot migration guard, re-prompts churned auto-mode users
   oauthAccount?: AccountInfo
   iterm2KeyBindingInstalled?: boolean // Legacy - keeping for backward compatibility
@@ -569,6 +571,9 @@ export type GlobalConfig = {
 
   // Additional model options for the model picker (fetched during bootstrap).
   additionalModelOptionsCache?: ModelOption[]
+
+  // Per-model USD rates fetched during bootstrap (official 2.1.97).
+  additionalModelCostsCache?: Record<string, ModelCosts>
 
   // Disk cache for /api/claude_code/organizations/metrics_enabled.
   // Org-level settings change rarely; persisting across processes avoids a

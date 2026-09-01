@@ -24,6 +24,7 @@ import {
   startSelection,
 } from '../selection.js'
 import {
+  DECSTBM_SUPPORTED,
   isXtermJs,
   setXtversionName,
   supportsExtendedKeys,
@@ -122,6 +123,8 @@ type Props = {
   // Dispatch a keyboard event through the DOM tree. Called for each
   // parsed key alongside the legacy EventEmitter path.
   readonly dispatchKeyboardEvent: (parsedKey: ParsedKey) => void
+  // Official 2.1.98: pasted sequences skip handleInput + keyboard dispatch.
+  readonly dispatchPasteEvent?: (text: string) => void
 }
 
 // Multi-click detection thresholds. 500ms is the macOS default; a small
@@ -341,6 +344,9 @@ export default class App extends PureComponent<Props, State> {
             } else {
               logForDebugging('XTVERSION: no reply (terminal ignored query)')
             }
+            logForDebugging(
+              `DECSTBM: ${DECSTBM_SUPPORTED ? 'enabled' : 'gated'} (TMUX=${process.env.TMUX ? 'set' : 'unset'} TERM_PROGRAM=${process.env.TERM_PROGRAM ?? 'unset'} TERM=${process.env.TERM ?? 'unset'})`,
+            )
           })
         })
       }
@@ -625,12 +631,17 @@ function processKeysInBatch(
       continue
     }
 
-    app.handleInput(sequence)
+    if (!item.isPasted) {
+      app.handleInput(sequence)
+    }
     const event = new InputEvent(item)
     app.internal_eventEmitter.emit('input', event)
 
-    // Also dispatch through the DOM tree so onKeyDown handlers fire.
-    app.props.dispatchKeyboardEvent(item)
+    if (item.isPasted) {
+      app.props.dispatchPasteEvent?.(item.sequence ?? '')
+    } else {
+      app.props.dispatchKeyboardEvent(item)
+    }
   }
 }
 

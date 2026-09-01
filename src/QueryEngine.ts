@@ -166,6 +166,7 @@ export type QueryEngineConfig = {
   abortController?: AbortController
   orphanedPermission?: OrphanedPermission
   deferredToolUse?: HookDeferredToolAttachment
+  sessionEnvVars?: Map<string, string>
   /**
    * Snip-boundary handler: receives each yielded system message plus the
    * current mutableMessages store. Returns undefined if the message is not a
@@ -210,6 +211,7 @@ export class QueryEngine {
   private loadedNestedMemoryPaths = new Set<string>()
   private bashRerunAliases = createBashRerunAliases()
   private resultDedupState = createToolResultDedupState()
+  private sessionEnvVars: Map<string, string>
   private transcriptCursor = 0
 
   private recordTranscriptDelta(messages: Message[]): ReturnType<
@@ -229,6 +231,7 @@ export class QueryEngine {
     this.abortController = config.abortController ?? createAbortController()
     this.permissionDenials = []
     this.readFileState = config.readFileCache
+    this.sessionEnvVars = config.sessionEnvVars ?? new Map<string, string>()
     this.totalUsage = EMPTY_USAGE
   }
 
@@ -394,6 +397,7 @@ export class QueryEngine {
       setAppState,
       abortController: this.abortController,
       readFileState: this.readFileState,
+      sessionEnvVars: this.sessionEnvVars,
       nestedMemoryAttachmentTriggers: new Set<string>(),
       loadedNestedMemoryPaths: this.loadedNestedMemoryPaths,
       dynamicSkillDirTriggers: new Set<string>(),

@@ -10,7 +10,6 @@ import {
   executeConfigChangeHooks,
   hasBlockingResult,
 } from '../hooks.js'
-import { createSignal } from '../signal.js'
 import { jsonStringify } from '../slowOperations.js'
 import { SETTING_SOURCES, type SettingSource } from './constants.js'
 import { clearInternalWrites, consumeInternalWrite } from './internalWrites.js'
@@ -22,7 +21,11 @@ import {
   setMdmSettingsCache,
 } from './mdm/settings.js'
 import { getSettingsFilePathForSource } from './settings.js'
-import { resetSettingsCache } from './settingsCache.js'
+import {
+  clearSettingsChangeSubscribers,
+  publishSettingsChange,
+  subscribeToSettingsChanges,
+} from './settingsChangeSignal.js'
 
 /**
  * Time in milliseconds to wait for file writes to stabilize before processing.
@@ -68,7 +71,6 @@ let lastMdmSnapshot: string | null = null
 let initialized = false
 let disposed = false
 const pendingDeletions = new Map<string, ReturnType<typeof setTimeout>>()
-const settingsChanged = createSignal<[source: SettingSource]>()
 
 // Test overrides for timing constants
 let testOverrides: {
@@ -161,7 +163,7 @@ export function dispose(): Promise<void> {
   pendingDeletions.clear()
   lastMdmSnapshot = null
   clearInternalWrites()
-  settingsChanged.clear()
+  clearSettingsChangeSubscribers()
   const w = watcher
   watcher = null
   return w ? w.close() : Promise.resolve()
@@ -170,7 +172,7 @@ export function dispose(): Promise<void> {
 /**
  * Subscribe to settings changes
  */
-export const subscribe = settingsChanged.subscribe
+export const subscribe = subscribeToSettingsChanges
 
 /**
  * Collect settings file paths and their deduplicated parent directories to watch.
@@ -435,8 +437,7 @@ function startMdmPoll(): void {
  * repopulates; all subsequent listeners hit the cache.
  */
 function fanOut(source: SettingSource): void {
-  resetSettingsCache()
-  settingsChanged.emit(source)
+  publishSettingsChange(source)
 }
 
 /**

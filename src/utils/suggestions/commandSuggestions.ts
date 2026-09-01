@@ -14,7 +14,9 @@ const SEPARATORS = /[:_-]/g
 type CommandSearchItem = {
   descriptionKey: string[]
   partKey: string[] | undefined
+  displayPartKey: string[] | undefined
   commandName: string
+  displayName: string
   command: Command
   aliasKey: string[] | undefined
 }
@@ -35,8 +37,10 @@ function getCommandFuse(commands: Command[]): Fuse<CommandSearchItem> {
   const commandData: CommandSearchItem[] = commands
     .filter(cmd => !cmd.isHidden)
     .map(cmd => {
-      const commandName = getCommandName(cmd)
+      const commandName = cmd.name
+      const displayName = getCommandName(cmd)
       const parts = commandName.split(SEPARATORS).filter(Boolean)
+      const displayParts = displayName.split(SEPARATORS).filter(Boolean)
 
       return {
         descriptionKey: (cmd.description ?? '')
@@ -44,7 +48,9 @@ function getCommandFuse(commands: Command[]): Fuse<CommandSearchItem> {
           .map(word => cleanWord(word))
           .filter(Boolean),
         partKey: parts.length > 1 ? parts : undefined,
+        displayPartKey: displayParts.length > 1 ? displayParts : undefined,
         commandName,
+        displayName,
         command: cmd,
         aliasKey: cmd.aliases,
       }
@@ -61,8 +67,16 @@ function getCommandFuse(commands: Command[]): Fuse<CommandSearchItem> {
         weight: 3, // Highest priority for command names
       },
       {
+        name: 'displayName',
+        weight: 3,
+      },
+      {
         name: 'partKey',
         weight: 2, // Next highest priority for command parts
+      },
+      {
+        name: 'displayPartKey',
+        weight: 2,
       },
       {
         name: 'aliasKey',
@@ -181,12 +195,17 @@ export function getBestCommandMatch(
     if (!isCommandMetadata(suggestion.metadata)) {
       continue
     }
-    const name = getCommandName(suggestion.metadata)
-    if (name.toLowerCase().startsWith(query)) {
-      const suffix = name.slice(partialCommand.length)
-      // Only return if there's something to complete
-      if (suffix) {
-        return { suffix, fullCommand: name }
+    const candidateNames = [
+      suggestion.metadata.name,
+      getCommandName(suggestion.metadata),
+    ]
+    for (const candidateName of candidateNames) {
+      if (candidateName.toLowerCase().startsWith(query)) {
+        const suffix = candidateName.slice(partialCommand.length)
+        // Only return if there's something to complete
+        if (suffix) {
+          return { suffix, fullCommand: candidateName }
+        }
       }
     }
   }
@@ -231,7 +250,7 @@ export function formatCommand(command: string): string {
  * defined once in code and can't have duplicates.
  */
 function getCommandId(cmd: Command): string {
-  const commandName = getCommandName(cmd)
+  const commandName = cmd.name
   if (cmd.type === 'prompt') {
     // For plugin commands, include the repository to disambiguate
     if (cmd.source === 'plugin' && cmd.pluginInfo?.repository) {
@@ -389,12 +408,20 @@ export function generateCommandSuggestions(
   // early-return so visible prefix siblings (e.g. /voice-memo) still appear
   // below, and getBestCommandMatch can still find a non-empty suffix.
   let hiddenExact = commands.find(
-    cmd => cmd.isHidden && getCommandName(cmd).toLowerCase() === query,
+    cmd =>
+      cmd.isHidden &&
+      [cmd.name, getCommandName(cmd)].some(
+        name => name.toLowerCase() === query,
+      ),
   )
   if (
     hiddenExact &&
     commands.some(
-      cmd => !cmd.isHidden && getCommandName(cmd).toLowerCase() === query,
+      cmd =>
+        !cmd.isHidden &&
+        [cmd.name, getCommandName(cmd)].some(
+          name => name.toLowerCase() === query,
+        ),
     )
   ) {
     hiddenExact = undefined
@@ -412,24 +439,26 @@ export function generateCommandSuggestions(
   // 5. Fuzzy match (lowest)
   // Precompute per-item values once to avoid O(n log n) recomputation in comparator
   const withMeta = searchResults.map(r => {
-    const name = r.item.commandName.toLowerCase()
+    const names = [r.item.commandName, r.item.displayName].map(name =>
+      name.toLowerCase(),
+    )
     const aliases = r.item.aliasKey?.map(alias => alias.toLowerCase()) ?? []
     const usage =
       r.item.command.type === 'prompt'
         ? getSkillUsageScore(getCommandName(r.item.command))
         : 0
-    return { r, name, aliases, usage }
+    return { r, names, aliases, usage }
   })
 
   const sortedResults = withMeta.sort((a, b) => {
-    const aName = a.name
-    const bName = b.name
+    const aNames = a.names
+    const bNames = b.names
     const aAliases = a.aliases
     const bAliases = b.aliases
 
     // Check for exact name match (highest priority)
-    const aExactName = aName === query
-    const bExactName = bName === query
+    const aExactName = aNames.some(name => name === query)
+    const bExactName = bNames.some(name => name === query)
     if (aExactName && !bExactName) return -1
     if (bExactName && !aExactName) return 1
 
@@ -440,13 +469,23 @@ export function generateCommandSuggestions(
     if (bExactAlias && !aExactAlias) return 1
 
     // Check for prefix name match
-    const aPrefixName = aName.startsWith(query)
-    const bPrefixName = bName.startsWith(query)
+    const aPrefixNames = aNames.filter(name => name.startsWith(query))
+    const bPrefixNames = bNames.filter(name => name.startsWith(query))
+    const aPrefixName = aPrefixNames.length > 0
+    const bPrefixName = bPrefixNames.length > 0
     if (aPrefixName && !bPrefixName) return -1
     if (bPrefixName && !aPrefixName) return 1
     // Among prefix name matches, prefer the shorter name (closer to exact)
-    if (aPrefixName && bPrefixName && aName.length !== bName.length) {
-      return aName.length - bName.length
+    if (aPrefixName && bPrefixName) {
+      const aShortestNameLength = Math.min(
+        ...aPrefixNames.map(name => name.length),
+      )
+      const bShortestNameLength = Math.min(
+        ...bPrefixNames.map(name => name.length),
+      )
+      if (aShortestNameLength !== bShortestNameLength) {
+        return aShortestNameLength - bShortestNameLength
+      }
     }
 
     // Check for prefix alias match
@@ -518,7 +557,7 @@ export function applyCommandSuggestion(
     if (!isCommandMetadata(suggestion.metadata)) {
       return // Invalid suggestion, nothing to apply
     }
-    commandName = getCommandName(suggestion.metadata)
+    commandName = suggestion.metadata.name
     commandObj = suggestion.metadata
   }
 

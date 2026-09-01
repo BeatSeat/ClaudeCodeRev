@@ -286,8 +286,9 @@ export default class Output {
     // and since clear is damage-only, the ghost survives diff. Normal-
     // flow clears don't need this — a normal-flow node's old position
     // can't have been painted on top of a sibling's current position.
-    const absoluteClears: Rectangle[] = []
-    for (const operation of this.operations) {
+    const absoluteClears: Array<{ rect: Rectangle; opIndex: number }> = []
+    for (let opIndex = 0; opIndex < this.operations.length; opIndex++) {
+      const operation = this.operations[opIndex]!
       if (operation.type !== 'clear') continue
       const { x, y, width, height } = operation.region
       const startX = Math.max(0, x)
@@ -302,12 +303,13 @@ export default class Output {
         height: maxY - startY,
       }
       screen.damage = screen.damage ? unionRect(screen.damage, rect) : rect
-      if (operation.fromAbsolute) absoluteClears.push(rect)
+      if (operation.fromAbsolute) absoluteClears.push({ rect, opIndex })
     }
 
     const clips: Clip[] = []
 
-    for (const operation of this.operations) {
+    for (let opIndex = 0; opIndex < this.operations.length; opIndex++) {
+      const operation = this.operations[opIndex]!
       switch (operation.type) {
         case 'clear':
           // handled in pass 1
@@ -359,11 +361,14 @@ export default class Output {
             clip?.x2 ?? Infinity,
           )
           if (startX >= maxX || startY >= maxY) continue
-          // Skip rows covered by an absolute-positioned node's clear.
-          // Absolute nodes overlay normal-flow siblings, so prevScreen in
-          // that region holds the absolute node's stale paint — blitting
-          // it back would ghost. See absoluteClears collection above.
-          if (absoluteClears.length === 0) {
+          // Skip rows covered by an absolute-positioned node's clear that
+          // was recorded AFTER this blit. Official 2.1.90: earlier clears
+          // already punched prevScreen; applying them to later blits would
+          // hole out the new paint. Later clears (absolute node shrink
+          // after a sibling clean-blit) must still punch, or the badge
+          // ghosts in fullscreen scrollback.
+          const laterClears = absoluteClears.filter(c => c.opIndex > opIndex)
+          if (laterClears.length === 0) {
             blitRegion(screen, src, startX, startY, maxX, maxY)
             blitCells += (maxY - startY) * (maxX - startX)
             continue
@@ -372,8 +377,8 @@ export default class Output {
           for (let row = startY; row <= maxY; row++) {
             const excluded =
               row < maxY &&
-              absoluteClears.some(
-                r =>
+              laterClears.some(
+                ({ rect: r }) =>
                   row >= r.y &&
                   row < r.y + r.height &&
                   startX >= r.x &&

@@ -13,6 +13,8 @@ import {
   type AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
   logEvent,
 } from '../../services/analytics/index.js'
+import { execFileNoThrow } from '../../utils/execFileNoThrow.js'
+import { jsonParse } from '../../utils/slowOperations.js'
 
 /**
  * Build a regex that matches `git <subcmd>` while tolerating git's global
@@ -28,6 +30,8 @@ function gitCmdRe(subcmd: string, suffix = ''): RegExp {
 
 const GIT_COMMIT_RE = gitCmdRe('commit')
 const GIT_PUSH_RE = gitCmdRe('push')
+const GH_PR_CHECKOUT_RE =
+  /\bgh\s+pr\s+checkout\b[^&|;]*\s(\d+)(?=\s|$|[&|;])/
 const GIT_CHERRY_PICK_RE = gitCmdRe('cherry-pick')
 const GIT_MERGE_RE = gitCmdRe('merge', '(?!-)')
 const GIT_REBASE_RE = gitCmdRe('rebase')
@@ -73,6 +77,43 @@ function parsePrUrl(
 function findPrInStdout(stdout: string): ReturnType<typeof parsePrUrl> {
   const m = stdout.match(/https:\/\/github\.com\/[^/\s]+\/[^/\s]+\/pull\/\d+/)
   return m ? parsePrUrl(m[0]) : null
+}
+
+/** Official 2.1.97 ag4: `gh pr view [N] --json url` then linkSessionToPR. */
+async function linkSessionFromGhPrView(prNumber?: string): Promise<void> {
+  const args = ['pr', 'view', ...(prNumber ? [prNumber] : []), '--json', 'url']
+  const { code, stdout } = await execFileNoThrow('gh', args, {
+    timeout: 5000,
+    preserveOutputOnError: false,
+    useCwd: true,
+  })
+  if (code !== 0) {
+    return
+  }
+  let url: string | undefined
+  try {
+    url = (jsonParse(stdout) as { url?: string } | null)?.url
+  } catch {
+    return
+  }
+  if (!url) {
+    return
+  }
+  const prInfo = parsePrUrl(url)
+  if (!prInfo) {
+    return
+  }
+  const { linkSessionToPR } = await import('../../utils/sessionStorage.js')
+  const { getSessionId } = await import('../../bootstrap/state.js')
+  const sessionId = getSessionId()
+  if (sessionId) {
+    await linkSessionToPR(
+      sessionId as `${string}-${string}-${string}-${string}-${string}`,
+      prInfo.prNumber,
+      prInfo.prUrl,
+      prInfo.prRepository,
+    )
+  }
 }
 
 // Exported for testing purposes
@@ -246,6 +287,12 @@ export function trackGitOperations(
         )
       }
     }
+  }
+  const checkoutMatch = command.match(GH_PR_CHECKOUT_RE)
+  if (checkoutMatch?.[1]) {
+    void linkSessionFromGhPrView(checkoutMatch[1]).catch(() => {})
+  } else if (GIT_PUSH_RE.test(command) && !prHit) {
+    void linkSessionFromGhPrView().catch(() => {})
   }
   if (command.match(/\bglab\s+mr\s+create\b/)) {
     logEvent('tengu_git_operation', {

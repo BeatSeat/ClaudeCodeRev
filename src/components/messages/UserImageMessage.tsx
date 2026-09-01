@@ -3,6 +3,7 @@ import { pathToFileURL } from 'url'
 import Link from '../../ink/components/Link.js'
 import { supportsHyperlinks } from '../../ink/supports-hyperlinks.js'
 import { Box, Text } from '../../ink.js'
+import { useAppStateMaybeOutsideOfProvider } from '../../state/AppState.js'
 import { getStoredImagePath } from '../../utils/imageStore.js'
 import { MessageResponse } from '../MessageResponse.js'
 
@@ -22,7 +23,11 @@ export function UserImageMessage({
   addMargin,
 }: Props): React.ReactNode {
   const label = imageId ? `[Image #${imageId}]` : '[Image]'
-  const imagePath = imageId ? getStoredImagePath(imageId) : null
+  const imagePaths = useAppStateMaybeOutsideOfProvider(
+    state => state.imagePaths,
+  )
+  const imagePath =
+    imageId && imagePaths ? getStoredImagePath(imageId, imagePaths) : null
 
   const content =
     imagePath && supportsHyperlinks() ? (

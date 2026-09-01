@@ -144,6 +144,7 @@ import {
   runPostToolUseHooks,
   runPreToolUseHooks,
 } from './toolHooks.js'
+import { formatMissingToolError } from './missingToolError.js'
 
 /** Minimum total hook duration (ms) to show inline timing summary */
 export const HOOK_TIMING_DISPLAY_THRESHOLD_MS = 500
@@ -437,6 +438,11 @@ export async function* runToolUse(
 
   // Check if the tool exists
   if (!tool) {
+    const missingToolError = formatMissingToolError(
+      toolName,
+      toolUseContext.options.tools,
+      toolUseContext,
+    )
     const sanitizedToolName = sanitizeToolNameForAnalytics(toolName)
     logForDebugging(`Unknown tool ${toolName}: ${toolUse.id}`)
     logEvent('tengu_tool_use_error', {
@@ -468,12 +474,12 @@ export async function* runToolUse(
         content: [
           {
             type: 'tool_result',
-            content: `<tool_use_error>Error: No such tool available: ${toolName}</tool_use_error>`,
+            content: `<tool_use_error>${missingToolError}</tool_use_error>`,
             is_error: true,
             tool_use_id: toolUse.id,
           },
         ],
-        toolUseResult: `Error: No such tool available: ${toolName}`,
+        toolUseResult: missingToolError,
         sourceToolAssistantUUID: assistantMessage.uuid,
       }),
     }
