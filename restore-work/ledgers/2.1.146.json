@@ -1,0 +1,29 @@
+{
+  "version": "2.1.146",
+  "fromVersion": "2.1.145",
+  "expectedFunctionCount": 0,
+  "functions": [],
+  "changelogCoverage": [
+    {
+      "item": "No official CHANGELOG section for 2.1.146",
+      "status": "absent-in-bundle",
+      "evidence": "inventory present=false. Product is astdiff-unique only."
+    },
+    {
+      "item": "CLAUDE_BG_SESSION_PERMISSION_RULES (official 147 CHANGELOG row shipped in 146 bundle)",
+      "status": "located",
+      "evidence": "LzA parse + Nu6 session merge in permissionSetup.ts; sanitizer detect+delete in subprocessEnv. Spawn JSON.stringify is deferred-large-infra (ed/Ll5/fC4). Dist count 2."
+    },
+    {
+      "item": "Workflow engine / CLAUDE_CODE_WORKFLOWS / REFUTATIONS_REQUIRED / tengu_ultrawork",
+      "status": "partial",
+      "evidence": "default-false-growthbook (sm() / XMH return false). Not landed. Dist 0."
+    },
+    {
+      "item": "/code-review rename",
+      "status": "partial",
+      "evidence": "146 bundle is name-only with old simplify prompt. Official 147 owns the rewrite. Not pulled forward."
+    }
+  ],
+  "notes": "Do not land workflow engine. Do not pull 147 /code-review --comment/g49 or CLAUDE_BG_MEMORY_TOGGLED_OFF into this hop. Four-domain review PASS."
+}
