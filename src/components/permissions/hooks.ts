@@ -128,7 +128,11 @@ export function usePermissionRequestLogging(
       },
     }))
 
-    // Log analytics event
+    // Official 2.1.114: teammate ToolUseConfirm may stub toolUseContext as {}.
+    // Optional-call getAppState so the permission dialog does not crash.
+    const permissionMode =
+      toolUseConfirm.toolUseContext.getAppState?.()?.toolPermissionContext
+        .mode
     logEvent('tengu_tool_use_show_permission_request', {
       messageID: toolUseConfirm.assistantMessage.message
         .id as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
@@ -137,6 +141,7 @@ export function usePermissionRequestLogging(
       decisionReasonType: toolUseConfirm.permissionResult.decisionReason
         ?.type as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
       sandboxEnabled: SandboxManager.isSandboxingEnabled(),
+      permissionMode,
     })
 
     if (process.env.USER_TYPE === 'ant') {

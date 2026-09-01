@@ -200,28 +200,5 @@
       "evidence": "src/services/api/claude.ts paramsFromContext uses resolved backing model for thinking/adaptive/budget, not raw ARN"
     }
   ],
-  "notes": "astdiff official 112 ESM vs Cometix 113 CJS: similarity 88.9%, +2251/−1595, 9280 structural, 43 string-only. Partition: 4360 struct-100-rename, 3898 struct-real, ~1450 added/removed-product (much ESM→CJS noise). SEA unpatched cli.js missing; user authorized this hop. P1–P9 classified in 2.1.113-patches.md — all do-not-land. 111 YeY //c/ polarity, 111 retry-cap revert, 112 WV8 (omit temperature on opus-4-7), 110 /tui /focus /thinking-hint kept. Did not start 2.1.114.",
-  "astdiff": {
-    "version": "2.1.113",
-    "from": "2.1.112",
-    "from_bundle": "/root/projects/ClaudeCodeRev/restore-work/artifacts/official/2.1.112/cli.js",
-    "to_bundle": "/root/projects/ClaudeCodeRev/restore-work/artifacts/cometix/2.1.113/cli.js",
-    "from_sha256": "bc3358282800e3e99daa8e71ac5b7b1566bd0d7ca7eb94f714a7859365d3163f",
-    "to_sha256": "2b6d57244ee25e4533ad3b087cd70cc452c386b05178d591e8079f9c33925726",
-    "method": "astdiff-v0.2.0+tree-sitter0.25",
-    "parser": "tree-sitter 0.25 / tree-sitter-javascript 0.25",
-    "similarity": 89.4,
-    "matched_declarations": 18082,
-    "total_declarations_from": 19576,
-    "total_declarations_to": 20232,
-    "change_total": 13099,
-    "added": 2150,
-    "removed": 1494,
-    "structural": 9221,
-    "string_only": 234,
-    "command": "astdiff /root/projects/ClaudeCodeRev/restore-work/artifacts/official/2.1.112/cli.js /root/projects/ClaudeCodeRev/restore-work/artifacts/cometix/2.1.113/cli.js --format json",
-    "full_json": "/root/projects/Zhiman/projects/ccr-swarm/integration/astdiff-full/using/2.1.113.json",
-    "elapsed_seconds": 12.9,
-    "generated_at": "2026-11-14T15:03:10Z"
-  }
+  "notes": "astdiff official 112 ESM vs Cometix 113 CJS: similarity 88.9%, +2251/−1595, 9280 structural, 43 string-only. Partition: 4360 struct-100-rename, 3898 struct-real, ~1450 added/removed-product (much ESM→CJS noise). SEA unpatched cli.js missing; user authorized this hop. P1–P9 classified in 2.1.113-patches.md — all do-not-land. 111 YeY //c/ polarity, 111 retry-cap revert, 112 WV8 (omit temperature on opus-4-7), 110 /tui /focus /thinking-hint kept. Did not start 2.1.114."
 }
