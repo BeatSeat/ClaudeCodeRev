@@ -35,9 +35,12 @@ export async function call(
   if (!args || args.trim() === '') {
     // Official 2.1.128: pass the full transcript. After-boundary-only
     // slices are empty when resume lands on a compact_boundary.
+    // Official 2.1.147: prefer forking the whole session (reusing the warm
+    // prompt cache) when the tengu_rename_full_session_fork flag is on.
     const generated = await generateSessionName(
       context.messages,
       context.abortController.signal,
+      { preferFork: true },
     )
     if (!generated) {
       onDone(

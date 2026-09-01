@@ -34,8 +34,11 @@ import {
   useTabStatus,
 } from '../ink.js'
 import type { TabStatusKind } from '../ink/hooks/use-tab-status.js'
+import { AutoDefaultNoticeDialog, shouldShowAutoDefaultNotice } from '../components/AutoDefaultNoticeDialog.js'
+import { AutoDefaultNudgeDialog, shouldShowAutoDefaultNudge } from '../components/AutoDefaultNudgeDialog.js'
 import { CostThresholdDialog } from '../components/CostThresholdDialog.js'
 import { IdleReturnDialog } from '../components/IdleReturnDialog.js'
+import { computeTurnDurationWait } from '../components/messages/pendingBackgroundWait.js'
 import { ResumeReturnDialog } from '../components/ResumeReturnDialog.js'
 import * as React from 'react'
 import {
@@ -284,6 +287,11 @@ import {
   createCommandInputMessage,
   formatCommandInputTags,
 } from '../utils/messages.js'
+import { getCommandQueueSnapshot } from '../utils/messageQueueManager.js'
+import {
+  bindMessageDisplayFlush,
+  pruneDisplayedMessageContent,
+} from '../utils/hooks/messageDisplayFlush.js'
 import { generateSessionTitle } from '../utils/sessionTitle.js'
 import {
   BASH_INPUT_TAG,
@@ -374,6 +382,7 @@ import { deserializeMessages } from '../utils/conversationRecovery.js'
 import {
   extractReadFilesFromMessages,
   extractBashToolsFromMessages,
+  extractBashHostsFromMessages,
 } from '../utils/queryHelpers.js'
 import { resetMicrocompactState } from '../services/compact/microCompact.js'
 import { runPostCompactCleanup } from '../services/compact/postCompactCleanup.js'
@@ -1156,6 +1165,12 @@ export function REPL({
   const [ideInstallationStatus, setIDEInstallationStatus] =
     useState<IDEExtensionInstallationStatus | null>(null)
   const [showIdeOnboarding, setShowIdeOnboarding] = useState(false)
+  const [showAutoDefaultNotice, setShowAutoDefaultNotice] = useState(() =>
+    shouldShowAutoDefaultNotice(toolPermissionContext.mode),
+  )
+  const [autoDefaultNudgeMode, setAutoDefaultNudgeMode] = useState(() =>
+    shouldShowAutoDefaultNudge(),
+  )
   // Dead code elimination: model switch callout state (ant-only)
   const [showModelSwitchCallout, setShowModelSwitchCallout] = useState(() => {
     if ("external" === 'ant') {
@@ -1438,6 +1453,7 @@ export function REPL({
   // Start time of the first turn that had swarm teammates running
   // Used to compute total elapsed time (including teammate execution) for the deferred message
   const swarmStartTimeRef = React.useRef<number | null>(null)
+  const backgroundWaitStartTimeRef = React.useRef<number | null>(null)
   const swarmBudgetInfoRef = React.useRef<
     { tokens: number; limit: number; nudges: number } | undefined
   >(undefined)
@@ -2054,14 +2070,48 @@ export function REPL({
     [showStreamingText],
   )
 
+  // Official 2.1.152 Jj9 sinks: live MessageDisplay rewrites overlay raw
+  // streaming (mS ?? Ts) and persist per-id on AppState.displayedMessageContent.
+  const [displayedStreamingText, setDisplayedStreamingText] = useState<
+    string | null
+  >(null)
+  const showStreamingTextRef = useRef(showStreamingText)
+  showStreamingTextRef.current = showStreamingText
+  const messageDisplayFlush = useMemo(
+    () =>
+      bindMessageDisplayFlush({
+        getAppState: () => store.getState(),
+        onStreamingDisplay: text => {
+          if (!showStreamingTextRef.current) return
+          setDisplayedStreamingText(text)
+        },
+        onMessageDisplay: (apiMessageId, output) =>
+          setAppState(prev =>
+            prev.displayedMessageContent[apiMessageId] === output
+              ? prev
+              : {
+                  ...prev,
+                  displayedMessageContent: {
+                    ...prev.displayedMessageContent,
+                    [apiMessageId]: output,
+                  },
+                },
+          ),
+      }),
+    [store, setAppState],
+  )
+
   // Hide the in-progress source line so text streams line-by-line, not
   // char-by-char. lastIndexOf returns -1 when no newline, giving '' → null.
   // Guard on showStreamingText so toggling reducedMotion mid-stream
-  // immediately hides the streaming preview.
-  const visibleStreamingText =
-    streamingText && showStreamingText
+  // immediately hides the streaming preview. Official ZF = Sk ? mS ?? Ts : null.
+  const newlineTruncatedStreaming =
+    streamingText
       ? streamingText.substring(0, streamingText.lastIndexOf('\n') + 1) || null
       : null
+  const visibleStreamingText = showStreamingText
+    ? (displayedStreamingText ?? newlineTruncatedStreaming)
+    : null
 
   const [lastQueryCompletionTime, setLastQueryCompletionTime] = useState(0)
   const [spinnerMessage, setSpinnerMessage] = useState<string | null>(null)
@@ -2163,11 +2213,15 @@ export function REPL({
     for (const tool of extractBashToolsFromMessages(newMessages)) {
       bashTools.current.add(tool)
     }
+    for (const host of extractBashHostsFromMessages(newMessages)) {
+      bashHosts.current.add(host)
+    }
     bashToolsProcessedIdx.current = messagesRef.current.length
     void getTipToShowOnSpinner({
       theme,
       readFileState: readFileState.current,
       bashTools: bashTools.current,
+      bashHosts: bashHosts.current,
     }).then(async tip => {
       if (tip) {
         const content = await tip.content({ theme })
@@ -2197,6 +2251,7 @@ export function REPL({
     responseLengthRef.current = 0
     apiMetricsRef.current = []
     setStreamingText(null)
+    setDisplayedStreamingText(null)
     setStreamingToolUses([])
     setSpinnerMessage(null)
     setSpinnerColor(null)
@@ -2219,14 +2274,24 @@ export function REPL({
   // Show deferred turn duration message once all swarm teammates finish
   useEffect(() => {
     if (!hasRunningTeammates && swarmStartTimeRef.current !== null) {
-      const totalMs = Date.now() - swarmStartTimeRef.current
+      const turnStartTime = swarmStartTimeRef.current
+      const totalMs = Date.now() - turnStartTime
       const deferredBudget = swarmBudgetInfoRef.current
       swarmStartTimeRef.current = null
       swarmBudgetInfoRef.current = undefined
+      const wait = computeTurnDurationWait({
+        tasks: store.getState().tasks ?? {},
+        queuedCommands: getCommandQueueSnapshot(),
+        turnDurationMs: totalMs,
+        turnStartTime,
+        now: Date.now(),
+        backgroundWaitStartTime: backgroundWaitStartTimeRef.current,
+      })
+      backgroundWaitStartTimeRef.current = wait.backgroundWaitStartTime
       setMessages(prev => [
         ...prev,
         createTurnDurationMessage(
-          totalMs,
+          wait.durationMs,
           deferredBudget,
           // Count only what recordTranscript will persist — ephemeral
           // progress ticks and non-ant attachments are filtered by
@@ -2234,6 +2299,8 @@ export function REPL({
           // would make checkResumeConsistency report false delta<0 for
           // every turn that ran a progress-emitting tool.
           count(prev, isLoggableMessage),
+          wait.pendingBackgroundAgentCount,
+          wait.pendingWorkflowCount,
         ),
       ])
     }
@@ -2691,6 +2758,7 @@ export function REPL({
   )
   const readFileState = useRef(initialReadFileState)
   const bashTools = useRef(new Set<string>())
+  const bashHosts = useRef(new Set<string>())
   const bashToolsProcessedIdx = useRef(0)
   // Session-scoped skill discovery tracking (feeds was_discovered on
   // tengu_skill_tool_invocation). Must persist across getToolUseContext
@@ -2718,6 +2786,9 @@ export function REPL({
       )
       for (const tool of extractBashToolsFromMessages(messages)) {
         bashTools.current.add(tool)
+      }
+      for (const host of extractBashHostsFromMessages(messages)) {
+        bashHosts.current.add(host)
       }
     },
     [],
@@ -2783,6 +2854,8 @@ export function REPL({
     | 'desktop-upsell'
     | 'ultraplan-choice'
     | 'ultraplan-launch'
+    | 'auto-default-notice'
+    | 'auto-default-nudge'
     | undefined {
     // Exit states always take precedence
     if (isExiting || exitFlow) return undefined
@@ -2828,6 +2901,10 @@ export function REPL({
 
     // Onboarding dialogs (special conditions)
     if (allowDialogsWithAnimation && showIdeOnboarding) return 'ide-onboarding'
+    if (allowDialogsWithAnimation && showAutoDefaultNotice)
+      return 'auto-default-notice'
+    if (allowDialogsWithAnimation && autoDefaultNudgeMode)
+      return 'auto-default-nudge'
 
     // Model switch callout (ant-only, eliminated from external builds)
     if (
@@ -2940,10 +3017,17 @@ export function REPL({
     // streamingText, and before query.ts yields the async interrupt marker,
     // giving final order [user, partial-assistant, [Request interrupted by user]].
     if (streamingText?.trim()) {
-      setMessages(prev => [
-        ...prev,
-        createAssistantMessage({ content: streamingText }),
-      ])
+      const partial = createAssistantMessage({ content: streamingText })
+      if (displayedStreamingText !== null) {
+        setAppState(prev => ({
+          ...prev,
+          displayedMessageContent: {
+            ...prev.displayedMessageContent,
+            [partial.message.id]: displayedStreamingText,
+          },
+        }))
+      }
+      setMessages(prev => [...prev, partial])
     }
 
     resetLoadingState()
@@ -3580,6 +3664,10 @@ export function REPL({
             // Bump conversationId so Messages.tsx row keys change and
             // stale memoized rows remount with post-compact content.
             setConversationId(randomUUID())
+            // Official 2.1.152 O9q — drop rewrites for compacted-away ids.
+            setAppState(prev =>
+              pruneDisplayedMessageContent(prev, messagesRef.current),
+            )
             // Compaction succeeded — clear the context-blocked flag so ticks resume
             if (feature('PROACTIVE') || feature('KAIROS')) {
               proactiveModule?.setContextBlocked(false)
@@ -3781,6 +3869,9 @@ export function REPL({
           // Bump conversationId so Messages.tsx row keys change and
           // stale memoized rows remount with post-compact content.
           setConversationId(randomUUID())
+          setAppState(prev =>
+            pruneDisplayedMessageContent(prev, messagesRef.current),
+          )
           if (feature('PROACTIVE') || feature('KAIROS')) {
             proactiveModule?.setContextBlocked(false)
           }
@@ -3963,6 +4054,7 @@ export function REPL({
       onQueryEvent,
       sessionTitle,
       titleDisabled,
+      messageDisplayFlush,
     ],
   )
 
@@ -4028,6 +4120,8 @@ export function REPL({
         apiMetricsRef.current = []
         setStreamingToolUses([])
         setStreamingText(null)
+        setDisplayedStreamingText(null)
+        messageDisplayFlush.newTurn()
 
         // messagesRef is updated synchronously by the setMessages wrapper
         // above, so it already includes newMessages from the append at the
@@ -4140,12 +4234,23 @@ export function REPL({
                 swarmBudgetInfoRef.current = budgetInfo
               }
             } else {
+              const wait = computeTurnDurationWait({
+                tasks: store.getState().tasks ?? {},
+                queuedCommands: getCommandQueueSnapshot(),
+                turnDurationMs,
+                turnStartTime: loadingStartTimeRef.current,
+                now: Date.now(),
+                backgroundWaitStartTime: backgroundWaitStartTimeRef.current,
+              })
+              backgroundWaitStartTimeRef.current = wait.backgroundWaitStartTime
               setMessages(prev => [
                 ...prev,
                 createTurnDurationMessage(
-                  turnDurationMs,
+                  wait.durationMs,
                   budgetInfo,
                   count(prev, isLoggableMessage),
+                  wait.pendingBackgroundAgentCount,
+                  wait.pendingWorkflowCount,
                 ),
               ])
             }
@@ -4237,6 +4342,7 @@ export function REPL({
         })
         resetTerminalTitle()
         bashTools.current.clear()
+        bashHosts.current.clear()
         bashToolsProcessedIdx.current = 0
 
         // Restore the plan slug for the new session so getPlan() finds the file
@@ -6729,6 +6835,7 @@ export function REPL({
                         })
                         resetTerminalTitle()
                         bashTools.current.clear()
+                        bashHosts.current.clear()
                         bashToolsProcessedIdx.current = 0
                       }
                       skipIdleCheckRef.current = true
@@ -6746,6 +6853,26 @@ export function REPL({
                     installationStatus={ideInstallationStatus}
                   />
                 )}
+                {focusedInputDialog === 'auto-default-notice' && (
+                  <AutoDefaultNoticeDialog
+                    onDone={() => setShowAutoDefaultNotice(false)}
+                  />
+                )}
+                {focusedInputDialog === 'auto-default-nudge' &&
+                  autoDefaultNudgeMode && (
+                    <AutoDefaultNudgeDialog
+                      currentMode={autoDefaultNudgeMode}
+                      onDone={accepted => {
+                        setAutoDefaultNudgeMode(null)
+                        if (accepted) {
+                          setToolPermissionContext({
+                            ...toolPermissionContext,
+                            mode: 'auto',
+                          })
+                        }
+                      }}
+                    />
+                  )}
                 {"external" === 'ant' &&
                   focusedInputDialog === 'model-switch' &&
                   AntModelSwitchCallout && (
@@ -7200,10 +7327,13 @@ export function REPL({
                         proactiveModule?.setContextBlocked(false)
                       }
                       setConversationId(randomUUID())
-                        runPostCompactCleanup(
-                          context.options.querySource,
-                          setAppState,
-                        )
+                      setAppState(prev =>
+                        pruneDisplayedMessageContent(prev, messagesRef.current),
+                      )
+                      runPostCompactCleanup(
+                        context.options.querySource,
+                        setAppState,
+                      )
 
                       if (direction === 'from') {
                         const r = textForResubmit(message)

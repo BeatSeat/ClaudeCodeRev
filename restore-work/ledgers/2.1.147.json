@@ -1,0 +1,39 @@
+{
+  "version": "2.1.147",
+  "fromVersion": "2.1.146",
+  "expectedFunctionCount": 0,
+  "functions": [],
+  "changelogCoverage": [
+    {
+      "item": "Pinned bg sessions stay alive; shed under memory pressure only after non-pinned",
+      "status": "partial",
+      "evidence": "Unique event tengu_bg_retire_pinned_low_mem is inside named huge worker-pool interval. deferred-large-infra. Not invented."
+    },
+    {
+      "item": "/simplify renamed to /code-review with effort levels and --comment",
+      "status": "located",
+      "evidence": "g49 parseCodeReviewArgs + GOA per-level prompts + TOA GitHub appendix + getEffort wiring. Dist: correctness bugs, Posting to GitHub (--comment), 1-vote verify."
+    },
+    {
+      "item": "Backgrounded sessions re-prompting for don't-ask-again permissions",
+      "status": "located",
+      "evidence": "Unique env shipped in 146 (LzA). Already folded. 147 does not re-land."
+    },
+    {
+      "item": "CLAUDE_CODE_SUBAGENT_MODEL for teammate processes",
+      "status": "shared-logic",
+      "evidence": "Count 6→6. No 147-unique string."
+    },
+    {
+      "item": "MCP pagination dropping resources/templates/prompts past page 1",
+      "status": "shared-logic",
+      "evidence": "nextCursor 6→6; tengu_mcp_list_paginated 1→1. Not invented from telemetry."
+    },
+    {
+      "item": "Remaining 147 CHANGELOG UI/PowerShell/auto-updater/forceLogin rows",
+      "status": "shared-logic",
+      "evidence": "No 146→147 unique product string. Default-false GB (chert_bezel, marble_lark, rename_full_session_fork) not landed."
+    }
+  ],
+  "notes": "Ast-only: DfA CLAUDE_BG_MEMORY_TOGGLED_OFF consume+strip; CLAUDE_BRIDGE_REATTACH_OUTBOUND_ONLY REPL flags + delete. Spawn writers deferred with fC4. Four-domain review PASS."
+}

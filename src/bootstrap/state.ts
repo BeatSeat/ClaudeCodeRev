@@ -262,6 +262,12 @@ type State = {
   // Updated after each successful API response for main-session queries.
   // Read at shutdown to send cache eviction hints to inference.
   lastMainRequestId: string | undefined
+  // Official 2.1.147: TTL (ms) of the prompt cache that the most recent
+  // main-thread / SDK API call will get (3600000 for 1h, 300000 for 5m).
+  // null until the first such call. isMainThreadCacheWarm() compares
+  // Date.now() - (save timestamp) against 0.9× this to decide whether a
+  // prompt-cache-sharing fork (e.g. rename full-session fork) is safe.
+  lastMainThreadCacheTtlMs: number | null
   // Timestamp (Date.now()) of the last successful API call completion.
   // Used to compute timeSinceLastApiCallMs in tengu_api_success for
   // correlating cache misses with idle time (cache TTL is ~5min).
@@ -442,6 +448,7 @@ function getInitialState(): State {
     // Current prompt ID
     promptId: null,
     lastMainRequestId: undefined,
+    lastMainThreadCacheTtlMs: null,
     lastApiCompletionTimestamp: null,
     pendingPostCompaction: false,
   }
@@ -784,6 +791,23 @@ export function getLastMainRequestId(): string | undefined {
 
 export function setLastMainRequestId(requestId: string): void {
   STATE.lastMainRequestId = requestId
+}
+
+/**
+ * Official 2.1.147 j8$ — TTL (ms) of the prompt cache the last main-thread /
+ * SDK API call used, or null if none has run yet.
+ */
+export function getLastMainThreadCacheTtlMs(): number | null {
+  return STATE.lastMainThreadCacheTtlMs
+}
+
+/**
+ * Official 2.1.147 Yy8 — record the prompt-cache TTL a main-thread / SDK API
+ * call will use, so isMainThreadCacheWarm() can tell whether that cache is
+ * still likely warm.
+ */
+export function setLastMainThreadCacheTtlMs(ttlMs: number): void {
+  STATE.lastMainThreadCacheTtlMs = ttlMs
 }
 
 export function getLastApiCompletionTimestamp(): number | null {

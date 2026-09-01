@@ -1,5 +1,5 @@
 import { lstat, realpath } from 'fs/promises'
-import { dirname, join, resolve, sep } from 'path'
+import { basename, dirname, join, resolve, sep } from 'path'
 import { getFeatureValue_CACHED_MAY_BE_STALE } from '../services/analytics/growthbook.js'
 import { getErrnoCode } from '../utils/errors.js'
 import { getAutoMemPath, isAutoMemoryEnabled } from './paths.js'
@@ -19,7 +19,7 @@ export class PathTraversalError extends Error {
  * Checks for null bytes, URL-encoded traversals, and other injection vectors.
  * Returns the sanitized string or throws PathTraversalError.
  */
-function sanitizePathKey(key: string): string {
+export function sanitizePathKey(key: string): string {
   // Null bytes can truncate paths in C-based syscalls
   if (key.includes('\0')) {
     throw new PathTraversalError(`Null byte in path key: "${key}"`)
@@ -94,6 +94,22 @@ export function getTeamMemEntrypoint(): string {
 }
 
 /**
+ * Official 2.1.147 Rs$ (realCanonicalMemDir) — resolve a path relative to the
+ * REAL (symlink-resolved) auto-memory directory.
+ *
+ * getAutoMemPath() may itself be reached through a symlinked home dir; the
+ * personal-memory write path (validatePersonalMemKey) needs containment checks
+ * to compare against the canonical on-disk location, not the logical one. So
+ * we realpath the parent of the auto-memory dir and rejoin the (possibly
+ * non-existing) basename onto it, then append any trailing segments.
+ */
+export async function realCanonicalMemDir(...segs: string[]): Promise<string> {
+  const base = getAutoMemPath().replace(/[/\\]+$/, '')
+  const realParent = await realpath(dirname(base))
+  return join(realParent, basename(base), ...segs)
+}
+
+/**
  * Resolve symlinks for the deepest existing ancestor of a path.
  * The target file may not exist yet (we may be about to create it), so we
  * walk up the directory tree until realpath() succeeds, then rejoin the
@@ -106,7 +122,7 @@ export function getTeamMemEntrypoint(): string {
  * actual filesystem location, not the symbolic path.
  *
  */
-async function realpathDeepestExisting(absolutePath: string): Promise<string> {
+export async function realpathDeepestExisting(absolutePath: string): Promise<string> {
   const tail: string[] = []
   let current = absolutePath
   // Walk up until realpath succeeds. ENOENT means this segment doesn't exist

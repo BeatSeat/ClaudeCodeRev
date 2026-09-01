@@ -44,6 +44,7 @@ import {
 import { createBashRerunAliases } from './bash/rerunAliases.js'
 import { createToolResultDedupState } from './toolResultDedup.js'
 import { createAgentId } from './uuid.js'
+import { getLastMainThreadCacheTtlMs } from '../bootstrap/state.js'
 
 /** Official 2.1.90 CfK — default fork turn cap when the caller omits maxTurns. */
 const DEFAULT_FORK_MAX_TURNS = 50
@@ -77,12 +78,46 @@ export type CacheSafeParams = {
 // prompt cache without each caller threading params through.
 let lastCacheSafeParams: CacheSafeParams | null = null
 
+/**
+ * Official 2.1.147: when (Date.now()) lastCacheSafeParams was last saved, or
+ * null if never. isMainThreadCacheWarm() measures the age of the cached main
+ * thread against the prompt-cache TTL to decide whether a cache-sharing fork
+ * (e.g. rename full-session fork) is safe.
+ */
+let lastCacheSafeParamsSavedAt: number | null = null
+
 export function saveCacheSafeParams(params: CacheSafeParams | null): void {
   lastCacheSafeParams = params
+  lastCacheSafeParamsSavedAt = params ? Date.now() : null
 }
 
 export function getLastCacheSafeParams(): CacheSafeParams | null {
   return lastCacheSafeParams
+}
+
+/**
+ * Official 2.1.147 sB6 (isMainThreadCacheWarm) — whether the main thread's
+ * prompt cache is still likely warm, i.e. whether a cache-sharing fork can
+ * reuse it.
+ *
+ * A fork can only reuse the cache if (a) a snapshot of cache-safe params has
+ * been saved, (b) we know when it was saved, and (c) we know the TTL that
+ * snapshot's API call will use. The cache is considered warm if the elapsed
+ * time since the snapshot is under 90% of that TTL (a margin so we don't
+ * fork right at the point the server expires the entry).
+ *
+ * Returns false (no warm cache) when any of the three is unknown, so callers
+ * fall back to a non-forking path rather than risk a guaranteed cache miss.
+ */
+export function isMainThreadCacheWarm(now: number = Date.now()): boolean {
+  if (lastCacheSafeParams === null || lastCacheSafeParamsSavedAt === null) {
+    return false
+  }
+  const ttlMs = getLastMainThreadCacheTtlMs()
+  if (ttlMs === null) {
+    return false
+  }
+  return now - lastCacheSafeParamsSavedAt < ttlMs * 0.9
 }
 
 export type ForkedAgentParams = {
