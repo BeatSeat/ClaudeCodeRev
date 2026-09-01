@@ -28,6 +28,10 @@ import { logFileOperation } from '../../utils/fileOperationAnalytics.js'
 import { readFileSyncWithMetadata } from '../../utils/fileRead.js'
 import { getFsImplementation } from '../../utils/fsOperations.js'
 import {
+  isPerforceReadOnly,
+  PERFORCE_READONLY_MESSAGE,
+} from '../../utils/perforce.js'
+import {
   fetchSingleFileGitDiff,
   type ToolUseDiff,
 } from '../../utils/gitDiff.js'
@@ -218,6 +222,14 @@ export const FileWriteTool = buildTool({
     try {
       const fileStat = await fs.stat(fullFilePath)
       fileMtimeMs = fileStat.mtimeMs
+      // Official 2.1.98 JZ6 / HZ6: Perforce checkout gate (errorCode 6).
+      if (isPerforceReadOnly(fileStat.mode)) {
+        return {
+          result: false,
+          message: PERFORCE_READONLY_MESSAGE,
+          errorCode: 6,
+        }
+      }
     } catch (e) {
       if (isENOENT(e)) {
         return { result: true }

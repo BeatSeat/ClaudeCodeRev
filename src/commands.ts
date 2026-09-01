@@ -153,6 +153,7 @@ import antTrace from './commands/ant-trace/index.js'
 import perfIssue from './commands/perf-issue/index.js'
 import sandboxToggle from './commands/sandbox-toggle/index.js'
 import setupBedrock from './commands/setup-bedrock/index.js'
+import setupVertex from './commands/setup-vertex/index.js'
 import chrome from './commands/chrome/index.js'
 import stickers from './commands/stickers/index.js'
 import advisor from './commands/advisor.js'
@@ -342,6 +343,7 @@ const COMMANDS = memoize((): Command[] => [
   exportCommand,
   sandboxToggle,
   setupBedrock,
+  setupVertex,
   stopHook,
   teamOnboarding,
   ...(!isUsing3PServices() ? [logout, login()] : []),

@@ -7,6 +7,7 @@ import type { ElicitationRequestEvent } from '../services/mcp/elicitationHandler
 import type {
   MCPServerConnection,
   ServerResource,
+  ServerResourceTemplate,
 } from '../services/mcp/types.js'
 import { shouldEnablePromptSuggestion } from '../services/PromptSuggestion/promptSuggestion.js'
 import {
@@ -163,6 +164,8 @@ export type AppState = DeepImmutable<{
   // Name → AgentId registry populated by Agent tool when `name` is provided.
   // Latest-wins on collision. Used by SendMessage to route by name.
   agentNameRegistry: Map<string, AgentId>
+  // Official 2.1.98: agent types spawned this session — /agents Library sorts these first.
+  agentTypesInvokedThisSession: Set<string>
   // Task ID that has been foregrounded - its messages are shown in main view
   foregroundedTaskId?: string
   // Task ID of in-process teammate whose transcript is being viewed (undefined = leader's view)
@@ -177,6 +180,7 @@ export type AppState = DeepImmutable<{
     tools: Tool[]
     commands: Command[]
     resources: Record<string, ServerResource[]>
+    resourceTemplates: Record<string, ServerResourceTemplate[]>
     /**
      * Incremented by /reload-plugins to trigger MCP effects to re-run
      * and pick up newly-enabled plugin MCP servers. Effects read this
@@ -473,6 +477,7 @@ export function getDefaultAppState(): AppState {
     settings: getInitialSettings(),
     tasks: {},
     agentNameRegistry: new Map(),
+    agentTypesInvokedThisSession: new Set(),
     verbose: false,
     mainLoopModel: null, // alias, full name (as with --model or env var), or null (default)
     mainLoopModelForSession: null,
@@ -519,6 +524,7 @@ export function getDefaultAppState(): AppState {
       tools: [],
       commands: [],
       resources: {},
+      resourceTemplates: {},
       pluginReconnectKey: 0,
     },
     plugins: {

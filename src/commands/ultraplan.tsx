@@ -29,17 +29,10 @@ import {
   UltraplanPollError,
 } from '../utils/ultraplan/ccrSession.js'
 
-// Official 2.1.90: I8("tengu_ultraplan_timeout_seconds", 1800)*1000
-function isUltraplanConfigEnabled(): boolean {
-  return (
-    getFeatureValue_CACHED_MAY_BE_STALE('tengu_ultraplan_config', null)
-      ?.enabled === true
-  )
-}
-
+// Official 2.1.98: I8("tengu_ultraplan_timeout_seconds", 5400)*1000
 function getUltraplanTimeoutMs(): number {
   return (
-    getFeatureValue_CACHED_MAY_BE_STALE('tengu_ultraplan_timeout_seconds', 1800) *
+    getFeatureValue_CACHED_MAY_BE_STALE('tengu_ultraplan_timeout_seconds', 5400) *
     1000
   )
 }
@@ -265,7 +258,6 @@ export async function stopUltraplan(
   // RemoteAgentTask.kill archives the session (with .catch) — no separate
   // archive call needed here.
   await RemoteAgentTask.kill(taskId, setAppState)
-  logEvent('tengu_ultraplan_stopped', {})
   setAppState(prev =>
     prev.ultraplanSessionUrl ||
     prev.ultraplanPendingChoice ||
@@ -465,6 +457,7 @@ async function launchDetached(opts: {
     logEvent('tengu_ultraplan_create_failed', {
       reason:
         'unexpected_error' as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
+      error_name: e instanceof Error ? e.name : undefined,
     })
     enqueuePendingNotification({
       value: `ultraplan: unexpected error — ${errorMessage(e)}`,

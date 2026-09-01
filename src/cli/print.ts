@@ -247,6 +247,7 @@ import { getMcpPrefix } from 'src/services/mcp/mcpStringUtils.js'
 import {
   commandBelongsToServer,
   filterToolsByServer,
+  mergeServerResourceMap,
 } from 'src/services/mcp/utils.js'
 import { setupVscodeSdkMcp } from 'src/services/mcp/vscodeSdkMcp.js'
 import { getAllMcpConfigs } from 'src/services/mcp/config.js'
@@ -2250,6 +2251,7 @@ function runHeadlessStreaming(
               }
             }
             pendingDeferredToolUse = undefined
+            })
           }) // end runWithWorkload
 
           for (const uuid of batchUuids) {
@@ -3177,10 +3179,16 @@ function runHeadlessStreaming(
                   ),
                   ...result.commands,
                 ],
-                resources:
-                  result.resources && result.resources.length > 0
-                    ? { ...prev.mcp.resources, [serverName]: result.resources }
-                    : omit(prev.mcp.resources, serverName),
+                resources: mergeServerResourceMap(
+                  prev.mcp.resources,
+                  serverName,
+                  result.resources,
+                ),
+                resourceTemplates: mergeServerResourceMap(
+                  prev.mcp.resourceTemplates,
+                  serverName,
+                  result.resourceTemplates,
+                ),
               },
             }))
             // Also update dynamicMcpState so run() picks up the new tools
@@ -3256,6 +3264,7 @@ function runHeadlessStreaming(
                   commandBelongsToServer(c, serverName),
                 ),
                 resources: omit(prev.mcp.resources, serverName),
+                resourceTemplates: omit(prev.mcp.resourceTemplates, serverName),
               },
             }))
             sendControlResponseSuccess(message)
@@ -3283,10 +3292,16 @@ function runHeadlessStreaming(
                   ),
                   ...result.commands,
                 ],
-                resources:
-                  result.resources && result.resources.length > 0
-                    ? { ...prev.mcp.resources, [serverName]: result.resources }
-                    : omit(prev.mcp.resources, serverName),
+                resources: mergeServerResourceMap(
+                  prev.mcp.resources,
+                  serverName,
+                  result.resources,
+                ),
+                resourceTemplates: mergeServerResourceMap(
+                  prev.mcp.resourceTemplates,
+                  serverName,
+                  result.resourceTemplates,
+                ),
               },
             }))
             if (result.client.type === 'connected') {
@@ -3420,13 +3435,16 @@ function runHeadlessStreaming(
                         ),
                         ...result.commands,
                       ],
-                      resources:
-                        result.resources && result.resources.length > 0
-                          ? {
-                              ...prev.mcp.resources,
-                              [serverName]: result.resources,
-                            }
-                          : omit(prev.mcp.resources, serverName),
+                      resources: mergeServerResourceMap(
+                        prev.mcp.resources,
+                        serverName,
+                        result.resources,
+                      ),
+                      resourceTemplates: mergeServerResourceMap(
+                        prev.mcp.resourceTemplates,
+                        serverName,
+                        result.resourceTemplates,
+                      ),
                     },
                   }))
                   // Also update dynamicMcpState so run() picks up the new tools
@@ -3692,13 +3710,16 @@ function runHeadlessStreaming(
                   ),
                   ...result.commands,
                 ],
-                resources:
-                  result.resources && result.resources.length > 0
-                    ? {
-                        ...prev.mcp.resources,
-                        [serverName]: result.resources,
-                      }
-                    : omit(prev.mcp.resources, serverName),
+                resources: mergeServerResourceMap(
+                  prev.mcp.resources,
+                  serverName,
+                  result.resources,
+                ),
+                resourceTemplates: mergeServerResourceMap(
+                  prev.mcp.resourceTemplates,
+                  serverName,
+                  result.resourceTemplates,
+                ),
               },
             }))
             sendControlResponseSuccess(message, {})
