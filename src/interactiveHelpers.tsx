@@ -53,6 +53,14 @@ import {
   checkBedrockDefaultAvailability,
   findBedrockUpgradeCandidates,
 } from './utils/model/bedrockUpgrade.js'
+import {
+  applyVertexPinEnv,
+  checkVertexDefaultAvailability,
+  findVertexUpgradeCandidates,
+  VERTEX_TIER_LABELS,
+  vertexPinEnvPatch,
+  vertexUpgradeKey,
+} from './utils/model/vertexUpgrade.js'
 import { execRelaunch } from './utils/relaunch.js'
 import { updateSettingsForSource } from './utils/settings/settings.js'
 import { sleep } from './utils/sleep.js'
@@ -328,6 +336,16 @@ export async function showSetupScreens(
   } catch (err) {
     logError(err)
   }
+  try {
+    await runVertexUpgradeDialogs(root)
+  } catch (err) {
+    logError(err)
+  }
+  try {
+    await runVertexDefaultFallbackToast(root)
+  } catch (err) {
+    logError(err)
+  }
 
   if (
     (permissionMode === 'bypassPermissions' ||
@@ -446,17 +464,17 @@ async function runBedrockUpgradeDialogs(root: Root): Promise<void> {
   )
   if (pending.length === 0) return
 
-  const { BedrockModelUpgradeDialog } = await import(
-    './components/BedrockModelUpgradeDialog.js'
+  const { ThirdPartyModelUpgradeDialog } = await import(
+    './components/ThirdPartyModelUpgradeDialog.js'
   )
   let accepted = false
   for (const row of pending) {
     const yes = await showSetupDialog<boolean>(root, done => (
-      <BedrockModelUpgradeDialog
+      <ThirdPartyModelUpgradeDialog
         tierLabel={BEDROCK_TIER_LABELS[row.tier]}
         fromName={row.fromMarketingName}
         toName={row.toMarketingName}
-        toBedrockId={row.toBedrockId}
+        toProviderId={row.toBedrockId}
         onDone={done}
       />
     ))
@@ -527,6 +545,112 @@ async function runBedrockDefaultFallbackToast(root: Root): Promise<void> {
   const lines = fallbacks.map(
     row =>
       `${BEDROCK_TIER_LABELS[row.tier]}: ${row.defaultName} not available — using ${row.fallbackName} for this session`,
+  )
+  await showDialog(root, done => {
+    setTimeout(done, 1500)
+    return (
+      <Box flexDirection="column">
+        {lines.map(line => (
+          <Text key={line} color="warning">
+            {line}
+          </Text>
+        ))}
+      </Box>
+    )
+  })
+}
+
+/** Official 2.1.98 M9A. */
+async function runVertexUpgradeDialogs(root: Root): Promise<void> {
+  const candidates = await findVertexUpgradeCandidates()
+  if (candidates.length === 0) return
+  const declined = getGlobalConfig().vertexDeclinedUpgrades ?? {}
+  const pending = candidates.filter(
+    row => declined[row.tier] !== vertexUpgradeKey(row),
+  )
+  if (pending.length === 0) return
+
+  const { ThirdPartyModelUpgradeDialog } = await import(
+    './components/ThirdPartyModelUpgradeDialog.js'
+  )
+  let accepted = false
+  for (const row of pending) {
+    const yes = await showSetupDialog<boolean>(root, done => (
+      <ThirdPartyModelUpgradeDialog
+        tierLabel={VERTEX_TIER_LABELS[row.tier]}
+        fromName={row.fromMarketingName}
+        toName={row.toMarketingName}
+        toProviderId={row.toVertexId}
+        onDone={done}
+      />
+    ))
+    if (yes) {
+      const env = vertexPinEnvPatch(row.tier, row.envVar, row.toVertexId)
+      const { error } = updateSettingsForSource('userSettings', { env })
+      if (error) {
+        logEvent('tengu_vertex_upgrade_save_failed', { tier: row.tier })
+        const { Text } = await import('./ink.js')
+        await showDialog(root, done => {
+          setTimeout(done, 2000)
+          return (
+            <Text color="error">
+              Failed to save {VERTEX_TIER_LABELS[row.tier]} upgrade to
+              settings.
+            </Text>
+          )
+        })
+      } else {
+        applyVertexPinEnv(row.tier, row.envVar, row.toVertexId)
+        accepted = true
+        logEvent('tengu_vertex_upgrade_accepted', {
+          tier: row.tier,
+          from_key: row.fromKey,
+          to_key: row.toKey,
+        })
+      }
+    } else {
+      saveGlobalConfig(current => ({
+        ...current,
+        vertexDeclinedUpgrades: {
+          ...current.vertexDeclinedUpgrades,
+          [row.tier]: vertexUpgradeKey(row),
+        },
+      }))
+      logEvent('tengu_vertex_upgrade_declined', {
+        tier: row.tier,
+        from_key: row.fromKey,
+        to_key: row.toKey,
+      })
+    }
+  }
+  if (accepted) {
+    logEvent('tengu_vertex_upgrade_relaunch', {})
+    const { Text } = await import('./ink.js')
+    root.render(
+      <Text dimColor>Restarting Claude Code to apply the new model…</Text>,
+    )
+    await sleep(250)
+    root.unmount()
+    await execRelaunch()
+  }
+}
+
+/** Official 2.1.98 P9A — session-only fallback when the default Vertex model is dark. */
+async function runVertexDefaultFallbackToast(root: Root): Promise<void> {
+  const fallbacks = await checkVertexDefaultAvailability()
+  if (fallbacks.length === 0) return
+  for (const row of fallbacks) {
+    applyVertexPinEnv(row.tier, row.envVar, row.fallbackVertexId)
+    logEvent('tengu_vertex_default_fallback', {
+      tier: row.tier,
+      default_key: row.defaultKey,
+      fallback_key: row.fallbackKey,
+    })
+  }
+  const { Box, Text } = await import('./ink.js')
+  const lines = fallbacks.map(
+    row =>
+      `${VERTEX_TIER_LABELS[row.tier]}: ${row.defaultName} not available — using ${row.fallbackName} for this session`,
   )
   await showDialog(root, done => {
     setTimeout(done, 1500)

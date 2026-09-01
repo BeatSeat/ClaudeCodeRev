@@ -228,6 +228,13 @@ export type MCPServerConnection =
 // Resource types
 export type ServerResource = Resource & { server: string }
 
+export type ServerResourceTemplate = {
+  server: string
+  uriTemplate: string
+  name?: string
+  description?: string
+}
+
 // MCP CLI State types
 export interface SerializedTool {
   name: string

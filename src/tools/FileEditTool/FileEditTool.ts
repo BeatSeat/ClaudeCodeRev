@@ -37,6 +37,10 @@ import {
 import { formatFileSize } from '../../utils/format.js'
 import { getFsImplementation } from '../../utils/fsOperations.js'
 import {
+  isPerforceReadOnly,
+  PERFORCE_READONLY_MESSAGE,
+} from '../../utils/perforce.js'
+import {
   fetchSingleFileGitDiff,
   type ToolUseDiff,
 } from '../../utils/gitDiff.js'
@@ -184,13 +188,22 @@ export const FileEditTool = buildTool({
 
     // Prevent OOM on multi-GB files.
     try {
-      const { size } = await fs.stat(fullFilePath)
+      const { size, mode } = await fs.stat(fullFilePath)
       if (size > MAX_EDIT_FILE_SIZE) {
         return {
           result: false,
           behavior: 'ask',
           message: `File is too large to edit (${formatFileSize(size)}). Maximum editable file size is ${formatFileSize(MAX_EDIT_FILE_SIZE)}.`,
           errorCode: 10,
+        }
+      }
+      // Official 2.1.98 JZ6 / HZ6: Perforce checkout gate (errorCode 11).
+      if (isPerforceReadOnly(mode)) {
+        return {
+          result: false,
+          behavior: 'ask',
+          message: PERFORCE_READONLY_MESSAGE,
+          errorCode: 11,
         }
       }
     } catch (e) {

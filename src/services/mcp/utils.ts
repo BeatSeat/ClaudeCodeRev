@@ -139,13 +139,25 @@ export function excludeCommandsByServer(
  * @param serverName Name of the MCP server to exclude
  * @returns Resources map without the specified server
  */
-export function excludeResourcesByServer(
-  resources: Record<string, ServerResource[]>,
+export function excludeResourcesByServer<T>(
+  resources: Record<string, T[]>,
   serverName: string,
-): Record<string, ServerResource[]> {
+): Record<string, T[]> {
   const result = { ...resources }
   delete result[serverName]
   return result
+}
+
+/** Official 2.1.98: resources and resourceTemplates share the same server-keyed map. */
+export function mergeServerResourceMap<T>(
+  prev: Record<string, T[]>,
+  serverName: string,
+  next: T[] | undefined,
+): Record<string, T[]> {
+  if (next && next.length > 0) {
+    return { ...prev, [serverName]: next }
+  }
+  return excludeResourcesByServer(prev, serverName)
 }
 
 /**
@@ -188,6 +200,7 @@ export function excludeStalePluginClients(
     tools: Tool[]
     commands: Command[]
     resources: Record<string, ServerResource[]>
+    resourceTemplates?: Record<string, import('./types.js').ServerResourceTemplate[]>
   },
   configs: Record<string, ScopedMcpServerConfig>,
 ): {
@@ -195,6 +208,7 @@ export function excludeStalePluginClients(
   tools: Tool[]
   commands: Command[]
   resources: Record<string, ServerResource[]>
+  resourceTemplates?: Record<string, import('./types.js').ServerResourceTemplate[]>
   stale: MCPServerConnection[]
 } {
   const stale = mcp.clients.filter(c => {
@@ -207,10 +221,14 @@ export function excludeStalePluginClients(
   }
 
   let { tools, commands, resources } = mcp
+  let resourceTemplates = mcp.resourceTemplates
   for (const s of stale) {
     tools = excludeToolsByServer(tools, s.name)
     commands = excludeCommandsByServer(commands, s.name)
     resources = excludeResourcesByServer(resources, s.name)
+    if (resourceTemplates) {
+      resourceTemplates = excludeResourcesByServer(resourceTemplates, s.name)
+    }
   }
   const staleNames = new Set(stale.map(c => c.name))
 
@@ -219,6 +237,7 @@ export function excludeStalePluginClients(
     tools,
     commands,
     resources,
+    resourceTemplates,
     stale,
   }
 }

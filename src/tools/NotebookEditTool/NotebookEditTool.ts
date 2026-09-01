@@ -8,6 +8,11 @@ import { z } from 'zod/v4'
 import { buildTool, type ToolDef, type ToolUseContext } from '../../Tool.js'
 import type { NotebookCell, NotebookContent } from '../../types/notebook.js'
 import { getCwd } from '../../utils/cwd.js'
+import { getFsImplementation } from '../../utils/fsOperations.js'
+import {
+  isPerforceReadOnly,
+  PERFORCE_READONLY_MESSAGE,
+} from '../../utils/perforce.js'
 import { isENOENT } from '../../utils/errors.js'
 import { getFileModificationTime, writeTextContent } from '../../utils/file.js'
 import { readFileSyncWithMetadata } from '../../utils/fileRead.js'
@@ -227,6 +232,21 @@ export const NotebookEditTool = buildTool({
         errorCode: 9,
       }
     }
+
+    // Official 2.1.98: Perforce (11) before the stale-mtime check (10).
+    try {
+      const fileStat = await getFsImplementation().stat(fullPath)
+      if (isPerforceReadOnly(fileStat.mode)) {
+        return {
+          result: false,
+          message: PERFORCE_READONLY_MESSAGE,
+          errorCode: 11,
+        }
+      }
+    } catch {
+      // Missing file is handled below.
+    }
+
     if (getFileModificationTime(fullPath) > readTimestamp.timestamp) {
       return {
         result: false,

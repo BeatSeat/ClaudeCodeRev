@@ -2,11 +2,22 @@ import Fuse from 'fuse.js'
 import { basename } from 'path'
 import type { SuggestionItem } from 'src/components/PromptInput/PromptInputFooterSuggestions.js'
 import { generateFileSuggestions } from 'src/hooks/fileSuggestions.js'
-import type { ServerResource } from 'src/services/mcp/types.js'
+import { completeResourceTemplate } from 'src/services/mcp/client.js'
+import type {
+  MCPServerConnection,
+  ServerResource,
+  ServerResourceTemplate,
+} from 'src/services/mcp/types.js'
 import { getAgentColor } from 'src/tools/AgentTool/agentColorManager.js'
 import type { AgentDefinition } from 'src/tools/AgentTool/loadAgentsDir.js'
 import { truncateToWidth } from 'src/utils/format.js'
 import { logError } from 'src/utils/log.js'
+import {
+  applyTemplateCompletionValue,
+  hasMoreTemplateArgsAfterCurrent,
+  pickBestTemplateMatch,
+  uriTemplateDisplayPrefix,
+} from 'src/utils/mcpResourceTemplate.js'
 import type { Theme } from 'src/utils/theme.js'
 
 type FileSuggestionSource = {
@@ -27,6 +38,15 @@ type McpResourceSuggestionSource = {
   name: string
 }
 
+type McpResourceTemplateSuggestionSource = {
+  type: 'mcp_resource_template'
+  displayText: string
+  description: string
+  server: string
+  uriTemplate: string
+  name: string
+}
+
 type AgentSuggestionSource = {
   type: 'agent'
   displayText: string
@@ -38,6 +58,7 @@ type AgentSuggestionSource = {
 type SuggestionSource =
   | FileSuggestionSource
   | McpResourceSuggestionSource
+  | McpResourceTemplateSuggestionSource
   | AgentSuggestionSource
 
 /**
@@ -56,6 +77,13 @@ function createSuggestionFromSource(source: SuggestionSource): SuggestionItem {
         id: `mcp-resource-${source.server}__${source.uri}`,
         displayText: source.displayText,
         description: source.description,
+      }
+    case 'mcp_resource_template':
+      return {
+        id: `mcp-template::${source.server}__${source.uriTemplate}`,
+        displayText: source.displayText,
+        description: source.description,
+        metadata: { partial: true },
       }
     case 'agent':
       return {
@@ -113,6 +141,7 @@ export async function generateUnifiedSuggestions(
   mcpResources: Record<string, ServerResource[]>,
   agents: AgentDefinition[],
   showOnEmpty = false,
+  mcpResourceTemplates: Record<string, ServerResourceTemplate[]> = {},
 ): Promise<SuggestionItem[]> {
   if (!query && !showOnEmpty) {
     return []
@@ -147,14 +176,37 @@ export async function generateUnifiedSuggestions(
       name: resource.name || resource.uri,
     }))
 
+  const mcpTemplateSources: McpResourceTemplateSuggestionSource[] =
+    Object.values(mcpResourceTemplates)
+      .flat()
+      .map(template => ({
+        type: 'mcp_resource_template' as const,
+        displayText: `${template.server}:${uriTemplateDisplayPrefix(template.uriTemplate)}`,
+        description: truncateDescription(
+          template.description || template.name || template.uriTemplate,
+        ),
+        server: template.server,
+        uriTemplate: template.uriTemplate,
+        name: template.name || template.uriTemplate,
+      }))
+
   if (!query) {
-    const allSources = [...fileSources, ...mcpSources, ...agentSources]
+    const allSources = [
+      ...fileSources,
+      ...mcpSources,
+      ...mcpTemplateSources,
+      ...agentSources,
+    ]
     return allSources
       .slice(0, MAX_UNIFIED_SUGGESTIONS)
       .map(createSuggestionFromSource)
   }
 
-  const nonFileSources: SuggestionSource[] = [...mcpSources, ...agentSources]
+  const nonFileSources: SuggestionSource[] = [
+    ...mcpSources,
+    ...mcpTemplateSources,
+    ...agentSources,
+  ]
 
   // Score non-file sources with Fuse.js
   // File sources are already scored by Rust/nucleo
@@ -180,12 +232,13 @@ export async function generateUnifiedSuggestions(
         { name: 'server', weight: 1 },
         { name: 'description', weight: 1 },
         { name: 'agentType', weight: 3 },
+        { name: 'uriTemplate', weight: 2 },
       ],
     })
 
     const fuseResults = fuse.search(query, { limit: MAX_UNIFIED_SUGGESTIONS })
     for (const result of fuseResults) {
-      // Official 2.1.89+: deprioritize MCP resources vs files/agents.
+      // Official 2.1.98: only concrete MCP resources get the 0.15 penalty.
       const mcpPenalty = result.item.type === 'mcp_resource' ? 0.15 : 0
       scoredResults.push({
         source: result.item,
@@ -201,4 +254,65 @@ export async function generateUnifiedSuggestions(
     .slice(0, MAX_UNIFIED_SUGGESTIONS)
     .map(r => r.source)
     .map(createSuggestionFromSource)
+}
+
+/**
+ * Official 2.1.98 mj7. `@server:…` completions for resource-template arguments.
+ * Returns null when the query is not a template completion (caller falls back
+ * to generateUnifiedSuggestions). An empty array means "no values — hide files".
+ */
+export async function generateMcpResourceTemplateCompletions(
+  query: string,
+  mcpResourceTemplates: Record<string, ServerResourceTemplate[]>,
+  clients: MCPServerConnection[],
+): Promise<SuggestionItem[] | null> {
+  const colon = query.indexOf(':')
+  if (colon === -1) return null
+  const server = query.slice(0, colon)
+  const typed = query.slice(colon + 1)
+  const templates = mcpResourceTemplates[server]
+  if (!templates || templates.length === 0) return null
+
+  const match = pickBestTemplateMatch(typed, templates)
+  if (!match) {
+    if (!typed) return null
+    const prefixHits = templates.filter(template =>
+      template.uriTemplate.startsWith(typed),
+    )
+    if (prefixHits.length === 0) return null
+    return prefixHits.slice(0, MAX_UNIFIED_SUGGESTIONS).map(template => ({
+      id: `mcp-template::${server}__${template.uriTemplate}`,
+      displayText: `${server}:${uriTemplateDisplayPrefix(template.uriTemplate)}`,
+      description: truncateDescription(
+        template.description || template.name || template.uriTemplate,
+      ),
+      metadata: { partial: true },
+    }))
+  }
+
+  const client = clients.find(c => c.name === server && c.type === 'connected')
+  if (!client) return []
+
+  const values = await completeResourceTemplate(
+    client,
+    match.template.uriTemplate,
+    match.argName,
+    match.argValue,
+    match.resolvedArgs,
+  )
+  if (values.length === 0) return []
+
+  const description = truncateDescription(
+    match.template.description || match.template.name || '',
+  )
+  const partial = hasMoreTemplateArgsAfterCurrent(match)
+  return values.slice(0, MAX_UNIFIED_SUGGESTIONS).map(value => {
+    const filled = applyTemplateCompletionValue(typed, match, value)
+    return {
+      id: `mcp-template-value::${server}__${filled}`,
+      displayText: filled.slice(match.valueStartIndex),
+      description,
+      metadata: { partial, replacement: `${server}:${filled}` },
+    }
+  })
 }
