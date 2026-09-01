@@ -20,7 +20,7 @@ import {
 } from '../services/analytics/index.js'
 import { accumulateUsage, updateUsage } from '../services/api/claude.js'
 import { EMPTY_USAGE, type NonNullableUsage } from '../services/api/logging.js'
-import type { ToolUseContext } from '../Tool.js'
+import type { ToolPermissionContext, ToolUseContext } from '../Tool.js'
 import type { AgentDefinition } from '../tools/AgentTool/loadAgentsDir.js'
 import type { AgentId } from '../types/ids.js'
 import type { Message } from '../types/message.js'
@@ -145,6 +145,101 @@ export function createCacheSafeParams(
   }
 }
 
+/** Official 2.1.152 MG$ contextLayers produced for the skill-active fork. */
+export type ForkedCommandContextLayer =
+  | { kind: 'allowed_tools'; allowedTools: string[] }
+  | { kind: 'disallowed_tools'; disallowedTools: string[] }
+
+/** Official 2.1.152 h08 */
+function withAlwaysAllowCommandRules(
+  permissionContext: ToolPermissionContext,
+  allowedTools: string[],
+): ToolPermissionContext {
+  if (allowedTools.length === 0) return permissionContext
+  return {
+    ...permissionContext,
+    alwaysAllowRules: {
+      ...permissionContext.alwaysAllowRules,
+      command: [
+        ...new Set([
+          ...(permissionContext.alwaysAllowRules.command || []),
+          ...allowedTools,
+        ]),
+      ],
+    },
+  }
+}
+
+/** Official 2.1.152 S08 */
+function withAlwaysDenyCommandRules(
+  permissionContext: ToolPermissionContext,
+  disallowedTools: string[],
+): ToolPermissionContext {
+  if (disallowedTools.length === 0) return permissionContext
+  return {
+    ...permissionContext,
+    alwaysDenyRules: {
+      ...permissionContext.alwaysDenyRules,
+      command: [
+        ...new Set([
+          ...(permissionContext.alwaysDenyRules.command || []),
+          ...disallowedTools,
+        ]),
+      ],
+    },
+  }
+}
+
+/**
+ * Official 2.1.152 v6 (skill-layer cases): apply fork contextLayers onto a
+ * permission context. `avoid_prompts` / `effort` / `model` live on
+ * permissionLayers, which this tree does not have yet.
+ */
+export function applyForkedContextLayers(
+  permissionContext: ToolPermissionContext,
+  layers: ForkedCommandContextLayer[],
+): ToolPermissionContext {
+  let next = permissionContext
+  for (const layer of layers) {
+    switch (layer.kind) {
+      case 'allowed_tools':
+        next = withAlwaysAllowCommandRules(next, [...layer.allowedTools])
+        break
+      case 'disallowed_tools':
+        next = withAlwaysDenyCommandRules(next, [...layer.disallowedTools])
+        break
+    }
+  }
+  return next
+}
+
+/**
+ * Official 2.1.152 TG4 (was 150 DP4). Wraps getAppState so the skill-active
+ * fork applies both allowedTools and disallowedTools.
+ */
+export function createGetAppStateWithForkedToolScoping(
+  baseGetAppState: ToolUseContext['getAppState'],
+  allowedTools: string[],
+  disallowedTools: string[],
+): ToolUseContext['getAppState'] {
+  if (allowedTools.length === 0 && disallowedTools.length === 0) {
+    return baseGetAppState
+  }
+  return () => {
+    const appState = baseGetAppState()
+    return {
+      ...appState,
+      toolPermissionContext: withAlwaysDenyCommandRules(
+        withAlwaysAllowCommandRules(
+          appState.toolPermissionContext,
+          allowedTools,
+        ),
+        disallowedTools,
+      ),
+    }
+  }
+}
+
 /**
  * Creates a modified getAppState that adds allowed tools to the permission context.
  * This is used by forked skill/command execution to grant tool permissions.
@@ -153,26 +248,7 @@ export function createGetAppStateWithAllowedTools(
   baseGetAppState: ToolUseContext['getAppState'],
   allowedTools: string[],
 ): ToolUseContext['getAppState'] {
-  if (allowedTools.length === 0) return baseGetAppState
-  return () => {
-    const appState = baseGetAppState()
-    return {
-      ...appState,
-      toolPermissionContext: {
-        ...appState.toolPermissionContext,
-        alwaysAllowRules: {
-          ...appState.toolPermissionContext.alwaysAllowRules,
-          command: [
-            ...new Set([
-              ...(appState.toolPermissionContext.alwaysAllowRules.command ||
-                []),
-              ...allowedTools,
-            ]),
-          ],
-        },
-      },
-    }
-  }
+  return createGetAppStateWithForkedToolScoping(baseGetAppState, allowedTools, [])
 }
 
 /**
@@ -181,8 +257,10 @@ export function createGetAppStateWithAllowedTools(
 export type PreparedForkedContext = {
   /** Skill content with args replaced */
   skillContent: string
-  /** Modified getAppState with allowed tools */
+  /** Modified getAppState with allowed / disallowed tool scoping */
   modifiedGetAppState: ToolUseContext['getAppState']
+  /** Official 2.1.152 MG$: skill frontmatter tool-scope layers */
+  contextLayers: ForkedCommandContextLayer[]
   /** The general-purpose agent to use */
   baseAgent: AgentDefinition
   /** Initial prompt messages */
@@ -204,14 +282,24 @@ export async function prepareForkedCommandContext(
     .map(block => (block.type === 'text' ? block.text : ''))
     .join('\n')
 
-  // Parse and prepare allowed tools
+  // Official 2.1.152 MG$: parse both allowed and disallowed frontmatter lists
   const allowedTools = parseToolListFromCLI(command.allowedTools ?? [])
+  const disallowedTools = parseToolListFromCLI(command.disallowedTools ?? [])
 
-  // Create modified context with allowed tools
-  const modifiedGetAppState = createGetAppStateWithAllowedTools(
+  const modifiedGetAppState = createGetAppStateWithForkedToolScoping(
     context.getAppState,
     allowedTools,
+    disallowedTools,
   )
+
+  const contextLayers: ForkedCommandContextLayer[] = [
+    ...(allowedTools.length === 0
+      ? []
+      : [{ kind: 'allowed_tools' as const, allowedTools }]),
+    ...(disallowedTools.length === 0
+      ? []
+      : [{ kind: 'disallowed_tools' as const, disallowedTools }]),
+  ]
 
   // Use command.agent if specified, otherwise 'general-purpose'
   const agentTypeName = command.agent ?? 'general-purpose'
@@ -231,6 +319,7 @@ export async function prepareForkedCommandContext(
   return {
     skillContent,
     modifiedGetAppState,
+    contextLayers,
     baseAgent,
     promptMessages,
   }

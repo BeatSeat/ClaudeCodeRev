@@ -39,27 +39,27 @@ export function getUpsellMessage({
   const extraUsageVisible = isExtraUsageCommandEnabled && !serverHidesOverage
   if (isMax20x) {
     if (extraUsageVisible) {
-      return '/extra-usage to finish what you\u2019re working on.'
+      return '/usage-credits to finish what you\u2019re working on.'
     }
     return '/login to switch to an API usage-billed account.'
   }
   if (isTeamOrEnterprise) {
     if (!extraUsageVisible) return null
     if (hasBillingAccess) {
-      return '/extra-usage to finish what you\u2019re working on.'
+      return '/usage-credits to finish what you\u2019re working on.'
     }
-    return '/extra-usage to request more usage from your admin.'
+    return '/usage-credits to request more usage from your admin.'
   }
   if (serverHidesUpgrade) {
     if (extraUsageVisible) {
-      return '/extra-usage to finish what you\u2019re working on.'
+      return '/usage-credits to finish what you\u2019re working on.'
     }
     return null
   }
   if (!extraUsageVisible) {
     return '/upgrade to increase your usage limit.'
   }
-  return '/upgrade or /extra-usage to finish what you\u2019re working on.'
+  return '/upgrade or /usage-credits to finish what you\u2019re working on.'
 }
 
 type RateLimitMessageProps = {

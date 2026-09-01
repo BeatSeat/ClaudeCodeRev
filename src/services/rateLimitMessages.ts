@@ -22,8 +22,14 @@ export const RATE_LIMIT_ERROR_PREFIXES = [
   "You've hit your",
   "You've used",
   "You're now using extra usage",
+  "You're now using usage credits",
+  "You're now using your usage allocation",
   "You're close to",
   "You're out of extra usage",
+  "You're out of usage credits",
+  'Now using extra usage',
+  'Now using usage credits',
+  'Now using your usage allocation',
 ] as const
 
 /**
@@ -166,7 +172,7 @@ function getLimitReachedText(limits: ClaudeAILimits, model: string): string {
     }
 
     if (limits.overageDisabledReason === 'out_of_credits') {
-      return `You're out of extra usage${overageResetMessage}`
+      return `You're out of usage credits${overageResetMessage}`
     }
 
     return formatLimitReachedText('limit', overageResetMessage, model)
@@ -271,7 +277,7 @@ function getWarningUpsellText(
     // Only show if overage provisioning is allowed for this org type (e.g., not AWS marketplace)
     if (subscriptionType === 'team' || subscriptionType === 'enterprise') {
       if (!hasExtraUsageEnabled && isOverageProvisioningAllowed()) {
-        return '/extra-usage to request more'
+        return '/usage-credits to request more'
       }
       // Teams/Enterprise with overages enabled or unsupported billing type don't need upsell
       return null
@@ -287,7 +293,7 @@ function getWarningUpsellText(
   if (rateLimitType === 'overage') {
     if (subscriptionType === 'team' || subscriptionType === 'enterprise') {
       if (!hasExtraUsageEnabled && isOverageProvisioningAllowed()) {
-        return '/extra-usage to request more'
+        return '/usage-credits to request more'
       }
     }
   }
@@ -305,6 +311,11 @@ export function getUsingOverageText(limits: ClaudeAILimits): string {
     ? formatResetTime(limits.resetsAt, true)
     : ''
 
+  const noun =
+    String(getOauthAccountInfo()?.billingType ?? '') === 'usage_based'
+      ? 'your usage allocation'
+      : 'usage credits'
+
   let limitName = ''
   if (limits.rateLimitType === 'five_hour') {
     limitName = 'session limit'
@@ -321,13 +332,13 @@ export function getUsingOverageText(limits: ClaudeAILimits): string {
   }
 
   if (!limitName) {
-    return 'Now using extra usage'
+    return `Now using ${noun}`
   }
 
   const resetMessage = resetTime
     ? ` · Your ${limitName} resets ${resetTime}`
     : ''
-  return `You're now using extra usage${resetMessage}`
+  return `You're now using ${noun}${resetMessage}`
 }
 
 function formatLimitReachedText(

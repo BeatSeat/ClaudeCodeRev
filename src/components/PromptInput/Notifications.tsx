@@ -358,7 +358,7 @@ function NotificationContent({
       {isInOverageMode && !isTeamOrEnterprise && (
         <Box>
           <Text dimColor wrap="truncate">
-            Now using extra usage
+            Now using usage credits
           </Text>
         </Box>
       )}

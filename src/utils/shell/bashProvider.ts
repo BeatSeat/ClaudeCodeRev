@@ -41,14 +41,14 @@ function getDisableExtglobCommand(shellPath: string): string | null {
   if (process.env.CLAUDE_CODE_SHELL_PREFIX) {
     // Redirect both stdout and stderr because zsh's command_not_found_handler
     // writes to stdout instead of stderr
-    return '{ shopt -u extglob || setopt NO_EXTENDED_GLOB; } >/dev/null 2>&1 || true'
+    return '{ shopt -u extglob || setopt NO_EXTENDED_GLOB NO_BARE_GLOB_QUAL; } >/dev/null 2>&1 || true'
   }
 
   // No shell prefix - use shell-specific command
   if (shellPath.includes('bash')) {
     return 'shopt -u extglob 2>/dev/null || true'
   } else if (shellPath.includes('zsh')) {
-    return 'setopt NO_EXTENDED_GLOB 2>/dev/null || true'
+    return 'setopt NO_EXTENDED_GLOB NO_BARE_GLOB_QUAL 2>/dev/null || true'
   }
   // Unknown shell - do nothing, we don't know the right command
   return null

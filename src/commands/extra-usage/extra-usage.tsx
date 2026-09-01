@@ -18,7 +18,7 @@ export async function call(
   return (
     <Login
       startingMessage={
-        'Starting new login following /extra-usage. Exit with Ctrl-C to use existing account.'
+        'Starting new login following /usage-credits. Exit with Ctrl-C to use existing account.'
       }
       onDone={success => {
         context.onChangeAPIKey()

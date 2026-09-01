@@ -408,7 +408,7 @@ export async function maybeResizeAndDownsampleImageBuffer(
     })
 
     // Detect actual format from magic bytes instead of trusting extension
-    const detected = detectImageFormatFromBuffer(imageBuffer)
+    const detected = detectImageFormatFromBufferOrPng(imageBuffer)
     const normalizedExt = detected.slice(6) // Remove 'image/' prefix
 
     // Calculate the base64 size (API limit is on base64-encoded length)
@@ -605,7 +605,7 @@ export async function compressImageBuffer(
     // If original image is within the requested limit, allow it through
     if (imageBuffer.length <= maxBytes) {
       // Detect actual format from magic bytes instead of trusting the provided media type
-      const detected = detectImageFormatFromBuffer(imageBuffer)
+      const detected = detectImageFormatFromBufferOrPng(imageBuffer)
       return {
         base64: imageBuffer.toString('base64'),
         mediaType: detected,
@@ -807,12 +807,13 @@ async function createUltraCompressedJPEG(
 }
 
 /**
- * Detect image format from a buffer using magic bytes
- * @param buffer Buffer containing image data
- * @returns Media type string (e.g., 'image/png', 'image/jpeg') or 'image/png' as default
+ * Official 2.1.144 `D7H`. Detect image format from magic bytes.
+ * Returns null when the buffer is not a valid PNG/JPEG/GIF/WebP.
  */
-export function detectImageFormatFromBuffer(buffer: Buffer): ImageMediaType {
-  if (buffer.length < 4) return 'image/png' // default
+export function detectImageFormatFromBuffer(
+  buffer: Buffer,
+): ImageMediaType | null {
+  if (buffer.length < 4) return null
 
   // Check PNG signature
   if (
@@ -839,21 +840,54 @@ export function detectImageFormatFromBuffer(buffer: Buffer): ImageMediaType {
     buffer[0] === 0x52 &&
     buffer[1] === 0x49 &&
     buffer[2] === 0x46 &&
-    buffer[3] === 0x46
+    buffer[3] === 0x46 &&
+    buffer.length >= 12 &&
+    buffer[8] === 0x57 &&
+    buffer[9] === 0x45 &&
+    buffer[10] === 0x42 &&
+    buffer[11] === 0x50
   ) {
-    if (
-      buffer.length >= 12 &&
-      buffer[8] === 0x57 &&
-      buffer[9] === 0x45 &&
-      buffer[10] === 0x42 &&
-      buffer[11] === 0x50
-    ) {
-      return 'image/webp'
-    }
+    return 'image/webp'
   }
 
-  // Default to PNG if unknown
-  return 'image/png'
+  return null
+}
+
+/**
+ * Official 2.1.144 `iz$`: D7H with PNG default for callers that still
+ * need a media type after a recognized-image check has already passed.
+ */
+export function detectImageFormatFromBufferOrPng(
+  buffer: Buffer,
+): ImageMediaType {
+  return detectImageFormatFromBuffer(buffer) ?? 'image/png'
+}
+
+/**
+ * Official 2.1.144 `WmK`. Describe the first bytes of a file whose
+ * extension says image but magic bytes are not PNG/JPEG/GIF/WebP.
+ */
+export function describeMislabelledImageBytes(buffer: Buffer): string {
+  const head = buffer.subarray(0, 32)
+  const printable = head.toString('latin1').replace(/[^\x20-\x7e]/g, '.')
+  const lower = printable.toLowerCase()
+  if (lower.includes('<!doctype') || lower.includes('<html')) {
+    return `HTML document (starts with "${printable.slice(0, 24)}")`
+  }
+  if (lower.startsWith('<?xml') || lower.startsWith('<svg')) {
+    return `XML/SVG document (starts with "${printable.slice(0, 24)}")`
+  }
+  if (lower.startsWith('{') || lower.startsWith('[')) {
+    return `JSON/text (starts with "${printable.slice(0, 24)}")`
+  }
+  if (lower.startsWith('%pdf')) {
+    return 'PDF document'
+  }
+  return `unrecognized bytes (hex: ${head
+    .subarray(0, 8)
+    .toString('hex')
+    .replace(/(..)/g, '$1 ')
+    .trim()})`
 }
 
 /**
@@ -866,7 +900,7 @@ export function detectImageFormatFromBase64(
 ): ImageMediaType {
   try {
     const buffer = Buffer.from(base64Data, 'base64')
-    return detectImageFormatFromBuffer(buffer)
+    return detectImageFormatFromBufferOrPng(buffer)
   } catch {
     // Default to PNG on any error
     return 'image/png'

@@ -18,6 +18,18 @@ export function getTeamsDir(): string {
 }
 
 /**
+ * Official 2.1.144 `Ia`. Secure-storage dir: CLAUDE_SECURESTORAGE_CONFIG_DIR
+ * (empty string → ~/.claude) else CLAUDE_CONFIG_DIR / ~/.claude.
+ */
+export function getSecureStorageConfigDir(): string {
+  const override = process.env.CLAUDE_SECURESTORAGE_CONFIG_DIR
+  if (override !== undefined) {
+    return (override || join(homedir(), '.claude')).normalize('NFC')
+  }
+  return getClaudeConfigHomeDir()
+}
+
+/**
  * Check if NODE_OPTIONS contains a specific flag.
  * Splits on whitespace and checks for exact match to avoid false positives.
  */

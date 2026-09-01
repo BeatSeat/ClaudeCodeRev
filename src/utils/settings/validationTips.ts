@@ -72,6 +72,17 @@ const TIP_MATCHERS: TipMatcher[] = [
   },
   {
     matches: (ctx): boolean =>
+      /\.hooks\.\d+\.command$/.test(ctx.path) &&
+      ctx.code === 'invalid_type' &&
+      ctx.received === 'undefined',
+    tip: {
+      suggestion:
+        'Command hooks require `command`. For exec form (no shell), set `command` to the executable and `args` to its arguments: {"type": "command", "command": "echo", "args": ["hi"]}. For shell form, set `command` to the full shell string: {"type": "command", "command": "echo hi"}.',
+      docLink: `${DOCUMENTATION_BASE}/hooks#exec-form-and-shell-form`,
+    },
+  },
+  {
+    matches: (ctx): boolean =>
       ctx.path.includes('hooks') && ctx.code === 'invalid_type',
     tip: {
       suggestion:

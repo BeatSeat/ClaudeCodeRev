@@ -523,6 +523,32 @@ const GIT_NO_PROMPT_ENV = {
 
 const DEFAULT_PLUGIN_GIT_TIMEOUT_MS = 120 * 1000
 
+/**
+ * FwH / ywH: CCR (`CLAUDE_CODE_REMOTE`) and `CLAUDE_CODE_PLUGIN_PREFER_HTTPS`
+ * skip the SSH probe and always clone/pull GitHub marketplaces over HTTPS.
+ */
+function preferHttpsForGitHub(): boolean {
+  return (
+    isEnvTruthy(process.env.CLAUDE_CODE_REMOTE) ||
+    isEnvTruthy(process.env.CLAUDE_CODE_PLUGIN_PREFER_HTTPS)
+  )
+}
+
+/**
+ * yj4: rewrite origin so a subsequent pull uses the preferred protocol.
+ * No-op when the cache is not yet a git repo (execFileNoThrow never throws).
+ */
+async function rewriteGitRemoteOrigin(
+  cwd: string,
+  url: string,
+): Promise<void> {
+  await execFileNoThrowWithCwd(
+    gitExe(),
+    ['--git-dir=.git', 'remote', 'set-url', 'origin', url],
+    { cwd, stdin: 'ignore' },
+  )
+}
+
 function getPluginGitTimeoutMs(): number {
   const envValue = process.env.CLAUDE_CODE_PLUGIN_GIT_TIMEOUT_MS
   if (envValue) {

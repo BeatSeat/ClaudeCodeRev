@@ -2653,6 +2653,28 @@ async function* queryModel(
       }
 
       if (
+        streamIdleAborted &&
+        newMessages.length === 0 &&
+        staleStreamRetries < STALE_STREAM_RETRY_MAX
+      ) {
+        staleStreamRetries++
+        logForDebugging(
+          `Stream idle timeout before first event — retrying streaming (${staleStreamRetries}/${STALE_STREAM_RETRY_MAX})`,
+          { level: 'warn' },
+        )
+        logEvent('tengu_streaming_watchdog_retry', {
+          model:
+            options.model as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
+          retry_attempt: staleStreamRetries,
+          request_id: (streamRequestId ??
+            'unknown') as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
+        })
+        streamRequestId = undefined
+        await sleep(100 * staleStreamRetries, signal)
+        continue staleRetry
+      }
+
+      if (
         isStaleConnection &&
         staleCode &&
         staleStreamRetries < STALE_STREAM_RETRY_MAX

@@ -57,11 +57,7 @@ import {
   useAppStateStore,
 } from '../../state/AppState.js'
 import { ModelPicker } from '../ModelPicker.js'
-import {
-  modelDisplayString,
-  isOpus1mMergeEnabled,
-} from '../../utils/model/model.js'
-import { isBilledAsExtraUsage } from '../../utils/extraUsage.js'
+import { modelDisplayString } from '../../utils/model/model.js'
 import { ClaudeMdExternalIncludesDialog } from '../ClaudeMdExternalIncludesDialog.js'
 import {
   ChannelDowngradeDialog,
@@ -328,11 +324,7 @@ export function Config({
       mainLoopModelForSession: null,
     }))
     setChanges(prev => {
-      const valStr =
-        modelDisplayString(value) +
-        (isBilledAsExtraUsage(value, false, isOpus1mMergeEnabled())
-          ? ' · Billed as extra usage'
-          : '')
+      const valStr = modelDisplayString(value)
       if ('model' in prev) {
         const { model, ...rest } = prev
         return { ...rest, model: valStr }

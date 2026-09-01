@@ -1,7 +1,7 @@
 import { feature } from 'bun:bundle'
 import { randomBytes } from 'crypto'
 import { execa } from 'execa'
-import { basename, extname, isAbsolute, join } from 'path'
+import { basename, isAbsolute, join } from 'path'
 import {
   IMAGE_MAX_HEIGHT,
   IMAGE_MAX_WIDTH,
@@ -13,7 +13,7 @@ import { logForDebugging } from './debug.js'
 import { execFileNoThrowWithCwd } from './execFileNoThrow.js'
 import { getFsImplementation } from './fsOperations.js'
 import {
-  detectImageFormatFromBase64,
+  detectImageFormatFromBuffer,
   type ImageDimensions,
   maybeResizeAndDownsampleImageBuffer,
 } from './imageResizer.js'
@@ -395,18 +395,25 @@ export async function tryReadImageFromPath(
     imageBuffer = await sharp(imageBuffer).png().toBuffer()
   }
 
+  // Official 2.1.144 `D7H`: extension is not enough — HTML saved as .png
+  // must not be treated as an image paste.
+  const mediaType = detectImageFormatFromBuffer(imageBuffer)
+  if (mediaType === null) {
+    logForDebugging(
+      `Pasted path has image extension but content is not a supported image: ${imagePath}`,
+      { level: 'warn' },
+    )
+    return null
+  }
+
   // Resize if needed to stay under 5MB API limit
-  // Extract extension from path for format hint
-  const ext = extname(imagePath).slice(1).toLowerCase() || 'png'
+  const ext = mediaType.split('/')[1] || 'png'
   const resized = await maybeResizeAndDownsampleImageBuffer(
     imageBuffer,
     imageBuffer.length,
     ext,
   )
   const base64Image = resized.buffer.toString('base64')
-
-  // Detect format from the actual file contents using magic bytes
-  const mediaType = detectImageFormatFromBase64(base64Image)
   return {
     path: imagePath,
     base64: base64Image,

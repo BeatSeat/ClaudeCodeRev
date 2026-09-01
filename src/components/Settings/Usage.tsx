@@ -281,7 +281,7 @@ type ExtraUsageSectionProps = {
   maxWidth: number
 }
 
-const EXTRA_USAGE_SECTION_TITLE = 'Extra usage'
+const EXTRA_USAGE_SECTION_TITLE = 'Usage credits'
 
 function ExtraUsageSection({
   extraUsage,
@@ -299,7 +299,7 @@ function ExtraUsageSection({
       return (
         <Box flexDirection="column">
           <Text bold>{EXTRA_USAGE_SECTION_TITLE}</Text>
-          <Text dimColor>Extra usage not enabled · /extra-usage to enable</Text>
+          <Text dimColor>Usage credits are off · /usage-credits to turn them on</Text>
         </Box>
       )
     }

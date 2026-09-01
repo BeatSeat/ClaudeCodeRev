@@ -1,7 +1,7 @@
 import { chmodSync } from 'fs'
 import { join } from 'path'
 import { logEvent } from '../../services/analytics/index.js'
-import { getClaudeConfigHomeDir } from '../envUtils.js'
+import { getSecureStorageConfigDir } from '../envUtils.js'
 import { getErrnoCode } from '../errors.js'
 import { getFsImplementation } from '../fsOperations.js'
 import { logError } from '../log.js'
@@ -20,7 +20,7 @@ import type { SecureStorage, SecureStorageData } from './types.js'
 export { withCredentialsLock }
 
 function getStoragePath(): { storageDir: string; storagePath: string } {
-  const storageDir = getClaudeConfigHomeDir()
+  const storageDir = getSecureStorageConfigDir()
   const storageFileName = '.credentials.json'
   return { storageDir, storagePath: join(storageDir, storageFileName) }
 }

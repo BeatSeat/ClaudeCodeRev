@@ -192,6 +192,8 @@ import remoteEnv from './commands/remote-env/index.js'
 import upgrade from './commands/upgrade/index.js'
 import {
   extraUsage,
+  extraUsageLegacy,
+  extraUsageLegacyNonInteractive,
   extraUsageNonInteractive,
 } from './commands/extra-usage/index.js'
 import rateLimitOptions from './commands/rate-limit-options/index.js'
@@ -337,6 +339,8 @@ const COMMANDS = memoize((): Command[] => [
   upgrade,
   extraUsage,
   extraUsageNonInteractive,
+  extraUsageLegacy,
+  extraUsageLegacyNonInteractive,
   rateLimitOptions,
   usage,
   usageNonInteractive,
@@ -685,7 +689,8 @@ export const BRIDGE_SAFE_COMMANDS: Set<Command> = new Set(
     contextNonInteractive, // Official 2.1.110 — /context from RC
     exitNonInteractive, // Official 2.1.110 qaK — /exit from RC
     reloadPlugins, // Official 2.1.110 — /reload-plugins from RC
-    extraUsageNonInteractive, // Official 2.1.113 — /extra-usage from RC
+    extraUsageNonInteractive, // Official 2.1.113 — /usage-credits from RC
+    extraUsageLegacyNonInteractive, // Official 2.1.144 — legacy /extra-usage alias
   ].filter((c): c is Command => c !== null),
 )
 
