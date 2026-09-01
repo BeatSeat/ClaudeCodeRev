@@ -41,6 +41,7 @@ import {
 import { lazySchema } from '../../utils/lazySchema.js'
 import { logError } from '../../utils/log.js'
 import { expandPath } from '../../utils/path.js'
+import { getBgFileIsolationMessage } from '../../utils/worktree.js'
 import {
   checkWritePermissionForTool,
   matchingRuleForInput,
@@ -177,6 +178,14 @@ export const FileWriteTool = buildTool({
   },
   async validateInput({ file_path, content }, toolUseContext: ToolUseContext) {
     const fullFilePath = expandPath(file_path)
+
+    const isolationMessage = getBgFileIsolationMessage(
+      fullFilePath,
+      toolUseContext.agentId,
+    )
+    if (isolationMessage) {
+      return { result: false, message: isolationMessage, errorCode: 7 }
+    }
 
     // Official 2.1.91 tengu_sub_nomdrep_q7k: subagents must return findings
     // as text, not Write REPORT/SUMMARY/FINDINGS/ANALYSIS*.md files.

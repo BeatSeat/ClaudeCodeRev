@@ -85,9 +85,33 @@ function withoutCcdSpawnEnvKeys(
 function filterSettingsEnv(
   env: Record<string, string> | undefined,
 ): Record<string, string> {
-  return withoutCcdSpawnEnvKeys(
-    withoutHostManagedProviderVars(withoutSSHTunnelVars(env)),
+  return peelSettingsColorEnv(
+    withoutCcdSpawnEnvKeys(
+      withoutHostManagedProviderVars(withoutSSHTunnelVars(env)),
+    ),
   )
+}
+
+/**
+ * Official 2.1.143 `RsH`: NO_COLOR / FORCE_COLOR from settings.json `env`
+ * apply to subprocesses only so they do not strip Claude Code's own UI.
+ */
+let settingsSubprocessColorEnv: Record<string, string> = {}
+
+export function getSettingsSubprocessColorEnv(): Record<string, string> {
+  return settingsSubprocessColorEnv
+}
+
+/** Official 2.1.143 `JU5`. */
+function peelSettingsColorEnv(
+  env: Record<string, string>,
+): Record<string, string> {
+  const { NO_COLOR, FORCE_COLOR, ...rest } = env
+  if (NO_COLOR !== undefined) settingsSubprocessColorEnv.NO_COLOR = NO_COLOR
+  if (FORCE_COLOR !== undefined) {
+    settingsSubprocessColorEnv.FORCE_COLOR = FORCE_COLOR
+  }
+  return rest
 }
 
 /**
@@ -122,6 +146,7 @@ const TRUSTED_SETTING_SOURCES = [
  * fully established via applyConfigEnvironmentVariables().
  */
 export function applySafeConfigEnvironmentVariables(): void {
+  settingsSubprocessColorEnv = {}
   // Capture CCD spawn-env keys before any settings.env is applied (once).
   if (ccdSpawnEnvKeys === undefined) {
     ccdSpawnEnvKeys =
@@ -185,6 +210,7 @@ export function applySafeConfigEnvironmentVariables(): void {
  * dangerous environment variables such as LD_PRELOAD, PATH, etc.
  */
 export function applyConfigEnvironmentVariables(): void {
+  settingsSubprocessColorEnv = {}
   Object.assign(process.env, filterSettingsEnv(getGlobalConfig().env))
 
   Object.assign(process.env, filterSettingsEnv(getSettings_DEPRECATED()?.env))

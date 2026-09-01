@@ -1,7 +1,7 @@
 import type { Command } from '../../commands.js'
 
 const tui = {
-  type: 'local',
+  type: 'local-jsx',
   name: 'tui',
   description: 'Set the terminal UI renderer (default | fullscreen)',
   argumentHint: '[default|fullscreen]',

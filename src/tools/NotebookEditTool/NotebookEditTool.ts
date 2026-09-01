@@ -8,6 +8,7 @@ import { z } from 'zod/v4'
 import { buildTool, type ToolDef, type ToolUseContext } from '../../Tool.js'
 import type { NotebookCell, NotebookContent } from '../../types/notebook.js'
 import { getCwd } from '../../utils/cwd.js'
+import { getBgFileIsolationMessage } from '../../utils/worktree.js'
 import { getFsImplementation } from '../../utils/fsOperations.js'
 import {
   isPerforceReadOnly,
@@ -185,6 +186,14 @@ export const NotebookEditTool = buildTool({
     const fullPath = isAbsolute(notebook_path)
       ? notebook_path
       : resolve(getCwd(), notebook_path)
+
+    const isolationMessage = getBgFileIsolationMessage(
+      fullPath,
+      toolUseContext.agentId,
+    )
+    if (isolationMessage) {
+      return { result: false, message: isolationMessage, errorCode: 12 }
+    }
 
     // SECURITY: Skip filesystem operations for UNC paths to prevent NTLM credential leaks.
     if (fullPath.startsWith('\\\\') || fullPath.startsWith('//')) {

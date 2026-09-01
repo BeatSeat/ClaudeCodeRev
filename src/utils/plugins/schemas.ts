@@ -1392,7 +1392,7 @@ const PluginRelevanceSignalsSchema = lazySchema(() =>
       .max(10)
       .optional()
       .describe(
-        'CLI command tokens matched exactly against commands run this session.',
+        'First command tokens (e.g. ["stripe"]) — exact match against commands run this session.',
       ),
     hosts: z
       .array(z.string().max(128))
@@ -1437,7 +1437,7 @@ const PluginRelevanceSchema = lazySchema(() =>
       .optional()
       .describe(
         'What the user is working with when this plugin is relevant — fills "Working with {topic}?". ' +
-          'Topic label; defaults to the plugin name with each hyphen-segment capitalized.',
+          'Often the product name (e.g. "Stripe"); use a domain (e.g. "design") when the plugin name does not read naturally as a topic. Defaults to the plugin name with each hyphen-segment capitalized.',
       ),
     signals: PluginRelevanceSignalsSchema()
       .optional()

@@ -1,0 +1,54 @@
+{
+  "version": "2.1.143",
+  "fromVersion": "2.1.142",
+  "expectedFunctionCount": 0,
+  "functions": [],
+  "changelogCoverage": [
+    {
+      "item": "worktree.bgIsolation none",
+      "status": "located",
+      "evidence": "Ev6/lnH/fp5 in src/utils/worktree.ts; FileWrite errorCode 7, FileEdit/Notebook 12; bg-session prompt section."
+    },
+    {
+      "item": "PowerShell -ExecutionPolicy Bypass",
+      "status": "located",
+      "evidence": "powershellProvider.ts executionPolicyArgs / pU7. Already in hop commit."
+    },
+    {
+      "item": "Stop-hook block cap",
+      "status": "located",
+      "evidence": "query.ts CLAUDE_CODE_STOP_HOOK_BLOCK_CAP default 8 + tengu_stop_hook_block_count hit_cap true/false."
+    },
+    {
+      "item": "macOS TCC disclaim",
+      "status": "located",
+      "evidence": "LS4 in macosTccDisclaim.ts; cli.tsx --bg-pty-host calls it first."
+    },
+    {
+      "item": "Daemon execPath fallback",
+      "status": "located",
+      "evidence": "UP8 in daemonSpawn.ts; getRelaunchSpec({pinToCurrentBinary}); claude daemon argv path not compile-stripped."
+    },
+    {
+      "item": "NO_COLOR/FORCE_COLOR settings peel",
+      "status": "located",
+      "evidence": "JU5 peelSettingsColorEnv in managedEnv.ts; subprocess overlay via getSettingsSubprocessColorEnv."
+    },
+    {
+      "item": "/tui opt-out form",
+      "status": "located",
+      "evidence": "gk5 TuiOptOutForm + ffH getTuiEntryPath. tengu_tui_optout_reason; Couldn't switch renderers copy."
+    },
+    {
+      "item": "CLAUDE_MEMORY_STORES",
+      "status": "located",
+      "evidence": "V64 parseClaudeMemoryStores; Gz5 invalid → tengu_team_mem_multistore_config_invalid. fR6 aggregator deferred-large-infra."
+    },
+    {
+      "item": "/goal evaluator tengu_goal_failed",
+      "status": "shared-logic",
+      "evidence": "No activeGoal in recovered tree. deferred-large-infra."
+    }
+  ],
+  "notes": "Four-domain review PASS. Do not pull 145 stopHookSnapshot or 146 LzA / CLAUDE_BG_SESSION_PERMISSION_RULES into the 143 commit."
+}

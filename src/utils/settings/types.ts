@@ -488,6 +488,20 @@ export const SettingsSchema = lazySchema(() =>
               'Which ref new git worktrees branch from: "fresh" (default) branches from origin/<default-branch>; ' +
                 '"head" branches from your current local HEAD',
             ),
+          // 2.1.143: isolation mode for background sessions in this repo.
+          // 'worktree' (default) blocks Edit/Write in the main checkout until
+          // EnterWorktree is called; 'none' lets background jobs edit the
+          // working copy directly (for repos where worktrees are impractical).
+          bgIsolation: z
+            .enum(['worktree', 'none'])
+            .optional()
+            .catch(undefined)
+            .describe(
+              'Isolation mode for background sessions in this repo. ' +
+                '"worktree" (default) blocks Edit/Write in the main checkout until ' +
+                'EnterWorktree is called. "none" lets background jobs edit the ' +
+                'working copy directly.',
+            ),
         })
         .optional()
         .describe('Git worktree configuration for --worktree flag.'),

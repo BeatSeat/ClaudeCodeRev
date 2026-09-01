@@ -18,6 +18,7 @@ import {
 import { registerCleanup } from '../../utils/cleanupRegistry.js'
 import { logForDebugging } from '../../utils/debug.js'
 import { errorMessage } from '../../utils/errors.js'
+import { parseClaudeMemoryStores } from './memoryStores.js'
 import { getGithubRepo } from '../../utils/git.js'
 import {
   type AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
@@ -256,6 +257,32 @@ export async function startTeamMemoryWatcher(): Promise<void> {
   if (!isTeamMemoryEnabled() || !isTeamMemorySyncAvailable()) {
     return
   }
+
+  // Official 2.1.143 `Gz5`/`V64`: multi-store env is parsed before the
+  // github.com-remote check. Invalid JSON disables sync. A valid non-empty
+  // list is the multi-store path (full pull/push aggregator is later hop).
+  let memoryStores: ReturnType<typeof parseClaudeMemoryStores>
+  try {
+    memoryStores = parseClaudeMemoryStores()
+  } catch (err) {
+    logForDebugging(
+      `team-memory-watcher: CLAUDE_MEMORY_STORES invalid, disabling sync: ${errorMessage(err)}`,
+      { level: 'error' },
+    )
+    logEvent('tengu_team_mem_multistore_config_invalid', {
+      error: errorMessage(err) as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
+    })
+    return
+  }
+  if (memoryStores !== null) {
+    logEvent('tengu_team_mem_sync_started', {
+      multistore: true,
+      stores: memoryStores.length,
+      watcher_started: true,
+    })
+    return
+  }
+
   const repoSlug = await getGithubRepo()
   if (!repoSlug) {
     logForDebugging(

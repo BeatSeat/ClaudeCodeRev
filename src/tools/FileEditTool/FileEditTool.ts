@@ -49,6 +49,7 @@ import {
 } from '../../utils/gitDiff.js'
 import { logError } from '../../utils/log.js'
 import { expandPath } from '../../utils/path.js'
+import { getBgFileIsolationMessage } from '../../utils/worktree.js'
 import {
   checkWritePermissionForTool,
   matchingRuleForInput,
@@ -155,6 +156,18 @@ export const FileEditTool = buildTool({
     // Use expandPath for consistent path normalization (especially on Windows
     // where "/" vs "\" can cause readFileState lookup mismatches)
     const fullFilePath = expandPath(file_path)
+
+    const isolationMessage = getBgFileIsolationMessage(
+      fullFilePath,
+      toolUseContext.agentId,
+    )
+    if (isolationMessage) {
+      return {
+        result: false,
+        message: isolationMessage,
+        errorCode: 12,
+      }
+    }
 
     // Reject edits to team memory files that introduce secrets
     const secretError = checkTeamMemSecrets(fullFilePath, new_string)

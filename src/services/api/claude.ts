@@ -70,7 +70,8 @@ import {
 } from '../../utils/context.js'
 import { resolveAppliedEffort } from '../../utils/effort.js'
 import { isEnvTruthy } from '../../utils/envUtils.js'
-import { errorMessage } from '../../utils/errors.js'
+import { errorMessage, getErrorCauseCode } from '../../utils/errors.js'
+import { sleep } from '../../utils/sleep.js'
 import { computeFingerprintFromMessages } from '../../utils/fingerprint.js'
 import {
   parseImageDimensionError,
@@ -2008,6 +2009,10 @@ async function* queryModel(
     resetStreamIdleTimer()
 
     startSessionActivity('api_call')
+    // Official 2.1.143: retry streaming on stale TCP close before first event.
+    const STALE_STREAM_RETRY_MAX = 2
+    let staleStreamRetries = 0
+    staleRetry: for (;;) {
     try {
       // stream in and accumulate state
       let isFirstChunk = true
@@ -2602,9 +2607,18 @@ async function* queryModel(
           'tengu_disable_streaming_to_non_streaming_fallback',
           false,
         )
-      const fallbackCause = (streamIdleAborted
+      let fallbackCause = (streamIdleAborted
         ? 'watchdog'
         : 'other') as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS
+      const staleCode = getErrorCauseCode(streamingError)
+      const isStaleConnection =
+        staleCode === 'ECONNRESET' ||
+        staleCode === 'EPIPE' ||
+        staleCode === 'ConnectionClosed'
+      if (isStaleConnection) {
+        fallbackCause =
+          'stale_connection' as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS
+      }
       const fallbackError = streamIdleAborted
         ? new Error(
             newMessages.length > 0
@@ -2636,6 +2650,30 @@ async function* queryModel(
             'partial_yield' as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
         })
         throw fallbackError
+      }
+
+      if (
+        isStaleConnection &&
+        staleCode &&
+        staleStreamRetries < STALE_STREAM_RETRY_MAX
+      ) {
+        staleStreamRetries++
+        logForDebugging(
+          `Stream connection closed (${staleCode}) before first event — retrying streaming (${staleStreamRetries}/${STALE_STREAM_RETRY_MAX})`,
+          { level: 'warn' },
+        )
+        logEvent('tengu_streaming_stale_connection_retry', {
+          model:
+            options.model as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
+          error_code:
+            staleCode as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
+          retry_attempt: staleStreamRetries,
+          request_id: (streamRequestId ??
+            'unknown') as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
+        })
+        streamRequestId = undefined
+        await sleep(100 * staleStreamRetries, signal)
+        continue staleRetry
       }
 
       if (disableFallback) {
@@ -2746,6 +2784,8 @@ async function* queryModel(
       yield m
     } finally {
       clearStreamIdleTimers()
+    }
+    break staleRetry
     }
   } catch (errorFromRetry) {
     // FallbackTriggeredError must propagate to query.ts, which performs the
