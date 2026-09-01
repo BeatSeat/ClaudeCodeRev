@@ -1,0 +1,12 @@
+{
+  "version": "2.1.159",
+  "from": "2.1.158",
+  "astdiff": "failed-parse",
+  "items": [
+    {
+      "item": "Internal infrastructure improvements (no user-facing changes)",
+      "status": "absent-in-bundle",
+      "evidence": "no unique user-facing token; +3716 bytes internals only"
+    }
+  ]
+}

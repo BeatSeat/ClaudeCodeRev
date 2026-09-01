@@ -29,6 +29,7 @@ import {
 import { has1mContext } from './context.js'
 import { isEnvDefinedFalsy, isEnvTruthy } from './envUtils.js'
 import { getCanonicalName } from './model/model.js'
+import { isPewterOwlHeader } from './pewterOwl.js'
 import { get3PModelCapabilityOverride } from './model/modelSupportOverrides.js'
 import {
   getAPIProvider,
@@ -372,6 +373,24 @@ export const getAllModelBetas = memoize((model: string): string[] => {
     !isEnvDefinedFalsy(process.env.USE_CONNECTOR_TEXT_SUMMARIZATION) &&
     (isEnvTruthy(process.env.USE_CONNECTOR_TEXT_SUMMARIZATION) ||
       getFeatureValue_CACHED_MAY_BE_STALE('tengu_slate_prism', false))
+  ) {
+    betaHeaders.push(SUMMARIZE_CONNECTOR_TEXT_BETA_HEADER)
+  }
+
+  // 2.1.159 Pewter-owl `narration_summaries` beta header.
+  // STATUS: 默认关实验（default-off experiment），注入与否待裁 (pending
+  // adjudication) — see src/utils/pewterOwl.ts.
+  // Official 2.1.159 bundle `KO6`: `if (_ && t36()) $.push(QY$)` where
+  // `_` = includeFirstPartyOnlyBetas, `t36()` = isPewterOwlHeader(), and
+  // `QY$` = rD("narration_summaries","summarize-connector-text-2026-03-13")
+  // (same header string as SUMMARIZE_CONNECTOR_TEXT_BETA_HEADER). The
+  // `.includes()` guard avoids a duplicate header when the block above is
+  // also active — the 159 bundle has no competing slate_prism block, so its
+  // bare push can never double-send; the guard preserves that behavior here.
+  if (
+    includeFirstPartyOnlyBetas &&
+    isPewterOwlHeader() &&
+    !betaHeaders.includes(SUMMARIZE_CONNECTOR_TEXT_BETA_HEADER)
   ) {
     betaHeaders.push(SUMMARIZE_CONNECTOR_TEXT_BETA_HEADER)
   }
