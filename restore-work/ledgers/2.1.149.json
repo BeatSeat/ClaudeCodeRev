@@ -1,0 +1,133 @@
+{
+  "version": "2.1.149",
+  "fromVersion": "2.1.148",
+  "expectedFunctionCount": 8,
+  "functions": [
+    {
+      "id": "CJ$",
+      "name": "shouldSuppressClaudeAiMcps",
+      "status": "located",
+      "evidence": "Enterprise suppress unless allowAllClaudeAiMcps; three consume sites"
+    },
+    {
+      "id": "Y0$",
+      "name": "isPowerShellDirectoryChangeName",
+      "status": "located",
+      "evidence": "glued cd.. cd\\ cd/ cd~ X: + new-psdrive + Windows ndr/mount; live via isCwdChangingCmdlet"
+    },
+    {
+      "id": "invalidateCwdTrackedVars",
+      "name": "invalidateCwdTrackedVars",
+      "status": "located",
+      "evidence": "PWD/OLDPWD/DIRSTACK/dirstack on cd/chdir/pushd/popd"
+    },
+    {
+      "id": "tEH",
+      "name": "isSkillsSyncEnabled",
+      "status": "located",
+      "evidence": "CLAUDE_CODE_SYNC_SKILLS env gate"
+    },
+    {
+      "id": "UD9",
+      "name": "getSkillsSyncWaitTimeoutMs",
+      "status": "located",
+      "evidence": "default 5000"
+    },
+    {
+      "id": "pw8",
+      "name": "waitForSyncedSkill",
+      "status": "partial",
+      "evidence": "registry + SkillTool wait; HTTP materializer deferred"
+    },
+    {
+      "id": "QD9/gD9/MNA/YNA",
+      "name": "skills-sync engine",
+      "status": "absent-in-bundle",
+      "evidence": "deferred-large-infra named HTTP list-skills"
+    },
+    {
+      "id": "cl4",
+      "name": "tengu_bg_retire_grace_bridged_min",
+      "status": "absent-in-bundle",
+      "evidence": "deferred-large-infra worker-pool consumer"
+    }
+  ],
+  "changelogCoverage": [
+    {
+      "item": "/usage per-category breakdown",
+      "status": "absent-in-bundle",
+      "evidence": "no unique 149 string; not invented"
+    },
+    {
+      "item": "/diff keyboard scroll",
+      "status": "shared-logic",
+      "evidence": "no unique 149 string"
+    },
+    {
+      "item": "GFM task list checkboxes",
+      "status": "shared-logic",
+      "evidence": "no unique 149 string"
+    },
+    {
+      "item": "allowAllClaudeAiMcps managed setting",
+      "status": "located",
+      "evidence": "Zod + CJ$ + getAllMcpConfigs / useManageMCPConnections / main.tsx -p"
+    },
+    {
+      "item": "PowerShell cd.. / cd\\ / cd~ / X: cwd undetected",
+      "status": "located",
+      "evidence": "Y0$ in isPowerShellDirectoryChangeName"
+    },
+    {
+      "item": "sandbox worktree write allowlist .git only",
+      "status": "shared-logic",
+      "evidence": "sandbox-adapter still allowWrite.push(worktreeMainRepoPath); no unique token"
+    },
+    {
+      "item": "PowerShell prefix/wildcard native exe",
+      "status": "shared-logic",
+      "evidence": "no unique 149 token"
+    },
+    {
+      "item": "PWD/OLDPWD/DIRSTACK stale vars across cd/pushd/popd",
+      "status": "located",
+      "evidence": "invalidateCwdTrackedVars in bash/ast.ts"
+    },
+    {
+      "item": "find vnode exhaustion",
+      "status": "shared-logic",
+      "evidence": "no unique 149 token"
+    },
+    {
+      "item": "managed-settings dialog freeze",
+      "status": "shared-logic",
+      "evidence": "no unique 149 token"
+    },
+    {
+      "item": "ultraplan uncommitted changes",
+      "status": "shared-logic",
+      "evidence": "no unique 149 token"
+    },
+    {
+      "item": "otelHeadersHelper spaces",
+      "status": "shared-logic",
+      "evidence": "no unique 149 token"
+    },
+    {
+      "item": "thinking spinner amber / collapsed Bash / argument-hint / skill name vs basename / status bar effort / Ctrl+O / history edit / /config phantom / /insights / PS+History missing-input / remote-control rename / prompt-history race / Jump-to-bottom / /feedback pre-compact",
+      "status": "shared-logic",
+      "evidence": "CHANGELOG UI/shared; no hop-unique extractable string landed"
+    },
+    {
+      "item": "CLAUDE_CODE_USE_GATEWAY allowlists",
+      "status": "located",
+      "evidence": "astdiff-unique; both managedEnvConstants lists"
+    },
+    {
+      "item": "CLAUDE_CODE_SYNC_SKILLS gates",
+      "status": "partial",
+      "evidence": "tEH/UD9/pw8/Tr7 landed; list-skills engine deferred-large-infra"
+    }
+  ],
+  "notes": "Four-domain review PASS. Dist tokens: allowAllClaudeAiMcps 2, CLAUDE_CODE_USE_GATEWAY 2, CLAUDE_CODE_SYNC_SKILLS 2, WAIT_TIMEOUT 1, cd.. 1, cd~ 1, DIRSTACK 1. Typecheck per-file delta empty vs HEAD."
+}

@@ -47,7 +47,7 @@ import {
 } from 'src/services/analytics/index.js'
 import {
   dedupClaudeAiMcpServers,
-  doesEnterpriseMcpConfigExist,
+  shouldSuppressClaudeAiMcps,
   filterMcpServersByPolicy,
   getClaudeCodeMcpConfigs,
   isMcpServerDisabled,
@@ -918,7 +918,7 @@ export function useManageMCPConnections(
       // inside getClaudeCodeMcpConfigs; it's awaited only at the dedup step.
       // Phase 2 below awaits the same promise — no second network call.
       let claudeaiPromise: Promise<Record<string, ScopedMcpServerConfig>>
-      if (isStrictMcpConfig || doesEnterpriseMcpConfigExist()) {
+      if (isStrictMcpConfig || shouldSuppressClaudeAiMcps()) {
         claudeaiPromise = Promise.resolve({})
       } else {
         clearClaudeAIMcpConfigsCache()

@@ -222,6 +222,10 @@ import {
   isSkillHiddenFromModel,
 } from './utils/settings/skillOverrides.js'
 import {
+  getSyncedRemoteSkills,
+  isSkillsSyncEnabled,
+} from './utils/skills/skillsSync.js'
+import {
   type Command,
   getCommandName,
   isCommandEnabled,
@@ -595,7 +599,7 @@ export function getMcpSkillCommands(
 export const getSkillToolCommands = memoize(
   async (cwd: string): Promise<Command[]> => {
     const allCommands = await getCommands(cwd)
-    return allCommands.filter(
+    const local = allCommands.filter(
       cmd =>
         // Official 2.1.108 knY: builtins like /init /review are Skill-invocable.
         cmd.type === 'prompt' &&
@@ -608,6 +612,8 @@ export const getSkillToolCommands = memoize(
           cmd.hasUserSpecifiedDescription ||
           !!cmd.whenToUse),
     )
+    // Official 2.1.149 `tEH`/`Tr7`: concat remote synced skills when enabled.
+    return isSkillsSyncEnabled() ? local.concat(getSyncedRemoteSkills()) : local
   },
 )
 

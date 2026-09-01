@@ -80,7 +80,12 @@ function isLowMem(): boolean {
 }
 
 function bridgedGraceMs(): number {
-  return 480 * 60000
+  return (
+    getFeatureValue_CACHED_MAY_BE_STALE(
+      'tengu_bg_retire_grace_bridged_min',
+      480,
+    ) * 60000
+  )
 }
 
 function emptyRoster(): Roster {

@@ -87,6 +87,43 @@ const CMDSUB_PLACEHOLDER = '__CMDSUB_OUTPUT__'
 const VAR_PLACEHOLDER = '__TRACKED_VAR__'
 
 /**
+ * Official 2.1.149: `cd`/`chdir`/`pushd`/`popd` invalidate PWD/OLDPWD
+ * (unless pushd/popd `-n` / `popd +N`), and pushd/popd also kill DIRSTACK.
+ */
+function invalidateCwdTrackedVars(
+  argv: string[],
+  varScope: Map<string, string>,
+): void {
+  const cmd = argv[0]
+  if (cmd !== 'cd' && cmd !== 'chdir' && cmd !== 'pushd' && cmd !== 'popd') {
+    return
+  }
+  let skipPwd = false
+  if (cmd === 'pushd' || cmd === 'popd') {
+    for (let i = 1; i < argv.length; i++) {
+      const arg = argv[i]
+      if (arg === '--') break
+      if (/^-[a-zA-Z]*n[a-zA-Z]*$/.test(arg)) {
+        skipPwd = true
+        break
+      }
+      if (cmd === 'popd' && (/^\+0*[1-9]/.test(arg) || /^-0+$/.test(arg))) {
+        skipPwd = true
+        break
+      }
+    }
+  }
+  if (!skipPwd) {
+    varScope.set('PWD', VAR_PLACEHOLDER)
+    varScope.set('OLDPWD', VAR_PLACEHOLDER)
+  }
+  if (cmd === 'pushd' || cmd === 'popd') {
+    varScope.set('DIRSTACK', VAR_PLACEHOLDER)
+    varScope.set('dirstack', VAR_PLACEHOLDER)
+  }
+}
+
+/**
  * All placeholder strings. Used for defense-in-depth: if a varScope value
  * contains ANY placeholder (exact or embedded), the value is NOT a pure
  * literal and cannot be trusted as a bare argument. Covers composites like
@@ -695,6 +732,7 @@ function collectCommands(
       }
     }
     commands.push({ argv, envVars: [], redirects: [], text: node.text })
+    invalidateCwdTrackedVars(argv, varScope)
     return null
   }
 

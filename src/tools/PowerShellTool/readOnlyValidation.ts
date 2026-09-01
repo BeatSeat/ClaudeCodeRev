@@ -17,6 +17,7 @@ import {
   deriveSecurityFlags,
   getPipelineSegments,
   isNullRedirectionTarget,
+  isPowerShellDirectoryChangeName,
   isPowerShellParameter,
 } from '../../utils/powershell/parser.js'
 import type { ExternalCommandConfig } from '../../utils/shell/readOnlyCommandValidation.js'
@@ -1020,21 +1021,8 @@ export function resolveToCanonical(name: string): string {
  * semantically this is "alters path-resolution namespace".
  */
 export function isCwdChangingCmdlet(name: string): boolean {
-  const canonical = resolveToCanonical(name)
-  return (
-    canonical === 'set-location' ||
-    canonical === 'push-location' ||
-    canonical === 'pop-location' ||
-    // New-PSDrive creates a drive mapping that redirects <name>:/... paths
-    // to an arbitrary filesystem root. Aliases ndr/mount are not in
-    // COMMON_ALIASES — check them explicitly (finding #21).
-    canonical === 'new-psdrive' ||
-    // ndr/mount are PS aliases for New-PSDrive on Windows only. On POSIX,
-    // 'mount' is the native mount(8) command; treating it as PSDrive-creating
-    // would false-positive. (bug #15 / review nit)
-    (getPlatform() === 'windows' &&
-      (canonical === 'ndr' || canonical === 'mount'))
-  )
+  // Official 2.1.149 `Y0$`: glued builtins + drive-letter + New-PSDrive.
+  return isPowerShellDirectoryChangeName(name)
 }
 
 /**
