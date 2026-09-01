@@ -348,7 +348,11 @@ export function createBaseHookInput(
   sessionId?: string,
   // Typed narrowly (not ToolUseContext) so callers can pass toolUseContext
   // directly via structural typing without this function depending on Tool.ts.
-  agentInfo?: { agentId?: string; agentType?: string },
+  agentInfo?: {
+    agentId?: string
+    agentType?: string
+    getEffortValue?: () => unknown
+  },
 ): {
   session_id: string
   transcript_path: string
@@ -356,12 +360,14 @@ export function createBaseHookInput(
   permission_mode?: string
   agent_id?: string
   agent_type?: string
+  effort?: { level?: string }
 } {
   const resolvedSessionId = sessionId ?? getSessionId()
   // agent_type: subagent's type (from toolUseContext) takes precedence over
   // the session's --agent flag. Hooks use agent_id presence to distinguish
   // subagent calls from main-thread calls in a --agent session.
   const resolvedAgentType = agentInfo?.agentType ?? getMainThreadAgentType()
+  const effort = agentInfo?.getEffortValue?.()
   return {
     session_id: resolvedSessionId,
     transcript_path: getTranscriptPathForSession(resolvedSessionId),
@@ -369,6 +375,7 @@ export function createBaseHookInput(
     permission_mode: permissionMode,
     agent_id: agentInfo?.agentId,
     agent_type: resolvedAgentType,
+    ...(typeof effort === 'string' && { effort: { level: effort } }),
   }
 }
 
@@ -953,6 +960,16 @@ async function execCommandHook(
   const envVars: NodeJS.ProcessEnv = {
     ...subprocessEnv(),
     CLAUDE_PROJECT_DIR: toHookPath(projectDir),
+  }
+  try {
+    const parsedInput = JSON.parse(jsonInput) as {
+      effort?: { level?: unknown }
+    }
+    if (typeof parsedInput.effort?.level === 'string') {
+      envVars.CLAUDE_EFFORT = parsedInput.effort.level
+    }
+  } catch {
+    // ignore malformed input; CLAUDE_EFFORT simply omitted
   }
 
   // Plugin and skill hooks both set CLAUDE_PLUGIN_ROOT (skills use the same

@@ -1,0 +1,26 @@
+{
+  "version": "2.1.133",
+  "fromVersion": "2.1.132",
+  "expectedFunctionCount": 0,
+  "functions": [],
+  "changelogCoverage": [
+    { "item": "Added worktree.baseRef setting (fresh|head)", "status": "located", "evidence": "settings/types.ts baseRef enum; worktree.ts baseRefSetting gate" },
+    { "item": "Added sandbox.bwrapPath and sandbox.socatPath managed settings", "status": "located", "evidence": "sandboxTypes.ts bwrapPath/socatPath preprocess isAbsolute" },
+    { "item": "Added parentSettingsBehavior admin key (first-wins|merge)", "status": "located", "evidence": "settings/types.ts parentSettingsBehavior enum" },
+    { "item": "Hooks and Bash receive active effort via effort.level and $CLAUDE_EFFORT", "status": "located", "evidence": "hooks.ts effort in createBaseHookInput + CLAUDE_EFFORT env; BashTool extraEnv" },
+    { "item": "Improved focus mode behavior", "status": "shared-logic", "evidence": "No unique token" },
+    { "item": "Release warm-spare workers under memory pressure", "status": "shared-logic", "evidence": "Runtime" },
+    { "item": "Parallel sessions 401 after refresh-token race", "status": "shared-logic", "evidence": "Runtime auth" },
+    { "item": "Edit/Write allow rules at drive root", "status": "shared-logic", "evidence": "Permission logic" },
+    { "item": "ECOMPROMISED on file lock compromised by clock skew", "status": "shared-logic", "evidence": "Runtime" },
+    { "item": "Esc during compaction spurious error notification", "status": "shared-logic", "evidence": "UI runtime" },
+    { "item": "HTTP(S)_PROXY/NO_PROXY/mTLS for MCP OAuth flow", "status": "shared-logic", "evidence": "Count stable" },
+    { "item": "Read/Write/Edit denied on mapped network drives", "status": "shared-logic", "evidence": "Permission logic" },
+    { "item": "Remote Control stop/interrupt not fully canceling", "status": "shared-logic", "evidence": "Runtime" },
+    { "item": "/effort in one session changing other sessions", "status": "shared-logic", "evidence": "Re-minify" },
+    { "item": "Subagents not discovering skills via Skill tool", "status": "shared-logic", "evidence": "Runtime" },
+    { "item": "claude --help lists --remote-control", "status": "shared-logic", "evidence": "Count stable" },
+    { "item": "[VSCode] claudeProcessWrapper Unsupported platform", "status": "absent-in-bundle", "evidence": "Extension host" }
+  ],
+  "notes": "4 product items landed. Build green."
+}

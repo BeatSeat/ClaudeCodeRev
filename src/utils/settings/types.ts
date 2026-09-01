@@ -481,6 +481,13 @@ export const SettingsSchema = lazySchema(() =>
               'Directories to include when creating worktrees, via git sparse-checkout (cone mode). ' +
                 'Dramatically faster in large monorepos — only the listed paths are written to disk.',
             ),
+          baseRef: z
+            .enum(['fresh', 'head'])
+            .optional()
+            .describe(
+              'Which ref new git worktrees branch from: "fresh" (default) branches from origin/<default-branch>; ' +
+                '"head" branches from your current local HEAD',
+            ),
         })
         .optional()
         .describe('Git worktree configuration for --worktree flag.'),
@@ -688,6 +695,14 @@ export const SettingsSchema = lazySchema(() =>
         .optional()
         .describe(
           'Force a specific login method: "claudeai" for Claude Pro/Max, "console" for Console billing',
+        ),
+      parentSettingsBehavior: z
+        .enum(['first-wins', 'merge'])
+        .optional()
+        .describe(
+          'Controls whether the SDK parent tier (Options.managedSettings / --managed-settings) layers under this admin tier. ' +
+            '"first-wins" (default): parent is dropped — admin tiers are the only policy source. ' +
+            '"merge": parent\'s restrictive-only-filtered settings union under the admin winner. Has no effect when no admin tier is present',
         ),
       // Organization UUID to use for OAuth login (will be added as URL param to authorization URL)
       forceLoginOrgUUID: z
