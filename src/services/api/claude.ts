@@ -86,6 +86,7 @@ import {
   normalizeContentFromAPI,
   normalizeMessagesForAPI,
   stripAdvisorBlocks,
+  stripSignedThinkingBlocks,
   stripCallerFieldFromAssistantMessage,
   stripSignedThinkingBlocks,
   stripToolReferenceBlocksFromUserMessage,
@@ -1925,8 +1926,6 @@ async function* queryModel(
             })
             return 'retry:advisor-strip'
           }
-          // Official 2.1.152 BeK + w24: stale thinking-block signatures →
-          // strip signed/redacted thinking and retry once (withRetry onError key).
           if (isThinkingSignatureError(error)) {
             const next = stripSignedThinkingBlocks(messagesForAPI)
             if (next !== messagesForAPI) {

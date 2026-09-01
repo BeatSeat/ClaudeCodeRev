@@ -1,0 +1,11 @@
+{
+  "version": "2.1.156",
+  "from": "2.1.154",
+  "items": [
+    {
+      "item": "Fixed an issue when using Opus 4.8 where thinking blocks were modified, leading to API errors.",
+      "status": "located",
+      "evidence": "SG4 skip-reorder + B87/cG4 signature strip retry; tokens in dist"
+    }
+  ]
+}

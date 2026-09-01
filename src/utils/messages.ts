@@ -2412,9 +2412,90 @@ export function mergeAssistantMessages(
     ...a,
     message: {
       ...a.message,
-      content: hasNonThinking ? filtered : merged,
+      content: reorderToolUses(hasNonThinking ? filtered : merged),
     },
   }
+}
+
+/** Official 2.1.156 `SG4`. */
+function reorderToolUses<T extends { type: string }>(blocks: T[]): T[] {
+  let firstToolUseIdx = -1
+  let toolUseThenOther = false
+  let thinkingAfterToolUseRun = false
+  let prevThinking = false
+  let prevToolUse = false
+  for (let i = 0; i < blocks.length; i++) {
+    const type = blocks[i]!.type
+    if (type === 'tool_use') {
+      if (firstToolUseIdx === -1) firstToolUseIdx = i
+      prevToolUse = true
+    } else {
+      if (firstToolUseIdx !== -1) toolUseThenOther = true
+      const thinking = type === 'thinking' || type === 'redacted_thinking'
+      if (thinking && prevThinking && prevToolUse) {
+        thinkingAfterToolUseRun = true
+      }
+      prevThinking = thinking
+      prevToolUse = false
+    }
+  }
+  if (!toolUseThenOther) return blocks
+  if (thinkingAfterToolUseRun) {
+    logEvent('tengu_reorder_tool_uses_skipped_for_thinking', {
+      contentLength: blocks.length,
+      firstToolUseIdx,
+    })
+    return blocks
+  }
+  const toolUses: T[] = []
+  const rest: T[] = []
+  for (const block of blocks) {
+    if (block.type === 'tool_use') toolUses.push(block)
+    else rest.push(block)
+  }
+  return [...rest, ...toolUses]
+}
+
+/** Official 2.1.156 `gG4`. */
+function isSignedThinkingBlock(block: { type: string; signature?: string }): boolean {
+  if (block.type === 'redacted_thinking') return true
+  if (block.type === 'thinking' && 'signature' in block && block.signature) {
+    return true
+  }
+  return false
+}
+
+/** Official 2.1.156 `cG4`. */
+export function stripSignedThinkingBlocks<T extends Message>(messages: T[]): T[] {
+  let changed = false
+  const next = messages.map(msg => {
+    if (msg.type !== 'assistant' || !Array.isArray(msg.message.content)) {
+      return msg
+    }
+    const content = msg.message.content
+    const stripped = content.filter(block => !isSignedThinkingBlock(block))
+    if (stripped.length === content.length) return msg
+    changed = true
+    let kept = stripped.filter(
+      block => block.type !== 'text' || Boolean(block.text?.trim()),
+    )
+    if (
+      kept.length === 0 ||
+      kept.every(
+        block => block.type === 'thinking' || block.type === 'redacted_thinking',
+      )
+    ) {
+      kept = [
+        ...kept,
+        { type: 'text', text: '[Thinking removed]', citations: [] },
+      ] as typeof kept
+    }
+    return {
+      ...msg,
+      message: { ...msg.message, content: kept },
+    }
+  })
+  return changed ? next : messages
 }
 
 function isToolResultMessage(msg: Message): boolean {

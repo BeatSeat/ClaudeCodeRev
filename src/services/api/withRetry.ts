@@ -785,20 +785,23 @@ function parseThinkingTypeNotSupported(
   if (!(error instanceof APIError) || error.status !== 400) {
     return null
   }
-  const match = /thinking\.type[^a-z]{1,8}(enabled|adaptive)[^]*?not supported/i.exec(
-    error.message,
-  )
+  const match =
+    /thinking\.type[^a-z]{1,8}(enabled|adaptive)[^]*?not supported/i.exec(
+      error.message,
+    ) ?? /\b(adaptive) thinking is not supported/i.exec(error.message)
   const type = match?.[1]?.toLowerCase()
   return type === 'enabled' || type === 'adaptive' ? type : null
 }
 
-/** Official 2.1.152 `BeK`. Do not widen to 156 `B87` (backtick-thinking / redacted_thinking). */
+/** Official 2.1.156 `B87`. */
 export function isThinkingSignatureError(error: unknown): boolean {
   if (!(error instanceof APIError) || error.status !== 400) return false
   const msg = error.message.toLowerCase()
   if (msg.includes('signature in thinking block')) return true
   return (
-    msg.includes('thinking block') &&
+    (msg.includes('thinking block') ||
+      msg.includes('`thinking`') ||
+      msg.includes('redacted_thinking')) &&
     (msg.includes('cannot be modified') || msg.includes('invalid signature'))
   )
 }
