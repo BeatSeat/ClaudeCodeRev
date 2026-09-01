@@ -480,7 +480,7 @@ export function Config({
           },
         ]
       : []),
-    ...(getFeatureValue_CACHED_MAY_BE_STALE('tengu_sedge_lantern', false)
+    ...(getFeatureValue_CACHED_MAY_BE_STALE('tengu_sedge_lantern', true)
       ? [
           {
             id: 'awaySummaryEnabled',
@@ -754,6 +754,23 @@ export function Config({
               })
             },
           },
+          {
+            id: 'autoScrollEnabled',
+            label: 'Auto-scroll',
+            value: globalConfig.autoScrollEnabled ?? true,
+            type: 'boolean' as const,
+            onChange(autoScrollEnabled: boolean) {
+              saveGlobalConfig(current => ({ ...current, autoScrollEnabled }))
+              setGlobalConfig({ ...getGlobalConfig(), autoScrollEnabled })
+              logEvent('tengu_config_changed', {
+                setting:
+                  'autoScrollEnabled' as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
+                value: String(
+                  autoScrollEnabled,
+                ) as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
+              })
+            },
+          },
         ]
       : []),
     // autoUpdates setting is hidden - use DISABLE_AUTOUPDATER env var to control
@@ -939,6 +956,25 @@ export function Config({
           mode: value as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
           source:
             'config_panel' as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
+        })
+      },
+    },
+    {
+      id: 'externalEditorContext',
+      label: 'Show last response in external editor',
+      value: globalConfig.externalEditorContext ?? false,
+      type: 'boolean' as const,
+      onChange(enabled: boolean) {
+        saveGlobalConfig(current => ({
+          ...current,
+          externalEditorContext: enabled,
+        }))
+        setGlobalConfig({
+          ...getGlobalConfig(),
+          externalEditorContext: enabled,
+        })
+        logEvent('tengu_external_editor_context_changed', {
+          enabled,
         })
       },
     },
@@ -1407,6 +1443,14 @@ export function Config({
     ) {
       formattedChanges.push(
         `${globalConfig.autoCompactEnabled ? 'Enabled' : 'Disabled'} auto-compact`,
+      )
+    }
+    if (
+      globalConfig.autoScrollEnabled !==
+      initialConfig.current.autoScrollEnabled
+    ) {
+      formattedChanges.push(
+        `${globalConfig.autoScrollEnabled ? 'Enabled' : 'Disabled'} auto-scroll`,
       )
     }
     if (

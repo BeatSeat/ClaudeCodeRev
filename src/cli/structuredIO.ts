@@ -37,7 +37,11 @@ import type {
   PermissionDecision,
   PermissionDecisionReason,
 } from 'src/utils/permissions/PermissionResult.js'
-import { hasPermissionsToUseTool } from 'src/utils/permissions/permissions.js'
+import {
+  checkRuleBasedPermissions,
+  hasPermissionsToUseTool,
+  permissionRequestHookUpdatedInputOverride,
+} from 'src/utils/permissions/permissions.js'
 import { writeToStdout } from 'src/utils/process.js'
 import { jsonStringify } from 'src/utils/slowOperations.js'
 import { z } from 'zod/v4'
@@ -592,7 +596,7 @@ export class StructuredIO {
       try {
         // Start the hook evaluation (runs in background)
         const hookPromise = executePermissionRequestHooksForSDK(
-          tool.name,
+          tool,
           toolUseID,
           input,
           toolUseContext,
@@ -802,7 +806,7 @@ function exitWithMessage(message: string): never {
  * Returns undefined if no hook made a decision.
  */
 async function executePermissionRequestHooksForSDK(
-  toolName: string,
+  tool: Tool,
   toolUseID: string,
   input: Record<string, unknown>,
   toolUseContext: ToolUseContext,
@@ -813,7 +817,7 @@ async function executePermissionRequestHooksForSDK(
 
   // Iterate directly over the generator instead of using `all`
   const hookGenerator = executePermissionRequestHooks(
-    toolName,
+    tool.name,
     toolUseID,
     input,
     toolUseContext,
@@ -831,6 +835,24 @@ async function executePermissionRequestHooksForSDK(
       const decision = hookResult.permissionRequestResult
       if (decision.behavior === 'allow') {
         const finalInput = decision.updatedInput || input
+        if (decision.updatedInput) {
+          const override = permissionRequestHookUpdatedInputOverride(
+            await checkRuleBasedPermissions(tool, finalInput, toolUseContext),
+            tool.name,
+          )
+          if (override) {
+            return override.behavior === 'ask'
+              ? {
+                  behavior: 'deny',
+                  message: override.message,
+                  decisionReason: override.decisionReason ?? {
+                    type: 'other',
+                    reason: 'ask rule on hook-rewritten input',
+                  },
+                }
+              : override
+          }
+        }
 
         // Apply permission updates if provided by hook ("always allow")
         const permissionUpdates = decision.updatedPermissions ?? []

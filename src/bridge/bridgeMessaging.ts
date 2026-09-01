@@ -214,7 +214,7 @@ export type ServerControlRequestHandlers = {
   sessionId: string
   /**
    * When true, all mutable requests (interrupt, set_model, set_permission_mode,
-   * set_max_thinking_tokens) reply with an error instead of false-success.
+   * set_max_thinking_tokens, rename_session) reply with an error instead of false-success.
    * initialize still replies success — the server kills the connection otherwise.
    * Used by the outbound-only bridge mode and the SDK's /bridge subpath so claude.ai sees a
    * proper error instead of "action succeeded but nothing happened locally".
@@ -225,6 +225,10 @@ export type ServerControlRequestHandlers = {
   onSetMaxThinkingTokens?: (maxTokens: number | null) => void
   onSetPermissionMode?: (
     mode: PermissionMode,
+  ) => { ok: true } | { ok: false; error: string }
+  /** Official 2.1.110 rename_session — persist claude.ai title to local CLI. */
+  onRenameSession?: (
+    title: string,
   ) => { ok: true } | { ok: false; error: string }
 }
 
@@ -252,6 +256,7 @@ export function handleServerControlRequest(
     onSetModel,
     onSetMaxThinkingTokens,
     onSetPermissionMode,
+    onRenameSession,
   } = handlers
   if (!transport) {
     logForDebugging(
@@ -369,6 +374,40 @@ export function handleServerControlRequest(
         },
       }
       break
+
+    case 'rename_session': {
+      const title = request.request.title
+      const verdict =
+        typeof title !== 'string'
+          ? {
+              ok: false as const,
+              error: 'rename_session requires a string title',
+            }
+          : (onRenameSession?.(title) ?? {
+              ok: false,
+              error:
+                'rename_session is not supported in this context (onRenameSession callback not registered)',
+            })
+      if (verdict.ok) {
+        response = {
+          type: 'control_response',
+          response: {
+            subtype: 'success',
+            request_id: request.request_id,
+          },
+        }
+      } else {
+        response = {
+          type: 'control_response',
+          response: {
+            subtype: 'error',
+            request_id: request.request_id,
+            error: verdict.error,
+          },
+        }
+      }
+      break
+    }
 
     default:
       // Unknown subtype — respond with error so the server doesn't

@@ -41,7 +41,7 @@ import {
   clearInvokedSkillsForAgent,
   getSessionId,
 } from '../../bootstrap/state.js'
-import { COMMAND_MESSAGE_TAG } from '../../constants/xml.js'
+import { COMMAND_MESSAGE_TAG, COMMAND_NAME_TAG } from '../../constants/xml.js'
 import type { CanUseToolFn } from '../../hooks/useCanUseTool.js'
 import {
   type AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
@@ -56,7 +56,12 @@ import {
 } from '../../utils/forkedAgent.js'
 import { parseFrontmatter } from '../../utils/frontmatterParser.js'
 import { lazySchema } from '../../utils/lazySchema.js'
-import { createUserMessage, normalizeMessages } from '../../utils/messages.js'
+import {
+  createUserMessage,
+  getUserMessageText,
+  normalizeMessages,
+} from '../../utils/messages.js'
+import { escapeRegExp } from '../../utils/stringUtils.js'
 import type { ModelAlias } from '../../utils/model/aliases.js'
 import { resolveSkillModelOverride } from '../../utils/model/model.js'
 import { recordSkillUsage } from '../../utils/suggestions/skillUsageTracking.js'
@@ -75,6 +80,35 @@ import {
   renderToolUseProgressMessage,
   renderToolUseRejectedMessage,
 } from './UI.js'
+
+/**
+ * Official 110 rjK: a disable-model-invocation skill is still allowed when
+ * the user typed `/skill` mid-message in this turn (not a subagent).
+ */
+function wasSkillInvokedViaSlashInCurrentTurn(
+  skillName: string,
+  context: ToolUseContext,
+): boolean {
+  if (context.agentId !== undefined) return false
+  const pattern = new RegExp(`(?<!\\S)/${escapeRegExp(skillName)}(?=$|\\s)`)
+  const turnStartIndex =
+    'turnStartIndex' in context &&
+    typeof (context as { turnStartIndex?: unknown }).turnStartIndex === 'number'
+      ? (context as { turnStartIndex: number }).turnStartIndex
+      : 0
+  for (let i = context.messages.length - 1; i >= turnStartIndex; i--) {
+    const msg = context.messages[i]
+    if (!msg || msg.type !== 'user' || msg.isMeta) continue
+    const content = msg.message.content
+    if (typeof content === 'string') {
+      if (content.includes(`<${COMMAND_NAME_TAG}>`)) continue
+    } else if (content.some(block => block.type === 'tool_result')) {
+      continue
+    }
+    if (pattern.test(getUserMessageText(msg) ?? '')) return true
+  }
+  return false
+}
 
 /**
  * Gets all commands including MCP skills/prompts from AppState.
@@ -419,8 +453,12 @@ export const SkillTool: Tool<InputSchema, Output, Progress> = buildTool({
       }
     }
 
-    // Check if command has model invocation disabled
-    if (foundCommand.disableModelInvocation) {
+    // Check if command has model invocation disabled. Official 110: still
+    // allow when the user invoked the skill via `/ ` mid-message this turn.
+    if (
+      foundCommand.disableModelInvocation &&
+      !wasSkillInvokedViaSlashInCurrentTurn(normalizedCommandName, context)
+    ) {
       return {
         result: false,
         message: `Skill ${normalizedCommandName} cannot be used with ${SKILL_TOOL_NAME} tool due to disable-model-invocation`,

@@ -87,6 +87,7 @@ import {
   getSettingsForSource,
   updateSettingsForSource,
 } from '../../utils/settings/settings.js'
+import { getGlobalConfig, saveGlobalConfig } from '../../utils/config.js'
 import { jsonParse } from '../../utils/slowOperations.js'
 import { plural } from '../../utils/stringUtils.js'
 import { formatErrorMessage, getErrorGuidance } from './PluginErrors.js'
@@ -94,7 +95,11 @@ import { PluginOptionsDialog } from './PluginOptionsDialog.js'
 import { PluginOptionsFlow } from './PluginOptionsFlow.js'
 import type { ViewState as ParentViewState } from './types.js'
 import { UnifiedInstalledCell } from './UnifiedInstalledCell.js'
-import type { UnifiedInstalledItem } from './unifiedTypes.js'
+import type {
+  InstalledListRow,
+  InstalledListSection,
+  UnifiedInstalledItem,
+} from './unifiedTypes.js'
 import { usePagination } from './usePagination.js'
 
 type Props = {
@@ -151,6 +156,50 @@ type PluginState = {
   scope?: 'user' | 'project' | 'local' | 'managed' | 'builtin'
   pendingEnable?: boolean // Toggle enable/disable
   pendingUpdate?: boolean // Marked for update
+}
+
+/** Official 2.1.110 `nBK`. */
+function needsAttention(item: UnifiedInstalledItem): boolean {
+  switch (item.type) {
+    case 'plugin':
+      return item.isEnabled && item.errorCount > 0
+    case 'failed-plugin':
+    case 'flagged-plugin':
+      return true
+    case 'mcp':
+      return item.status === 'needs-auth' || item.status === 'failed'
+  }
+}
+
+/** Official 2.1.110 `NO7`. */
+function isDisabledInstalledItem(item: UnifiedInstalledItem): boolean {
+  return (
+    (item.type === 'plugin' && !item.isEnabled) ||
+    (item.type === 'mcp' && item.status === 'disabled')
+  )
+}
+
+/** Official 2.1.110 `cbY`. */
+function getInstalledScopeLabel(scope: string): string {
+  switch (scope) {
+    case 'flagged':
+      return 'Flagged'
+    case 'project':
+      return 'Project'
+    case 'local':
+      return 'Local'
+    case 'user':
+      return 'User'
+    case 'enterprise':
+      return 'Enterprise'
+    case 'managed':
+      return 'Managed'
+    case 'builtin':
+    case 'dynamic':
+      return 'Built-in'
+    default:
+      return scope
+  }
 }
 
 /**
@@ -953,24 +1002,77 @@ export function ManagePlugins({
     }
   }, [flaggedIds])
 
-  // Filter items based on search query (matches name or description)
-  const filteredItems = useMemo(() => {
-    if (!searchQuery) return unifiedItems
-    const lowerQuery = searchQuery.toLowerCase()
-    return unifiedItems.filter(
-      item =>
-        item.name.toLowerCase().includes(lowerQuery) ||
-        ('description' in item &&
-          item.description?.toLowerCase().includes(lowerQuery)),
-    )
-  }, [unifiedItems, searchQuery])
+  // Official 2.1.110: starred plugin IDs persist on GlobalConfig.favoritePlugins.
+  const [favoriteIds, setFavoriteIds] = useState(
+    () => new Set(getGlobalConfig().favoritePlugins ?? []),
+  )
+  const toggleFavorite = useCallback((id: string) => {
+    setFavoriteIds(prev => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      saveGlobalConfig(cfg => ({ ...cfg, favoritePlugins: [...next] }))
+      return next
+    })
+  }, [])
+  const [disabledExpanded, setDisabledExpanded] = useState(false)
+
+  // Official 2.1.110 Installed-tab grouping. Search stays a flat main list.
+  const listRows = useMemo((): InstalledListRow[] => {
+    if (searchQuery) {
+      const lowerQuery = searchQuery.toLowerCase()
+      return unifiedItems
+        .filter(
+          item =>
+            item.name.toLowerCase().includes(lowerQuery) ||
+            ('description' in item &&
+              item.description?.toLowerCase().includes(lowerQuery)),
+        )
+        .map(item => ({ kind: 'item' as const, section: 'main' as const, item }))
+    }
+    const rows: InstalledListRow[] = []
+    const push = (section: InstalledListSection, item: UnifiedInstalledItem) => {
+      const last = rows.at(-1)
+      const lastIsPlugin =
+        last?.kind === 'item' &&
+        last.section === section &&
+        last.item.type === 'plugin'
+      const normalized =
+        item.type === 'mcp' && item.indented && !lastIsPlugin
+          ? { ...item, indented: false }
+          : item
+      rows.push({ kind: 'item', section, item: normalized })
+    }
+    for (const item of unifiedItems) {
+      if (needsAttention(item)) push('attention', item)
+    }
+    for (const item of unifiedItems) {
+      if (favoriteIds.has(item.id)) push('favorites', item)
+    }
+    for (const item of unifiedItems) {
+      if (!isDisabledInstalledItem(item)) push('main', item)
+    }
+    const disabled = unifiedItems.filter(isDisabledInstalledItem)
+    if (disabled.length > 0) {
+      rows.push({ kind: 'disabled-header', count: disabled.length })
+      if (disabledExpanded) {
+        for (const item of disabled) push('disabled', item)
+      }
+    }
+    return rows
+  }, [unifiedItems, searchQuery, favoriteIds, disabledExpanded])
 
   // Selection state
   const [selectedIndex, setSelectedIndex] = useState(0)
+  useEffect(() => {
+    if (listRows.length > 0 && selectedIndex >= listRows.length) {
+      setSelectedIndex(listRows.length - 1)
+    }
+  }, [listRows.length, selectedIndex])
 
   // Pagination for unified list (continuous scrolling)
-  const pagination = usePagination<UnifiedInstalledItem>({
-    totalItems: filteredItems.length,
+  const pagination = usePagination<InstalledListRow>({
+    totalItems: listRows.length,
     selectedIndex,
     maxVisible: 8,
   })
@@ -1383,8 +1485,13 @@ export function ManagePlugins({
 
   // Handle toggle enable/disable
   const handleToggle = React.useCallback(() => {
-    if (selectedIndex >= filteredItems.length) return
-    const item = filteredItems[selectedIndex]
+    const row = listRows[selectedIndex]
+    if (!row) return
+    if (row.kind === 'disabled-header') {
+      setDisabledExpanded(prev => !prev)
+      return
+    }
+    const item = row.item
     if (item?.type === 'flagged-plugin') return
     if (item?.type === 'plugin') {
       const pluginId = `${item.plugin.name}@${item.marketplace}`
@@ -1433,7 +1540,7 @@ export function ManagePlugins({
     }
   }, [
     selectedIndex,
-    filteredItems,
+    listRows,
     pendingToggles,
     pluginStates,
     toggleMcpServer,
@@ -1441,8 +1548,13 @@ export function ManagePlugins({
 
   // Handle accept (Enter) in plugin-list
   const handleAccept = React.useCallback(() => {
-    if (selectedIndex >= filteredItems.length) return
-    const item = filteredItems[selectedIndex]
+    const row = listRows[selectedIndex]
+    if (!row) return
+    if (row.kind === 'disabled-header') {
+      setDisabledExpanded(prev => !prev)
+      return
+    }
+    const item = row.item
     if (item?.type === 'plugin') {
       const state = pluginStates.find(
         s =>
@@ -1485,7 +1597,17 @@ export function ManagePlugins({
       setViewState({ type: 'mcp-detail', client: item.client })
       setProcessError(null)
     }
-  }, [selectedIndex, filteredItems, pluginStates])
+  }, [selectedIndex, listRows, pluginStates])
+
+  const handleFavorite = React.useCallback(() => {
+    const row = listRows[selectedIndex]
+    if (row?.kind !== 'item') return
+    const willAdd = !favoriteIds.has(row.item.id)
+    toggleFavorite(row.item.id)
+    if (row.section === 'main' || row.section === 'disabled') {
+      setSelectedIndex(i => i + (willAdd ? 1 : -1))
+    }
+  }, [listRows, selectedIndex, favoriteIds, toggleFavorite])
 
   // Plugin-list navigation (non-search mode)
   useKeybindings(
@@ -1498,7 +1620,7 @@ export function ManagePlugins({
         }
       },
       'select:next': () => {
-        if (selectedIndex < filteredItems.length - 1) {
+        if (selectedIndex < listRows.length - 1) {
           pagination.handleSelectionChange(selectedIndex + 1, setSelectedIndex)
         }
       },
@@ -1511,7 +1633,7 @@ export function ManagePlugins({
   )
 
   useKeybindings(
-    { 'plugin:toggle': handleToggle },
+    { 'plugin:toggle': handleToggle, 'plugin:favorite': handleFavorite },
     {
       context: 'Plugin',
       isActive: viewState === 'plugin-list' && !isSearchMode,
@@ -1550,6 +1672,13 @@ export function ManagePlugins({
       label: isEnabled ? 'Disable plugin' : 'Enable plugin',
       action: () =>
         void handleSingleOperation(isEnabled ? 'disable' : 'enable'),
+    })
+
+    menuItems.push({
+      label: favoriteIds.has(pluginId)
+        ? 'Remove from favorites'
+        : 'Add to favorites',
+      action: () => toggleFavorite(pluginId),
     })
 
     // Update/Uninstall options — not available for built-in plugins
@@ -1704,7 +1833,14 @@ export function ManagePlugins({
     })
 
     return menuItems
-  }, [viewState, selectedPlugin, selectedPluginHasMcpb, pluginStates])
+  }, [
+    viewState,
+    selectedPlugin,
+    selectedPluginHasMcpb,
+    pluginStates,
+    favoriteIds,
+    toggleFavorite,
+  ])
 
   // Plugin-details navigation
   useKeybindings(
@@ -2686,7 +2822,7 @@ export function ManagePlugins({
   }
 
   // Plugin list view (main management interface)
-  const visibleItems = pagination.getVisibleItems(filteredItems)
+  const visibleRows = pagination.getVisibleItems(listRows)
 
   return (
     <Box flexDirection="column">
@@ -2702,7 +2838,7 @@ export function ManagePlugins({
       </Box>
 
       {/* No search results */}
-      {filteredItems.length === 0 && searchQuery && (
+      {listRows.length === 0 && searchQuery && (
         <Box marginBottom={1}>
           <Text dimColor>No items match &quot;{searchQuery}&quot;</Text>
         </Box>
@@ -2715,51 +2851,64 @@ export function ManagePlugins({
         </Box>
       )}
 
-      {/* Unified list of plugins and MCPs grouped by scope */}
-      {visibleItems.map((item, visibleIndex) => {
+      {/* Official 2.1.110: attention / favorites / main / folded disabled */}
+      {visibleRows.map((row, visibleIndex) => {
         const actualIndex = pagination.toActualIndex(visibleIndex)
         const isSelected = actualIndex === selectedIndex && !isSearchMode
+        const prevRow = visibleIndex > 0 ? visibleRows[visibleIndex - 1] : null
 
-        // Check if we need to show a scope header
-        const prevItem =
-          visibleIndex > 0 ? visibleItems[visibleIndex - 1] : null
-        const showScopeHeader = !prevItem || prevItem.scope !== item.scope
-
-        // Get scope label
-        const getScopeLabel = (scope: string): string => {
-          switch (scope) {
-            case 'flagged':
-              return 'Flagged'
-            case 'project':
-              return 'Project'
-            case 'local':
-              return 'Local'
-            case 'user':
-              return 'User'
-            case 'enterprise':
-              return 'Enterprise'
-            case 'managed':
-              return 'Managed'
-            case 'builtin':
-              return 'Built-in'
-            case 'dynamic':
-              return 'Built-in'
-            default:
-              return scope
-          }
+        if (row.kind === 'disabled-header') {
+          return (
+            <Box
+              key="section:disabled"
+              marginTop={visibleIndex > 0 ? 1 : 0}
+              paddingLeft={2}
+            >
+              <Text color={isSelected ? 'suggestion' : undefined}>
+                {isSelected ? `${figures.pointer} ` : '  '}
+                {disabledExpanded ? figures.arrowDown : figures.arrowRight} Show
+                disabled <Text dimColor>({row.count})</Text>
+              </Text>
+            </Box>
+          )
         }
 
+        const item = row.item
+        const prevSection = prevRow?.kind === 'item' ? prevRow.section : null
+        const showSectionHeader =
+          (row.section === 'attention' || row.section === 'favorites') &&
+          row.section !== prevSection
+        const prevItemInSection =
+          prevRow?.kind === 'item' && prevRow.section === row.section
+            ? prevRow.item
+            : null
+        const showScopeHeader =
+          (row.section === 'main' || row.section === 'disabled') &&
+          (!prevItemInSection || prevItemInSection.scope !== item.scope)
+
         return (
-          <React.Fragment key={item.id}>
-            {showScopeHeader && (
+          <React.Fragment key={`${row.section}:${item.id}`}>
+            {showSectionHeader && (
               <Box marginTop={visibleIndex > 0 ? 1 : 0} paddingLeft={2}>
                 <Text
-                  dimColor={item.scope !== 'flagged'}
-                  color={item.scope === 'flagged' ? 'warning' : undefined}
-                  bold={item.scope === 'flagged'}
+                  dimColor={row.section !== 'attention'}
+                  color={row.section === 'attention' ? 'warning' : undefined}
+                  bold
                 >
-                  {getScopeLabel(item.scope)}
+                  {row.section === 'attention'
+                    ? 'Needs attention'
+                    : 'Favorites'}
                 </Text>
+              </Box>
+            )}
+            {showScopeHeader && (
+              <Box
+                marginTop={
+                  prevRow == null || prevRow.kind === 'disabled-header' ? 0 : 1
+                }
+                paddingLeft={4}
+              >
+                <Text dimColor>{getInstalledScopeLabel(item.scope)}</Text>
               </Box>
             )}
             <UnifiedInstalledCell item={item} isSelected={isSelected} />
@@ -2784,6 +2933,12 @@ export function ManagePlugins({
               context="Plugin"
               fallback="Space"
               description="toggle"
+            />
+            <ConfigurableShortcutHint
+              action="plugin:favorite"
+              context="Plugin"
+              fallback="f"
+              description="favorite"
             />
             <ConfigurableShortcutHint
               action="select:accept"

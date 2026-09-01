@@ -75,6 +75,7 @@ import {
   findPlainTextUrlAt,
   getSelectedText,
   hasSelection,
+  selectionBounds,
   moveFocus,
   type SelectionState,
   selectLineAt,
@@ -189,6 +190,9 @@ export default class Ink {
   // pass in onRender can read it and App.tsx can update it from mouse
   // events. Public so instances.get() callers can access.
   readonly selection: SelectionState = createSelectionState()
+  // Last-applied selection bounds. Used so a static selection + spinner
+  // tick does not full-damage every frame (2.1.110 high-CPU fix).
+  private prevSelectionKey = ''
   // Search highlight query (alt-screen only). Setter below triggers
   // scheduleRender; applySearchHighlight in onRender inverts matching cells.
   private searchHighlightQuery = ''
@@ -656,9 +660,16 @@ export default class Ink {
     // compared when selection moves/clears. prevFrameContaminated covers
     // the frame-after-selection-clears case.
     let selActive = false
+    let selChanged = false
     let hlActive = false
     if (this.altScreenActive) {
       selActive = hasSelection(this.selection)
+      const bounds = selActive ? selectionBounds(this.selection) : null
+      const selKey = bounds
+        ? `${bounds.start.col},${bounds.start.row}-${bounds.end.col},${bounds.end.row}`
+        : ''
+      selChanged = selKey !== this.prevSelectionKey
+      this.prevSelectionKey = selKey
       if (selActive) {
         applySelectionOverlay(frame.screen, this.selection, this.stylePool)
       }
@@ -692,7 +703,7 @@ export default class Ink {
     // track damage. prevFrameContaminated covers the cleanup frame.
     if (
       didLayoutShift() ||
-      selActive ||
+      selChanged ||
       hlActive ||
       this.prevFrameContaminated
     ) {
@@ -888,7 +899,10 @@ export default class Ink {
     // becomes frontFrame (= next frame's prevScreen). If we applied the
     // selection overlay, that buffer has inverted cells. selActive/hlActive
     // are only ever true in alt-screen; in main-screen this is false→false.
-    this.prevFrameContaminated = selActive || hlActive
+    // Official 2.1.110: only contaminate when the selection/highlight
+    // region actually changed. A static selection + running tool spinner
+    // used to full-damage every clock tick.
+    this.prevFrameContaminated = selChanged || hlActive
 
     // A ScrollBox has pendingScrollDelta left to drain — schedule the next
     // frame. MUST NOT call this.scheduleRender() here: we're inside a

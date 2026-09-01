@@ -25,7 +25,7 @@ const recap = {
   name: 'recap',
   description: 'Generate a one-line session recap now',
   isEnabled: () =>
-    getFeatureValue_CACHED_MAY_BE_STALE('tengu_sedge_lantern', false),
+    getFeatureValue_CACHED_MAY_BE_STALE('tengu_sedge_lantern', true),
   supportsNonInteractive: false,
   load: () => Promise.resolve({ call }),
 } satisfies Command

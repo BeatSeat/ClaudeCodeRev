@@ -20,6 +20,7 @@ import {
 import { AsyncLocalStorage } from 'async_hooks'
 import { getFeatureValue_CACHED_MAY_BE_STALE } from '../../services/analytics/growthbook.js'
 import type { AssistantMessage, UserMessage } from '../../types/message.js'
+import { getIsNonInteractiveSession } from '../../bootstrap/state.js'
 import { isEnvDefinedFalsy, isEnvTruthy } from '../envUtils.js'
 import { getTelemetryAttributes } from '../telemetryAttributes.js'
 import {
@@ -270,9 +271,21 @@ export function startInteractionSpan(userPrompt: string): Span {
     'interaction.sequence': interactionSequence,
   })
 
-  const span = tracer.startSpan('claude_code.interaction', {
-    attributes,
-  })
+  // Official 2.1.110: SDK/headless sessions inherit W3C TRACEPARENT/TRACESTATE
+  // from the environment so a parent process can link this interaction span.
+  const parentContext =
+    getIsNonInteractiveSession() && process.env.TRACEPARENT
+      ? propagation.extract(otelContext.active(), {
+          traceparent: process.env.TRACEPARENT,
+          tracestate: process.env.TRACESTATE,
+        })
+      : undefined
+
+  const span = tracer.startSpan(
+    'claude_code.interaction',
+    { attributes },
+    parentContext,
+  )
 
   // Add experimental attributes (new_context)
   addBetaInteractionAttributes(span, userPrompt)

@@ -234,7 +234,10 @@ export type GlobalConfig = {
   bypassPermissionsModeAccepted?: boolean
   hasUsedBackslashReturn?: boolean
   autoCompactEnabled: boolean // Controls whether auto-compact is enabled
+  autoScrollEnabled?: boolean // Auto-scroll conversation to bottom (fullscreen mode only)
   showTurnDuration: boolean // Controls whether to show turn duration message (e.g., "Cooked for 1m 6s")
+  /** Show Claude's last response as commented context in the Ctrl+G external editor. */
+  externalEditorContext?: boolean
   /**
    * @deprecated Use settings.env instead.
    */
@@ -375,7 +378,8 @@ export type GlobalConfig = {
   // Todo feature configuration
   todoFeatureEnabled: boolean // Whether the todo feature is enabled
   showExpandedTodos?: boolean // Whether to show todos expanded, even when empty
-  briefTranscript?: boolean // Persist NO_FLICKER Focus (ctrl+o) transcript view
+  briefTranscript?: boolean // Persist NO_FLICKER Focus (/focus) transcript view
+  fullscreenUpsellSeenCount?: number // Number of times the /tui fullscreen upsell has been shown
   showSpinnerTree?: boolean // Whether to show the teammate spinner tree instead of pills
 
   // First start time tracking
@@ -587,6 +591,9 @@ export type GlobalConfig = {
   // CURRENT_MIGRATION_VERSION, runMigrations() skips all sync migrations
   // (avoiding 11× saveGlobalConfig lock+re-read on every startup).
   migrationVersion?: number
+
+  /** Official 2.1.110. Plugin IDs starred on the /plugin Installed tab. */
+  favoritePlugins?: string[]
 }
 
 /**
@@ -604,7 +611,9 @@ function createDefaultGlobalConfig(): GlobalConfig {
     verbose: false,
     editorMode: 'normal',
     autoCompactEnabled: true,
+    autoScrollEnabled: true,
     showTurnDuration: true,
+    externalEditorContext: false,
     hasSeenTasksHint: false,
     hasUsedStash: false,
     hasUsedBackgroundTask: false,
@@ -649,7 +658,9 @@ export const GLOBAL_CONFIG_KEYS = [
   'editorMode',
   'hasUsedBackslashReturn',
   'autoCompactEnabled',
+  'autoScrollEnabled',
   'showTurnDuration',
+  'externalEditorContext',
   'diffTool',
   'env',
   'tipsHistory',

@@ -161,7 +161,10 @@ import {
 import { transitionPermissionMode } from '../../utils/permissions/permissionSetup.js'
 import { getPlatform } from '../../utils/platform.js'
 import type { ProcessUserInputContext } from '../../utils/processUserInput/processUserInput.js'
-import { editPromptInEditor } from '../../utils/promptEditor.js'
+import {
+  collectLastAssistantResponses,
+  editPromptInEditor,
+} from '../../utils/promptEditor.js'
 import { hasAutoModeOptIn } from '../../utils/settings/settings.js'
 import { findBtwTriggerPositions } from '../../utils/sideQuestion.js'
 import { findSlashCommandPositions } from '../../utils/suggestions/commandSuggestions.js'
@@ -1748,8 +1751,17 @@ function PromptInput({
     setIsExternalEditorActive(true)
 
     try {
+      // Official 2.1.110: optional commented last-response context (Ctrl+G).
+      const lastResponse = getGlobalConfig().externalEditorContext
+        ? collectLastAssistantResponses(messages).messages.join('\n\n') ||
+          undefined
+        : undefined
       // Pass pastedContents to expand collapsed text references
-      const result = await editPromptInEditor(input, pastedContents)
+      const result = await editPromptInEditor(
+        input,
+        pastedContents,
+        lastResponse,
+      )
 
       if (result.error) {
         addNotification({
@@ -1784,6 +1796,7 @@ function PromptInput({
     input,
     cursorOffset,
     pastedContents,
+    messages,
     pushToBuffer,
     trackAndSetInput,
     addNotification,

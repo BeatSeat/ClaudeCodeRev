@@ -74,6 +74,8 @@ import {
   getTurnClassifierDurationMs,
   getTurnClassifierCount,
   resetTurnClassifierDuration,
+  getSessionCronTasks,
+  removeSessionCronTasks,
 } from '../bootstrap/state.js'
 import { asSessionId, asAgentId } from '../types/ids.js'
 import { logForDebugging } from '../utils/debug.js'
@@ -395,6 +397,7 @@ import {
   restoreSessionStateFromLog,
   restoreWorktreeForResume,
   exitRestoredWorktree,
+  resurrectSessionCronTasks,
 } from '../utils/sessionRestore.js'
 import {
   isBgSession,
@@ -1761,7 +1764,10 @@ export function REPL({
   // Re-pin scroll to bottom and clear the unseen-messages baseline. Called
   // on any user-driven return-to-live action (submit, type-into-empty,
   // overlay appear/dismiss).
-  const repinScroll = useCallback(() => {
+  const repinScroll = useCallback((force = false) => {
+    // Official 2.1.110: autoScrollEnabled disables conversation auto-scroll
+    // in fullscreen. force=true is reserved for explicit user jumps.
+    if (!force && getGlobalConfig().autoScrollEnabled === false) return
     scrollRef.current?.scrollToBottom()
     onRepin()
     setCursor(null)
@@ -2546,6 +2552,8 @@ export function REPL({
             getAppState: () => store.getState(),
             setAppState,
           })
+          removeSessionCronTasks(getSessionCronTasks().map(t => t.id))
+          resurrectSessionCronTasks(messages)
         } else {
           // Fork: same re-persist as /clear (conversation.ts). The clear
           // above wiped currentSessionWorktree, forkLog doesn't carry it,
@@ -2668,6 +2676,7 @@ export function REPL({
         getAppState: () => store.getState(),
         setAppState,
       })
+      resurrectSessionCronTasks(initialMessages)
     }
     // Only run on mount - initialMessages shouldn't change during component lifetime
     // eslint-disable-next-line react-hooks/exhaustive-deps

@@ -307,10 +307,26 @@ export function filterForFocusTranscript(
       }
     }
     const foldEnd = lastAssistantTextIdx === -1 ? turnEnd : lastAssistantTextIdx
+    const kept: Array<{ idx: number; msg: CollapsibleMessage }> = []
+    // Official RhK walks the whole turn (not just foldEnd) so recap /
+    // local-command / status lines after the last assistant text stay visible.
+    for (let j = i; j < turnEnd; j++) {
+      const item = messages[j]!
+      if (item.type !== 'system') continue
+      if (
+        item.subtype === 'api_metrics' ||
+        (item.subtype === 'informational' && item.level === 'info')
+      ) {
+        continue
+      }
+      kept.push({ idx: j, msg: item })
+    }
     let group: CollapsedReadSearchGroup | null = null
+    let groupIdx = turnEnd
     let pendingText: string | undefined
     for (let j = i; j < foldEnd; j++) {
       const item = messages[j]!
+      if (item.type === 'system') continue
       let folded: CollapsedReadSearchGroup | null = null
       if (item.type === 'collapsed_read_search') {
         folded = item
@@ -370,16 +386,24 @@ export function filterForFocusTranscript(
           mergeCollapsedGroups(group, folded)
         } else {
           group = { ...folded, messages: [...folded.messages] }
+          groupIdx = j
         }
       }
     }
     if (group) {
       group.uuid = `brief-${group.uuid}`
       if (pendingText) group.pendingText = pendingText
-      out.push(group)
+      kept.push({ idx: groupIdx, msg: group })
     }
     if (lastAssistantTextIdx !== -1) {
-      out.push(messages[lastAssistantTextIdx]!)
+      kept.push({
+        idx: lastAssistantTextIdx,
+        msg: messages[lastAssistantTextIdx]!,
+      })
+    }
+    kept.sort((a, b) => a.idx - b.idx)
+    for (const row of kept) {
+      out.push(row.msg)
     }
     i = turnEnd
   }

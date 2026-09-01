@@ -32,6 +32,10 @@ import {
 } from '../../utils/messages.js'
 import type { PermissionDecision } from '../../utils/permissions/PermissionResult.js'
 import {
+  checkRuleBasedPermissions,
+  permissionRequestHookUpdatedInputOverride,
+} from '../../utils/permissions/permissions.js'
+import {
   applyPermissionUpdates,
   persistPermissionUpdates,
   supportsPersistence,
@@ -222,7 +226,7 @@ function createPermissionContext(
       suggestions: PermissionUpdate[] | undefined,
       updatedInput?: Record<string, unknown>,
       permissionPromptStartTimeMs?: number,
-    ): Promise<PermissionDecision | null> {
+    ): Promise<PermissionDecision | PermissionHookReprompt | null> {
       for await (const hookResult of executePermissionRequestHooks(
         tool.name,
         toolUseID,
@@ -236,6 +240,36 @@ function createPermissionContext(
           const decision = hookResult.permissionRequestResult
           if (decision.behavior === 'allow') {
             const finalInput = decision.updatedInput ?? updatedInput ?? input
+            if (decision.updatedInput) {
+              const override = permissionRequestHookUpdatedInputOverride(
+                await checkRuleBasedPermissions(
+                  tool,
+                  finalInput,
+                  toolUseContext,
+                ),
+                tool.name,
+              )
+              if (override?.behavior === 'deny') {
+                this.logDecision(
+                  { decision: 'reject', source: 'config' },
+                  { input: finalInput, permissionPromptStartTimeMs },
+                )
+                return override
+              }
+              if (override?.behavior === 'ask') {
+                this.updateQueueItem({
+                  input: finalInput,
+                  permissionResult: override,
+                })
+                // Official 110 {reprompted, finalInput}: keep the dialog,
+                // cancel CCR/channel racers so they cannot Allow the original input.
+                return {
+                  reprompted: true as const,
+                  finalInput,
+                  decisionReason: override.decisionReason,
+                }
+              }
+            }
             return await this.handleHookAllow(
               finalInput,
               decision.updatedPermissions ?? [],
@@ -349,6 +383,23 @@ function createPermissionContext(
     },
   }
   return Object.freeze(ctx)
+}
+
+export type PermissionHookReprompt = {
+  reprompted: true
+  finalInput: Record<string, unknown>
+  decisionReason?: PermissionDecision['decisionReason']
+}
+
+export function isPermissionHookReprompt(
+  value: unknown,
+): value is PermissionHookReprompt {
+  return (
+    !!value &&
+    typeof value === 'object' &&
+    'reprompted' in value &&
+    (value as PermissionHookReprompt).reprompted === true
+  )
 }
 
 type PermissionContext = ReturnType<typeof createPermissionContext>

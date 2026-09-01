@@ -2,11 +2,14 @@ import { feature } from 'bun:bundle'
 import type { UUID } from 'crypto'
 import { dirname } from 'path'
 import {
+  addSessionCronTask,
   getMainLoopModelOverride,
+  getSessionCronTasks,
   getSessionId,
   setMainLoopModelOverride,
   setMainThreadAgentType,
   setOriginalCwd,
+  setScheduledTasksEnabled,
   switchSession,
 } from '../bootstrap/state.js'
 import { clearSystemPromptSections } from '../constants/systemPromptSections.js'
@@ -19,6 +22,11 @@ import {
   getActiveAgentsFromList,
   getAgentDefinitionsWithOverrides,
 } from '../tools/AgentTool/loadAgentsDir.js'
+import {
+  CRON_CREATE_TOOL_NAME,
+  CRON_DELETE_TOOL_NAME,
+  isKairosCronEnabled,
+} from '../tools/ScheduleCronTool/prompt.js'
 import { TODO_WRITE_TOOL_NAME } from '../tools/TodoWriteTool/constants.js'
 import { asSessionId } from '../types/ids.js'
 import type {
@@ -37,7 +45,10 @@ import {
 } from './commitAttribution.js'
 import { updateSessionName } from './concurrentSessions.js'
 import { getCwd } from './cwd.js'
+import { getCronJitterConfig } from './cronJitterConfig.js'
+import { oneShotJitteredNextCronRunMs } from './cronTasks.js'
 import { logForDebugging } from './debug.js'
+import { logError } from './log.js'
 import type { FileHistorySnapshot } from './fileHistory.js'
 import { fileHistoryRestoreStateFromLog } from './fileHistory.js'
 import { createSystemMessage } from './messages.js'
@@ -547,5 +558,122 @@ export async function processResumedConversation(
       ...(standaloneAgentContext && { standaloneAgentContext }),
       agentDefinitions: refreshedAgentDefs,
     },
+  }
+}
+
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null
+}
+
+type ExtractedCronCalls = {
+  calls: Array<{
+    toolUseId: string
+    input: Record<string, unknown>
+    createdAt: number
+  }>
+  results: Map<string, Record<string, unknown>>
+  deletedCronIds: Set<string>
+}
+
+/**
+ * Official 2.1.110 Z_A — scan a resumed transcript for session-only
+ * CronCreate/CronDelete tool_use so unexpired jobs can be resurrected.
+ */
+function extractSessionCronCalls(messages: Message[]): ExtractedCronCalls {
+  const calls: ExtractedCronCalls['calls'] = []
+  const results = new Map<string, Record<string, unknown>>()
+  const deletedCronIds = new Set<string>()
+  for (const msg of messages) {
+    if (msg.type === 'assistant') {
+      const content = msg.message.content
+      if (!Array.isArray(content)) continue
+      const createdAt = Date.parse(msg.timestamp)
+      for (const block of content) {
+        if (block.type !== 'tool_use') continue
+        const input = isPlainObject(block.input) ? block.input : {}
+        if (block.name === CRON_CREATE_TOOL_NAME) {
+          calls.push({ toolUseId: block.id, input, createdAt })
+        } else if (block.name === CRON_DELETE_TOOL_NAME) {
+          if (typeof input.id === 'string') deletedCronIds.add(input.id)
+        }
+      }
+    } else if (msg.type === 'user') {
+      const content = msg.message.content
+      if (!Array.isArray(content)) continue
+      const toolUseResult = msg.toolUseResult
+      if (!isPlainObject(toolUseResult)) continue
+      for (const block of content) {
+        if (block.type === 'tool_result' && !block.is_error) {
+          results.set(block.tool_use_id, toolUseResult)
+        }
+      }
+    }
+  }
+  return { calls, results, deletedCronIds }
+}
+
+/**
+ * Official 2.1.110 G_A — restore unexpired session-only cron tasks into
+ * bootstrap state. Durable jobs are already on disk; skip those.
+ */
+function applyExtractedSessionCronTasks({
+  calls,
+  results,
+  deletedCronIds,
+}: ExtractedCronCalls): void {
+  if (!isKairosCronEnabled()) return
+  const nowMs = Date.now()
+  const jitter = getCronJitterConfig()
+  const existing = new Set(getSessionCronTasks().map(t => t.id))
+  let restored = 0
+  for (const call of calls) {
+    const result = results.get(call.toolUseId)
+    if (!result || typeof result.id !== 'string') continue
+    if (result.durable === true) continue
+    if (deletedCronIds.has(result.id) || existing.has(result.id)) continue
+    const cron = call.input.cron
+    const prompt = call.input.prompt
+    if (typeof cron !== 'string' || typeof prompt !== 'string') continue
+    const recurring = result.recurring !== false
+    if (recurring) {
+      if (
+        jitter.recurringMaxAgeMs !== 0 &&
+        nowMs - call.createdAt >= jitter.recurringMaxAgeMs
+      ) {
+        continue
+      }
+    } else {
+      const next = oneShotJitteredNextCronRunMs(
+        cron,
+        call.createdAt,
+        result.id,
+        jitter,
+      )
+      if (next === null || next < nowMs) continue
+    }
+    addSessionCronTask({
+      id: result.id,
+      cron,
+      prompt,
+      createdAt: call.createdAt,
+      recurring,
+    })
+    restored++
+  }
+  if (restored > 0) {
+    setScheduledTasksEnabled(true)
+    logForDebugging(`resume: resurrected ${restored} session cron task(s)`)
+  }
+}
+
+/**
+ * Official 2.1.110 dM7 — --resume/--continue resurrects unexpired
+ * session-only scheduled tasks from the transcript.
+ */
+export function resurrectSessionCronTasks(messages: Message[]): void {
+  try {
+    applyExtractedSessionCronTasks(extractSessionCronCalls(messages))
+  } catch (err) {
+    logError(err)
   }
 }

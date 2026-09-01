@@ -1931,7 +1931,9 @@ async function checkPermissionsAndCallTool(
       hookMessages.push(hookResult)
     }
 
-    return [
+    // Official 110: keep PreToolUse additionalContext (and other pre-call
+    // messages) when the tool call fails — 109 dropped resultingMessages.
+    resultingMessages.push(
       {
         message: createUserMessage({
           content: [
@@ -1953,7 +1955,8 @@ async function checkPermissionsAndCallTool(
         }),
       },
       ...hookMessages,
-    ]
+    )
+    return resultingMessages
   } finally {
     stopSessionActivity('tool_exec')
     // Clean up decision info after logging

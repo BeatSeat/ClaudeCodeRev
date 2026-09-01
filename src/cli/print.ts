@@ -149,7 +149,11 @@ import {
 } from 'src/utils/permissions/PermissionPromptToolResultSchema.js'
 import { createAbortController } from 'src/utils/abortController.js'
 import { createCombinedAbortSignal } from 'src/utils/combinedAbortSignal.js'
-import { generateSessionTitle } from 'src/utils/sessionTitle.js'
+import {
+  generateSessionTitle,
+  isSessionTitleGenerationDisabled,
+  isSyntheticSessionTitleInput,
+} from 'src/utils/sessionTitle.js'
 import { buildSideQuestionFallbackParams } from 'src/utils/queryContext.js'
 import { runSideQuestion } from 'src/utils/sideQuestion.js'
 import {
@@ -218,6 +222,7 @@ import {
   saveAgentSetting,
   saveMode,
   saveAiGeneratedTitle,
+  getCurrentSessionTitle,
   restoreSessionMetadata,
   searchSessionsByCustomTitle,
   setSessionMirror,
@@ -267,7 +272,10 @@ import {
   toInternalMessages,
   toSDKRateLimitInfo,
 } from 'src/utils/messages/mappers.js'
-import { createModelSwitchBreadcrumbs } from 'src/utils/messages.js'
+import {
+  createModelSwitchBreadcrumbs,
+  getContentText,
+} from 'src/utils/messages.js'
 import { collectContextData } from 'src/commands/context/context-noninteractive.js'
 import { LOCAL_COMMAND_STDOUT_TAG } from 'src/constants/xml.js'
 import {
@@ -2913,6 +2921,11 @@ function runHeadlessStreaming(
   // the last generation of the queue has complete.
   void (async () => {
     let initialized = false
+    // Official 2.1.110 `Q6`/`tgK`: skip the extra Haiku auto-title when the
+    // session already has messages, traffic is essential-only, or titles
+    // are opted out. Persist generate_session_title also sets this true.
+    let sessionTitleAttempted =
+      initialMessages.length > 0 || isSessionTitleGenerationDisabled()
     logForDiagnosticsNoPII('info', 'cli_message_loop_started')
     for await (const message of structuredIO.structuredInput) {
       // Non-user events are handled inline (no queue). started→completed in
@@ -3905,6 +3918,7 @@ function runHeadlessStreaming(
           // (which would delay processing of subsequent user messages /
           // interrupts for the duration of the API roundtrip).
           const { description, persist } = message.request
+          if (persist) sessionTitleAttempted = true
           // Reuse the live controller only if it has not already been aborted
           // (e.g. by interrupt()); an aborted signal would cause queryHaiku to
           // immediately throw APIUserAbortError → {title: null}.
@@ -4217,6 +4231,40 @@ function runHeadlessStreaming(
 
         // Track this UUID to prevent runtime duplicates
         trackReceivedMessageUuid(message.uuid)
+      }
+
+      // Official 2.1.110: one fire-and-forget Haiku title from the first
+      // real user prompt. Gated so DISABLE_NONESSENTIAL_TRAFFIC /
+      // DISABLE_TERMINAL_TITLE do not fire an extra request.
+      if (
+        !sessionTitleAttempted &&
+        (message as { shouldQuery?: boolean }).shouldQuery !== false
+      ) {
+        const titleText = getContentText(message.message.content)
+        if (titleText && !isSyntheticSessionTitleInput(titleText)) {
+          sessionTitleAttempted = true
+          const sessionId = getSessionId()
+          if (!getCurrentSessionTitle(sessionId)) {
+            const titleSignal = (
+              abortController && !abortController.signal.aborted
+                ? abortController
+                : createAbortController()
+            ).signal
+            void generateSessionTitle(titleText, titleSignal)
+              .then(title => {
+                if (!title) {
+                  sessionTitleAttempted = false
+                  return
+                }
+                if (getCurrentSessionTitle(sessionId)) return
+                saveAiGeneratedTitle(sessionId as UUID, title)
+              })
+              .catch(err => {
+                sessionTitleAttempted = false
+                logError(err)
+              })
+          }
+        }
       }
 
       enqueue({

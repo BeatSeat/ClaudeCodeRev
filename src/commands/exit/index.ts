@@ -9,4 +9,13 @@ const exit = {
   load: () => import('./exit.js'),
 } satisfies Command
 
+/** Official 2.1.110 qaK — Remote Control counterpart (no Ink UI). */
+export const exitNonInteractive = {
+  type: 'local',
+  name: 'exit',
+  supportsNonInteractive: true,
+  description: 'Exit the REPL',
+  load: () => import('./exit-noninteractive.js'),
+} satisfies Command
+
 export default exit

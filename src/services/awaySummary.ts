@@ -27,7 +27,7 @@ export function isAwaySummaryEnabled(): boolean {
   const env = process.env.CLAUDE_CODE_ENABLE_AWAY_SUMMARY
   if (isEnvDefinedFalsy(env)) return false
   if (isEnvTruthy(env)) return true
-  if (!getFeatureValue_CACHED_MAY_BE_STALE('tengu_sedge_lantern', false)) {
+  if (!getFeatureValue_CACHED_MAY_BE_STALE('tengu_sedge_lantern', true)) {
     return false
   }
   if (getIsNonInteractiveSession()) return false

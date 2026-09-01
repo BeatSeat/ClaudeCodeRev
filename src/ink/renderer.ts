@@ -81,7 +81,11 @@ export default function createRenderer(
       }
     }
 
-    const width = Math.floor(node.yogaNode.getComputedWidth())
+    const yogaWidth = Math.floor(node.yogaNode.getComputedWidth())
+    // Official 2.1.110: piped (non-TTY) output with a single very wide
+    // line made yoga width huge and createScreen allocated width*height*8.
+    // Clamp to the terminal/fallback width so one long line cannot OOM.
+    const width = isTTY ? yogaWidth : Math.min(yogaWidth, terminalWidth)
     const yogaHeight = Math.floor(node.yogaNode.getComputedHeight())
     // Alt-screen: the screen buffer IS the alt buffer — always exactly
     // terminalRows tall. <AlternateScreen> wraps children in <Box

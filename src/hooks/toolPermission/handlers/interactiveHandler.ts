@@ -29,7 +29,10 @@ import type { PermissionDecision } from '../../../utils/permissions/PermissionRe
 import type { PermissionUpdate } from '../../../utils/permissions/PermissionUpdateSchema.js'
 import { hasPermissionsToUseTool } from '../../../utils/permissions/permissions.js'
 import type { PermissionContext } from '../PermissionContext.js'
-import { createResolveOnce } from '../PermissionContext.js'
+import {
+  createResolveOnce,
+  isPermissionHookReprompt,
+} from '../PermissionContext.js'
 
 type InteractivePermissionParams = {
   ctx: PermissionContext
@@ -429,6 +432,15 @@ function handleInteractivePermission(
         result.updatedInput,
         permissionPromptStartTimeMs,
       )
+      if (isPermissionHookReprompt(hookDecision)) {
+        // Official Z95: cancel CCR/channel prompts; keep the local dialog
+        // on the rewritten input (already applied via updateQueueItem).
+        if (bridgeCallbacks && bridgeRequestId) {
+          bridgeCallbacks.cancelRequest(bridgeRequestId)
+        }
+        channelUnsubscribe?.()
+        return
+      }
       if (!hookDecision || !claim()) return
       if (bridgeCallbacks && bridgeRequestId) {
         bridgeCallbacks.cancelRequest(bridgeRequestId)

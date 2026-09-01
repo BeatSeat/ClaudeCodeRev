@@ -16,14 +16,7 @@ import {
 } from '../services/analytics/index.js'
 import { useAppState, useSetAppState } from '../state/AppState.js'
 import { count } from '../utils/array.js'
-import { getGlobalConfig, saveGlobalConfig } from '../utils/config.js'
-import { isFullscreenEnvEnabled } from '../utils/fullscreen.js'
 import { getTerminalPanel } from '../utils/terminalPanel.js'
-
-function persistBriefTranscript(value: boolean): void {
-  if (getGlobalConfig().briefTranscript === value) return
-  saveGlobalConfig(config => ({ ...config, briefTranscript: value }))
-}
 
 type Props = {
   screen: Screen
@@ -102,7 +95,6 @@ export function GlobalKeybindingHandlers({
       ? // biome-ignore lint/correctness/useHookAtTopLevel: feature() is a compile-time constant
         useAppState(s => s.isBriefOnly)
       : false
-  const briefTranscript = useAppState(s => s.briefTranscript)
   const handleToggleTranscript = useCallback(() => {
     if (feature('KAIROS') || feature('KAIROS_BRIEF')) {
       // Escape hatch: GB kill-switch while defaultView=chat was persisted
@@ -123,27 +115,8 @@ export function GlobalKeybindingHandlers({
       }
     }
 
-    // NO_FLICKER Focus is a 3-state cycle, distinct from KAIROS Brief:
-    // transcript → prompt+Focus → prompt (full) → transcript …
-    if (isFullscreenEnvEnabled()) {
-      if (screen === 'transcript') {
-        setScreen('prompt')
-        setShowAllInTranscript(false)
-        setAppState(prev =>
-          prev.briefTranscript ? prev : { ...prev, briefTranscript: true },
-        )
-        persistBriefTranscript(true)
-        if (onExitTranscript) onExitTranscript()
-        return
-      }
-      if (briefTranscript) {
-        setAppState(prev =>
-          prev.briefTranscript ? { ...prev, briefTranscript: false } : prev,
-        )
-        persistBriefTranscript(false)
-        return
-      }
-    }
+    // Official 2.1.110: Ctrl+O toggles normal ↔ verbose transcript only.
+    // Focus view is a separate `/focus` command (briefTranscript).
 
     const isEnteringTranscript = screen !== 'transcript'
     logEvent('tengu_toggle_transcript', {
@@ -163,7 +136,6 @@ export function GlobalKeybindingHandlers({
     screen,
     setScreen,
     isBriefOnly,
-    briefTranscript,
     showAllInTranscript,
     setShowAllInTranscript,
     messageCount,

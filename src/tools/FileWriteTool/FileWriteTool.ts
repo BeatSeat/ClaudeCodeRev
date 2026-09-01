@@ -98,6 +98,12 @@ const outputSchema = lazySchema(() =>
         'The original file content before the write (null for new files)',
       ),
     gitDiff: gitDiffSchema().optional(),
+    userModified: z
+      .boolean()
+      .optional()
+      .describe(
+        'True when the user edited the proposed content in the permission dialog before accepting',
+      ),
   }),
 )
 type OutputSchema = ReturnType<typeof outputSchema>
@@ -264,7 +270,12 @@ export const FileWriteTool = buildTool({
   },
   async call(
     { file_path, content, mode },
-    { readFileState, updateFileHistoryState, dynamicSkillDirTriggers },
+    {
+      readFileState,
+      userModified,
+      updateFileHistoryState,
+      dynamicSkillDirTriggers,
+    },
     _,
     parentMessage,
   ) {
@@ -419,6 +430,7 @@ export const FileWriteTool = buildTool({
         content: newContent,
         structuredPatch: patch,
         originalFile: oldContent,
+        userModified: userModified ?? false,
         ...(gitDiff && { gitDiff }),
       }
       // Track lines added and removed for file updates, right before yielding result
@@ -442,6 +454,7 @@ export const FileWriteTool = buildTool({
       content: newContent,
       structuredPatch: [],
       originalFile: null,
+      userModified: userModified ?? false,
       ...(gitDiff && { gitDiff }),
     }
 
@@ -459,19 +472,25 @@ export const FileWriteTool = buildTool({
       data,
     }
   },
-  mapToolResultToToolResultBlockParam({ filePath, type }, toolUseID) {
+  mapToolResultToToolResultBlockParam(
+    { filePath, type, userModified },
+    toolUseID,
+  ) {
+    const modifiedNote = userModified
+      ? ' The user modified your proposed content before accepting it.'
+      : ''
     switch (type) {
       case 'create':
         return {
           tool_use_id: toolUseID,
           type: 'tool_result',
-          content: `File created successfully at: ${filePath}`,
+          content: `File created successfully at: ${filePath}${modifiedNote}`,
         }
       case 'update':
         return {
           tool_use_id: toolUseID,
           type: 'tool_result',
-          content: `The file ${filePath} has been updated successfully.`,
+          content: `The file ${filePath} has been updated successfully.${modifiedNote}`,
         }
     }
   },

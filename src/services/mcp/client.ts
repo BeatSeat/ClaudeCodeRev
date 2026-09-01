@@ -1272,9 +1272,38 @@ export const connectToServer = memoize(
 
       // Enhanced error handler with detailed logging
       client.onerror = (error: Error) => {
+        const transportType = serverRef.type || 'stdio'
+
+        // Official 110: stdio stray non-JSON lines must not disconnect
+        // (2.1.105 regression — SyntaxError used to fail-fast).
+        if (transportType === 'stdio' && error instanceof SyntaxError) {
+          logMCPDebug(
+            name,
+            `Ignoring non-JSON line on stdout: ${error.message}`,
+          )
+          return
+        }
+
+        // Official 110: SSE/HTTP truncated JSON-RPC must reject pending
+        // callTool() promises instead of hanging indefinitely.
+        if (
+          (transportType === 'sse' ||
+            transportType === 'http' ||
+            transportType === 'claudeai-proxy') &&
+          error instanceof SyntaxError
+        ) {
+          hasErrorOccurred = true
+          closeTransportAndRejectPending(
+            'malformed JSON-RPC message (response truncated)',
+          )
+          if (originalOnerror) {
+            originalOnerror(error)
+          }
+          return
+        }
+
         const uptime = Date.now() - connectionStartTime
         hasErrorOccurred = true
-        const transportType = serverRef.type || 'stdio'
 
         // Log the connection drop with context
         logMCPDebug(
@@ -1318,8 +1347,8 @@ export const connectToServer = memoize(
           }
         }
 
-        // Official 105: stdio malformed (non-JSON) output must fail-fast
-        // instead of hanging pending callTool() promises.
+        // Non-SyntaxError stdio failures still fail-fast so pending
+        // callTool() promises do not hang.
         if (transportType === 'stdio') {
           logMCPDebug(
             name,

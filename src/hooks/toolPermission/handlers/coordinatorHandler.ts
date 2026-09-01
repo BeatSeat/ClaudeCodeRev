@@ -4,6 +4,7 @@ import { logError } from '../../../utils/log.js'
 import type { PermissionDecision } from '../../../utils/permissions/PermissionResult.js'
 import type { PermissionUpdate } from '../../../utils/permissions/PermissionUpdateSchema.js'
 import type { PermissionContext } from '../PermissionContext.js'
+import { isPermissionHookReprompt } from '../PermissionContext.js'
 
 type CoordinatorPermissionParams = {
   ctx: PermissionContext
@@ -35,7 +36,9 @@ async function handleCoordinatorPermission(
       suggestions,
       updatedInput,
     )
-    if (hookResult) return hookResult
+    if (hookResult && !isPermissionHookReprompt(hookResult)) {
+      return hookResult
+    }
 
     // 2. Try classifier (slow, inference -- bash only)
     const classifierResult = feature('BASH_CLASSIFIER')

@@ -635,12 +635,17 @@ class Project {
   private mirror: SessionMirror | undefined
   private FLUSH_INTERVAL_MS = 100
   private readonly MAX_CHUNK_BYTES = 100 * 1024 * 1024
+  // Official 2.1.110: re-stamp custom-title into the tail mid-session so
+  // --resume still sees /rename when the process is still running or
+  // exited uncleanly (cleanup never ran).
+  private bytesSinceMetadataReAppend = 0
 
   constructor() {}
 
   /** @internal Reset flush/queue state for testing. */
   _resetFlushState(): void {
     this.pendingWriteCount = 0
+    this.bytesSinceMetadataReAppend = 0
     this.flushResolvers = []
     if (this.flushTimer) clearTimeout(this.flushTimer)
     this.flushTimer = null
@@ -732,6 +737,9 @@ class Project {
       await mkdir(dirname(filePath), { recursive: true, mode: 0o700 })
       await fsAppendFile(filePath, data, { mode: 0o600 })
     }
+    if (filePath === this.sessionFile) {
+      this.bytesSinceMetadataReAppend += Buffer.byteLength(data, 'utf8')
+    }
   }
 
   private async drainWriteQueue(): Promise<void> {
@@ -795,11 +803,19 @@ class Project {
         this.writeQueues.delete(filePath)
       }
     }
+    if (this.bytesSinceMetadataReAppend >= LITE_READ_BUF_SIZE / 2) {
+      try {
+        this.reAppendSessionMetadata()
+      } catch (err) {
+        logError(err)
+      }
+    }
   }
 
   resetSessionFile(): void {
     this.sessionFile = null
     this.pendingEntries = []
+    this.bytesSinceMetadataReAppend = 0
   }
 
   /**
@@ -834,6 +850,7 @@ class Project {
     if (!this.sessionFile) return
     const sessionId = getSessionId() as UUID
     if (!sessionId) return
+    this.bytesSinceMetadataReAppend = 0
 
     // One sync tail read to refresh SDK-mutable fields. Same
     // LITE_READ_BUF_SIZE window readLiteMetadata uses. Empty string on

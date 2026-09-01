@@ -795,7 +795,10 @@ function shouldRetry(error: APIError): boolean {
 
 export function getDefaultMaxRetries(): number {
   if (process.env.CLAUDE_CODE_MAX_RETRIES) {
-    return parseInt(process.env.CLAUDE_CODE_MAX_RETRIES, 10)
+    const parsed = parseInt(process.env.CLAUDE_CODE_MAX_RETRIES, 10)
+    if (Number.isFinite(parsed) && parsed >= 0) {
+      return parsed
+    }
   }
   return DEFAULT_MAX_RETRIES
 }
