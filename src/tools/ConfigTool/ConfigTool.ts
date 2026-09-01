@@ -18,6 +18,7 @@ import {
   getInitialSettings,
   updateSettingsForSource,
 } from '../../utils/settings/settings.js'
+import { setUserIntentSetting } from '../../utils/settings/userIntent.js'
 import { jsonStringify } from '../../utils/slowOperations.js'
 import { CONFIG_TOOL_NAME } from './constants.js'
 import { DESCRIPTION, generatePrompt } from './prompt.js'
@@ -152,12 +153,7 @@ export const ConfigTool = buildTool({
       typeof value === 'string' &&
       value.toLowerCase().trim() === 'default'
     ) {
-      saveGlobalConfig(prev => {
-        if (prev.remoteControlAtStartup === undefined) return prev
-        const next = { ...prev }
-        delete next.remoteControlAtStartup
-        return next
-      })
+      setUserIntentSetting('remoteControlAtStartup', undefined)
       const resolved = getRemoteControlAtStartup()
       // Sync to AppState so useReplBridge reacts immediately
       context.setAppState(prev => {

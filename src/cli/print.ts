@@ -312,10 +312,15 @@ import {
   setAllowedChannels,
   type ChannelEntry,
 } from 'src/bootstrap/state.js'
-import {
-  endInteractionSpan,
-  runWithInteractionContext,
-} from 'src/utils/telemetry/sessionTracing.js'
+import { endInteractionSpan } from 'src/utils/telemetry/sessionTracing.js'
+
+/** 118/119 compile passthrough — name is 0 in both official bundles. */
+async function runWithInteractionContext<T>(
+  _userPrompt: string,
+  fn: () => Promise<T>,
+): Promise<T> {
+  return fn()
+}
 import { runWithWorkload, WORKLOAD_CRON } from 'src/utils/workloadContext.js'
 import type { UUID } from 'crypto'
 import { randomUUID } from 'crypto'

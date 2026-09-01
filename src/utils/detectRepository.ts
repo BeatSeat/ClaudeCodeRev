@@ -71,6 +71,11 @@ export function getCachedRepository(): string | null {
   return `${parsed.owner}/${parsed.name}`
 }
 
+/** 119 `fV8`: cached git-remote host for the current cwd, or null. */
+export function getCachedRepositoryHost(): string | null {
+  return repositoryWithHostCache.get(getCwd())?.host ?? null
+}
+
 /**
  * Parses a git remote URL into host, owner, and name components.
  * Accepts any host (github.com, GHE instances, etc.).

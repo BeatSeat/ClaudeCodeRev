@@ -143,6 +143,10 @@ import { ElicitationDialog } from '../components/mcp/ElicitationDialog.js'
 import { PromptDialog } from '../components/hooks/PromptDialog.js'
 import type { PromptRequest, PromptResponse } from '../types/hooks.js'
 import PromptInput from '../components/PromptInput/PromptInput.js'
+import {
+  isFgLeftArrowAgentsAvailable,
+  openAgentsViaLeft,
+} from '../components/FleetView/index.js'
 import { PromptInputQueuedCommands } from '../components/PromptInput/PromptInputQueuedCommands.js'
 import { useRemoteSession } from '../hooks/useRemoteSession.js'
 import { useDirectConnect } from '../hooks/useDirectConnect.js'
@@ -256,6 +260,7 @@ import {
   saveGlobalConfig,
   getGlobalConfigWriteCount,
 } from '../utils/config.js'
+import { getUserIntentSetting } from '../utils/settings/userIntent.js'
 import { hasConsoleBillingAccess } from '../utils/billing.js'
 import {
   logEvent,
@@ -1783,7 +1788,7 @@ export function REPL({
   const repinScroll = useCallback((force = false) => {
     // Official 2.1.110: autoScrollEnabled disables conversation auto-scroll
     // in fullscreen. force=true is reserved for explicit user jumps.
-    if (!force && getGlobalConfig().autoScrollEnabled === false) return
+    if (!force && getUserIntentSetting('autoScrollEnabled', true) === false) return
     scrollRef.current?.scrollToBottom()
     onRepin()
     setCursor(null)
@@ -6980,6 +6985,17 @@ export function REPL({
                         agents={agentDefinitions.activeAgents}
                         isLoading={isLoading}
                         onExit={handleExit}
+                        onLeftArrowOnEmpty={
+                          isBgSession()
+                            ? undefined
+                            : !isLoading &&
+                                isFgLeftArrowAgentsAvailable() &&
+                                getGlobalConfig().leftArrowOpensAgents !== false
+                              ? () => {
+                                  void openAgentsViaLeft(inputValue || null)
+                                }
+                              : undefined
+                        }
                         verbose={verbose}
                         messages={messages}
                         onAutoUpdaterResult={setAutoUpdaterResult}

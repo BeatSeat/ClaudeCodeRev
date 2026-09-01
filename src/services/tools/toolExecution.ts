@@ -687,6 +687,8 @@ async function checkPermissionsAndCallTool(
     progress: ToolProgress<ToolProgressData> | ProgressMessage<HookProgress>,
   ) => void,
 ): Promise<MessageUpdateLazy[]> {
+  // Official 2.1.119 iv1: D = yH(q).length — OTEL tool_input_size_bytes
+  const toolInputSizeBytes = jsonStringify(input).length
   // Official 2.1.92: resolve Bash `{rerun: "bN"}` before Zod parse so the
   // model-facing schema can keep `command` required.
   let resolvedInput: { [key: string]: boolean | string | number } = input
@@ -1142,6 +1144,7 @@ async function checkPermissionsAndCallTool(
       decision,
       source,
       tool_name: sanitizeToolNameForAnalytics(tool.name),
+      tool_use_id: toolUseID,
     })
 
     // Increment code-edit tool decision counter for headless mode
@@ -1589,12 +1592,14 @@ async function checkPermissionsAndCallTool(
 
     void logOTelEvent('tool_result', {
       tool_name: sanitizeToolNameForAnalytics(tool.name),
+      tool_use_id: toolUseID,
       success: 'true',
       duration_ms: String(durationMs),
       ...(Object.keys(toolParameters).length > 0 && {
         tool_parameters: jsonStringify(toolParameters),
       }),
       ...(telemetryToolInput && { tool_input: telemetryToolInput }),
+      tool_input_size_bytes: String(toolInputSizeBytes),
       tool_result_size_bytes: String(toolResultSizeBytes),
       ...(decisionInfo && {
         decision_source: decisionInfo.source,
@@ -1700,6 +1705,7 @@ async function checkPermissionsAndCallTool(
       requestId,
       mcpServerType,
       mcpServerBaseUrl,
+      durationMs,
     )) {
       if ('updatedMCPToolOutput' in hookResult) {
         if (isMcpTool(tool)) {
@@ -1892,7 +1898,7 @@ async function checkPermissionsAndCallTool(
 
       void logOTelEvent('tool_result', {
         tool_name: sanitizeToolNameForAnalytics(tool.name),
-        use_id: toolUseID,
+        tool_use_id: toolUseID,
         success: 'false',
         duration_ms: String(durationMs),
         error: errorMessage(error),
@@ -1900,6 +1906,7 @@ async function checkPermissionsAndCallTool(
           tool_parameters: jsonStringify(toolParameters),
         }),
         ...(telemetryToolInput && { tool_input: telemetryToolInput }),
+        tool_input_size_bytes: String(toolInputSizeBytes),
         ...(decisionInfo && {
           decision_source: decisionInfo.source,
           decision_type: decisionInfo.decision,
@@ -1927,6 +1934,7 @@ async function checkPermissionsAndCallTool(
       requestId,
       mcpServerType,
       mcpServerBaseUrl,
+      durationMs,
     )) {
       hookMessages.push(hookResult)
     }

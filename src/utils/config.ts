@@ -486,6 +486,8 @@ export type GlobalConfig = {
 
   // Fullscreen in-app text selection behavior
   copyOnSelect?: boolean // Auto-copy to clipboard on mouse-up (undefined → true; lets cmd+c "work" via no-op)
+  /** Official 2.1.119: ← opens agent view when the prompt is empty. */
+  leftArrowOpensAgents?: boolean
 
   // GitHub repo path mapping for teleport directory switching
   // Key: "owner/repo" (lowercase), Value: array of absolute paths where repo is cloned
@@ -695,6 +697,7 @@ export const GLOBAL_CONFIG_KEYS = [
   'lspRecommendationIgnoredCount',
   'copyFullResponse',
   'copyOnSelect',
+  'leftArrowOpensAgents',
   'permissionExplainerEnabled',
   'prStatusFooterEnabled',
   'remoteControlAtStartup',
@@ -1128,8 +1131,13 @@ export function getGlobalConfig(): GlobalConfig {
  *   3. false (Remote Control must be explicitly opted into)
  */
 export function getRemoteControlAtStartup(): boolean {
-  const explicit = getGlobalConfig().remoteControlAtStartup
-  if (explicit !== undefined) return explicit
+  // Lazy import: userIntent.ts reads getGlobalConfig/DEFAULT_GLOBAL_CONFIG.
+  const { getUserIntentSettingWithSource } = require('./settings/userIntent.js') as typeof import('./settings/userIntent.js')
+  const resolved = getUserIntentSettingWithSource(
+    'remoteControlAtStartup',
+    undefined,
+  )
+  if (resolved.source !== 'default') return Boolean(resolved.value)
   if (feature('CCR_AUTO_CONNECT')) {
     if (ccrAutoConnect?.getCcrAutoConnectDefault()) return true
   }

@@ -37,6 +37,11 @@ import {
 } from '../utils/context.js'
 import { getCwd } from '../utils/cwd.js'
 import { logForDebugging } from '../utils/debug.js'
+import {
+  type EffortValue,
+  getDisplayedEffortLevel,
+  modelSupportsEffort,
+} from '../utils/effort.js'
 import { getGitWorktreeName } from '../utils/git.js'
 import { isFullscreenEnvEnabled } from '../utils/fullscreen.js'
 import {
@@ -72,7 +77,9 @@ function buildStatusLineCommandInput(
   addedDirs: string[],
   mainLoopModel: ModelName,
   gitWorktreeName: string | null,
-  vimMode?: VimMode,
+  vimMode: VimMode | undefined,
+  effortValue: EffortValue | undefined,
+  thinkingEnabled: boolean | undefined,
 ): StatusLineCommandInput {
   const agentType = getMainThreadAgentType()
   const worktreeSession = getCurrentWorktreeSession()
@@ -143,6 +150,10 @@ function buildStatusLineCommandInput(
       remaining_percentage: contextPercentages.remaining,
     },
     exceeds_200k_tokens: exceeds200kTokens,
+    ...(modelSupportsEffort(runtimeModel) && {
+      effort: { level: getDisplayedEffortLevel(runtimeModel, effortValue) },
+    }),
+    thinking: { enabled: thinkingEnabled !== false },
     ...((rateLimits.five_hour || rateLimits.seven_day) && {
       rate_limits: rateLimits,
     }),
@@ -203,6 +214,8 @@ function StatusLineInner({
   // re-reads settings.json on every call, so another session's /model write
   // would leak into this session's statusline (anthropics/claude-code#37596).
   const mainLoopModel = useMainLoopModel()
+  const effortValue = useAppState(s => s.effortValue)
+  const thinkingEnabled = useAppState(s => s.thinkingEnabled)
 
   // Keep latest values in refs for stable callback access
   const settingsRef = useRef(settings)
@@ -215,6 +228,10 @@ function StatusLineInner({
   addedDirsRef.current = additionalWorkingDirectories
   const mainLoopModelRef = useRef(mainLoopModel)
   mainLoopModelRef.current = mainLoopModel
+  const effortValueRef = useRef(effortValue)
+  effortValueRef.current = effortValue
+  const thinkingEnabledRef = useRef(thinkingEnabled)
+  thinkingEnabledRef.current = thinkingEnabled
 
   // Track previous state to detect changes and cache expensive calculations
   const previousStateRef = useRef<{
@@ -223,12 +240,16 @@ function StatusLineInner({
     permissionMode: PermissionMode
     vimMode: VimMode | undefined
     mainLoopModel: ModelName
+    effortValue: EffortValue | undefined
+    thinkingEnabled: boolean | undefined
   }>({
     messageId: null,
     exceeds200kTokens: false,
     permissionMode,
     vimMode,
     mainLoopModel,
+    effortValue,
+    thinkingEnabled,
   })
 
   // Debounce timer ref
@@ -272,6 +293,8 @@ function StatusLineInner({
         mainLoopModelRef.current,
         await getGitWorktreeName(getCwd()),
         vimModeRef.current,
+        effortValueRef.current,
+        thinkingEnabledRef.current,
       )
 
       const text = await executeStatusLineCommand(
@@ -307,19 +330,24 @@ function StatusLineInner({
     )
   }, [doUpdate])
 
-  // Only trigger update when assistant message, permission mode, vim mode, or model actually changes
+  // Only trigger update when assistant message, permission mode, vim mode,
+  // model, effort, or thinking actually changes
   useEffect(() => {
     if (
       lastAssistantMessageId !== previousStateRef.current.messageId ||
       permissionMode !== previousStateRef.current.permissionMode ||
       vimMode !== previousStateRef.current.vimMode ||
-      mainLoopModel !== previousStateRef.current.mainLoopModel
+      mainLoopModel !== previousStateRef.current.mainLoopModel ||
+      effortValue !== previousStateRef.current.effortValue ||
+      thinkingEnabled !== previousStateRef.current.thinkingEnabled
     ) {
       // Don't update messageId here — let doUpdate handle it so
       // exceeds200kTokens is recalculated with the latest messages
       previousStateRef.current.permissionMode = permissionMode
       previousStateRef.current.vimMode = vimMode
       previousStateRef.current.mainLoopModel = mainLoopModel
+      previousStateRef.current.effortValue = effortValue
+      previousStateRef.current.thinkingEnabled = thinkingEnabled
       scheduleUpdate()
     }
   }, [
@@ -327,6 +355,8 @@ function StatusLineInner({
     permissionMode,
     vimMode,
     mainLoopModel,
+    effortValue,
+    thinkingEnabled,
     scheduleUpdate,
   ])
 

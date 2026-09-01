@@ -30,6 +30,7 @@ import { stripDisplayTags } from '../utils/displayTags.js'
 import {
   createUserMessage,
   extractTag,
+  getUserMessageText,
   isEmptyMessageText,
   isSyntheticMessage,
   isToolUseResultMessage,
@@ -750,15 +751,8 @@ function UserMessageOption({
     )
   }
 
-  const content = userMessage.message.content
-  const lastBlock =
-    typeof content === 'string' ? null : content[content.length - 1]
   const rawMessageText =
-    typeof content === 'string'
-      ? content.trim()
-      : lastBlock && isTextBlock(lastBlock)
-        ? lastBlock.text.trim()
-        : '(no prompt)'
+    getUserMessageText(userMessage)?.trim() || '(no prompt)'
 
   // Strip display-unfriendly tags (like <ide_opened_file>) before showing in the list
   const messageText = stripDisplayTags(rawMessageText)

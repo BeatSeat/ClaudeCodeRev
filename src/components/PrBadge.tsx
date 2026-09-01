@@ -1,6 +1,8 @@
 import React from 'react'
+import { useAppState } from '../state/AppState.js'
 import { Link, Text } from '../ink.js'
 import type { PrReviewState } from '../utils/ghPrStatus.js'
+import { applyPrUrlTemplate } from '../utils/prUrlTemplate.js'
 
 type Props = {
   number: number
@@ -15,6 +17,8 @@ export function PrBadge({
   reviewState,
   bold,
 }: Props): React.ReactNode {
+  const prUrlTemplate = useAppState(s => s.settings.prUrlTemplate)
+  const href = applyPrUrlTemplate(url, prUrlTemplate)
   const statusColor = getPrStatusColor(reviewState)
   const label = (
     <Text color={statusColor} dimColor={!statusColor && !bold} bold={bold}>
@@ -24,7 +28,7 @@ export function PrBadge({
   return (
     <Text>
       <Text dimColor={!bold}>PR</Text>{' '}
-      <Link url={url} fallback={label}>
+      <Link url={href} fallback={label}>
         <Text
           color={statusColor}
           dimColor={!statusColor && !bold}
