@@ -94,6 +94,7 @@ function isUsingExternalPermissions(): boolean {
 export type AutoModeRules = {
   allow: string[]
   soft_deny: string[]
+  hard_deny: string[]
   environment: string[]
 }
 
@@ -110,6 +111,7 @@ export function getDefaultExternalAutoModeRules(): AutoModeRules {
   return {
     allow: extractTaggedBullets('user_allow_rules_to_replace'),
     soft_deny: extractTaggedBullets('user_deny_rules_to_replace'),
+    hard_deny: extractTaggedBullets('user_hard_deny_rules_to_replace'),
     environment: extractTaggedBullets('user_environment_to_replace'),
   }
 }
@@ -148,12 +150,14 @@ export function expandAutoModeDefaults(
 export function expandAutoModeConfig(config?: {
   allow?: string[]
   soft_deny?: string[]
+  hard_deny?: string[]
   environment?: string[]
 } | null): AutoModeRules {
   const defaults = getDefaultExternalAutoModeRules()
   return {
     allow: expandAutoModeDefaults(config?.allow, defaults.allow),
     soft_deny: expandAutoModeDefaults(config?.soft_deny, defaults.soft_deny),
+    hard_deny: expandAutoModeDefaults(config?.hard_deny, defaults.hard_deny),
     environment: expandAutoModeDefaults(
       config?.environment,
       defaults.environment,
@@ -593,6 +597,11 @@ export async function buildYoloSystemPrompt(
         [bashDeny, expandClassifierSection(autoMode?.soft_deny, capture)]
           .filter(Boolean)
           .join('\n'),
+    )
+    .replace(
+      /<user_hard_deny_rules_to_replace>([\s\S]*?)<\/user_hard_deny_rules_to_replace>/,
+      (_m, capture: string) =>
+        expandClassifierSection(autoMode?.hard_deny, capture),
     )
     .replace(
       /<user_environment_to_replace>([\s\S]*?)<\/user_environment_to_replace>/,
