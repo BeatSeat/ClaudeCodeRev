@@ -7,7 +7,10 @@ import type { ToolUseContext } from '../../Tool.js'
 import { registerAsyncAgent } from '../../tasks/LocalAgentTask/LocalAgentTask.js'
 import { assembleToolPool } from '../../tools.js'
 import { asAgentId } from '../../types/ids.js'
-import { runWithAgentContext } from '../../utils/agentContext.js'
+import {
+  getAgentContext,
+  runWithAgentContext,
+} from '../../utils/agentContext.js'
 import { runWithCwdOverride } from '../../utils/cwd.js'
 import { logForDebugging } from '../../utils/debug.js'
 import {
@@ -221,6 +224,7 @@ export async function resumeAgentBackground({
 
   const asyncAgentContext = {
     agentId,
+    parentAgentId: getAgentContext()?.agentId,
     parentSessionId: getParentSessionId(),
     agentType: 'subagent' as const,
     subagentName: selectedAgent.agentType,

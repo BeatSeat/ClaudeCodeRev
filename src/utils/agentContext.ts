@@ -34,6 +34,8 @@ export type SubagentContext = {
   agentId: string
   /** The team lead's session ID (from CLAUDE_CODE_PARENT_SESSION_ID env var), undefined for main REPL subagents */
   parentSessionId?: string
+  /** Official 2.1.145: immediate parent agent id for OTEL tool-span nesting. */
+  parentAgentId?: string
   /** Agent type - 'subagent' for Agent tool agents */
   agentType: 'subagent'
   /** The subagent's type name (e.g., "Explore", "Bash", "code-reviewer") */
@@ -70,6 +72,8 @@ export type TeammateAgentContext = {
   planModeRequired: boolean
   /** The team lead's session ID for transcript correlation */
   parentSessionId: string
+  /** Official 2.1.145: immediate parent agent id for OTEL tool-span nesting. */
+  parentAgentId?: string
   /** Whether this agent is the team lead */
   isTeamLead: boolean
   /** Agent type - 'teammate' for swarm teammates */

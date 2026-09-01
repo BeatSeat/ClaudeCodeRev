@@ -17,6 +17,12 @@ export type StatusLineCommandInput = {
     project_dir: string
     added_dirs: string[]
     git_worktree?: string
+    /** Official 2.1.145: parsed git remote when the host looks like a repo. */
+    repo?: {
+      host: string
+      owner: string
+      name: string
+    }
   }
   version: string
   output_style: {
@@ -69,5 +75,17 @@ export type StatusLineCommandInput = {
     branch?: string
     original_cwd: string
     original_branch?: string
+  }
+  /** Official 2.1.145: open PR for the current branch (mirrors the footer PR badge). */
+  pr?: {
+    number: number
+    url: string
+    review_state?:
+      | 'approved'
+      | 'pending'
+      | 'changes_requested'
+      | 'draft'
+      | 'merged'
+      | 'closed'
   }
 }

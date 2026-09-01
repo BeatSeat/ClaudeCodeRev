@@ -74,6 +74,7 @@ import { readFileInRange } from '../../utils/readFileInRange.js'
 import { semanticNumber } from '../../utils/semanticNumber.js'
 import { jsonStringify } from '../../utils/slowOperations.js'
 import { BASH_TOOL_NAME } from '../BashTool/toolName.js'
+import { GREP_TOOL_NAME } from '../GrepTool/prompt.js'
 import { getDefaultFileReadingLimits } from './limits.js'
 import {
   DESCRIPTION,
@@ -265,6 +266,12 @@ const outputSchema = lazySchema(() => {
           .describe('Number of lines in the returned content'),
         startLine: z.number().describe('The starting line number'),
         totalLines: z.number().describe('Total number of lines in the file'),
+        truncatedByTokenCap: z
+          .boolean()
+          .optional()
+          .describe(
+            'True when a whole-file read was clipped to a PARTIAL first page because it exceeded the token cap',
+          ),
       }),
     }),
     z.object({
@@ -705,8 +712,25 @@ export const FileReadTool = buildTool({
         let content: string
 
         if (data.file.content) {
+          let notice = partialViewNotices.get(data)
+          if (notice !== undefined) {
+            if (
+              partialViewNoticeByToolUseID.size >=
+              PARTIAL_VIEW_NOTICE_BY_TOOL_USE_LIMIT
+            ) {
+              const oldest = partialViewNoticeByToolUseID.keys().next().value
+              if (oldest !== undefined) {
+                partialViewNoticeByToolUseID.delete(oldest)
+              }
+            }
+            partialViewNoticeByToolUseID.set(toolUseID, notice)
+          } else {
+            notice = partialViewNoticeByToolUseID.get(toolUseID)
+          }
           content =
-            memoryFileFreshnessPrefix(data) + formatFileLines(data.file)
+            (notice ? `<system-reminder>${notice}</system-reminder>\n\n` : '') +
+            memoryFileFreshnessPrefix(data) +
+            formatFileLines(data.file)
         } else {
           // Determine the appropriate warning message
           content =
@@ -742,6 +766,20 @@ function formatFileLines(file: { content: string; startLine: number }): string {
  * when the data object becomes unreachable after rendering.
  */
 const memoryFileMtimes = new WeakMap<object, number>()
+
+/** Official 2.1.145 `Hz$` + `Se7`/`wW$`: PARTIAL-view notice, keyed by output identity then toolUseID. */
+const PARTIAL_VIEW_PREFIX = '[Truncated: PARTIAL view — '
+const partialViewNotices = new WeakMap<object, string>()
+const PARTIAL_VIEW_NOTICE_BY_TOOL_USE_LIMIT = 512
+const partialViewNoticeByToolUseID = new Map<string, string>()
+
+function countNewlines(value: string): number {
+  let n = 0
+  for (let i = 0; i < value.length; i++) {
+    if (value.charCodeAt(i) === 10) n++
+  }
+  return n
+}
 
 function memoryFileFreshnessPrefix(data: object): string {
   const mtimeMs = memoryFileMtimes.get(data)
@@ -1024,31 +1062,90 @@ async function callInner(
       context.abortController.signal,
     )
 
-  await validateContentTokens(content, ext, maxTokens)
+  let pageContent = content
+  let pageLineCount = lineCount
+  let pageLimit = limit
+  let partialNotice: string | undefined
+  const isWholeFile =
+    (offset ?? 1) <= 1 && limit === undefined && pages === undefined
+  try {
+    await validateContentTokens(content, ext, maxTokens)
+  } catch (error) {
+    if (!(error instanceof MaxFileReadTokenExceededError) || !isWholeFile) {
+      throw error
+    }
+    const lines = content.split('\n')
+    const charsPerToken = Math.max(
+      0.5,
+      content.length / Math.max(1, error.tokenCount),
+    )
+    const estimateTokens = (slice: string) => slice.length / charsPerToken
+    let keep = Math.max(
+      1,
+      Math.min(
+        lines.length,
+        Math.floor(
+          (lines.length * maxTokens) / Math.max(1, error.tokenCount) * 0.85,
+        ),
+      ),
+    )
+    let page = lines.slice(0, keep).join('\n')
+    for (let i = 0; i < 6; i++) {
+      if (estimateTokens(page) <= maxTokens || keep <= 1) break
+      keep = Math.max(1, Math.floor(keep * 0.7))
+      page = lines.slice(0, keep).join('\n')
+    }
+    let charTruncated = false
+    if (estimateTokens(page) > maxTokens || page.trim() === '') {
+      let chars = Math.max(1, Math.floor(maxTokens * charsPerToken * 0.85))
+      for (let i = 0; i < 6; i++) {
+        page = content.slice(0, chars)
+        if (estimateTokens(page) <= maxTokens) break
+        chars = Math.max(1, Math.floor(chars * 0.7))
+      }
+      const last = page.charCodeAt(page.length - 1)
+      if (last >= 0xd800 && last <= 0xdbff) {
+        page = page.slice(0, -1)
+      }
+      charTruncated = true
+    }
+    pageContent = page
+    pageLineCount = charTruncated ? countNewlines(page) + 1 : keep
+    pageLimit = pageLineCount
+    partialNotice = !charTruncated && pageLineCount < totalLines
+      ? `${PARTIAL_VIEW_PREFIX}showing lines 1-${pageLineCount} of ${totalLines} total (${error.tokenCount} tokens, cap ${maxTokens}). Call ${FILE_READ_TOOL_NAME} with offset=${pageLineCount + 1} limit=${pageLineCount} for the next page, or ${GREP_TOOL_NAME} to find a specific section. Do NOT answer from this page alone if the answer may be further in the file.]`
+      : `${PARTIAL_VIEW_PREFIX}showing the first ${page.length} of ${content.length} characters (${error.tokenCount} tokens, cap ${maxTokens}); this file has very long lines and cannot be paginated by line. Use ${GREP_TOOL_NAME} to find a specific section, or ${FILE_READ_TOOL_NAME} with offset/limit to page through it. Do NOT answer from this excerpt alone if the answer may be elsewhere in the file.]`
+  }
 
   readFileState.set(fullFilePath, {
-    content,
+    content: pageContent,
     timestamp: Math.floor(mtimeMs),
     offset,
-    limit,
+    limit: pageLimit,
+    ...(partialNotice !== undefined && { isPartialView: true }),
   })
   context.nestedMemoryAttachmentTriggers?.add(fullFilePath)
 
   // Snapshot before iterating — a listener that unsubscribes mid-callback
   // would splice the live array and skip the next listener.
   for (const listener of fileReadListeners.slice()) {
-    listener(resolvedFilePath, content)
+    listener(resolvedFilePath, pageContent)
   }
 
   const data = {
     type: 'text' as const,
     file: {
       filePath: file_path,
-      content,
-      numLines: lineCount,
-      startLine: offset,
+      content: pageContent,
+      numLines: pageLineCount,
+      startLine:
+        partialNotice !== undefined ? Math.max(1, offset) : offset,
       totalLines,
+      ...(partialNotice !== undefined && { truncatedByTokenCap: true }),
     },
+  }
+  if (partialNotice !== undefined) {
+    partialViewNotices.set(data, partialNotice)
   }
   if (isAutoMemFile(fullFilePath)) {
     memoryFileMtimes.set(data, mtimeMs)
@@ -1058,18 +1155,21 @@ async function callInner(
     operation: 'read',
     tool: 'FileReadTool',
     filePath: fullFilePath,
-    content,
+    content: pageContent,
   })
 
   const sessionFileType = detectSessionFileType(fullFilePath)
   const analyticsExt = getFileExtensionForAnalytics(fullFilePath)
   logEvent('tengu_session_file_read', {
     totalLines,
-    readLines: lineCount,
+    readLines: pageLineCount,
     totalBytes,
-    readBytes,
+    readBytes:
+      partialNotice !== undefined
+        ? Buffer.byteLength(pageContent, 'utf8')
+        : readBytes,
     offset,
-    ...(limit !== undefined && { limit }),
+    ...(pageLimit !== undefined && { limit: pageLimit }),
     ...(analyticsExt !== undefined && { ext: analyticsExt }),
     ...(messageId !== undefined && {
       messageID:

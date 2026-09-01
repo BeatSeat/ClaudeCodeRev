@@ -89,12 +89,62 @@ export const SDK_OAUTH_REFRESH_ENTRYPOINTS = new Set([
   'claude-vscode',
 ])
 
+/** Official 2.1.145 `jh9` / `NAH`. */
+export const SDK_HOST_AUTH_REFRESH_ENTRYPOINTS = new Set([
+  'claude-desktop',
+  'claude-desktop-3p',
+  'local-agent',
+])
+
 let sdkOAuthTokenRefreshCallback: (() => Promise<string | null>) | null = null
+let sdkHostAuthTokenRefreshCallback: (() => Promise<string | null>) | null =
+  null
 
 export function setSdkOAuthTokenRefreshCallback(
   callback: (() => Promise<string | null>) | null,
 ): void {
   sdkOAuthTokenRefreshCallback = callback
+}
+
+/** Official 2.1.145 `x74`. */
+export function getHostAuthEnvVarName(): string {
+  return process.env.CLAUDE_CODE_HOST_AUTH_ENV_VAR || 'ANTHROPIC_AUTH_TOKEN'
+}
+
+export function getHostAuthTokenRefreshCallback():
+  | (() => Promise<string | null>)
+  | null {
+  return sdkHostAuthTokenRefreshCallback
+}
+
+export function setSdkHostAuthTokenRefreshCallback(
+  callback: (() => Promise<string | null>) | null,
+): void {
+  sdkHostAuthTokenRefreshCallback = callback
+}
+
+export async function handleHostAuth401Error(): Promise<boolean> {
+  const refresh = sdkHostAuthTokenRefreshCallback
+  if (!refresh) return false
+  const envName = getHostAuthEnvVarName()
+  const previous = process.env[envName]
+  try {
+    const next = await refresh()
+    if (next && next !== previous) {
+      process.env[envName] = next
+      logEvent('host_auth_401_recovery', {})
+      return true
+    }
+    logEvent('host_auth_401_recovery', { failed: true })
+    return false
+  } catch (error) {
+    logEvent('host_auth_401_recovery', { failed: true })
+    logForDebugging(
+      `host getHostAuthToken callback failed: ${errorMessage(error)}`,
+      { level: 'error' },
+    )
+    return false
+  }
 }
 
 /**
