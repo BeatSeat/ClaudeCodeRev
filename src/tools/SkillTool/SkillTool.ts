@@ -882,6 +882,8 @@ export const SkillTool: Tool<InputSchema, Output, Progress> = buildTool({
                 effortValue: effort,
               }
             },
+            // Official 2.1.120: skill ${CLAUDE_EFFORT} reads getEffortValue
+            getEffortValue: () => effort,
           }
         }
 

@@ -55,6 +55,8 @@ import { BASH_TOOL_NAME } from '../../tools/BashTool/toolName.js'
 /* eslint-enable @typescript-eslint/no-require-imports */
 import { POWERSHELL_TOOL_NAME } from '../../tools/PowerShellTool/toolName.js'
 import { getToolsForDefaultPreset, parseToolPreset } from '../../tools.js'
+import { getPlatform } from '../platform.js'
+import { isBashShellAvailable } from '../shell/shellToolUtils.js'
 import {
   getFsImplementation,
   safeResolvePath,
@@ -967,6 +969,42 @@ export async function initializeToolPermissionContext({
 
   // Load all permission rules from disk
   const rulesFromDisk = loadAllPermissionRulesFromDisk()
+
+  // Official 2.1.120 N26: when Bash is denied on Windows *and* Git Bash is
+  // present, also deny PowerShell unless the user already referenced it.
+  // Skip when Git Bash is absent — PowerShell is then the only shell tool.
+  const parsedDeniedRules = parsedDisallowedToolsCli.map(
+    permissionRuleValueFromString,
+  )
+  const bashDenied =
+    parsedDeniedRules.some(rule => rule.toolName === BASH_TOOL_NAME) ||
+    rulesFromDisk.some(
+      rule =>
+        rule.ruleBehavior === 'deny' &&
+        rule.ruleValue.toolName === BASH_TOOL_NAME,
+    )
+  const powershellAlreadyReferenced =
+    isEnvTruthy(process.env.CLAUDE_CODE_USE_POWERSHELL_TOOL) ||
+    parseToolListFromCLI(baseToolsCli ?? [])
+      .map(normalizeLegacyToolName)
+      .includes(POWERSHELL_TOOL_NAME) ||
+    parsedAllowedToolsCli.some(
+      rule =>
+        permissionRuleValueFromString(rule).toolName === POWERSHELL_TOOL_NAME,
+    ) ||
+    parsedDeniedRules.some(rule => rule.toolName === POWERSHELL_TOOL_NAME) ||
+    rulesFromDisk.some(rule => rule.ruleValue.toolName === POWERSHELL_TOOL_NAME)
+  if (
+    getPlatform() === 'windows' &&
+    isBashShellAvailable() &&
+    bashDenied &&
+    !powershellAlreadyReferenced
+  ) {
+    parsedDisallowedToolsCli = [
+      ...parsedDisallowedToolsCli,
+      POWERSHELL_TOOL_NAME,
+    ]
+  }
 
   // Ant-only: Detect overly broad shell allow rules for all modes.
   // Bash(*) or PowerShell(*) are equivalent to YOLO mode for that shell.

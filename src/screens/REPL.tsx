@@ -501,6 +501,8 @@ import { MCPConnectionManager } from 'src/services/mcp/MCPConnectionManager.js'
 import { useFeedbackSurvey } from 'src/components/FeedbackSurvey/useFeedbackSurvey.js'
 import { useMemorySurvey } from 'src/components/FeedbackSurvey/useMemorySurvey.js'
 import { usePostCompactSurvey } from 'src/components/FeedbackSurvey/usePostCompactSurvey.js'
+import { useMemoryWriteSurvey } from 'src/components/FeedbackSurvey/useMemoryWriteSurvey.js'
+import { MemoryWriteSurvey } from 'src/components/FeedbackSurvey/MemoryWriteSurvey.tsx'
 import { FeedbackSurvey } from 'src/components/FeedbackSurvey/FeedbackSurvey.js'
 import { useInstallMessages } from 'src/hooks/notifs/useInstallMessages.js'
 import { useAwaySummary } from 'src/hooks/useAwaySummary.js'
@@ -2346,9 +2348,13 @@ export function REPL({
     elicitation.queue.length > 0 ||
     workerSandboxPermissions.queue.length > 0
 
-  // Official 2.1.111 REPL order: post-compact first (no otherSurveyActive),
-  // then memory, then session — so dismissing one cannot immediately open
-  // the next.
+  // Official 2.1.120 REPL order: memory-write survey first (no
+  // otherSurveyActive, top priority), then post-compact, memory, session,
+  // frustration — so dismissing one cannot immediately open the next.
+  const memoryWriteSurvey = useMemoryWriteSurvey(hasActivePrompt, {
+    otherSurveyActive: false,
+  })
+
   const postCompactSurvey = usePostCompactSurvey(
     messages,
     isLoading,
@@ -2358,7 +2364,9 @@ export function REPL({
 
   const memorySurvey = useMemorySurvey(messages, isLoading, hasActivePrompt, {
     enabled: !isRemoteSession,
-    otherSurveyActive: postCompactSurvey.state !== 'closed',
+    otherSurveyActive:
+      memoryWriteSurvey.state !== 'closed' ||
+      postCompactSurvey.state !== 'closed',
   })
 
   const feedbackSurveyOriginal = useFeedbackSurvey(
@@ -2367,7 +2375,9 @@ export function REPL({
     submitCount,
     'session',
     hasActivePrompt,
-    postCompactSurvey.state !== 'closed' || memorySurvey.state !== 'closed',
+    memoryWriteSurvey.state !== 'closed' ||
+    postCompactSurvey.state !== 'closed' ||
+    memorySurvey.state !== 'closed',
   )
 
   const skillImprovementSurvey = useSkillImprovementSurvey(setMessages)
@@ -2402,6 +2412,7 @@ export function REPL({
     messages,
     isLoading,
     hasActivePrompt,
+    memoryWriteSurvey.state !== 'closed' ||
     feedbackSurvey.state !== 'closed' ||
       postCompactSurvey.state !== 'closed' ||
       memorySurvey.state !== 'closed',
@@ -3307,6 +3318,7 @@ export function REPL({
           refreshTools: computeTools,
         },
         getAppState: () => store.getState(),
+        getEffortValue: () => store.getState().effortValue,
         setAppState,
         messages,
         setMessages,
@@ -6903,7 +6915,21 @@ export function REPL({
                           reason={getAutoRunIssueReasonText(autoRunIssueReason)}
                         />
                       )}
-                      {postCompactSurvey.state !== 'closed' ? (
+                      {memoryWriteSurvey.state !== 'closed' &&
+                      memoryWriteSurvey.record ? (
+                        <MemoryWriteSurvey
+                          record={memoryWriteSurvey.record}
+                          summary={memoryWriteSurvey.summary}
+                          lineCount={memoryWriteSurvey.lineCount}
+                          summaryLineThreshold={
+                            memoryWriteSurvey.summaryLineThreshold
+                          }
+                          countdownSec={memoryWriteSurvey.countdownSec}
+                          onOutcome={memoryWriteSurvey.handleOutcome}
+                          inputValue={inputValue}
+                          setInputValue={setInputValue}
+                        />
+                      ) : postCompactSurvey.state !== 'closed' ? (
                         <FeedbackSurvey
                           state={postCompactSurvey.state}
                           lastResponse={postCompactSurvey.lastResponse}

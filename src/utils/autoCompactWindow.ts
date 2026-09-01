@@ -12,7 +12,7 @@ export const AUTO_COMPACT_WINDOW_MAX = 1_000_000
 /** Official 2.1.89 k47 — dialog step */
 export const AUTO_COMPACT_WINDOW_STEP = 100_000
 
-export type AutoCompactWindowSource = 'env' | 'settings' | 'model'
+export type AutoCompactWindowSource = 'env' | 'settings' | 'auto'
 
 export type ResolvedAutoCompactWindow = {
   window: number
@@ -83,14 +83,14 @@ export function resolveAutoCompactWindow(
   return {
     window: modelWindow,
     configured: modelWindow,
-    source: 'model',
+    source: 'auto',
   }
 }
 
 export function sourceLabel(source: AutoCompactWindowSource): string {
   if (source === 'env') return 'from CLAUDE_CODE_AUTO_COMPACT_WINDOW'
   if (source === 'settings') return 'from settings'
-  return 'model default'
+  return 'auto'
 }
 
 export function formatAutoCompactWindowStatus(
@@ -101,15 +101,27 @@ export function formatAutoCompactWindowStatus(
     resolved.configured > resolved.window
       ? ` · capped to ${formatTokens(resolved.window)} by model`
       : ''
-  const lines = [
-    `Auto-compact window: ${formatTokens(resolved.configured)} tokens (${sourceLabel(resolved.source)})${capped}`,
-  ]
+  const windowLine =
+    resolved.source === 'auto'
+      ? 'Auto-compact window: auto'
+      : resolved.source === 'env'
+        ? `Auto-compact window: ${formatTokens(resolved.configured)} tokens (from CLAUDE_CODE_AUTO_COMPACT_WINDOW)${capped}`
+        : `Auto-compact window: ${formatTokens(resolved.configured)} tokens (from settings)${capped}`
+  const lines = [windowLine]
   if (!autoCompactEnabled) {
     lines.push('Auto-compact is currently disabled (see /config)')
   }
   lines.push(
-    'Auto-compact summarizes the conversation when context usage approaches this limit. The actual threshold is the minimum of this setting and your model\'s context window.',
+    "Auto-compact summarizes the conversation when context usage approaches this limit. The actual threshold is the minimum of this setting and your model's maximum context window.",
   )
+  lines.push(
+    'The auto setting picks a window tuned for your model and is strongly recommended for the best cost and performance.',
+  )
+  if (resolved.source !== 'auto') {
+    lines.push(
+      'Overriding auto may result in high token usage, especially when resuming long sessions.',
+    )
+  }
   return lines.join('\n')
 }
 
@@ -118,7 +130,7 @@ export function applyAutoCompactWindow(
 ): { settingsWindow: number | undefined } {
   updateSettingsForSource('userSettings', { autoCompactWindow: tokens })
   logEvent('tengu_autocompact_command', {
-    action: tokens === undefined ? 'reset' : 'set',
+    action: tokens === undefined ? 'auto' : 'set',
     ...(tokens !== undefined && {
       tokens: tokens as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
     }),
@@ -131,24 +143,27 @@ export function setAutoCompactWindowFromArg(
   arg: string,
   modelWindow: number,
 ): string {
-  if (process.env.CLAUDE_CODE_AUTO_COMPACT_WINDOW) {
+  if (resolveAutoCompactWindow(modelWindow, undefined).source === 'env') {
     return 'CLAUDE_CODE_AUTO_COMPACT_WINDOW is set and takes precedence. Unset it to change this setting.'
   }
   const z = arg.trim().toLowerCase()
-  const isReset = z === 'reset' || z === 'unset' || z === 'default'
-  const tokens = isReset ? undefined : parseAutoCompactWindowArg(z)
-  if (!isReset && tokens === undefined) {
-    return `Invalid argument: ${arg}. Expected 100k–1M tokens (e.g. 500k, 200000, or 200 as shorthand) or 'reset'`
+  const parsed =
+    z === 'reset' || z === 'unset' || z === 'default' || z === 'auto'
+      ? 'auto'
+      : parseAutoCompactWindowArg(z)
+  if (parsed === undefined) {
+    return `Couldn't parse '${arg}'. Expected 'auto' or 100k–1M tokens (e.g. 500k, 200000, or 200 as shorthand)`
   }
+  const tokens = parsed === 'auto' ? undefined : parsed
   applyAutoCompactWindow(tokens)
   const settingsWindow = getInitialSettings().autoCompactWindow
   const resolved = resolveAutoCompactWindow(modelWindow, settingsWindow)
   const overrideActive =
     resolved.source === 'env' || settingsWindow !== tokens
-  if (isReset) {
+  if (parsed === 'auto') {
     return overrideActive
-      ? `Auto-compact window reset in settings, but a higher-priority override is active (${formatTokens(resolved.window)} tokens)`
-      : 'Auto-compact window reset to model default'
+      ? `Auto-compact window set to auto in settings, but a higher-priority override is active (${formatTokens(resolved.window)} tokens)`
+      : 'Auto-compact window set to auto'
   }
   let suffix = ''
   if (overrideActive) {
