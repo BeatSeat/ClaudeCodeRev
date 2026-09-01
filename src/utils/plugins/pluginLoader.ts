@@ -88,6 +88,10 @@ import { verifyAndDemote } from './dependencyResolver.js'
 import { classifyFetchError, logPluginFetch } from './fetchTelemetry.js'
 import { checkGitAvailable } from './gitAvailability.js'
 import { getInMemoryInstalledPlugins } from './installedPluginsManager.js'
+import {
+  loadPluginMonitors,
+  resolvePathWithinPlugin,
+} from './pluginMonitors.js'
 import { getManagedPluginNames } from './managedPlugins.js'
 import {
   formatSourceForDisplay,
@@ -362,6 +366,88 @@ export async function copyDir(src: string, dest: string): Promise<void> {
  * @throws Error if the source directory is not found
  * @throws Error if the destination directory is empty after copy
  */
+const PLUGIN_DEP_INSTALL_TIMEOUT_MS = 60_000
+const PLUGIN_DEP_INSTALLERS = [
+  {
+    lockfile: 'bun.lock',
+    command: 'bun',
+    args: ['install', '--frozen-lockfile', '--ignore-scripts'],
+  },
+  {
+    lockfile: 'bun.lockb',
+    command: 'bun',
+    args: ['install', '--frozen-lockfile', '--ignore-scripts'],
+  },
+  {
+    lockfile: 'npm-shrinkwrap.json',
+    command: 'npm',
+    args: ['ci', '--ignore-scripts'],
+  },
+  {
+    lockfile: 'package-lock.json',
+    command: 'npm',
+    args: ['ci', '--ignore-scripts'],
+  },
+] as const
+
+/**
+ * Official _n8: if the plugin ships package.json + a bun/npm lockfile,
+ * install dependencies with --ignore-scripts. yarn/pnpm lockfiles are skipped
+ * (resolution-time hooks bypass --ignore-scripts).
+ */
+export async function installPluginDependencies(
+  pluginPath: string,
+): Promise<{ ran: boolean; error?: string }> {
+  let entries: string[]
+  try {
+    entries = await readdir(pluginPath)
+  } catch (error) {
+    if (isENOENT(error)) {
+      return { ran: false }
+    }
+    throw error
+  }
+  const names = new Set(entries)
+  if (!names.has('package.json')) {
+    return { ran: false }
+  }
+  for (const installer of PLUGIN_DEP_INSTALLERS) {
+    if (!names.has(installer.lockfile)) {
+      continue
+    }
+    logForDebugging(
+      `Installing plugin dependencies: ${installer.command} ${installer.args.join(' ')} in ${pluginPath}`,
+    )
+    const result = await execFileNoThrowWithCwd(
+      installer.command,
+      [...installer.args],
+      { cwd: pluginPath, timeout: PLUGIN_DEP_INSTALL_TIMEOUT_MS },
+    )
+    if (result.code !== 0) {
+      return {
+        ran: true,
+        error:
+          `Plugin dependency install failed (${installer.command}): ${result.stderr || result.stdout || result.error || 'no output'}`.slice(
+            0,
+            500,
+          ),
+      }
+    }
+    logForDebugging(
+      `Plugin dependency install succeeded (${installer.command}) in ${pluginPath}`,
+    )
+    return { ran: true }
+  }
+  if (names.has('yarn.lock') || names.has('pnpm-lock.yaml')) {
+    return {
+      ran: false,
+      error:
+        'Skipped: yarn/pnpm lockfiles are not supported (resolution-time hooks bypass --ignore-scripts). Use bun or npm.',
+    }
+  }
+  return { ran: false }
+}
+
 export async function copyPluginToVersionedCache(
   sourcePath: string,
   pluginId: string,
@@ -448,6 +534,14 @@ export async function copyPluginToVersionedCache(
   if (cacheEntries.length === 0) {
     throw new Error(
       `Failed to copy plugin ${pluginId} to versioned cache: destination is empty after copy`,
+    )
+  }
+
+  const depInstall = await installPluginDependencies(cachePath)
+  if (depInstall.error) {
+    logForDebugging(
+      `Plugin dependency install warning for ${pluginId}: ${depInstall.error}`,
+      { level: 'warn' },
     )
   }
 
@@ -1088,6 +1182,14 @@ export async function cachePlugin(
 
   await rename(tempPath, finalPath)
 
+  const depInstall = await installPluginDependencies(finalPath)
+  if (depInstall.error) {
+    logForDebugging(
+      `Plugin dependency install warning for ${manifest.name}: ${depInstall.error}`,
+      { level: 'warn' },
+    )
+  }
+
   logForDebugging(`Successfully cached plugin ${manifest.name} to ${finalPath}`)
 
   return {
@@ -1275,13 +1377,30 @@ async function validatePluginPaths(
   // Parallelize the async pathExists checks
   const checks = await Promise.all(
     relPaths.map(async relPath => {
-      const fullPath = join(pluginPath, relPath)
+      const fullPath = resolvePathWithinPlugin(pluginPath, relPath)
+      if (fullPath === null) {
+        return { relPath, fullPath: null, exists: false }
+      }
       return { relPath, fullPath, exists: await pathExists(fullPath) }
     }),
   )
   // Process results in original order to keep error/log ordering deterministic
   const validPaths: string[] = []
   for (const { relPath, fullPath, exists } of checks) {
+    if (fullPath === null) {
+      logForDebugging(
+        `${componentLabel} path ${relPath} ${contextLabel} escapes plugin directory for ${pluginName}`,
+        { level: 'error' },
+      )
+      errors.push({
+        type: 'path-traversal',
+        source,
+        plugin: pluginName,
+        path: relPath,
+        component,
+      })
+      continue
+    }
     if (exists) {
       validPaths.push(fullPath)
     } else {
@@ -1657,7 +1776,21 @@ export async function createPluginFromPath(
     for (const hookSpec of manifestHooksArray) {
       if (typeof hookSpec === 'string') {
         // Path to additional hooks file
-        const hookFilePath = join(pluginPath, hookSpec)
+        const hookFilePath = resolvePathWithinPlugin(pluginPath, hookSpec)
+        if (hookFilePath === null) {
+          logForDebugging(
+            `Hooks file ${hookSpec} specified in manifest but escapes plugin directory for ${manifest.name}`,
+            { level: 'error' },
+          )
+          errors.push({
+            type: 'path-traversal',
+            source,
+            plugin: manifest.name,
+            path: hookSpec,
+            component: 'hooks',
+          })
+          continue
+        }
         if (!(await pathExists(hookFilePath))) {
           logForDebugging(
             `Hooks file ${hookSpec} specified in manifest but not found at ${hookFilePath} for ${manifest.name}`,
@@ -1756,6 +1889,16 @@ export async function createPluginFromPath(
 
   if (mergedHooks) {
     plugin.hooksConfig = mergedHooks
+  }
+
+  const monitors = await loadPluginMonitors(
+    pluginPath,
+    manifest,
+    source,
+    errors,
+  )
+  if (monitors) {
+    plugin.monitors = monitors
   }
 
   // Step 6: Load plugin settings

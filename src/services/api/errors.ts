@@ -548,8 +548,21 @@ export function getAssistantMessageFromError(
     }
     // SDK's APIError.makeMessage prepends "429 " and JSON-stringifies the body
     // when there's no top-level .message — extract the inner error.message.
+    // Official 2.1.105: JSON.parse the stripped body (error.message or message).
     const stripped = error.message.replace(/^429\s+/, '')
-    const innerMessage = stripped.match(/"message"\s*:\s*"([^"]*)"/)?.[1]
+    let innerMessage: string | undefined
+    try {
+      const parsed = JSON.parse(stripped) as {
+        error?: { message?: unknown }
+        message?: unknown
+      }
+      const candidate = parsed?.error?.message ?? parsed?.message
+      if (typeof candidate === 'string') {
+        innerMessage = candidate
+      }
+    } catch {
+      innerMessage = stripped.match(/"message"\s*:\s*"([^"]*)"/)?.[1]
+    }
     const detail = innerMessage || stripped
     return createAssistantAPIErrorMessage({
       content: `${API_ERROR_MESSAGE_PREFIX}: Request rejected (429) · ${detail || 'this may be a temporary capacity issue — check status.anthropic.com'}`,

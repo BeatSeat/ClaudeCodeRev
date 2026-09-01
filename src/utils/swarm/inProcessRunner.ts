@@ -27,6 +27,7 @@ import { getAutoCompactThreshold } from '../../services/compact/autoCompact.js'
 import {
   buildPostCompactMessages,
   compactConversation,
+  COMPACTION_BLOCKED_BY_PRECOMPACT_HOOK,
   ERROR_MESSAGE_USER_ABORT,
 } from '../../services/compact/compact.js'
 import { resetMicrocompactState } from '../../services/compact/microCompact.js'
@@ -1087,21 +1088,22 @@ export async function runInProcessTeammate(
           onCompactProgress: undefined,
           setStreamMode: undefined,
         }
-        const compactedSummary = await compactConversation(
-          allMessages,
-          isolatedContext,
-          {
-            systemPrompt: asSystemPrompt([]),
-            userContext: {},
-            systemContext: {},
-            toolUseContext: isolatedContext,
-            forkContextMessages: [],
-          },
-          true, // suppressFollowUpQuestions
-          undefined, // customInstructions
-          true, // isAutoCompact
-        )
-        contextMessages = buildPostCompactMessages(compactedSummary)
+        try {
+          const compactedSummary = await compactConversation(
+            allMessages,
+            isolatedContext,
+            {
+              systemPrompt: asSystemPrompt([]),
+              userContext: {},
+              systemContext: {},
+              toolUseContext: isolatedContext,
+              forkContextMessages: [],
+            },
+            true, // suppressFollowUpQuestions
+            undefined, // customInstructions
+            true, // isAutoCompact
+          )
+          contextMessages = buildPostCompactMessages(compactedSummary)
         // Reset microcompact state since full compact replaces all
         // messages — old tool IDs are no longer relevant
         resetMicrocompactState()
@@ -1123,6 +1125,18 @@ export async function runInProcessTeammate(
           task => ({ ...task, messages: [...contextMessages, userMessage] }),
           setAppState,
         )
+        } catch (error) {
+          if (
+            error instanceof Error &&
+            error.message.startsWith(COMPACTION_BLOCKED_BY_PRECOMPACT_HOOK)
+          ) {
+            logForDebugging(
+              `[inProcessRunner] ${identity.agentId} compaction blocked by PreCompact hook; continuing uncompacted`,
+            )
+          } else {
+            throw error
+          }
+        }
       }
 
       // Pass previous messages as context to preserve conversation history

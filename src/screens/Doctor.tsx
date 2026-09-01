@@ -1,4 +1,3 @@
-import figures from 'figures'
 import { join } from 'path'
 import React, {
   Suspense,
@@ -8,15 +7,15 @@ import React, {
   useMemo,
   useState,
 } from 'react'
+import { StatusIcon } from 'src/components/design-system/StatusIcon.js'
 import { KeybindingWarnings } from 'src/components/KeybindingWarnings.js'
 import { McpParsingWarnings } from 'src/components/mcp/McpParsingWarnings.js'
 import { getModelMaxOutputTokens } from 'src/utils/context.js'
 import { getClaudeConfigHomeDir } from 'src/utils/envUtils.js'
 import type { SettingSource } from 'src/utils/settings/constants.js'
+import type { LocalJSXCommandOnDone } from '../types/command.js'
 import { getOriginalCwd } from '../bootstrap/state.js'
-import type { CommandResultDisplay } from '../commands.js'
 import { Pane } from '../components/design-system/Pane.js'
-import { PressEnterToContinue } from '../components/PressEnterToContinue.js'
 import { SandboxDoctorSection } from '../components/sandbox/SandboxDoctorSection.js'
 import { ValidationErrorsList } from '../components/ValidationErrorsList.js'
 import { useSettingsErrors } from '../hooks/notifs/useSettingsErrors.js'
@@ -56,12 +55,71 @@ import {
   TASK_MAX_OUTPUT_UPPER_LIMIT,
 } from '../utils/task/outputFormatting.js'
 import { getXDGStateHome } from '../utils/xdg.js'
+import {
+  getCachedKeybindingWarnings,
+  getKeybindingsPath,
+} from '../keybindings/loadUserBindings.js'
+import { useShortcutDisplay } from '../keybindings/useShortcutDisplay.js'
 
 type Props = {
-  onDone: (
-    result?: string,
-    options?: { display?: CommandResultDisplay },
-  ) => void
+  onDone: LocalJSXCommandOnDone
+}
+
+/** Official uCY: prompt Claude to fix the issues /doctor just reported. */
+function buildDoctorFixPrompt(
+  diagnostic: DiagnosticInfo | null,
+  agentInfo: AgentInfo | null,
+  settingsErrorCount: number,
+  pluginErrorCount: number,
+  contextWarnings: ContextWarnings | null,
+  envErrors: Array<{ name: string; message: string }>,
+): string | null {
+  const items: string[] = []
+  for (const warning of diagnostic?.warnings ?? []) {
+    items.push(`- ${warning.issue}\n  Suggested fix: ${warning.fix}`)
+  }
+  for (const warning of getCachedKeybindingWarnings()) {
+    items.push(
+      `- Keybinding (${getKeybindingsPath()}): ${warning.message}${
+        warning.suggestion ? `\n  Suggested fix: ${warning.suggestion}` : ''
+      }`,
+    )
+  }
+  for (const file of agentInfo?.failedFiles ?? []) {
+    items.push(
+      `- Agent file failed to parse: ${file.path}\n  Error: ${file.error}`,
+    )
+  }
+  if (settingsErrorCount > 0) {
+    items.push(
+      `- ${settingsErrorCount} invalid settings entries (see /doctor output)`,
+    )
+  }
+  if (pluginErrorCount > 0) {
+    items.push(`- ${pluginErrorCount} plugin error(s) (see /doctor output)`)
+  }
+  for (const warning of [
+    contextWarnings?.claudeMdWarning,
+    contextWarnings?.agentWarning,
+    contextWarnings?.unreachableRulesWarning,
+  ]) {
+    if (warning) {
+      items.push(`- ${warning.message}\n  ${warning.details.join('\n  ')}`)
+    }
+  }
+  for (const env of envErrors) {
+    items.push(`- Environment variable ${env.name}: ${env.message}`)
+  }
+  if (items.length === 0) {
+    return null
+  }
+  return [
+    'Help me fix the issues reported by /doctor below.',
+    '',
+    'For each issue: briefly explain what the fix will do, then ask me to confirm before running any shell command that deletes files, modifies global config, or changes my installation. Safe read-only checks are fine without asking. If a suggested fix looks wrong for my setup, say so instead of running it.',
+    '',
+    items.join('\n'),
+  ].join('\n')
 }
 
 type AgentInfo = {
@@ -232,6 +290,28 @@ export function Doctor({ onDone }: Props): React.ReactNode {
     onDone('Claude Code diagnostics dismissed', { display: 'system' })
   }, [onDone])
 
+  const fixPrompt = useMemo(
+    () =>
+      buildDoctorFixPrompt(
+        diagnostic,
+        agentInfo,
+        errorsExcludingMcp.length,
+        pluginsErrors.length,
+        contextWarnings,
+        envValidationErrors,
+      ),
+    [
+      diagnostic,
+      agentInfo,
+      errorsExcludingMcp.length,
+      pluginsErrors.length,
+      contextWarnings,
+      envValidationErrors,
+    ],
+  )
+
+  const enterShortcut = useShortcutDisplay('confirm:yes', 'Confirmation', 'Enter')
+
   // Handle dismiss via keybindings (Enter, Escape, or Ctrl+C)
   useKeybindings(
     {
@@ -239,6 +319,17 @@ export function Doctor({ onDone }: Props): React.ReactNode {
       'confirm:no': handleDismiss,
     },
     { context: 'Confirmation' },
+  )
+
+  useKeybindings(
+    {
+      'doctor:fix': () => {
+        if (fixPrompt) {
+          onDone(fixPrompt, { display: 'user', shouldQuery: true })
+        }
+      },
+    },
+    { context: 'Doctor', isActive: fixPrompt !== null },
   )
 
   // Loading state
@@ -263,7 +354,9 @@ export function Doctor({ onDone }: Props): React.ReactNode {
           <Text>└ Package manager: {diagnostic.packageManager}</Text>
         )}
         <Text>└ Path: {diagnostic.installationPath}</Text>
-        <Text>└ Invoked: {diagnostic.invokedBinary}</Text>
+        {diagnostic.invokedBinary !== diagnostic.installationPath && (
+          <Text>└ Invoked: {diagnostic.invokedBinary}</Text>
+        )}
         <Text>└ Config install method: {diagnostic.configInstallMethod}</Text>
         <Text>
           └ Search: {diagnostic.ripgrepStatus.working ? 'OK' : 'Not working'} (
@@ -290,7 +383,10 @@ export function Doctor({ onDone }: Props): React.ReactNode {
         {diagnostic.multipleInstallations.length > 1 && (
           <>
             <Text></Text>
-            <Text color="warning">Warning: Multiple installations found</Text>
+            <Text>
+              <StatusIcon status="warning" withSpace />
+              Multiple installations found
+            </Text>
             {diagnostic.multipleInstallations.map((install, i) => (
               <Text key={i}>
                 └ {install.type} at {install.path}
@@ -305,7 +401,10 @@ export function Doctor({ onDone }: Props): React.ReactNode {
             <Text></Text>
             {diagnostic.warnings.map((warning, i) => (
               <Box key={i} flexDirection="column">
-                <Text color="warning">Warning: {warning.issue}</Text>
+                <Text>
+                  <StatusIcon status="warning" withSpace />
+                  {warning.issue}
+                </Text>
                 <Text>Fix: {warning.fix}</Text>
               </Box>
             ))}
@@ -393,8 +492,9 @@ export function Doctor({ onDone }: Props): React.ReactNode {
 
       {agentInfo?.failedFiles && agentInfo.failedFiles.length > 0 && (
         <Box flexDirection="column">
-          <Text bold color="error">
-            Agent Parse Errors
+          <Text>
+            <StatusIcon status="error" withSpace />
+            <Text bold>Agent parse errors</Text>
           </Text>
           <Text color="error">
             └ Failed to parse {agentInfo.failedFiles.length} agent file(s):
@@ -410,8 +510,9 @@ export function Doctor({ onDone }: Props): React.ReactNode {
       {/* Plugin Errors */}
       {pluginsErrors.length > 0 && (
         <Box flexDirection="column">
-          <Text bold color="error">
-            Plugin Errors
+          <Text>
+            <StatusIcon status="error" withSpace />
+            <Text bold>Plugin errors</Text>
           </Text>
           <Text color="error">
             └ {pluginsErrors.length} plugin error(s) detected:
@@ -435,7 +536,7 @@ export function Doctor({ onDone }: Props): React.ReactNode {
           <Text>
             └{' '}
             <Text color="warning">
-              {figures.warning}{' '}
+              <StatusIcon status="warning" withSpace />
               {contextWarnings.unreachableRulesWarning.message}
             </Text>
           </Text>
@@ -460,7 +561,8 @@ export function Doctor({ onDone }: Props): React.ReactNode {
                 <Text>
                   └{' '}
                   <Text color="warning">
-                    {figures.warning} {contextWarnings.claudeMdWarning.message}
+                    <StatusIcon status="warning" withSpace />
+                    {contextWarnings.claudeMdWarning.message}
                   </Text>
                 </Text>
                 <Text>{'  '}└ Files:</Text>
@@ -477,7 +579,8 @@ export function Doctor({ onDone }: Props): React.ReactNode {
                 <Text>
                   └{' '}
                   <Text color="warning">
-                    {figures.warning} {contextWarnings.agentWarning.message}
+                    <StatusIcon status="warning" withSpace />
+                    {contextWarnings.agentWarning.message}
                   </Text>
                 </Text>
                 <Text>{'  '}└ Top contributors:</Text>
@@ -494,7 +597,8 @@ export function Doctor({ onDone }: Props): React.ReactNode {
                 <Text>
                   └{' '}
                   <Text color="warning">
-                    {figures.warning} {contextWarnings.mcpWarning.message}
+                    <StatusIcon status="warning" withSpace />
+                    {contextWarnings.mcpWarning.message}
                   </Text>
                 </Text>
                 <Text>{'  '}└ MCP servers:</Text>
@@ -508,8 +612,16 @@ export function Doctor({ onDone }: Props): React.ReactNode {
           </Box>
         )}
 
-      <Box>
-        <PressEnterToContinue />
+      <Box marginTop={1}>
+        <Text color="permission">
+          Press {enterShortcut} to continue
+          {fixPrompt ? (
+            <>
+              {' · '}
+              <Text bold>f</Text> to fix with Claude
+            </>
+          ) : null}
+        </Text>
       </Box>
     </Pane>
   )

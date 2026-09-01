@@ -40,6 +40,11 @@ export function useDebouncedDigitInput<T extends string = string>({
   const hasTriggeredRef = useRef(false)
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const mountedAtRef = useRef(enabled ? Date.now() : null)
+  const wasEnabledRef = useRef(enabled)
+  if (enabled && !wasEnabledRef.current) {
+    mountedAtRef.current = Date.now()
+  }
+  wasEnabledRef.current = enabled
 
   // Latest-ref pattern so callers can pass inline callbacks without causing
   // the effect to re-run (which would reset the debounce timer every render).
@@ -63,23 +68,23 @@ export function useDebouncedDigitInput<T extends string = string>({
       return
     }
 
-    if (inputValue !== initialInputValue.current) {
-      const lastChar = inputValue.slice(-1).normalize('NFKC')
-      if (callbacksRef.current.isValidDigit(lastChar)) {
-        const trimmed = inputValue.slice(0, -1)
+    // Official N96: only a single-character input is a shortcut. Digits
+    // typed at the end of a longer prompt must not fire the survey.
+    if (inputValue !== initialInputValue.current && inputValue.length === 1) {
+      const digit = inputValue.normalize('NFKC')
+      if (callbacksRef.current.isValidDigit(digit)) {
         debounceRef.current = setTimeout(
-          (debounceRef, hasTriggeredRef, callbacksRef, trimmed, lastChar) => {
+          (debounceRef, hasTriggeredRef, callbacksRef, digit) => {
             debounceRef.current = null
             hasTriggeredRef.current = true
-            callbacksRef.current.setInputValue(trimmed)
-            callbacksRef.current.onDigit(lastChar)
+            callbacksRef.current.setInputValue('')
+            callbacksRef.current.onDigit(digit)
           },
           debounceMs,
           debounceRef,
           hasTriggeredRef,
           callbacksRef,
-          trimmed,
-          lastChar,
+          digit,
         )
       }
     }

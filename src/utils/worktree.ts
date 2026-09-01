@@ -13,7 +13,8 @@ import {
   utimes,
 } from 'fs/promises'
 import ignore from 'ignore'
-import { basename, dirname, join } from 'path'
+import { realpath } from 'fs/promises'
+import { basename, dirname, isAbsolute, join, resolve } from 'path'
 import { saveCurrentProjectConfig } from './config.js'
 import { getCwd } from './cwd.js'
 import { logForDebugging } from './debug.js'
@@ -153,12 +154,28 @@ export type WorktreeSession = {
   creationDurationMs?: number
   /** True if git sparse-checkout was applied via settings.worktree.sparsePaths. */
   usedSparsePaths?: boolean
+  /** Official 2.1.105: entered via EnterWorktree `path` instead of creating. */
+  enteredExisting?: boolean
 }
 
 let currentWorktreeSession: WorktreeSession | null = null
 
 export function getCurrentWorktreeSession(): WorktreeSession | null {
   return currentWorktreeSession
+}
+
+/**
+ * Official Yn4: `--worktree` flag for the resume hint. Entering an existing
+ * worktree via EnterWorktree `path` must not add `--worktree` (the session
+ * already lives there).
+ */
+export function getResumeWorktreeArg(): string | null {
+  if (currentWorktreeSession) {
+    return currentWorktreeSession.enteredExisting
+      ? null
+      : currentWorktreeSession.worktreeName
+  }
+  return null
 }
 
 /**
@@ -701,6 +718,113 @@ export async function killTmuxSession(sessionName: string): Promise<boolean> {
   return code === 0
 }
 
+type ListedWorktree = {
+  worktreePath: string
+  worktreeBranch?: string
+}
+
+/** Official 2.1.105 `LeK` — porcelain worktree list with branch. */
+async function listGitWorktrees(repoRoot: string): Promise<ListedWorktree[]> {
+  const { code, stdout, stderr, error } = await execFileNoThrowWithCwd(
+    gitExe(),
+    ['-C', repoRoot, 'worktree', 'list', '--porcelain'],
+    { timeout: 10_000 },
+  )
+  if (code !== 0) {
+    throw new Error(
+      `\`git -C ${repoRoot} worktree list\` failed: ${stderr.trim() || errorMessage(error) || `exit ${code}`}`,
+    )
+  }
+  const listed: ListedWorktree[] = []
+  let current: ListedWorktree | null = null
+  for (const line of stdout.split('\n')) {
+    if (line.startsWith('worktree ')) {
+      if (current) listed.push(current)
+      current = { worktreePath: line.slice('worktree '.length) }
+    } else if (line.startsWith('branch ') && current) {
+      current.worktreeBranch = line.slice('branch '.length).replace(/^refs\/heads\//, '')
+    }
+  }
+  if (current) listed.push(current)
+  return listed
+}
+
+/**
+ * Switch the session into an existing linked worktree (official 2.1.105 `C57`).
+ */
+export async function enterExistingWorktreeForSession(
+  sessionId: string,
+  pathInput: string,
+): Promise<WorktreeSession> {
+  const originalCwd = getCwd()
+  const gitRoot = findCanonicalGitRoot(originalCwd) ?? findGitRoot(originalCwd)
+  if (!gitRoot) {
+    throw new Error(
+      'Cannot enter an existing worktree: the current directory is not in a git repository.',
+    )
+  }
+
+  const resolvedInput = isAbsolute(pathInput)
+    ? pathInput
+    : resolve(originalCwd, pathInput)
+
+  let targetPath: string
+  let mainPath: string
+  let cwdPath: string
+  try {
+    ;[targetPath, mainPath, cwdPath] = await Promise.all([
+      realpath(resolvedInput),
+      realpath(gitRoot),
+      realpath(originalCwd),
+    ])
+  } catch (error) {
+    throw new Error(`Cannot enter worktree: ${pathInput}: ${errorMessage(error)}`)
+  }
+
+  if (targetPath === mainPath) {
+    throw new Error(
+      `Cannot enter worktree: ${pathInput} is the main working tree, not a linked worktree.`,
+    )
+  }
+  if (targetPath === cwdPath) {
+    throw new Error(
+      `Cannot enter worktree: ${pathInput} is the current working directory.`,
+    )
+  }
+
+  const listed = await listGitWorktrees(gitRoot)
+  let match: ListedWorktree | undefined
+  for (const entry of listed) {
+    try {
+      if ((await realpath(entry.worktreePath)) === targetPath) {
+        match = entry
+        break
+      }
+    } catch {
+      // skip unreadable entries
+    }
+  }
+  if (!match) {
+    throw new Error(
+      `Cannot enter worktree: ${pathInput} is not a registered worktree of ${gitRoot}. Run 'git -C ${gitRoot} worktree list' to see registered worktrees.`,
+    )
+  }
+
+  currentWorktreeSession = {
+    originalCwd,
+    worktreePath: targetPath,
+    worktreeName: basename(targetPath),
+    worktreeBranch: match.worktreeBranch,
+    sessionId,
+    enteredExisting: true,
+  }
+  saveCurrentProjectConfig(current => ({
+    ...current,
+    activeWorktreeSession: currentWorktreeSession ?? undefined,
+  }))
+  return currentWorktreeSession
+}
+
 export async function createWorktreeForSession(
   sessionId: string,
   slug: string,
@@ -1057,6 +1181,71 @@ const EPHEMERAL_WORKTREE_PATTERNS = [
  * worktree tracking. If git doesn't recognize the path as a worktree (orphaned
  * dir), it's left in place — a later readdir finding it stale again is harmless.
  */
+/** Official MeY: origin/HEAD, else origin/main, else origin/master. */
+async function getDefaultRemoteBranch(
+  gitRoot: string,
+): Promise<string | null> {
+  const head = await execFileNoThrowWithCwd(
+    gitExe(),
+    ['symbolic-ref', '-q', '--short', 'refs/remotes/origin/HEAD'],
+    { cwd: gitRoot },
+  )
+  if (head.code === 0 && head.stdout.trim()) {
+    return head.stdout.trim()
+  }
+  for (const candidate of ['origin/main', 'origin/master'] as const) {
+    const verified = await execFileNoThrowWithCwd(
+      gitExe(),
+      ['rev-parse', '--verify', '-q', candidate],
+      { cwd: gitRoot },
+    )
+    if (verified.code === 0) {
+      return candidate
+    }
+  }
+  return null
+}
+
+/**
+ * Official XeY: upstream is gone and cherry-pick vs default has no unique
+ * commits — the PR was squash-merged (or the branch is empty vs default).
+ */
+async function isSquashMergedIntoDefault(
+  worktreePath: string,
+  defaultBranch: string,
+): Promise<boolean> {
+  const headRef = await execFileNoThrowWithCwd(
+    gitExe(),
+    ['symbolic-ref', '-q', 'HEAD'],
+    { cwd: worktreePath },
+  )
+  const ref = headRef.stdout.trim()
+  if (headRef.code !== 0 || !ref) {
+    return false
+  }
+  const track = await execFileNoThrowWithCwd(
+    gitExe(),
+    ['for-each-ref', '--format=%(upstream:track,nobracket)', ref],
+    { cwd: worktreePath },
+  )
+  if (track.code !== 0 || track.stdout.trim() !== 'gone') {
+    return false
+  }
+  const unique = await execFileNoThrowWithCwd(
+    gitExe(),
+    [
+      'rev-list',
+      '--cherry-pick',
+      '--right-only',
+      '--no-merges',
+      '--max-count=1',
+      `${defaultBranch}...HEAD`,
+    ],
+    { cwd: worktreePath },
+  )
+  return unique.code === 0 && unique.stdout.trim().length === 0
+}
+
 export async function cleanupStaleAgentWorktrees(
   cutoffDate: Date,
 ): Promise<number> {
@@ -1075,6 +1264,7 @@ export async function cleanupStaleAgentWorktrees(
 
   const cutoffMs = cutoffDate.getTime()
   const currentPath = currentWorktreeSession?.worktreePath
+  const defaultBranch = await getDefaultRemoteBranch(gitRoot)
   let removed = 0
 
   for (const slug of entries) {
@@ -1115,8 +1305,16 @@ export async function cleanupStaleAgentWorktrees(
     if (status.code !== 0 || status.stdout.trim().length > 0) {
       continue
     }
-    if (unpushed.code !== 0 || unpushed.stdout.trim().length > 0) {
+    if (unpushed.code !== 0) {
       continue
+    }
+    if (unpushed.stdout.trim().length > 0) {
+      if (
+        defaultBranch === null ||
+        !(await isSquashMergedIntoDefault(worktreePath, defaultBranch))
+      ) {
+        continue
+      }
     }
 
     if (
