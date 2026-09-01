@@ -39,6 +39,10 @@ import {
   type AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
   logEvent,
 } from '../analytics/index.js'
+import {
+  hasExpiredMcpAccessTokenNoRefresh,
+  hasMcpDiscoveryButNoToken,
+} from './auth.js'
 import { fetchClaudeAIMcpConfigsIfEligible } from './claudeai.js'
 import { expandEnvVarsInString } from './envExpansion.js'
 import {
@@ -355,6 +359,15 @@ export function dedupClaudeAiMcpServers(
   const manualSigs = new Map<string, string>()
   for (const [name, config] of Object.entries(manualServers)) {
     if (isMcpServerDisabled(name)) continue
+    // Official 2.1.126 `sf$`: needs-auth / expired-token manual SSE/HTTP
+    // servers must not suppress a matching claude.ai connector.
+    if (
+      (config.type === 'sse' || config.type === 'http') &&
+      (hasMcpDiscoveryButNoToken(name, config) ||
+        hasExpiredMcpAccessTokenNoRefresh(name, config))
+    ) {
+      continue
+    }
     const sig = getMcpServerSignature(config)
     if (sig && !manualSigs.has(sig)) manualSigs.set(sig, name)
   }

@@ -423,6 +423,8 @@ export async function compactConversation(
   customInstructions?: string,
   isAutoCompact: boolean = false,
   recompactionInfo?: RecompactionInfo,
+  /** Official 2.1.126 `nG6` — disables cache-prefix reuse. */
+  coldCompact: boolean = false,
 ): Promise<CompactionResult> {
   try {
     if (messages.length === 0) {
@@ -466,10 +468,9 @@ export async function compactConversation(
     // Experiment (Jan 2026) confirmed: false path is 98% cache miss, costs ~0.76% of
     // fleet cache_creation (~38B tok/day), concentrated in ephemeral envs (CCR/GHA/SDK)
     // with cold GB cache and 3P providers where GB is disabled. GB gate kept as kill-switch.
-    const promptCacheSharingEnabled = getFeatureValue_CACHED_MAY_BE_STALE(
-      'tengu_compact_cache_prefix',
-      true,
-    )
+    const promptCacheSharingEnabled =
+      !coldCompact &&
+      getFeatureValue_CACHED_MAY_BE_STALE('tengu_compact_cache_prefix', true)
 
     const compactPrompt = getCompactPrompt(customInstructions)
     const summaryRequest = createUserMessage({

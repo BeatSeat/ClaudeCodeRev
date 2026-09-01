@@ -353,6 +353,7 @@ import {
 } from 'src/utils/gracefulShutdown.js'
 import { setAllHookEventsEnabled } from 'src/utils/hooks/hookEvents.js'
 import { refreshModelCapabilities } from 'src/utils/model/modelCapabilities.js'
+import { refreshGatewayModels } from 'src/utils/model/gatewayModels.js'
 import { peekForStdinData, writeToStderr } from 'src/utils/process.js'
 import { setCwd } from 'src/utils/Shell.js'
 import {
@@ -705,6 +706,7 @@ export function startDeferredPrefetches(): void {
   void prefetchOfficialMcpUrls()
 
   void refreshModelCapabilities()
+  void refreshGatewayModels()
 
   // File change detectors deferred from init() to unblock first render
   void settingsChangeDetector.initialize()
@@ -6045,6 +6047,42 @@ async function run(): Promise<CommanderCommand> {
       const { authLogout } = await import('./cli/handlers/auth.js')
       await authLogout()
     })
+
+  // Official 2.1.126 `bb5` — claude project purge [path]
+  program
+    .command('project')
+    .description('Manage Claude Code project state')
+    .configureHelp(createSortedHelpConfig())
+    .command('purge [path]')
+    .description(
+      'Delete all Claude Code state for a project (transcripts, tasks, file history, config entry)',
+    )
+    .option(
+      '--dry-run',
+      'List what would be deleted without deleting anything',
+    )
+    .option('-y, --yes', 'Skip confirmation prompt')
+    .option('-i, --interactive', 'Prompt for each item before deleting')
+    .option(
+      '--all',
+      'Purge state for every project (mutually exclusive with [path])',
+    )
+    .action(
+      async (
+        pathArg: string | undefined,
+        opts: {
+          dryRun?: boolean
+          yes?: boolean
+          interactive?: boolean
+          all?: boolean
+        },
+      ) => {
+        const { purgeProjectHandler } = await import(
+          './cli/handlers/project.js'
+        )
+        await purgeProjectHandler(pathArg, opts)
+      },
+    )
 
   /**
    * Helper function to handle marketplace command errors consistently.

@@ -143,6 +143,11 @@ interface RetryOptions {
    * regardless of which request mode hit the overload.
    */
   initialConsecutive529Errors?: number
+  /**
+   * Official 126: return a unique retry key to immediately retry (once per
+   * key) after mutating request state — e.g. strip an oversized history image.
+   */
+  onError?: (error: unknown) => Promise<string | undefined | void>
 }
 
 export class CannotRetryError extends Error {
@@ -190,6 +195,7 @@ export async function* withRetry<T>(
   let consecutive529Errors = options.initialConsecutive529Errors ?? 0
   let lastError: unknown
   let persistentAttempt = 0
+  const onErrorKeys = new Set<string>()
   for (let attempt = 1; attempt <= maxRetries + 1; attempt++) {
     if (options.signal?.aborted) {
       throw new APIUserAbortError()
@@ -256,11 +262,24 @@ export async function* withRetry<T>(
 
       return await operation(client, attempt, retryContext)
     } catch (error) {
+      if (error instanceof CannotRetryError) {
+        throw error
+      }
       lastError = error
       logForDebugging(
         `API error (attempt ${attempt}/${maxRetries + 1}): ${error instanceof APIError ? `${error.status} ${error.message}` : errorMessage(error)}`,
         { level: 'error' },
       )
+
+      // Official 126: caller-driven strip/retry (image-dimension, advisor, …).
+      // Each unique key is consumed once — decrement attempt so the retry
+      // does not burn a numbered attempt.
+      const onErrorKey = await options.onError?.(error)
+      if (onErrorKey && !onErrorKeys.has(onErrorKey)) {
+        onErrorKeys.add(onErrorKey)
+        attempt--
+        continue
+      }
 
       // Fast mode fallback: on 429/529, either wait and retry (short delays)
       // or fall back to standard speed (long delays) to avoid cache thrashing.

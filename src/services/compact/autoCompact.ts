@@ -1,6 +1,9 @@
 import { feature } from 'bun:bundle'
-import { markPostCompaction } from 'src/bootstrap/state.js'
-import { getSdkBetas } from '../../bootstrap/state.js'
+import {
+  getLastInteractionTime,
+  getSdkBetas,
+  markPostCompaction,
+} from '../../bootstrap/state.js'
 import type { QuerySource } from '../../constants/querySource.js'
 import type { ToolUseContext } from '../../Tool.js'
 import type { Message } from '../../types/message.js'
@@ -156,6 +159,23 @@ export function calculateTokenWarningState(
     isAboveAutoCompactThreshold,
     isAtBlockingLimit,
   }
+}
+
+/** Official 2.1.126 `zF_` — 90 minutes since last interaction. */
+const COLD_COMPACT_IDLE_MS = 5_400_000
+
+/**
+ * Official 2.1.126 `nG6` / `CLAUDE_CODE_COLD_COMPACT`.
+ * Env wins; else idle ≥ 90m then GrowthBook `tengu_cold_compact` default-false.
+ */
+export function isColdCompactEnabled(): boolean {
+  if (process.env.CLAUDE_CODE_COLD_COMPACT !== undefined) {
+    return isEnvTruthy(process.env.CLAUDE_CODE_COLD_COMPACT)
+  }
+  if (Date.now() - getLastInteractionTime() < COLD_COMPACT_IDLE_MS) {
+    return false
+  }
+  return getFeatureValue_CACHED_MAY_BE_STALE('tengu_cold_compact', false)
 }
 
 export function isAutoCompactEnabled(): boolean {
@@ -346,6 +366,7 @@ export async function autoCompactIfNeeded(
       undefined, // No custom instructions for autocompact
       true, // isAutoCompact
       recompactionInfo,
+      isColdCompactEnabled(),
     )
 
     // Reset lastSummarizedMessageId since legacy compaction replaces all messages

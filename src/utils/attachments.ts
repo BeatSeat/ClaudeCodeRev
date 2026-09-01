@@ -2193,7 +2193,20 @@ export async function getChangedFiles(
       }
     }),
   )
-  return results.filter(result => result != null) as Attachment[]
+  const attachments = results.filter(result => result != null) as Attachment[]
+  // Official 2.1.126 `Nu_` = 16384: turn-level snippet budget. Overflow
+  // files keep the attachment but clear snippet (render-side omit copy).
+  let used = 0
+  const SNIPPET_BUDGET = 16384
+  for (const attachment of attachments) {
+    if (attachment.type !== 'edited_text_file') continue
+    if (used >= SNIPPET_BUDGET) {
+      attachment.snippet = ''
+    } else {
+      used += attachment.snippet.length
+    }
+  }
+  return attachments
 }
 
 /**

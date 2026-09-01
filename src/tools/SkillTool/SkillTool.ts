@@ -65,6 +65,7 @@ import { escapeRegExp } from '../../utils/stringUtils.js'
 import type { ModelAlias } from '../../utils/model/aliases.js'
 import { resolveSkillModelOverride } from '../../utils/model/model.js'
 import { recordSkillUsage } from '../../utils/suggestions/skillUsageTracking.js'
+import { logOTelSkillActivated } from '../../utils/telemetry/skillActivatedEvent.js'
 import { createAgentId } from '../../utils/uuid.js'
 import { runAgent } from '../AgentTool/runAgent.js'
 import {
@@ -237,6 +238,11 @@ async function executeForkedSkill(
       ...buildPluginCommandTelemetryFields(command.pluginInfo),
     }),
   })
+  logOTelSkillActivated(
+    commandName,
+    command,
+    queryDepth > 0 ? 'nested-skill' : 'claude-proactive',
+  )
 
   const { modifiedGetAppState, baseAgent, promptMessages, skillContent } =
     await prepareForkedCommandContext(command, args || '', context)
@@ -774,6 +780,11 @@ export const SkillTool: Tool<InputSchema, Output, Progress> = buildTool({
           ...buildPluginCommandTelemetryFields(command.pluginInfo),
         }),
     })
+    logOTelSkillActivated(
+      commandName,
+      command,
+      queryDepth > 0 ? 'nested-skill' : 'claude-proactive',
+    )
 
     // Get the tool use ID from the parent message for linking newMessages
     const toolUseID = getToolUseIDFromParentMessage(

@@ -1741,6 +1741,61 @@ export function saveCurrentProjectConfig(
   }
 }
 
+/**
+ * Official 2.1.126 `va8` / `deleteProjectConfig`.
+ * Extra `tengu_config_auth_loss_prevented` site (3→4).
+ */
+export function deleteProjectConfig(projectPath: string): void {
+  if (process.env.NODE_ENV === 'test') {
+    const projects = TEST_GLOBAL_CONFIG_FOR_TESTING.projects
+    if (!projects?.[projectPath]) {
+      return
+    }
+    const { [projectPath]: _removed, ...rest } = projects
+    TEST_GLOBAL_CONFIG_FOR_TESTING.projects = rest
+    return
+  }
+
+  let written: GlobalConfig | null = null
+  try {
+    const didWrite = saveConfigWithLock(
+      getGlobalClaudeFile(),
+      createDefaultGlobalConfig,
+      current => {
+        if (!current.projects?.[projectPath]) {
+          return current
+        }
+        const { [projectPath]: _removed, ...rest } = current.projects
+        written = { ...current, projects: rest }
+        return written
+      },
+    )
+    if (didWrite && written) {
+      writeThroughGlobalConfigCache(written)
+    }
+  } catch (error) {
+    logForDebugging(`Failed to save config with lock: ${error}`, {
+      level: 'error',
+    })
+    const current = getConfig(getGlobalClaudeFile(), createDefaultGlobalConfig)
+    if (wouldLoseAuthState(current)) {
+      logForDebugging(
+        'deleteProjectConfig fallback: re-read config is missing auth that cache has; refusing to write. See GH #3117.',
+        { level: 'error' },
+      )
+      logEvent('tengu_config_auth_loss_prevented', {})
+      return
+    }
+    if (!current.projects?.[projectPath]) {
+      return
+    }
+    const { [projectPath]: _removed, ...rest } = current.projects
+    written = { ...current, projects: rest }
+    saveConfig(getGlobalClaudeFile(), written, DEFAULT_GLOBAL_CONFIG)
+    writeThroughGlobalConfigCache(written)
+  }
+}
+
 export function isAutoUpdaterDisabled(): boolean {
   return getAutoUpdaterDisabledReason() !== null
 }

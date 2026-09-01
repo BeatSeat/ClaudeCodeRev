@@ -72,6 +72,10 @@ import { resolveAppliedEffort } from '../../utils/effort.js'
 import { isEnvTruthy } from '../../utils/envUtils.js'
 import { errorMessage } from '../../utils/errors.js'
 import { computeFingerprintFromMessages } from '../../utils/fingerprint.js'
+import {
+  parseImageDimensionError,
+  stripOversizedImageFromMessages,
+} from '../../utils/imageDimensionStrip.js'
 import { captureAPIRequest, logError } from '../../utils/log.js'
 import { logRawApiRequestBody } from '../../utils/telemetry/rawApiBodies.js'
 import {
@@ -232,6 +236,7 @@ import { withStreamingVCR, withVCR } from '../vcr.js'
 import {
   CLIENT_REQUEST_ID_HEADER,
   getAnthropicClient,
+  getStreamIdleTimeoutMs,
   StreamIdleTimeoutError,
 } from './client.js'
 import {
@@ -1885,6 +1890,24 @@ async function* queryModel(
         ...(isFastModeEnabled() ? { fastMode: isFastMode } : false),
         signal,
         querySource: options.querySource,
+        onError: async error => {
+          const loc = parseImageDimensionError(error)
+          if (loc) {
+            const next = stripOversizedImageFromMessages(messagesForAPI, loc)
+            if (next !== messagesForAPI) {
+              messagesForAPI = next
+              logForDebugging(
+                `Removed oversized image at messages.${loc.messageIdx}.content.${loc.contentIdx} (exceeded 2000px many-image limit); retrying.`,
+                { level: 'warn' },
+              )
+              logEvent('tengu_image_dimension_strip_retry', {
+                message_idx: loc.messageIdx,
+                content_idx: loc.contentIdx,
+              })
+              return `retry:image-dimension:${loc.messageIdx}.${loc.contentIdx}`
+            }
+          }
+        },
       },
     )
 
@@ -1917,8 +1940,7 @@ async function* queryModel(
     const streamWatchdogEnabled = isEnvTruthy(
       process.env.CLAUDE_ENABLE_STREAM_WATCHDOG,
     )
-    const STREAM_IDLE_TIMEOUT_MS =
-      parseInt(process.env.CLAUDE_STREAM_IDLE_TIMEOUT_MS || '', 10) || 90_000
+    const STREAM_IDLE_TIMEOUT_MS = getStreamIdleTimeoutMs()
     const STREAM_IDLE_WARNING_MS = STREAM_IDLE_TIMEOUT_MS / 2
     let streamIdleAborted = false
     // performance.now() snapshot when watchdog fires, for measuring abort propagation delay

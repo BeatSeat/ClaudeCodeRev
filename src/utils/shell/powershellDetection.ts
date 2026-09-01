@@ -1,10 +1,21 @@
-import { realpath, stat } from 'fs/promises'
+import { lstat, realpath, stat } from 'fs/promises'
+import { join } from 'path'
 import { getPlatform } from '../platform.js'
 import { which } from '../which.js'
 
 async function probePath(p: string): Promise<string | null> {
   try {
     return (await stat(p)).isFile() ? p : null
+  } catch {
+    return null
+  }
+}
+
+/** Official 2.1.126 `yN_`: lstat-only. Store App Execution Aliases are reparse points that fail `stat().isFile()`. */
+async function probeStoreAlias(p: string): Promise<string | null> {
+  try {
+    await lstat(p)
+    return p
   } catch {
     return null
   }
@@ -18,8 +29,9 @@ async function probePath(p: string): Promise<string | null> {
  * via a symlink chain like /usr/bin/pwsh → /snap/bin/pwsh — probe known
  * apt/rpm install locations instead: the snap launcher can hang in
  * subprocesses while snapd initializes confinement, but the underlying
- * binary at /opt/microsoft/powershell/7/pwsh is reliable. On
- * Windows/macOS, PATH is sufficient.
+ * binary at /opt/microsoft/powershell/7/pwsh is reliable.
+ * On Windows, if PATH has no pwsh, probe MSI / Store / .NET global-tool
+ * locations. Do not invent a Linux PowerShell default.
  */
 export async function findPowerShell(): Promise<string | null> {
   const pwshPath = await which('pwsh')
@@ -46,6 +58,27 @@ export async function findPowerShell(): Promise<string | null> {
       }
     }
     return pwshPath
+  }
+
+  // Official 2.1.126 `EN_`: Windows-only PS7 Store / MSI-without-PATH / .NET tool ladder.
+  // Do not invent Linux PowerShell fallbacks here.
+  if (getPlatform() === 'windows') {
+    const programFiles = process.env.ProgramFiles
+    const localAppData = process.env.LOCALAPPDATA
+    const userProfile = process.env.USERPROFILE
+    const fromLadder =
+      (programFiles
+        ? await probePath(join(programFiles, 'PowerShell', '7', 'pwsh.exe'))
+        : null) ??
+      (localAppData
+        ? await probeStoreAlias(
+            join(localAppData, 'Microsoft', 'WindowsApps', 'pwsh.exe'),
+          )
+        : null) ??
+      (userProfile
+        ? await probePath(join(userProfile, '.dotnet', 'tools', 'pwsh.exe'))
+        : null)
+    if (fromLadder) return fromLadder
   }
 
   const powershellPath = await which('powershell')

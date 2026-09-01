@@ -35,6 +35,7 @@ import {
 } from './model.js'
 import { has1mContext } from '../context.js'
 import { getGlobalConfig } from '../config.js'
+import { getGatewayModelOptions } from './gatewayModels.js'
 
 // @[MODEL LAUNCH]: Update all the available and default model option strings below.
 
@@ -484,6 +485,13 @@ export function getModelOptions(fastMode = false): ModelOption[] {
 
   // Append additional model options fetched during bootstrap
   for (const opt of getGlobalConfig().additionalModelOptionsCache ?? []) {
+    if (!options.some(existing => existing.value === opt.value)) {
+      options.push(opt)
+    }
+  }
+
+  // Official 2.1.126 `Rl7`: cached gateway `/v1/models` rows
+  for (const opt of getGatewayModelOptions()) {
     if (!options.some(existing => existing.value === opt.value)) {
       options.push(opt)
     }

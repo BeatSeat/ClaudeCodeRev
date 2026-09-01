@@ -211,16 +211,18 @@ function copyNative(text: string): void {
       return
     }
     case 'win32': {
-      const b64 = Buffer.from(text, 'utf8').toString('base64')
-      if (b64.length > 30_000) return
+      // Official 2.1.126 `xw1`/`bw1`: stdin, not argv. Drops the 30_000-char
+      // base64 argv cap (~22KB plaintext) and stops exposing clipboard in the
+      // process command line. Windows-only — do not invent a Linux PS path.
       void execFileNoThrow(
         'powershell',
         [
           '-NoProfile',
+          '-NonInteractive',
           '-Command',
-          `Set-Clipboard -Value ([Text.Encoding]::UTF8.GetString([Convert]::FromBase64String('${b64}')))`,
+          '[Console]::InputEncoding = [Text.Encoding]::UTF8; Set-Clipboard -Value ([Console]::In.ReadToEnd())',
         ],
-        { useCwd: false, timeout: 2000 },
+        opts,
       )
       return
     }

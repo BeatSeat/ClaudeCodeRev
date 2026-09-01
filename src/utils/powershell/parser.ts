@@ -310,7 +310,8 @@ type RawParsedOutput = {
  * - Get-SecurityPatterns: FindAll for security flags (hasSubExpressions via
  *   Sub/Array/ParenExpressionAst, hasScriptBlocks, etc.)
  * - Type literals: emit TypeExpressionAst names for CLM allowlist check
- * - --% token: PS7 MinusMinus, PS5.1 Generic kind
+ * - --% token: Generic kind only. Official 2.1.126 dropped TokenKind.MinusMinus
+ *   so bare `--` is not treated as stop-parsing. Windows-only parser.
  * - CommandExpressionAst.Redirections: inherits from CommandBaseAst —
  *   `1 > /tmp/x` statement has FileRedirectionAst that element-iteration misses
  * - Nested commands: FindAll for ALL statement types (if/for/foreach/while/
@@ -407,7 +408,6 @@ foreach ($t in $ast.FindAll({ param($n)
 $hasStopParsing = $false
 $tk = [System.Management.Automation.Language.TokenKind]
 foreach ($tok in $tokens) {
-    if ($tok.Kind -eq $tk::MinusMinus) { $hasStopParsing = $true; break }
     if ($tok.Kind -eq $tk::Generic -and ($tok.Text -replace '[\u2013\u2014\u2015]','-') -eq '--%') {
         $hasStopParsing = $true; break
     }
