@@ -2436,6 +2436,29 @@ async function* queryModel(
         // If the signal is aborted, it's a user-initiated abort
         // If not, it's likely a timeout from the SDK
         if (signal.aborted) {
+          if (options.querySource === 'sdk') {
+            const inProgress = contentBlocks[newMessages.length]
+            if (
+              inProgress?.type === 'text' &&
+              inProgress.text.trim() &&
+              partialMessage
+            ) {
+              yield {
+                message: {
+                  ...partialMessage,
+                  content: normalizeContentFromAPI(
+                    [inProgress],
+                    tools,
+                    options.agentId,
+                  ),
+                },
+                requestId: streamRequestId ?? undefined,
+                type: 'assistant',
+                uuid: randomUUID(),
+                timestamp: new Date().toISOString(),
+              }
+            }
+          }
           // This is a real user abort (ESC key was pressed)
           logForDebugging(
             `Streaming aborted by user: ${errorMessage(streamingError)}`,

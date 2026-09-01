@@ -13,6 +13,7 @@ import { useTerminalSize } from '../../hooks/useTerminalSize.js'
 import ScrollBox from '../../ink/components/ScrollBox.js'
 import type { KeyboardEvent } from '../../ink/events/keyboard-event.js'
 import { stringWidth } from '../../ink/stringWidth.js'
+import { useDeclaredCursor } from '../../ink/hooks/use-declared-cursor.js'
 import { Box, Text } from '../../ink.js'
 import { useKeybindings } from '../../keybindings/useKeybinding.js'
 import type { Theme } from '../../utils/theme.js'
@@ -240,22 +241,15 @@ export function Tabs({
                 {title}
               </Text>
             )}
-            {tabs.map(([id, title], i) => {
-              const isCurrent = selectedTabIndex === i
-              const hasColorCursor = color && isCurrent && headerFocused
-              return (
-                <Text
-                  key={id}
-                  backgroundColor={hasColorCursor ? color : undefined}
-                  color={hasColorCursor ? 'inverseText' : undefined}
-                  inverse={isCurrent && !hasColorCursor}
-                  bold={isCurrent}
-                >
-                  {' '}
-                  {title}{' '}
-                </Text>
-              )
-            })}
+            {tabs.map(([id, title], i) => (
+              <TabTitle
+                key={id}
+                title={title}
+                isCurrent={selectedTabIndex === i}
+                headerFocused={headerFocused}
+                color={color}
+              />
+            ))}
             {spacerWidth > 0 && <Text>{' '.repeat(spacerWidth)}</Text>}
           </Box>
         )}
@@ -288,6 +282,35 @@ export function Tabs({
         )}
       </Box>
     </TabsContext.Provider>
+  )
+}
+
+function TabTitle({
+  title,
+  isCurrent,
+  headerFocused,
+  color,
+}: {
+  title: string
+  isCurrent: boolean
+  headerFocused: boolean
+  color?: keyof Theme
+}): React.ReactNode {
+  const active = isCurrent && headerFocused
+  const cursorRef = useDeclaredCursor({ line: 0, column: 1, active })
+  const hasColorCursor = Boolean(color && isCurrent && headerFocused)
+  return (
+    <Box ref={cursorRef}>
+      <Text
+        backgroundColor={hasColorCursor ? color : undefined}
+        color={hasColorCursor ? 'inverseText' : undefined}
+        inverse={isCurrent && !hasColorCursor}
+        bold={isCurrent}
+      >
+        {' '}
+        {title}{' '}
+      </Text>
+    </Box>
   )
 }
 

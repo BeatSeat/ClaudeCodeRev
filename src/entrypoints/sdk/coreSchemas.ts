@@ -486,6 +486,7 @@ export const UserPromptSubmitHookInputSchema = lazySchema(() =>
     z.object({
       hook_event_name: z.literal('UserPromptSubmit'),
       prompt: z.string(),
+      session_title: z.string().optional(),
     }),
   ),
 )
@@ -817,6 +818,7 @@ export const UserPromptSubmitHookSpecificOutputSchema = lazySchema(() =>
   z.object({
     hookEventName: z.literal('UserPromptSubmit'),
     additionalContext: z.string().optional(),
+    sessionTitle: z.string().optional(),
   }),
 )
 

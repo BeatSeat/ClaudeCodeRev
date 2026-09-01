@@ -39,6 +39,7 @@ import type { PastedContent } from '../config.js'
 import type { EffortValue } from '../effort.js'
 import { toArray } from '../generators.js'
 import {
+  applyHookSessionTitle,
   executeUserPromptSubmitHooks,
   getUserPromptSubmitHookBlockingMessage,
 } from '../hooks.js'
@@ -179,6 +180,7 @@ export async function processUserInput({
   queryCheckpoint('query_hooks_start')
   const inputMessage = getContentText(input) || ''
 
+  let sessionTitle: string | undefined
   for await (const hookResult of executeUserPromptSubmitHooks(
     inputMessage,
     appState.toolPermissionContext.mode,
@@ -223,6 +225,10 @@ export async function processUserInput({
       return result
     }
 
+    if (hookResult.sessionTitle) {
+      sessionTitle = hookResult.sessionTitle
+    }
+
     // Collect additional contexts
     if (
       hookResult.additionalContexts &&
@@ -254,6 +260,9 @@ export async function processUserInput({
           break
       }
     }
+  }
+  if (sessionTitle) {
+    await applyHookSessionTitle(sessionTitle)
   }
   queryCheckpoint('query_hooks_end')
 

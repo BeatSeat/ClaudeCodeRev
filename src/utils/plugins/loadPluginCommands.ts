@@ -37,6 +37,7 @@ import {
 } from './pluginOptionsStorage.js'
 import type { CommandMetadata, PluginManifest } from './schemas.js'
 import { walkPluginMarkdown } from './walkPluginMarkdown.js'
+import { HooksSchema } from '../../schemas/hooks.js'
 
 // Similar to MarkdownFile but for plugin sources
 type PluginMarkdownFile = {
@@ -301,6 +302,18 @@ function createPluginCommand(
 
     const shell = parseShellFrontmatter(frontmatter.shell, commandName)
 
+    let hooks: Command['hooks']
+    if ((isSkill || config.isSkillMode) && frontmatter.hooks) {
+      const parsed = HooksSchema().safeParse(frontmatter.hooks)
+      if (parsed.success) {
+        hooks = parsed.data
+      } else {
+        logForDebugging(
+          `Invalid hooks in plugin skill '${commandName}': ${parsed.error.message}`,
+        )
+      }
+    }
+
     return {
       type: 'prompt',
       name: commandName,
@@ -318,6 +331,9 @@ function createPluginCommand(
       contentLength: content.length,
       source: 'plugin' as const,
       loadedFrom: isSkill || config.isSkillMode ? 'plugin' : undefined,
+      hooks,
+      skillRoot:
+        (isSkill || config.isSkillMode) && hooks ? pluginPath : undefined,
       pluginInfo: {
         pluginManifest,
         repository: sourceName,
@@ -731,7 +747,13 @@ async function loadSkillsFromDirectory(
         directSkillPath,
       )
 
-      const skillName = `${pluginName}:${basename(skillsPath)}`
+      const fromFrontmatter =
+        typeof frontmatter.name === 'string' ? frontmatter.name.trim() : ''
+      const invocation = (fromFrontmatter || basename(skillsPath)).replace(
+        /[^a-zA-Z0-9_-]/g,
+        '-',
+      )
+      const skillName = `${pluginName}:${invocation}`
 
       const file: PluginMarkdownFile = {
         filePath: directSkillPath,
@@ -811,7 +833,7 @@ async function loadSkillsFromDirectory(
           skillFilePath,
         )
 
-        const skillName = `${pluginName}:${entry.name}`
+        const skillName = `${pluginName}:${entry.name.replace(/[^a-zA-Z0-9_-]/g, '-')}`
 
         const file: PluginMarkdownFile = {
           filePath: skillFilePath,

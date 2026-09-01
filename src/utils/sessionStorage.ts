@@ -90,6 +90,7 @@ import {
   SKIP_PRECOMPACT_THRESHOLD,
 } from './sessionStoragePortable.js'
 import { getSettings_DEPRECATED } from './settings/settings.js'
+import { emitSessionTitleChanged } from './sessionTitleStore.js'
 import { jsonParse, jsonStringify } from './slowOperations.js'
 import type { ContentReplacementRecord } from './toolResultStorage.js'
 import { validateUuid } from './uuid.js'
@@ -2649,7 +2650,7 @@ export async function saveCustomTitle(
   sessionId: UUID,
   customTitle: string,
   fullPath?: string,
-  source: 'user' | 'auto' = 'user',
+  source: 'user' | 'auto' | 'hook' = 'user',
 ) {
   // Fall back to computed path if fullPath is not provided
   const resolvedPath = fullPath ?? getTranscriptPathForSession(sessionId)
@@ -2661,6 +2662,7 @@ export async function saveCustomTitle(
   // Cache for current session only (for immediate visibility)
   if (sessionId === getSessionId()) {
     getProject().currentSessionTitle = customTitle
+    emitSessionTitleChanged()
   }
   logEvent('tengu_session_renamed', {
     source:
@@ -2851,7 +2853,7 @@ export async function saveAgentName(
   sessionId: UUID,
   agentName: string,
   fullPath?: string,
-  source: 'user' | 'auto' = 'user',
+  source: 'user' | 'auto' | 'hook' = 'user',
 ) {
   const resolvedPath = fullPath ?? getTranscriptPathForSession(sessionId)
   appendEntryToFile(resolvedPath, { type: 'agent-name', agentName, sessionId })
@@ -2900,7 +2902,10 @@ export function saveAgentSetting(agentSetting: string): void {
  */
 export function cacheSessionTitle(customTitle: string): void {
   getProject().currentSessionTitle = customTitle
+  emitSessionTitleChanged()
 }
+
+export { subscribeSessionTitleChanged } from './sessionTitleStore.js'
 
 /**
  * Cache the session mode. Written to disk by materializeSessionFile on the

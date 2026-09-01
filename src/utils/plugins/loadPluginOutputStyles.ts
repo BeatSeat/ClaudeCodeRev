@@ -60,21 +60,21 @@ async function loadOutputStyleFromFile(
         `Output style from ${pluginName} plugin`,
       )
 
-    // Parse forceForPlugin flag (supports both boolean and string values)
-    const forceRaw = frontmatter['force-for-plugin']
-    const forceForPlugin =
-      forceRaw === true || forceRaw === 'true'
-        ? true
-        : forceRaw === false || forceRaw === 'false'
-          ? false
-          : undefined
+    const parseFrontmatterBool = (raw: unknown): boolean | undefined => {
+      if (raw === true || raw === 'true') return true
+      if (raw === false || raw === 'false') return false
+      return undefined
+    }
 
     return {
       name,
       description,
       prompt: markdownContent.trim(),
       source: 'plugin',
-      forceForPlugin,
+      forceForPlugin: parseFrontmatterBool(frontmatter['force-for-plugin']),
+      keepCodingInstructions: parseFrontmatterBool(
+        frontmatter['keep-coding-instructions'],
+      ),
     }
   } catch (error) {
     logForDebugging(`Failed to load output style from ${filePath}: ${error}`, {

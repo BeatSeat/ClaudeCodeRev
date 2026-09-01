@@ -1005,6 +1005,11 @@ export async function teleportToRemote(options: {
    * identify the PR associated with this session.
    */
   githubPr?: { owner: string; repo: string; number: number }
+  /**
+   * Telemetry source for tengu_ccr_session_link (official 2.1.94 nOK).
+   * Autofix PR passes `autofix_pr`.
+   */
+  source?: string
 }): Promise<TeleportToRemoteResponse | null> {
   const { initialMessage, signal } = options
   try {
@@ -1114,6 +1119,12 @@ export async function teleportToRemote(options: {
         )
         return null
       }
+      logEvent('tengu_ccr_session_link', {
+        ccr_session_id:
+          sessionData.id as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
+        source:
+          options.source as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
+      })
       return {
         id: sessionData.id,
         title: sessionData.title || requestBody.title,
@@ -1469,6 +1480,12 @@ export async function teleportToRemote(options: {
     }
 
     logForDebugging(`Successfully created remote session: ${sessionData.id}`)
+    logEvent('tengu_ccr_session_link', {
+      ccr_session_id:
+        sessionData.id as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
+      source:
+        options.source as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
+    })
     return {
       id: sessionData.id,
       title: sessionData.title || requestBody.title,

@@ -52,6 +52,10 @@ import {
 } from '../../Tool.js'
 import { ListMcpResourcesTool } from '../../tools/ListMcpResourcesTool/ListMcpResourcesTool.js'
 import { type MCPProgress, MCPTool } from '../../tools/MCPTool/MCPTool.js'
+import {
+  isSlackSendMessageTool,
+  slackSendMessageToolOverrides,
+} from './slackToolRendering.js'
 import { createMcpAuthTool } from '../../tools/McpAuthTool/McpAuthTool.js'
 import { ReadMcpResourceTool } from '../../tools/ReadMcpResourceTool/ReadMcpResourceTool.js'
 import { createAbortController } from '../../utils/abortController.js'
@@ -1995,6 +1999,9 @@ export const fetchToolsForClient = memoizeWithLRU(
             (client.config.type === 'stdio' || !client.config.type) &&
             isComputerUseMCPServer!(client.name)
               ? computerUseWrapper!().getComputerUseMCPToolOverrides(tool.name)
+              : {}),
+            ...(isSlackSendMessageTool(tool.name)
+              ? slackSendMessageToolOverrides()
               : {}),
           }
         })

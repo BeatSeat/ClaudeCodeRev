@@ -113,6 +113,7 @@ import {
   resolveFastModeStatusFromCache,
 } from './utils/fastMode.js'
 import { applyConfigEnvironmentVariables } from './utils/managedEnv.js'
+import { getTeamOnboardingDiscoveryMessages } from './commands/team-onboarding/discovery.js'
 import { createSystemMessage, createUserMessage } from './utils/messages.js'
 import { getPlatform } from './utils/platform.js'
 import { getBaseRenderOptions } from './utils/renderOptions.js'
@@ -1192,6 +1193,7 @@ async function getInputPrompt(
     !process.argv.includes('mcp')
   ) {
     if (inputFormat === 'stream-json') {
+      process.stdin.setEncoding('utf8')
       return process.stdin
     }
     process.stdin.setEncoding('utf8')
@@ -5215,11 +5217,15 @@ async function run(): Promise<CommanderCommand> {
             )
           }
         }
-        const initialMessages = deepLinkBanner
-          ? [deepLinkBanner, ...hookMessages]
-          : hookMessages.length > 0
-            ? hookMessages
-            : undefined
+        const discoveryMessages =
+          getTeamOnboardingDiscoveryMessages(onboardingShown)
+        const startupMessages = [
+          ...(deepLinkBanner ? [deepLinkBanner] : []),
+          ...discoveryMessages,
+          ...hookMessages,
+        ]
+        const initialMessages =
+          startupMessages.length > 0 ? startupMessages : undefined
 
         await launchRepl(
           root,
