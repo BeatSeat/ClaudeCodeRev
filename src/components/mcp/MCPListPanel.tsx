@@ -20,6 +20,7 @@ import type { AgentMcpServerInfo, ServerInfo } from './types.js'
 type Props = {
   servers: ServerInfo[]
   suppressedClaudeAiConnectors?: SuppressedClaudeAiConnector[]
+  toolCountsByServer?: Record<string, number>
   agentServers?: AgentMcpServerInfo[]
   onSelectServer: (server: ServerInfo) => void
   onSelectAgentServer?: (agentServer: AgentMcpServerInfo) => void
@@ -142,11 +143,13 @@ function HiddenConnectorRow({
 export function MCPListPanel({
   servers,
   suppressedClaudeAiConnectors,
+  toolCountsByServer,
   agentServers = [],
   onSelectServer,
   onSelectAgentServer,
   onComplete,
 }: Props): React.ReactNode {
+  const counts = toolCountsByServer ?? {}
   const [theme] = useTheme()
   const [selectedIndex, setSelectedIndex] = useState(0)
   const hiddenConnectors = suppressedClaudeAiConnectors ?? []
@@ -268,8 +271,18 @@ export function MCPListPanel({
       statusIcon = color('inactive', theme)(figures.radioOff)
       statusText = 'disabled'
     } else if (server.client.type === 'connected') {
-      statusIcon = color('success', theme)(figures.tick)
-      statusText = 'connected'
+      const hasToolsCapability = !!server.client.capabilities?.tools
+      const toolCount = counts[server.name]
+      if (hasToolsCapability && toolCount === 0) {
+        statusIcon = color('warning', theme)(figures.triangleUpOutline)
+        statusText = 'connected · no tools'
+      } else if (hasToolsCapability && toolCount !== undefined) {
+        statusIcon = color('success', theme)(figures.tick)
+        statusText = `connected · ${toolCount} ${plural(toolCount, 'tool')}`
+      } else {
+        statusIcon = color('success', theme)(figures.tick)
+        statusText = 'connected'
+      }
     } else if (server.client.type === 'pending') {
       statusIcon = color('inactive', theme)(figures.radioOff)
       const { reconnectAttempt, maxReconnectAttempts } = server.client

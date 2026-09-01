@@ -324,12 +324,16 @@ function PluginComponentsDisplay({
           return
         }
 
-        const marketplaceData = await getMarketplace(marketplace)
-        // Find the plugin entry in the array
-        const pluginEntry = marketplaceData.plugins.find(
-          p => p.name === plugin.name,
-        )
-        if (pluginEntry) {
+        // --plugin-dir session plugins use the reserved "inline" marketplace
+        // sentinel (128 `$===vA$`). There is no catalog — read paths from the
+        // loaded plugin so Components does not throw Marketplace 'inline' not found.
+        const isInline = marketplace === 'inline'
+        const pluginEntry = isInline
+          ? undefined
+          : (await getMarketplace(marketplace)).plugins.find(
+              p => p.name === plugin.name,
+            )
+        if (pluginEntry || isInline) {
           // Combine commands from both sources
           const commandPathList = []
           if (plugin.commandsPath) {
@@ -393,7 +397,7 @@ function PluginComponentsDisplay({
           if (plugin.hooksConfig) {
             hooksList.push(Object.keys(plugin.hooksConfig))
           }
-          if (pluginEntry.hooks) {
+          if (pluginEntry?.hooks) {
             hooksList.push(pluginEntry.hooks)
           }
 
@@ -402,7 +406,7 @@ function PluginComponentsDisplay({
           if (plugin.mcpServers) {
             mcpServersList.push(Object.keys(plugin.mcpServers))
           }
-          if (pluginEntry.mcpServers) {
+          if (pluginEntry?.mcpServers) {
             mcpServersList.push(pluginEntry.mcpServers)
           }
 

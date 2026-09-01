@@ -103,6 +103,7 @@ import {
 } from '../../utils/proxy.js'
 import { recursivelySanitizeUnicode } from '../../utils/sanitization.js'
 import { getSessionIngressAuthToken } from '../../utils/sessionIngressAuth.js'
+import { posixQuote } from '../../utils/bash/shellQuote.js'
 import { subprocessEnv } from '../../utils/subprocessEnv.js'
 import {
   isPersistError,
@@ -982,8 +983,10 @@ export const connectToServer = memoize(
       } else if (serverRef.type === 'stdio' || !serverRef.type) {
         const finalCommand =
           process.env.CLAUDE_CODE_SHELL_PREFIX || serverRef.command
+        // Official 2.1.128: L4 POSIX-quote command+args so spaces/metacharacters
+        // survive CLAUDE_CODE_SHELL_PREFIX wrapping (126 joined raw).
         const finalArgs = process.env.CLAUDE_CODE_SHELL_PREFIX
-          ? [[serverRef.command, ...serverRef.args].join(' ')]
+          ? [posixQuote([serverRef.command, ...serverRef.args])]
           : serverRef.args
         transport = new StdioClientTransport({
           command: finalCommand,
@@ -2996,10 +2999,43 @@ export async function transformMCPResult(
       'structuredContent' in result &&
       result.structuredContent !== undefined
     ) {
+      const structuredText = jsonStringify(result.structuredContent)
+      const structuredSchema = inferCompactSchema(result.structuredContent)
+      // 128 ed_: keep non-text content blocks (images) that would otherwise
+      // be dropped when structuredContent takes the early return.
+      if ('content' in result && Array.isArray(result.content)) {
+        const nonText = result.content.filter(
+          (item): item is { type: string } =>
+            !!item &&
+            typeof item === 'object' &&
+            'type' in item &&
+            (item as { type: unknown }).type !== 'text',
+        )
+        if (nonText.length > 0) {
+          const blocks = (
+            await Promise.all(
+              nonText.map(item =>
+                transformResultContent(
+                  item as Parameters<typeof transformResultContent>[0],
+                  name,
+                ),
+              ),
+            )
+          ).flat()
+          if (blocks.length > 0) {
+            const merged = [...blocks, { type: 'text' as const, text: structuredText }]
+            return {
+              content: merged,
+              type: 'contentArray',
+              schema: inferCompactSchema(merged),
+            }
+          }
+        }
+      }
       return {
-        content: jsonStringify(result.structuredContent),
+        content: structuredText,
         type: 'structuredContent',
-        schema: inferCompactSchema(result.structuredContent),
+        schema: structuredSchema,
       }
     }
 

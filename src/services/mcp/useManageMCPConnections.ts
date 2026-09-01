@@ -591,7 +591,7 @@ export function useManageMCPConnections(
                 break
               case 'skip': {
                 const hardSkip =
-                  gate.kind === 'auth' ||
+                  gate.kind === 'provider' ||
                   gate.kind === 'disabled' ||
                   gate.kind === 'capability'
                 const wasRegistered = channelRegisteredServersRef.current.has(
@@ -638,8 +638,8 @@ export function useManageMCPConnections(
                   const text =
                     gate.kind === 'disabled'
                       ? 'Channels are not currently available'
-                      : gate.kind === 'auth'
-                        ? 'Channels require claude.ai authentication · run /login'
+                      : gate.kind === 'provider'
+                        ? 'Channels are not available on Bedrock, Vertex, or Foundry'
                         : gate.kind === 'policy'
                           ? 'Channels are not enabled for your org · have an administrator set channelsEnabled: true in managed settings'
                           : gate.reason

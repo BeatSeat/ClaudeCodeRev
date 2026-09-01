@@ -31,15 +31,11 @@ export async function call(
     return null
   }
 
-  if (!args || args.trim() === '') {
-    const colorList = AGENT_COLORS.join(', ')
-    onDone(`Please provide a color. Available colors: ${colorList}, default`, {
-      display: 'system',
-    })
-    return null
-  }
-
-  const colorArg = args.trim().toLowerCase()
+  const raw = args?.trim() ?? ''
+  const colorArg =
+    raw === ''
+      ? AGENT_COLORS[Math.floor(Math.random() * AGENT_COLORS.length)]!
+      : raw.toLowerCase()
 
   // Handle reset to default (gray)
   if (RESET_ALIASES.includes(colorArg as (typeof RESET_ALIASES)[number])) {

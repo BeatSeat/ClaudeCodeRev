@@ -48,15 +48,20 @@ const URL_IN_JSON = /https?:\/\/[^\s"'<>\\]+/g
 
 const MAX_LINKIFY_LENGTH = 100_000
 
-/** Official 111 `O04`: skip huge / already-OSC-8 strings, else wrap every URL. */
+/** Official 128 `bSK`: skip huge strings; linkify per line so wrapped rows stay clickable. */
 export function linkifyUrlsInText(content: string): string {
   if (content.length > MAX_LINKIFY_LENGTH) {
     return content
   }
-  if (content.includes(OSC8_START)) {
-    return content
+  const linkifyLine = (line: string): string =>
+    line.replace(URL_IN_JSON, url => createHyperlink(url))
+  if (!content.includes(OSC8_START)) {
+    return linkifyLine(content)
   }
-  return content.replace(URL_IN_JSON, url => createHyperlink(url))
+  return content
+    .split('\n')
+    .map(line => (line.includes(OSC8_START) ? line : linkifyLine(line)))
+    .join('\n')
 }
 
 export function OutputLine({

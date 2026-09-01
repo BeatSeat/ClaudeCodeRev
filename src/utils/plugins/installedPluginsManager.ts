@@ -16,6 +16,7 @@
 import { dirname, join } from 'path'
 import { logForDebugging } from '../debug.js'
 import { errorMessage, isENOENT, toError } from '../errors.js'
+import { pathExists } from '../file.js'
 import { getFsImplementation } from '../fsOperations.js'
 import { logError } from '../log.js'
 import {
@@ -809,6 +810,48 @@ export function isInstallationRelevantToCurrentProject(
     inst.scope === 'managed' ||
     inst.projectPath === getOriginalCwd()
   )
+}
+
+const IGNORED_INSTALL_DIR_ENTRIES = new Set(['node_modules', '.orphaned_at'])
+
+/**
+ * Official 2.1.128 `kA$`: directory still has real plugin files (not just
+ * leftover node_modules / .orphaned_at after a deleted cache).
+ */
+async function installDirStillPresent(installPath: string): Promise<boolean> {
+  try {
+    const entries = await getFsImplementation().readdir(installPath)
+    return entries.some(entry => !IGNORED_INSTALL_DIR_ENTRIES.has(entry.name))
+  } catch (e) {
+    if (isENOENT(e)) return false
+    throw e
+  }
+}
+
+/**
+ * Official 2.1.128 `_n1`: pick a relevant installed_plugins.json entry whose
+ * cache path still exists. Stale deleted-cache rows otherwise pollute
+ * plugin.path / Bash PATH.
+ */
+export async function selectLiveInstalledPluginEntry(
+  entries: PluginInstallationEntry[] | undefined,
+): Promise<PluginInstallationEntry | undefined> {
+  const relevant = entries?.filter(isInstallationRelevantToCurrentProject)
+  if (!relevant || relevant.length === 0) {
+    return undefined
+  }
+  if (relevant.length === 1) {
+    return relevant[0]
+  }
+  for (const inst of relevant) {
+    const installPath = inst.installPath
+    if (!installPath) continue
+    const live = installPath.endsWith('.zip')
+      ? await pathExists(installPath)
+      : await installDirStillPresent(installPath)
+    if (live) return inst
+  }
+  return relevant[0]
 }
 
 /**

@@ -29,7 +29,7 @@ import {
   countToolDefinitionTokens,
   TOOL_TOKEN_COUNT_OVERHEAD,
 } from './analyzeContext.js'
-import { count } from './array.js'
+import { count, uniq } from './array.js'
 import { getMergedBetas } from './betas.js'
 import { getContextWindowForModel } from './context.js'
 import { logForDebugging } from './debug.js'
@@ -608,9 +608,34 @@ export function extractDiscoveredToolNames(messages: Message[]): Set<string> {
 
 export type DeferredToolsDelta = {
   addedNames: string[]
-  /** Rendered lines for addedNames; the scan reconstructs from names. */
+  /** Rendered lines for first-time addedNames; the scan reconstructs from names. */
   addedLines: string[]
   removedNames: string[]
+  /** Tools that were announced earlier, dropped, then came back (MCP reconnect). */
+  readdedNames: string[]
+  /** MCP servers still connecting when the delta was computed. */
+  pendingMcpServers?: string[]
+}
+
+/** Official 2.1.128 `pZ6`: summarize removed names when the list is this long. */
+export const DEFERRED_TOOLS_REMOVED_SUMMARY_THRESHOLD = 30
+
+/**
+ * Official 2.1.128 `l58`: collapse MCP tool names to `mcp__server__*` prefixes
+ * so a reconnect/disconnect delta does not flood the full tool-name list.
+ */
+export function summarizeDeferredToolNames(names: string[]): string {
+  const counts = new Map<string, number>()
+  for (const name of names) {
+    const key = name.startsWith('mcp__')
+      ? `${name.split('__', 2).join('__')}__*`
+      : name
+    counts.set(key, (counts.get(key) ?? 0) + 1)
+  }
+  return [...counts.entries()]
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([key, n]) => (n > 1 ? `${key} (${n})` : key))
+    .join(', ')
 }
 
 /**
@@ -662,8 +687,11 @@ export function getDeferredToolsDelta(
   tools: Tools,
   messages: Message[],
   scanContext?: DeferredToolsDeltaScanContext,
+  pendingMcpServers?: string[],
 ): DeferredToolsDelta | null {
   const announced = new Set<string>()
+  const firstAnnounced = new Set<string>()
+  let lastPending: string[] = []
   let attachmentCount = 0
   let dtdCount = 0
   const attachmentTypesSeen = new Set<string>()
@@ -673,8 +701,15 @@ export function getDeferredToolsDelta(
     attachmentTypesSeen.add(msg.attachment.type)
     if (msg.attachment.type !== 'deferred_tools_delta') continue
     dtdCount++
-    for (const n of msg.attachment.addedNames) announced.add(n)
+    const readded = new Set(msg.attachment.readdedNames ?? [])
+    for (const n of msg.attachment.addedNames) {
+      announced.add(n)
+      if (!readded.has(n)) firstAnnounced.add(n)
+    }
     for (const n of msg.attachment.removedNames) announced.delete(n)
+    if (msg.attachment.pendingMcpServers !== undefined) {
+      lastPending = msg.attachment.pendingMcpServers
+    }
   }
 
   const deferred: Tool[] = tools.filter(isDeferredTool)
@@ -682,6 +717,10 @@ export function getDeferredToolsDelta(
   const poolNames = new Set(tools.map(t => t.name))
 
   const added = deferred.filter(t => !announced.has(t.name))
+  const unlisted = deferred.filter(t => !firstAnnounced.has(t.name))
+  const readdedNames = added
+    .filter(t => firstAnnounced.has(t.name))
+    .map(t => t.name)
   const removed: string[] = []
   for (const n of announced) {
     if (deferredNames.has(n)) continue
@@ -689,7 +728,21 @@ export function getDeferredToolsDelta(
     // else: undeferred — silent
   }
 
-  if (added.length === 0 && removed.length === 0) return null
+  const pendingSorted =
+    pendingMcpServers !== undefined ? [...pendingMcpServers].sort() : []
+  const pendingChanged =
+    pendingMcpServers !== undefined &&
+    (pendingSorted.length !== lastPending.length ||
+      pendingSorted.some((n, i) => n !== lastPending[i]))
+
+  if (
+    added.length === 0 &&
+    removed.length === 0 &&
+    unlisted.length === 0 &&
+    !pendingChanged
+  ) {
+    return null
+  }
 
   // Diagnostic for the inc-4747 scan-finds-nothing bug. Round-1 fields
   // (messagesLength/attachmentCount/dtdCount from #23167) showed 45.6% of
@@ -699,7 +752,12 @@ export function getDeferredToolsDelta(
   // buckets so the real main-thread cross-turn failure is isolable in BQ.
   logEvent('tengu_deferred_tools_pool_change', {
     addedCount: added.length,
+    readdedCount: readdedNames.length,
+    unlistedCount: unlisted.length,
     removedCount: removed.length,
+    pendingChanged,
+    pendingCount: pendingSorted.length,
+    lastPendingCount: lastPending.length,
     priorAnnouncedCount: announced.size,
     messagesLength: messages.length,
     attachmentCount,
@@ -714,9 +772,11 @@ export function getDeferredToolsDelta(
   })
 
   return {
-    addedNames: added.map(t => t.name).sort(),
-    addedLines: added.map(formatDeferredToolLine).sort(),
+    addedNames: uniq([...added, ...unlisted].map(t => t.name)).sort(),
+    addedLines: unlisted.map(formatDeferredToolLine).sort(),
     removedNames: removed.sort(),
+    readdedNames: readdedNames.sort(),
+    ...(pendingMcpServers !== undefined && { pendingMcpServers: pendingSorted }),
   }
 }
 

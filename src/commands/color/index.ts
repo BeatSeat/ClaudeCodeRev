@@ -3,13 +3,14 @@
  * Implementation is lazy-loaded from color.ts to reduce startup time.
  */
 import type { Command } from '../../commands.js'
+import { AGENT_COLORS } from '../../tools/AgentTool/agentColorManager.js'
 
 const color = {
   type: 'local-jsx',
   name: 'color',
   description: 'Set the prompt bar color for this session',
   immediate: true,
-  argumentHint: '<color|default>',
+  argumentHint: `[${[...AGENT_COLORS, 'default'].join('|')}]`,
   load: () => import('./color.js'),
 } satisfies Command
 

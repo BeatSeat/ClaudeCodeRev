@@ -236,6 +236,9 @@ export async function call(
   args?: string,
 ): Promise<React.ReactNode | null> {
   if (!isFastModeEnabled()) {
+    onDone(
+      getFastModeUnavailableReason() ?? 'Fast mode is not available',
+    )
     return null
   }
 

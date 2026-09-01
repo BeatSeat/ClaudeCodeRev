@@ -354,7 +354,11 @@ import {
 import { setAllHookEventsEnabled } from 'src/utils/hooks/hookEvents.js'
 import { refreshModelCapabilities } from 'src/utils/model/modelCapabilities.js'
 import { refreshGatewayModels } from 'src/utils/model/gatewayModels.js'
-import { peekForStdinData, writeToStderr } from 'src/utils/process.js'
+import {
+  exitWithError as exitWithCliError,
+  peekForStdinData,
+  writeToStderr,
+} from 'src/utils/process.js'
 import { setCwd } from 'src/utils/Shell.js'
 import {
   type ProcessedResume,
@@ -1260,7 +1264,15 @@ async function getInputPrompt(
     }
     process.stdin.setEncoding('utf8')
     let data = ''
+    // Official 2.1.128 $B4 — cap piped stdin so `claude -p` cannot OOM.
+    const maxPipedStdinBytes = 10_485_760
     const onData = (chunk: string) => {
+      if (data.length + chunk.length > maxPipedStdinBytes) {
+        process.stdin.off('data', onData)
+        exitWithCliError(
+          `Error: piped stdin input exceeds ${maxPipedStdinBytes / 1024 / 1024}MB. Pass large content as a file path in your prompt instead.`,
+        )
+      }
       data += chunk
     }
     process.stdin.on('data', onData)
@@ -1766,7 +1778,7 @@ async function run(): Promise<CommanderCommand> {
     // --plugin-dir takes exactly one arg; repeat the flag for multiple dirs.
     .option(
       '--plugin-dir <path>',
-      'Load plugins from a directory for this session only (repeatable: --plugin-dir A --plugin-dir B)',
+      'Load a plugin from a directory or .zip for this session only (repeatable: --plugin-dir A --plugin-dir B.zip)',
       (val: string, prev: string[]) => [...prev, val],
       [] as string[],
     )

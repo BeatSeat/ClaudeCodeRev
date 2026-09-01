@@ -264,6 +264,22 @@ export function hasShellQuoteSingleQuoteBug(command: string): boolean {
   return false
 }
 
+/**
+ * Official 2.1.128 L4 — POSIX quote+join. Safe tokens pass through; empty
+ * becomes `''`; everything else is single-quoted with `'"'"'` escaping.
+ * Used for MCP stdio CLAUDE_CODE_SHELL_PREFIX argv (not PowerShell).
+ */
+export function posixQuote(args: ReadonlyArray<unknown>): string {
+  return args
+    .map(arg => {
+      const s = String(arg)
+      if (s === '') return "''"
+      if (/^[A-Za-z0-9_./:=@+,-]+$/.test(s)) return s
+      return "'" + s.replaceAll("'", `'"'"'`) + "'"
+    })
+    .join(' ')
+}
+
 export function quote(args: ReadonlyArray<unknown>): string {
   // First try the strict validation
   const result = tryQuoteShellArgs([...args])

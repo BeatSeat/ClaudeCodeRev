@@ -87,7 +87,10 @@ import { getAddDirEnabledPlugins } from './addDirPluginSettings.js'
 import { verifyAndDemote } from './dependencyResolver.js'
 import { classifyFetchError, logPluginFetch } from './fetchTelemetry.js'
 import { checkGitAvailable } from './gitAvailability.js'
-import { getInMemoryInstalledPlugins } from './installedPluginsManager.js'
+import {
+  getInMemoryInstalledPlugins,
+  selectLiveInstalledPluginEntry,
+} from './installedPluginsManager.js'
 import {
   loadPluginMonitors,
   resolvePathWithinPlugin,
@@ -609,15 +612,35 @@ export async function installFromNpm(
 
   await getFsImplementation().mkdir(npmCachePath)
 
-  const packageSpec = options.version
-    ? `${packageName}@${options.version}`
-    : packageName
+  const packageSpec = `${packageName}@${options.version ?? 'latest'}`
   const packagePath = join(npmCachePath, 'node_modules', packageName)
-  const needsInstall = !(await pathExists(packagePath))
+  let cachedVersion: string | undefined
+  try {
+    const pkg = jsonParse(
+      await readFile(join(packagePath, 'package.json'), 'utf8'),
+    ) as { version?: unknown }
+    if (typeof pkg.version === 'string') {
+      cachedVersion = pkg.version
+    }
+  } catch {
+    // missing or unreadable cache — treat as miss
+  }
+  const pinnedCacheHit = Boolean(
+    options.version && options.version === cachedVersion,
+  )
 
-  if (needsInstall) {
+  if (!pinnedCacheHit) {
     logForDebugging(`Installing npm package ${packageSpec} to cache`)
-    const args = ['install', packageSpec, '--prefix', npmCachePath]
+    const args = [
+      'install',
+      packageSpec,
+      '--prefix',
+      npmCachePath,
+      '--no-fund',
+      '--no-audit',
+      '--no-progress',
+      '--loglevel=error',
+    ]
     if (options.registry) {
       args.push('--registry', options.registry)
     }
@@ -626,6 +649,10 @@ export async function installFromNpm(
     if (result.code !== 0) {
       throw new Error(`Failed to install npm package: ${result.stderr}`)
     }
+  } else {
+    logForDebugging(
+      `npm cache hit for ${packageName}@${cachedVersion} (pinned, matches requested)`,
+    )
   }
 
   await copyDir(packagePath, targetPath)
@@ -2286,7 +2313,9 @@ async function loadPluginsFromMarketplaces({
       // installed_plugins.json records what's actually cached on disk
       // (version for the full loader's first-pass probe, installPath for
       // the cache-only loader's direct read).
-      const installEntry = installedPluginsData.plugins[pluginId]?.[0]
+      const installEntry = await selectLiveInstalledPluginEntry(
+        installedPluginsData.plugins[pluginId],
+      )
       const plugin = cacheOnly
         ? await loadPluginFromMarketplaceEntryCacheOnly(
             result.entry,
@@ -3224,7 +3253,7 @@ async function loadSessionOnlyPlugins(
 
   for (const [index, pluginPath] of sessionPluginPaths.entries()) {
     try {
-      const resolvedPath = resolve(pluginPath)
+      let resolvedPath = resolve(pluginPath)
 
       if (!(await pathExists(resolvedPath))) {
         logForDebugging(
@@ -3240,7 +3269,22 @@ async function loadSessionOnlyPlugins(
         continue
       }
 
-      const dirName = basename(resolvedPath)
+      const isZip = resolvedPath.toLowerCase().endsWith('.zip')
+      const dirName = isZip
+        ? basename(resolvedPath).replace(/\.zip$/i, '')
+        : basename(resolvedPath)
+      if (isZip) {
+        const sessionDir = await getSessionPluginCachePath()
+        const extractDir = join(
+          sessionDir,
+          `inline-${index}-${dirName.replace(/[^a-zA-Z0-9\-_]/g, '-')}`,
+        )
+        await rm(extractDir, { recursive: true, force: true })
+        await extractZipToDirectory(resolvedPath, extractDir)
+        logForDebugging(`Extracted inline plugin zip to ${extractDir}`)
+        resolvedPath = extractDir
+      }
+
       const { plugin, errors: pluginErrors } = await createPluginFromPath(
         resolvedPath,
         `${dirName}@inline`, // temporary, will be updated after we know the real name

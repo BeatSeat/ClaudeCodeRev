@@ -43,6 +43,19 @@ export type SystemInitInputs = {
   fastMode: boolean | undefined
 }
 
+/**
+ * Official 2.1.128 CbK: stream-json init.plugin_errors includes
+ * dependency demotions and --plugin-dir (@inline / inline[) load failures.
+ */
+export function isStreamJsonInitPluginError(error: PluginError): boolean {
+  return (
+    error.type === 'dependency-unsatisfied' ||
+    error.type === 'dependency-version-unsatisfied' ||
+    error.source.endsWith('@inline') ||
+    error.source.startsWith('inline[')
+  )
+}
+
 function toPluginErrorWire(error: PluginError): {
   plugin: string
   type: string

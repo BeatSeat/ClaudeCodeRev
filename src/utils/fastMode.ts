@@ -36,6 +36,10 @@ import {
 import { createSignal } from './signal.js'
 
 export function isFastModeEnabled(): boolean {
+  // 128 r4 / 126 R4: 3P providers are never fast-mode capable.
+  if (getAPIProvider() !== 'firstParty') {
+    return false
+  }
   return !isEnvTruthy(process.env.CLAUDE_CODE_DISABLE_FAST_MODE)
 }
 
@@ -71,7 +75,9 @@ function getDisabledReasonMessage(
 
 export function getFastModeUnavailableReason(): string | null {
   if (!isFastModeEnabled()) {
-    return 'Fast mode is not available'
+    return getAPIProvider() !== 'firstParty'
+      ? 'Fast mode is only available when using the Anthropic API directly'
+      : 'Fast mode is not available'
   }
 
   const statigReason = getFeatureValue_CACHED_MAY_BE_STALE(
@@ -107,13 +113,6 @@ export function getFastModeUnavailableReason(): string | null {
       logForDebugging(`Fast mode unavailable: ${reason}`)
       return reason
     }
-  }
-
-  // Only available for 1P (not Bedrock/Vertex/Foundry)
-  if (getAPIProvider() !== 'firstParty') {
-    const reason = 'Fast mode is not available on Bedrock, Vertex, or Foundry'
-    logForDebugging(`Fast mode unavailable: ${reason}`)
-    return reason
   }
 
   if (orgStatus.status === 'disabled') {

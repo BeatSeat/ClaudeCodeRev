@@ -657,7 +657,6 @@ async function* queryLoop(
     if (
       !compactionResult &&
       querySource !== 'compact' &&
-      querySource !== 'session_memory' &&
       !(
         reactiveCompact?.isReactiveCompactEnabled() && isAutoCompactEnabled()
       ) &&

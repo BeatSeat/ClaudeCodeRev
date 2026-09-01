@@ -335,7 +335,7 @@ async function removeOrphanedWorktreeDirectoryIfSafe(
 async function getOrCreateWorktree(
   repoRoot: string,
   slug: string,
-  options?: { prNumber?: number },
+  options?: { prNumber?: number; fromHead?: boolean },
 ): Promise<WorktreeCreateResult> {
   const worktreePath = worktreePathFor(repoRoot, slug)
   const worktreeBranch = worktreeBranchName(slug)
@@ -367,7 +367,10 @@ async function getOrCreateWorktree(
 
   let baseBranch: string
   let baseSha: string | null = null
-  if (options?.prNumber) {
+  if (options?.fromHead) {
+    // Official 2.1.128 EnterWorktree: branch from local HEAD, not origin/.
+    baseBranch = 'HEAD'
+  } else if (options?.prNumber) {
     const { code: prFetchCode, stderr: prFetchStderr } =
       await execFileNoThrowWithCwd(
         gitExe(),
@@ -916,7 +919,7 @@ export async function createWorktreeForSession(
   sessionId: string,
   slug: string,
   tmuxSessionName?: string,
-  options?: { prNumber?: number },
+  options?: { prNumber?: number; fromHead?: boolean },
 ): Promise<WorktreeSession> {
   // Must run before the hook branch below — hooks receive the raw slug as an
   // argument, and the git branch builds a path from it via path.join.

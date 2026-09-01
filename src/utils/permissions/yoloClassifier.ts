@@ -72,6 +72,11 @@ const ANTHROPIC_PERMISSIONS_TEMPLATE: string =
     : ''
 /* eslint-enable custom-rules/no-process-env-top-level, @typescript-eslint/no-require-imports */
 
+/** Official 2.1.128 `x78`: parse-failure copy — retry with --debug. */
+function formatClassifierUnevaluableReason(): string {
+  return 'Auto mode could not evaluate this action and is blocking it for safety — run with --debug for details'
+}
+
 function isUsingExternalPermissions(): boolean {
   if (process.env.USER_TYPE !== 'ant') return true
   const config = getFeatureValue_CACHED_MAY_BE_STALE(
@@ -888,7 +893,7 @@ async function classifyYoloActionXml(
           logAutoModeOutcome('parse_failure', model, { classifierType })
           return {
             shouldBlock: true,
-            reason: 'Classifier stage 1 unparseable - blocking for safety',
+            reason: formatClassifierUnevaluableReason(),
             model,
             usage: stage1Usage,
             durationMs: stage1DurationMs,
@@ -960,7 +965,7 @@ async function classifyYoloActionXml(
       logAutoModeOutcome('parse_failure', model, { classifierType })
       return {
         shouldBlock: true,
-        reason: 'Classifier stage 2 unparseable - blocking for safety',
+        reason: formatClassifierUnevaluableReason(),
         model,
         usage: totalUsage,
         durationMs: totalDurationMs,
@@ -1036,7 +1041,7 @@ async function classifyYoloActionXml(
       reason: tooLong
         ? 'Classifier transcript exceeded context window'
         : stage1Usage
-          ? 'Stage 2 classifier error - blocking based on stage 1 assessment'
+          ? 'Stage 2 classifier error - blocking based on stage 1 assessment (usually transient — retrying often succeeds)'
           : 'Classifier unavailable - blocking for safety',
       model,
       unavailable: stage1Usage === undefined,
@@ -1268,7 +1273,7 @@ export async function classifyYoloAction(
       logAutoModeOutcome('parse_failure', model, { failureKind: 'no_tool_use' })
       return {
         shouldBlock: true,
-        reason: 'Classifier returned no tool use block - blocking for safety',
+        reason: formatClassifierUnevaluableReason(),
         model,
         usage,
         durationMs,
@@ -1292,7 +1297,7 @@ export async function classifyYoloAction(
       })
       return {
         shouldBlock: true,
-        reason: 'Invalid classifier response - blocking for safety',
+        reason: formatClassifierUnevaluableReason(),
         model,
         usage,
         durationMs,

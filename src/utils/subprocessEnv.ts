@@ -89,13 +89,24 @@ export function subprocessEnv(): NodeJS.ProcessEnv {
   // proxy is disabled or not registered (non-CCR), so this is a no-op outside
   // CCR containers.
   const proxyEnv = _getUpstreamProxyEnv?.() ?? {}
+  const hasProxy = Object.keys(proxyEnv).length > 0
+  const scrub = isEnvTruthy(process.env.CLAUDE_CODE_SUBPROCESS_ENV_SCRUB)
+  // Official 2.1.128 QE: strip every OTEL_* from the env copy so Bash/hooks/
+  // MCP/LSP children do not inherit the CLI's OTLP endpoint / headers.
+  const hasOtel = Object.keys(process.env).some(k => k.startsWith('OTEL_'))
 
-  if (!isEnvTruthy(process.env.CLAUDE_CODE_SUBPROCESS_ENV_SCRUB)) {
-    return Object.keys(proxyEnv).length > 0
-      ? { ...process.env, ...proxyEnv }
-      : process.env
+  if (!hasProxy && !scrub && !hasOtel) {
+    return process.env
   }
   const env = { ...process.env, ...proxyEnv }
+  for (const k of Object.keys(env)) {
+    if (k.startsWith('OTEL_')) {
+      delete env[k]
+    }
+  }
+  if (!scrub) {
+    return env
+  }
   for (const k of GHA_SUBPROCESS_SCRUB) {
     delete env[k]
     // GitHub Actions auto-creates INPUT_<NAME> for `with:` inputs, duplicating

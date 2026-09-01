@@ -51,6 +51,14 @@ export function MCPSettings({ onComplete }: Props): React.ReactNode {
     [mcpClients],
   )
 
+  const toolCountsByServer = React.useMemo(() => {
+    const counts: Record<string, number> = {}
+    for (const client of filteredClients) {
+      counts[client.name] = filterToolsByServer(mcp.tools, client.name).length
+    }
+    return counts
+  }, [filteredClients, mcp.tools])
+
   React.useEffect(() => {
     let cancelled = false
     async function prepareServers() {
@@ -159,6 +167,7 @@ export function MCPSettings({ onComplete }: Props): React.ReactNode {
         <MCPListPanel
           servers={servers}
           suppressedClaudeAiConnectors={mcp.suppressedClaudeAiConnectors}
+          toolCountsByServer={toolCountsByServer}
           agentServers={agentMcpServers}
           onSelectServer={server =>
             setViewState({ type: 'server-menu', server })

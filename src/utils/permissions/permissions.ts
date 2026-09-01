@@ -904,7 +904,7 @@ export const hasPermissionsToUseTool: CanUseToolFn = async (
             decisionReason: {
               type: 'other',
               reason:
-                'Auto mode classifier transcript exceeded context window — falling back to manual approval',
+                'Auto mode classifier transcript exceeded context window — falling back to manual approval (try /compact to reduce conversation size)',
             },
           }
         }
