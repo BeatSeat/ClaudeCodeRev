@@ -1,4 +1,5 @@
 import { feature } from 'bun:bundle'
+import { getIsInteractive, getIsRemoteMode } from '../bootstrap/state.js'
 import { ASYNC_AGENT_ALLOWED_TOOLS } from '../constants/tools.js'
 import { checkStatsigFeatureGate_CACHED_MAY_BE_STALE } from '../services/analytics/growthbook.js'
 import {
@@ -14,7 +15,9 @@ import { SYNTHETIC_OUTPUT_TOOL_NAME } from '../tools/SyntheticOutputTool/Synthet
 import { TASK_STOP_TOOL_NAME } from '../tools/TaskStopTool/prompt.js'
 import { TEAM_CREATE_TOOL_NAME } from '../tools/TeamCreateTool/constants.js'
 import { TEAM_DELETE_TOOL_NAME } from '../tools/TeamDeleteTool/constants.js'
+import { WORKFLOW_TOOL_NAME } from '../tools/WorkflowTool/constants.js'
 import { isEnvTruthy } from '../utils/envUtils.js'
+import { isWorkflowsEnabled } from '../utils/workflows/enabled.js'
 
 // Checks the same gate as isScratchpadEnabled() in
 // utils/permissions/filesystem.ts. Duplicated here because importing
@@ -33,9 +36,20 @@ const INTERNAL_WORKER_TOOLS = new Set([
   SYNTHETIC_OUTPUT_TOOL_NAME,
 ])
 
+/** Official 2.1.152 `PI()` / `Ap()`. */
 export function isCoordinatorMode(): boolean {
   if (feature('COORDINATOR_MODE')) {
-    return isEnvTruthy(process.env.CLAUDE_CODE_COORDINATOR_MODE)
+    if (!isEnvTruthy(process.env.CLAUDE_CODE_COORDINATOR_MODE)) return false
+    // HT() && !d6() && !REMOTE → deny. HT = getIsInteractive;
+    // d6 = caps.workspace==="remote" (this tree: getIsRemoteMode).
+    if (
+      getIsInteractive() &&
+      !getIsRemoteMode() &&
+      !isEnvTruthy(process.env.CLAUDE_CODE_REMOTE)
+    ) {
+      return false
+    }
+    return true
   }
   return false
 }
@@ -68,11 +82,26 @@ export function matchSessionMode(
     delete process.env.CLAUDE_CODE_COORDINATOR_MODE
   }
 
+  // Official 152 `x05`: re-read `Ap()`/`PI()` after the flip. The
+  // interactive/remote gate can still deny coordinator; revert env
+  // and stay silent instead of claiming the mode changed.
+  const afterIsCoordinator = isCoordinatorMode()
+  if (afterIsCoordinator === currentIsCoordinator) {
+    if (sessionIsCoordinator) {
+      delete process.env.CLAUDE_CODE_COORDINATOR_MODE
+    }
+    return undefined
+  }
+
   logEvent('tengu_coordinator_mode_switched', {
     to: sessionMode as unknown as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
   })
+  logEvent('tengu_feature_ok', {
+    feature_name:
+      'coordinator_session_mode_match' as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
+  })
 
-  return sessionIsCoordinator
+  return afterIsCoordinator
     ? 'Entered coordinator mode to match resumed session.'
     : 'Exited coordinator mode to match resumed session.'
 }
@@ -130,7 +159,7 @@ Every message you send is to the user. Worker results and system notifications a
 - **${AGENT_TOOL_NAME}** - Spawn a new worker
 - **${SEND_MESSAGE_TOOL_NAME}** - Continue an existing worker (send a follow-up to its \`to\` agent ID)
 - **${TASK_STOP_TOOL_NAME}** - Stop a running worker
-- **subscribe_pr_activity / unsubscribe_pr_activity** (if available) - Subscribe to GitHub PR events (review comments, CI results). Events arrive as user messages. Merge conflict transitions do NOT arrive — GitHub doesn't webhook \`mergeable_state\` changes, so poll \`gh pr view N --json mergeable\` if tracking conflict status. Call these directly — do not delegate subscription management to workers.
+${isWorkflowsEnabled() ? `- **${WORKFLOW_TOOL_NAME}** (if available) - Run a multi-step subagent pipeline; prefer it over hand-orchestrating ${AGENT_TOOL_NAME} calls when a matching workflow exists\n` : ''}- **subscribe_pr_activity / unsubscribe_pr_activity** (if available) - Subscribe to GitHub PR events (review comments, CI results). Events arrive as user messages. Merge conflict transitions do NOT arrive — GitHub doesn't webhook \`mergeable_state\` changes, so poll \`gh pr view N --json mergeable\` if tracking conflict status. Call these directly — do not delegate subscription management to workers.
 
 When calling ${AGENT_TOOL_NAME}:
 - Do not use one worker to check on another. Workers will notify you when they are done.

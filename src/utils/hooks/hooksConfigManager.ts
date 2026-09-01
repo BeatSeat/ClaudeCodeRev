@@ -24,7 +24,9 @@ export type HookEventMetadata = {
 // toolNames array each render (e.g. HooksConfigMenu) hit the cache instead
 // of leaking a new entry per call.
 export const getHookEventMetadata = memoize(
-  function (toolNames: string[]): Record<HookEvent, HookEventMetadata> {
+  function (
+    toolNames: string[],
+  ): Record<HookEvent | 'MessageDisplay', HookEventMetadata> {
     return {
       PreToolUse: {
         summary: 'Before tool execution',
@@ -262,6 +264,11 @@ export const getHookEventMetadata = memoize(
         description:
           'Input to command is JSON with file_path and event (change, add, unlink).\nCLAUDE_ENV_FILE is set — write bash exports there to apply env to subsequent BashTool commands.\nThe matcher field specifies filenames to watch in the current directory (e.g. ".envrc|.env").\nHook output can include hookSpecificOutput.watchPaths (array of absolute paths) to dynamically update the watch list.\nExit code 0 - command completes successfully\nOther exit codes - show stderr to user only',
       },
+      MessageDisplay: {
+        summary: 'While assistant message text is displayed',
+        description:
+          'Input to command is JSON with turn_id, message_id, index, final, and delta (the newly completed lines).\nOutput JSON with hookSpecificOutput containing displayContent to replace the delta on screen.\nDisplay-only: the stored message and what the model sees are untouched.\nExit code 0 - use hook response if provided\nOther exit codes - display the original delta',
+      },
     }
   },
   toolNames => toolNames.slice().sort().join(','),
@@ -271,8 +278,11 @@ export const getHookEventMetadata = memoize(
 export function groupHooksByEventAndMatcher(
   appState: AppState,
   toolNames: string[],
-): Record<HookEvent, Record<string, IndividualHookConfig[]>> {
-  const grouped: Record<HookEvent, Record<string, IndividualHookConfig[]>> = {
+): Record<HookEvent | 'MessageDisplay', Record<string, IndividualHookConfig[]>> {
+  const grouped: Record<
+    HookEvent | 'MessageDisplay',
+    Record<string, IndividualHookConfig[]>
+  > = {
     PreToolUse: {},
     PostToolUse: {},
     PostToolUseFailure: {},
@@ -300,6 +310,7 @@ export function groupHooksByEventAndMatcher(
     InstructionsLoaded: {},
     CwdChanged: {},
     FileChanged: {},
+    MessageDisplay: {},
   }
 
   const metadata = getHookEventMetadata(toolNames)

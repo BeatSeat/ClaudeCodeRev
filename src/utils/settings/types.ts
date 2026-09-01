@@ -517,6 +517,12 @@ export const SettingsSchema = lazySchema(() =>
         .describe(
           'Disable the background-agents fleet (`claude agents`, `--bg`, /background, the on-demand daemon). Typically set in managed settings. Equivalent to CLAUDE_CODE_DISABLE_AGENTS_FLEET=1.',
         ),
+      disableWorkflows: z
+        .boolean()
+        .optional()
+        .describe(
+          '@internal Disable the Workflows feature (also via CLAUDE_CODE_DISABLE_WORKFLOWS).',
+        ),
       disableSkillShellExecution: z
         .boolean()
         .optional()
@@ -711,6 +717,12 @@ export const SettingsSchema = lazySchema(() =>
           'Enterprise blocklist of marketplace sources. When set in managed settings, ' +
             'these exact sources are blocked from being added as marketplaces. The check happens BEFORE ' +
             'downloading, so blocked sources never touch the filesystem.',
+        ),
+      pluginSuggestionMarketplaces: z
+        .array(z.string())
+        .optional()
+        .describe(
+          'Marketplace names whose plugins may surface as contextual install suggestions (relevance-based tips), in addition to the official marketplace. Only honored when set in managed settings (policy scope); the key is ignored in user, project, and local settings. A name only takes effect when the marketplace is registered on the machine AND its registered source is also declared in managed settings, either as the extraKnownMarketplaces entry for that name or as an entry of strictKnownMarketplaces. A marketplace registered from a different source under an allowlisted name is ignored.',
         ),
       // Force a specific login method: 'claudeai' for Claude Pro/Max, 'console' for Console billing
       forceLoginMethod: z

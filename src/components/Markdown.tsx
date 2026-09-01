@@ -17,6 +17,8 @@ type Props = {
   children: string
   /** When true, render all text content as dim */
   dimColor?: boolean
+  /** Official 2.1.152 `dO`: italic thinking summary under the collapsed group. */
+  italic?: boolean
 }
 
 // Module-level token cache — marked.lexer is the hot cost on virtual-scroll
@@ -101,6 +103,7 @@ function MarkdownWithHighlight(props: Props): React.ReactNode {
 function MarkdownBody({
   children,
   dimColor,
+  italic,
   highlight,
 }: Props & { highlight: CliHighlight | null }): React.ReactNode {
   const [theme] = useTheme()
@@ -114,7 +117,7 @@ function MarkdownBody({
     function flushNonTableContent(): void {
       if (nonTableContent) {
         elements.push(
-          <Ansi key={elements.length} dimColor={dimColor}>
+          <Ansi key={elements.length} dimColor={dimColor} italic={italic}>
             {nonTableContent.trim()}
           </Ansi>,
         )
@@ -150,7 +153,7 @@ function MarkdownBody({
 
     flushNonTableContent()
     return elements
-  }, [children, dimColor, highlight, theme])
+  }, [children, dimColor, italic, highlight, theme])
 
   return (
     <Box flexDirection="column" gap={1}>

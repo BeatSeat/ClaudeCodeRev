@@ -20,7 +20,6 @@ import {
   modelSupportsEffort,
 } from '../../utils/effort.js'
 import { env } from '../../utils/env.js'
-import { cacheKeys } from '../../utils/fileStateCache.js'
 import { getWorktreeCount } from '../../utils/git.js'
 import {
   detectRunningIDEsCached,
@@ -40,9 +39,11 @@ import { getCwd } from '../../utils/cwd.js'
 import { loadMarkdownFilesForSubdir } from '../../utils/markdownConfigLoader.js'
 import { getPlatform } from '../../utils/platform.js'
 import memoize from 'lodash-es/memoize.js'
-import { isPluginInstalled } from '../../utils/plugins/installedPluginsManager.js'
-import { loadKnownMarketplacesConfigSafe } from '../../utils/plugins/marketplaceManager.js'
 import { OFFICIAL_MARKETPLACE_NAME } from '../../utils/plugins/officialMarketplace.js'
+import {
+  getMarketplacePluginSuggestionTips,
+  isMarketplacePluginRelevant,
+} from '../../utils/plugins/pluginSuggestionTips.js'
 import {
   getCurrentSessionAgentColor,
   isCustomTitleEnabled,
@@ -60,7 +61,6 @@ import {
 import { getSessionsSinceLastShown } from './tipHistory.js'
 import type { Tip, TipContext } from './types.js'
 
-let _isOfficialMarketplaceInstalledCache: boolean | undefined
 /** 120 `LC6`: `Vb(kind, cwd).length > 0` — on-disk markdown under that subdir. */
 async function hasUserDefined(kind: 'skills' | 'agents'): Promise<boolean> {
   try {
@@ -72,41 +72,6 @@ async function hasUserDefined(kind: 'skills' | 'agents'): Promise<boolean> {
 }
 
 const isDesktopInstalledCached = memoize(isDesktopInstalled)
-
-async function isOfficialMarketplaceInstalled(): Promise<boolean> {
-  if (_isOfficialMarketplaceInstalledCache !== undefined) {
-    return _isOfficialMarketplaceInstalledCache
-  }
-  const config = await loadKnownMarketplacesConfigSafe()
-  _isOfficialMarketplaceInstalledCache = OFFICIAL_MARKETPLACE_NAME in config
-  return _isOfficialMarketplaceInstalledCache
-}
-
-async function isMarketplacePluginRelevant(
-  pluginName: string,
-  context: TipContext | undefined,
-  signals: { filePath?: RegExp; cli?: string[] },
-): Promise<boolean> {
-  if (!(await isOfficialMarketplaceInstalled())) {
-    return false
-  }
-  if (isPluginInstalled(`${pluginName}@${OFFICIAL_MARKETPLACE_NAME}`)) {
-    return false
-  }
-  const { bashTools } = context ?? {}
-  if (signals.cli && bashTools?.size) {
-    if (signals.cli.some(cmd => bashTools.has(cmd))) {
-      return true
-    }
-  }
-  if (signals.filePath && context?.readFileState) {
-    const readFiles = cacheKeys(context.readFileState)
-    if (readFiles.some(fp => signals.filePath!.test(fp))) {
-      return true
-    }
-  }
-  return false
-}
 
 const externalTips: Tip[] = [
   {
@@ -699,8 +664,12 @@ export async function getRelevantTips(context?: TipContext): Promise<Tip[]> {
     return customTips
   }
 
-  // Otherwise, filter built-in tips as before and combine with custom
-  const tips = [...externalTips, ...internalOnlyTips]
+  // Official 2.1.152 yR8: [...XO9, ...VNz, ...await WNz()]
+  const tips = [
+    ...externalTips,
+    ...internalOnlyTips,
+    ...(await getMarketplacePluginSuggestionTips(externalTips)),
+  ]
   const isRelevant = await Promise.all(tips.map(_ => _.isRelevant(context)))
   const filtered = tips
     .filter((_, index) => isRelevant[index])

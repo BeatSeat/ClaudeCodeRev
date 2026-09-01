@@ -99,6 +99,7 @@ import {
 import { isBriefEnabled } from './tools/BriefTool/BriefTool.js'
 import { executePostSamplingHooks } from './utils/hooks/postSamplingHooks.js'
 import { executeStopFailureHooks, getStopHookMessage } from './utils/hooks.js'
+import { bindMessageDisplayFlush } from './utils/hooks/messageDisplayFlush.js'
 import type { QuerySource } from './constants/querySource.js'
 import { createDumpPromptsFetch } from './services/api/dumpPrompts.js'
 import { StreamingToolExecutor } from './services/tools/StreamingToolExecutor.js'
@@ -236,6 +237,13 @@ export async function* query(
   | ToolUseSummaryMessage,
   Terminal
 > {
+  // Official 2.1.152 Jj9.newTurn — once per main-thread user turn, not per
+  // tool follow-up, subagent, or SDK query() (SDK uses Xj9 instead).
+  if (!params.toolUseContext.agentId && params.querySource !== 'sdk') {
+    bindMessageDisplayFlush({
+      getAppState: params.toolUseContext.getAppState,
+    }).newTurn()
+  }
   const consumedCommandUuids: string[] = []
   const terminal = yield* queryLoop(params, consumedCommandUuids)
   // Only reached if queryLoop returned normally. Skipped on throw (error

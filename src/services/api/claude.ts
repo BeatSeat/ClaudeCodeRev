@@ -87,6 +87,7 @@ import {
   normalizeMessagesForAPI,
   stripAdvisorBlocks,
   stripCallerFieldFromAssistantMessage,
+  stripSignedThinkingBlocks,
   stripToolReferenceBlocksFromUserMessage,
 } from '../../utils/messages.js'
 import {
@@ -264,6 +265,7 @@ import {
   CannotRetryError,
   FallbackTriggeredError,
   is529Error,
+  isThinkingSignatureError,
   type RetryContext,
   withRetry,
 } from './withRetry.js'
@@ -1905,6 +1907,45 @@ async function* queryModel(
         signal,
         querySource: options.querySource,
         onError: async error => {
+          // Official 2.1.117 J$7 + Dn6: 400 "Advisor tool result content
+          // could not be processed" → strip advisor blocks and retry.
+          if (
+            error instanceof APIError &&
+            error.status === 400 &&
+            error.message.includes(
+              'Advisor tool result content could not be processed',
+            )
+          ) {
+            messagesForAPI = stripAdvisorBlocks(messagesForAPI)
+            logEvent('tengu_advisor_strip_retry', {
+              query_source: (options.querySource?.startsWith('agent:custom:')
+                ? 'agent:custom'
+                : (options.querySource ??
+                  '')) as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
+            })
+            return 'retry:advisor-strip'
+          }
+          // Official 2.1.152 BeK + w24: stale thinking-block signatures →
+          // strip signed/redacted thinking and retry once (withRetry onError key).
+          if (isThinkingSignatureError(error)) {
+            const next = stripSignedThinkingBlocks(messagesForAPI)
+            if (next !== messagesForAPI) {
+              messagesForAPI = next
+              logForDebugging(
+                '[thinking] server rejected a thinking-block signature; stripping signed blocks and retrying.',
+                { level: 'warn' },
+              )
+              logEvent('tengu_thinking_signature_strip_retry', {
+                query_source: (options.querySource?.startsWith('agent:custom:')
+                  ? 'agent:custom'
+                  : (options.querySource ??
+                    '')) as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
+                model:
+                  options.model as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
+              })
+              return 'retry:thinking-signature-strip'
+            }
+          }
           const loc = parseImageDimensionError(error)
           if (loc) {
             const next = stripOversizedImageFromMessages(messagesForAPI, loc)

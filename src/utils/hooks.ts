@@ -432,6 +432,8 @@ export interface HookResult {
   watchPaths?: string[]
   elicitationResultResponse?: ElicitationResponse
   retry?: boolean
+  reloadSkills?: boolean
+  displayContent?: string
   hook: HookCommand | HookCallback | FunctionHook
 }
 
@@ -454,6 +456,8 @@ export type AggregatedHookResult = {
   elicitationResponse?: ElicitationResponse
   elicitationResultResponse?: ElicitationResponse
   retry?: boolean
+  reloadSkills?: boolean
+  displayContent?: string
 }
 
 /**
@@ -723,10 +727,22 @@ function processHookJSONOutput({
         result.additionalContext = json.hookSpecificOutput.additionalContext
         result.initialUserMessage = json.hookSpecificOutput.initialUserMessage
         if (
+          'sessionTitle' in json.hookSpecificOutput &&
+          typeof json.hookSpecificOutput.sessionTitle === 'string'
+        ) {
+          result.sessionTitle = json.hookSpecificOutput.sessionTitle
+        }
+        if (
           'watchPaths' in json.hookSpecificOutput &&
           json.hookSpecificOutput.watchPaths
         ) {
           result.watchPaths = json.hookSpecificOutput.watchPaths
+        }
+        if (
+          'reloadSkills' in json.hookSpecificOutput &&
+          json.hookSpecificOutput.reloadSkills
+        ) {
+          result.reloadSkills = true
         }
         break
       case 'Setup':
@@ -801,6 +817,16 @@ function processHookJSONOutput({
           }
         }
         break
+    }
+    if (
+      (json.hookSpecificOutput.hookEventName as string) === 'MessageDisplay'
+    ) {
+      const displayContent = (
+        json.hookSpecificOutput as { displayContent?: string }
+      ).displayContent
+      if (displayContent !== undefined) {
+        result.displayContent = displayContent
+      }
     }
   }
 
@@ -1701,7 +1727,7 @@ function getHooksConfig(
  * and getMatchingHooks on hot paths where hooks are typically unconfigured.
  * See hasInstructionsLoadedHook / hasWorktreeCreateHook for the same pattern.
  */
-function hasHookForEvent(
+export function hasHookForEvent(
   hookEvent: HookEvent,
   appState: AppState | undefined,
   sessionId: string,
@@ -2107,6 +2133,8 @@ async function* executeHooks({
   forceSyncExecution,
   requestPrompt,
   toolInputSummary,
+  getAppState,
+  suppressPerInvocationTelemetry,
 }: {
   hookInput: HookInput
   toolUseID: string
@@ -2121,6 +2149,8 @@ async function* executeHooks({
     toolInputSummary?: string | null,
   ) => (request: PromptRequest) => Promise<PromptResponse>
   toolInputSummary?: string | null
+  getAppState?: () => AppState
+  suppressPerInvocationTelemetry?: boolean
 }): AsyncGenerator<AggregatedHookResult> {
   if (shouldDisableAllHooksIncludingManaged()) {
     return
@@ -2145,7 +2175,9 @@ async function* executeHooks({
     return
   }
 
-  const appState = toolUseContext ? toolUseContext.getAppState() : undefined
+  const appState = toolUseContext
+    ? toolUseContext.getAppState()
+    : getAppState?.()
   // Use the agent's session ID if available, otherwise fall back to main session
   const sessionId = toolUseContext?.agentId ?? getSessionId()
   const matchingHooks = await getMatchingHooks(
@@ -2167,19 +2199,21 @@ async function* executeHooks({
   if (userHooks.length > 0) {
     const pluginHookCounts = getPluginHookCounts(userHooks)
     const hookTypeCounts = getHookTypeCounts(userHooks)
-    logEvent(`tengu_run_hook`, {
-      hookName:
-        hookName as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-      numCommands: userHooks.length,
-      hookTypeCounts: jsonStringify(
-        hookTypeCounts,
-      ) as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-      ...(pluginHookCounts && {
-        pluginHookCounts: jsonStringify(
-          pluginHookCounts,
+    if (!suppressPerInvocationTelemetry) {
+      logEvent(`tengu_run_hook`, {
+        hookName:
+          hookName as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
+        numCommands: userHooks.length,
+        hookTypeCounts: jsonStringify(
+          hookTypeCounts,
         ) as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-      }),
-    })
+        ...(pluginHookCounts && {
+          pluginHookCounts: jsonStringify(
+            pluginHookCounts,
+          ) as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
+        }),
+      })
+    }
   } else {
     // Fast-path: all hooks are internal callbacks (sessionFileAccessHooks,
     // attributionHooks). These return {} and don't use the abort signal, so we
@@ -2200,16 +2234,18 @@ async function* executeHooks({
     const totalDurationMs = Date.now() - batchStartTime
     getStatsStore()?.observe('hook_duration_ms', totalDurationMs)
     addToTurnHookDuration(totalDurationMs)
-    logEvent(`tengu_repl_hook_finished`, {
-      hookName:
-        hookName as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-      numCommands: matchingHooks.length,
-      numSuccess: matchingHooks.length,
-      numBlocking: 0,
-      numNonBlockingError: 0,
-      numCancelled: 0,
-      totalDurationMs,
-    })
+    if (!suppressPerInvocationTelemetry) {
+      logEvent(`tengu_repl_hook_finished`, {
+        hookName:
+          hookName as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
+        numCommands: matchingHooks.length,
+        numSuccess: matchingHooks.length,
+        numBlocking: 0,
+        numNonBlockingError: 0,
+        numCancelled: 0,
+        totalDurationMs,
+      })
+    }
     return
   }
 
@@ -3130,15 +3166,24 @@ async function* executeHooks({
       }
     }
 
+    // Official 153: prompt hooks spread `{hook, stopReason}` onto the
+    // blockingError / message yields so Stop `/goal` can read
+    // `b.stopReason` from the same object as `b.blockingError`.
+    const promptHookFields =
+      result.hook?.type === 'prompt'
+        ? { hook: result.hook, stopReason: result.stopReason }
+        : {}
+
     // Handle different result types
     if (result.blockingError) {
       yield {
         blockingError: result.blockingError,
+        ...promptHookFields,
       }
     }
 
     if (result.message) {
-      yield { message: result.message }
+      yield { message: result.message, ...promptHookFields }
     }
 
     hookPersistSeq++
@@ -3222,6 +3267,10 @@ async function* executeHooks({
       }
     }
 
+    if (result.reloadSkills) {
+      yield { reloadSkills: true }
+    }
+
     if (result.updatedToolOutput !== undefined) {
       logForDebugging(
         `Hook ${hookEvent} (${getHookDisplayText(result.hook)}) replaced tool output`,
@@ -3242,6 +3291,10 @@ async function* executeHooks({
       yield {
         updatedMCPToolOutput: result.updatedMCPToolOutput,
       }
+    }
+
+    if (result.displayContent !== undefined) {
+      yield { displayContent: result.displayContent }
     }
 
     // Check for permission behavior with precedence: deny > ask > allow
@@ -3375,16 +3428,18 @@ async function* executeHooks({
     })
   }
 
-  logEvent(`tengu_repl_hook_finished`, {
-    hookName:
-      hookName as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-    numCommands: matchingHooks.length,
-    numSuccess: outcomes.success,
-    numBlocking: outcomes.blocking,
-    numNonBlockingError: outcomes.non_blocking_error,
-    numCancelled: outcomes.cancelled,
-    totalDurationMs,
-  })
+  if (!suppressPerInvocationTelemetry) {
+    logEvent(`tengu_repl_hook_finished`, {
+      hookName:
+        hookName as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
+      numCommands: matchingHooks.length,
+      numSuccess: outcomes.success,
+      numBlocking: outcomes.blocking,
+      numNonBlockingError: outcomes.non_blocking_error,
+      numCancelled: outcomes.cancelled,
+      totalDurationMs,
+    })
+  }
 
   // Log hook execution completion to OTEL (only for beta tracing)
   if (isBetaTracingEnabled()) {
@@ -4093,6 +4148,42 @@ export async function executeNotificationHooks(
     hookInput,
     timeoutMs,
     matchQuery: notificationType,
+  })
+}
+
+/**
+ * Official 2.1.152 A6$. MessageDisplay hook runner — display-only.
+ * forceSyncExecution + suppressPerInvocationTelemetry: flushes run at ~10 Hz.
+ */
+export async function* executeMessageDisplayHooks(
+  params: {
+    turnId: string
+    messageId: string
+    index: number
+    final: boolean
+    delta: string
+  },
+  getAppState: () => AppState,
+  signal?: AbortSignal,
+  timeoutMs: number = TOOL_HOOK_EXECUTION_TIMEOUT_MS,
+): AsyncGenerator<AggregatedHookResult> {
+  const hookInput = {
+    ...createBaseHookInput(undefined),
+    hook_event_name: 'MessageDisplay' as const,
+    turn_id: params.turnId,
+    message_id: params.messageId,
+    index: params.index,
+    final: params.final,
+    delta: params.delta,
+  } as unknown as HookInput
+  yield* executeHooks({
+    hookInput,
+    toolUseID: `${params.messageId}-${params.index}`,
+    signal,
+    timeoutMs,
+    getAppState,
+    forceSyncExecution: true,
+    suppressPerInvocationTelemetry: true,
   })
 }
 

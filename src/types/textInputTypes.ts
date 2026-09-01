@@ -219,6 +219,11 @@ export type VimTextInputProps = BaseTextInputProps & {
    * Optional callback for mode changes
    */
   readonly onModeChange?: (mode: VimMode) => void
+
+  /**
+   * Official 2.1.152: Vim NORMAL `/` opens reverse history search.
+   */
+  readonly onOpenHistorySearch?: () => void
 }
 
 /**
@@ -360,6 +365,8 @@ export type QueuedCommand = {
    * unified the queue but lost the isolation the dual-queue accidentally had).
    */
   agentId?: AgentId
+  /** Official 2.1.152 `Np6`: task-notification may name a pending task. */
+  taskId?: string
 }
 
 /**

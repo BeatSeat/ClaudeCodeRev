@@ -178,6 +178,7 @@ export default class Ink {
   private frontFrame: Frame
   private backFrame: Frame
   private lastPoolResetTime = performance.now()
+  private lastStyleLiveSize = 0
   private drainTimer: ReturnType<typeof setTimeout> | null = null
   private lastYogaCounters: {
     ms: number
@@ -773,13 +774,9 @@ export default class Ink {
     this.backFrame = this.frontFrame
     this.frontFrame = frame
 
-    // Periodically reset char/hyperlink pools to prevent unbounded growth
-    // during long sessions. 5 minutes is infrequent enough that the O(cells)
-    // migration cost is negligible. Reuses renderStart to avoid extra clock call.
-    if (renderStart - this.lastPoolResetTime > 5 * 60 * 1000) {
-      this.resetPools()
-      this.lastPoolResetTime = renderStart
-    }
+    // Official 2.1.152: recycle StylePool when live size doubles (or after
+    // 5 minutes), not a session-lived never-reset intern table.
+    this.maybeResetPools(renderStart)
 
     const flickers: FrameEvent['flickers'] = []
     for (const patch of diff) {
@@ -1875,25 +1872,43 @@ export default class Ink {
   }
 
   /**
-   * Replace char/hyperlink pools with fresh instances to prevent unbounded
-   * growth during long sessions. Migrates the front frame's screen IDs into
-   * the new pools so diffing remains correct. The back frame doesn't need
-   * migration — resetScreen zeros it before any reads.
-   *
-   * Call between conversation turns or periodically.
+   * Official 2.1.152 `maybeResetPools`: skip for 30s; within 5 minutes only
+   * run when StylePool.needsCompaction(lastStyleLiveSize).
+   */
+  maybeResetPools(now: number): void {
+    const elapsed = now - this.lastPoolResetTime
+    if (elapsed <= 30_000) return
+    if (
+      elapsed <= 300_000 &&
+      !this.stylePool.needsCompaction(this.lastStyleLiveSize)
+    ) {
+      return
+    }
+    this.lastPoolResetTime = now
+    this.resetPools()
+  }
+
+  /**
+   * Recycle hyperlink/style pools. Official 2.1.152: new HyperlinkPool when
+   * size > 4096; StylePool.compact() when needsCompaction, then remap front
+   * frame style IDs and record lastStyleLiveSize.
    */
   resetPools(): void {
-    this.charPool = new CharPool()
-    this.hyperlinkPool = new HyperlinkPool()
+    const hyperlinkOverflow = this.hyperlinkPool.size > 4096
+    const styleCompact = this.stylePool.needsCompaction(this.lastStyleLiveSize)
+    if (!hyperlinkOverflow && !styleCompact) return
+    if (hyperlinkOverflow) {
+      this.hyperlinkPool = new HyperlinkPool()
+    }
     migrateScreenPools(
       this.frontFrame.screen,
       this.charPool,
       this.hyperlinkPool,
+      styleCompact ? this.stylePool.compact() : undefined,
     )
-    // Back frame's data is zeroed by resetScreen before reads, but its pool
-    // references are used by the renderer to intern new characters. Point
-    // them at the new pools so the next frame's IDs are comparable.
-    this.backFrame.screen.charPool = this.charPool
+    if (styleCompact) {
+      this.lastStyleLiveSize = this.stylePool.size
+    }
     this.backFrame.screen.hyperlinkPool = this.hyperlinkPool
   }
 

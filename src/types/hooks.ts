@@ -97,10 +97,17 @@ export const syncHookResponseSchema = lazySchema(() =>
           hookEventName: z.literal('SessionStart'),
           additionalContext: z.string().optional(),
           initialUserMessage: z.string().optional(),
+          sessionTitle: z.string().optional(),
           watchPaths: z
             .array(z.string())
             .describe('Absolute paths to watch for FileChanged hooks')
             .optional(),
+          reloadSkills: z
+            .boolean()
+            .optional()
+            .describe(
+              'Re-scan skill and command directories after SessionStart hooks complete, so skills installed by the hook are available in the same session',
+            ),
         }),
         z.object({
           hookEventName: z.literal('Setup'),
@@ -178,6 +185,15 @@ export const syncHookResponseSchema = lazySchema(() =>
         z.object({
           hookEventName: z.literal('WorktreeCreate'),
           worktreePath: z.string(),
+        }),
+        z.object({
+          hookEventName: z.literal('MessageDisplay'),
+          displayContent: z
+            .string()
+            .describe(
+              'Text displayed in place of the delta. Omit (or return the delta unchanged) to display the original.',
+            )
+            .optional(),
         }),
       ])
       .optional(),

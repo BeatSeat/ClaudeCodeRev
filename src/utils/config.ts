@@ -228,6 +228,8 @@ export type GlobalConfig = {
   hasSeenUltraplanTerms?: boolean // ant-only: whether the one-time CCR terms notice has been shown in the ultraplan launch dialog
   hasSeenUltrareviewTerms?: boolean // Official 2.1.108 zpY/ApY: first /ultrareview launch shows CCR terms
   hasResetAutoModeOptInForDefaultOffer?: boolean // ant-only: one-shot migration guard, re-prompts churned auto-mode users
+  hasSeenAutoDefaultNotice?: boolean // Official 2.1.152 Ayz
+  hasSeenAutoDefaultNudge?: boolean // Official 2.1.152 fyz
   oauthAccount?: AccountInfo
   iterm2KeyBindingInstalled?: boolean // Legacy - keeping for backward compatibility
   editorMode?: EditorMode

@@ -171,10 +171,28 @@ export class FallbackTriggeredError extends Error {
   constructor(
     public readonly originalModel: string,
     public readonly fallbackModel: string,
+    public readonly reason: 'overloaded' | 'model_not_found' = 'overloaded',
   ) {
     super(`Model fallback triggered: ${originalModel} -> ${fallbackModel}`)
     this.name = 'FallbackTriggeredError'
   }
+}
+
+/** Official 2.1.152 `lB_`. */
+function isModelNotFoundError(error: unknown): boolean {
+  if (!(error instanceof APIError) || error.status !== 404) return false
+  const message = error.message ?? ''
+  const typed =
+    typeof error.error === 'object' &&
+    error.error !== null &&
+    'type' in error.error
+      ? String((error.error as { type?: string }).type)
+      : undefined
+  return (
+    (typed === 'not_found_error' ||
+      message.includes('"type":"not_found_error"')) &&
+    message.includes('model:')
+  )
 }
 
 export async function* withRetry<T>(
@@ -281,6 +299,25 @@ export async function* withRetry<T>(
         onErrorKeys.add(onErrorKey)
         attempt--
         continue
+      }
+
+      if (
+        isModelNotFoundError(error) &&
+        options.fallbackModel &&
+        options.fallbackModel !== options.model
+      ) {
+        logEvent('tengu_api_model_not_found_fallback_triggered', {
+          original_model:
+            options.model as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
+          fallback_model:
+            options.fallbackModel as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
+          provider: getAPIProviderForStatsig(),
+        })
+        throw new FallbackTriggeredError(
+          options.model,
+          options.fallbackModel,
+          'model_not_found',
+        )
       }
 
       // Fast mode fallback: on 429/529, either wait and retry (short delays)
@@ -753,6 +790,17 @@ function parseThinkingTypeNotSupported(
   )
   const type = match?.[1]?.toLowerCase()
   return type === 'enabled' || type === 'adaptive' ? type : null
+}
+
+/** Official 2.1.152 `BeK`. Do not widen to 156 `B87` (backtick-thinking / redacted_thinking). */
+export function isThinkingSignatureError(error: unknown): boolean {
+  if (!(error instanceof APIError) || error.status !== 400) return false
+  const msg = error.message.toLowerCase()
+  if (msg.includes('signature in thinking block')) return true
+  return (
+    msg.includes('thinking block') &&
+    (msg.includes('cannot be modified') || msg.includes('invalid signature'))
+  )
 }
 
 function shouldRetry(error: APIError): boolean {

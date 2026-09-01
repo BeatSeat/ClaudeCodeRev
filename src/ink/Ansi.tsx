@@ -13,6 +13,7 @@ type Props = {
   children: string
   /** When true, force all text to be rendered with dim styling */
   dimColor?: boolean
+  italic?: boolean
 }
 
 type SpanProps = {
@@ -38,12 +39,15 @@ type SpanProps = {
 export const Ansi = React.memo(function Ansi({
   children,
   dimColor,
+  italic,
 }: Props): React.ReactNode {
   if (typeof children !== 'string') {
     return dimColor ? (
-      <Text dim>{String(children)}</Text>
+      <Text dim italic={italic}>
+        {String(children)}
+      </Text>
     ) : (
-      <Text>{String(children)}</Text>
+      <Text italic={italic}>{String(children)}</Text>
     )
   }
 
@@ -59,9 +63,11 @@ export const Ansi = React.memo(function Ansi({
 
   if (spans.length === 1 && !hasAnyProps(spans[0]!.props)) {
     return dimColor ? (
-      <Text dim>{spans[0]!.text}</Text>
+      <Text dim italic={italic}>
+        {spans[0]!.text}
+      </Text>
     ) : (
-      <Text>{spans[0]!.text}</Text>
+      <Text italic={italic}>{spans[0]!.text}</Text>
     )
   }
 
@@ -70,6 +76,9 @@ export const Ansi = React.memo(function Ansi({
     // When dimColor is forced, override the span's dim prop
     if (dimColor) {
       span.props.dim = true
+    }
+    if (italic) {
+      span.props.italic = true
     }
     const hasTextProps = hasAnyTextProps(span.props)
 

@@ -689,11 +689,21 @@ export async function marketplaceListHandler(options: {
 // marketplace remove (lines 5576–5598)
 export async function marketplaceRemoveHandler(
   name: string,
-  options: { cowork?: boolean },
+  options: { cowork?: boolean; scope?: string },
 ): Promise<void> {
   if (options.cowork) setUseCoworkPlugins(true)
+  let settingSource: ReturnType<typeof scopeToSettingSource> | undefined
+  if (options.scope !== undefined) {
+    const scope = options.scope
+    if (scope !== 'user' && scope !== 'project' && scope !== 'local') {
+      cliError(
+        `${figures.cross} Invalid scope '${scope}'. Use: user, project, or local`,
+      )
+    }
+    settingSource = scopeToSettingSource(scope)
+  }
   try {
-    await removeMarketplaceSource(name)
+    await removeMarketplaceSource(name, settingSource)
     clearAllCaches()
 
     logEvent('tengu_marketplace_removed', {
@@ -701,7 +711,9 @@ export async function marketplaceRemoveHandler(
         name as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
     })
 
-    cliOk(`${figures.tick} Successfully removed marketplace: ${name}`)
+    cliOk(
+      `${figures.tick} Successfully removed marketplace: ${name}${options.scope ? ` (from ${options.scope} settings)` : ''}`,
+    )
   } catch (error) {
     handleMarketplaceError(error, 'remove marketplace')
   }

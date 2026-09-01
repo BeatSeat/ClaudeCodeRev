@@ -85,6 +85,7 @@ import {
 import {
   getInitialSettings,
   getSettingsForSource,
+  getSourceForSetting,
   updateSettingsForSource,
 } from '../../utils/settings/settings.js'
 import {
@@ -1584,6 +1585,7 @@ export function Config({
             )?.useAutoModeDuringPlan,
           }
         : {}),
+      disableWorkflows: iu?.disableWorkflows,
       // ThemePicker's Ctrl+T writes this key directly — include it so the
       // disk state reverts along with the in-memory AppState.settings restore.
       syntaxHighlightingDisabled: iu?.syntaxHighlightingDisabled,

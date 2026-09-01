@@ -109,6 +109,14 @@ export function getAPIProviderForStatsig(): AnalyticsMetadata_I_VERIFIED_THIS_IS
  * Returns true if not set (default API) or points to api.anthropic.com
  * (or api-staging.anthropic.com for ant users).
  */
+/** Official 2.1.152 `Yn$`. */
+export function shouldPropagateTraceparent(): boolean {
+  return (
+    isFirstPartyAnthropicBaseUrl() ||
+    isEnvTruthy(process.env.CLAUDE_CODE_PROPAGATE_TRACEPARENT)
+  )
+}
+
 export function isFirstPartyAnthropicBaseUrl(): boolean {
   const baseUrl = process.env.ANTHROPIC_BASE_URL
   if (!baseUrl) {

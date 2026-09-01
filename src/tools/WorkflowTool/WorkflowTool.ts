@@ -22,7 +22,10 @@ import { getRuleByContentsForToolName } from '../../utils/permissions/permission
 import type { PermissionBehavior } from '../../types/permissions.js'
 import { isSettingSourceEnabled } from '../../utils/settings/constants.js'
 import type { SettingSource } from '../../utils/settings/constants.js'
-import { isWorkflowsEnabled } from '../../utils/workflows/enabled.js'
+import {
+  areWorkflowsDisabledByKillSwitch,
+  isWorkflowsEnabled,
+} from '../../utils/workflows/enabled.js'
 import { getBundledWorkflows } from './bundled/index.js'
 import {
   MAX_WORKFLOW_SCRIPT_BYTES,
@@ -881,6 +884,14 @@ export const WorkflowTool = buildTool({
     return input.script ?? input.name ?? ''
   },
   async validateInput(input: WorkflowInput, context: ToolUseContext) {
+    if (areWorkflowsDisabledByKillSwitch()) {
+      return {
+        result: false as const,
+        message:
+          'Workflows are disabled by managed settings (`disableWorkflows`).',
+        errorCode: 5,
+      }
+    }
     const resolved = await resolveWorkflowInput(input)
     if ('error' in resolved) {
       return { result: false as const, message: resolved.error, errorCode: 1 }

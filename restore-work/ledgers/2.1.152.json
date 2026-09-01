@@ -1,0 +1,154 @@
+{
+  "version": "2.1.152",
+  "fromVersion": "2.1.150",
+  "expectedFunctionCount": 14,
+  "functions": [
+    {
+      "id": "n4z/Fg4",
+      "name": "reload-skills",
+      "status": "located",
+      "evidence": "src/commands/reload-skills; Reloaded skills: + notifySkillsChanged"
+    },
+    {
+      "id": "SessionStart.reloadSkills",
+      "name": "reloadSkills",
+      "status": "located",
+      "evidence": "types/hooks.ts + coreSchemas + sessionStart.ts + hook_session_start_reload_skills"
+    },
+    {
+      "id": "SessionStart.sessionTitle",
+      "name": "sessionTitle",
+      "status": "located",
+      "evidence": "applyHookSessionTitle on startup/resume"
+    },
+    {
+      "id": "MessageDisplay",
+      "name": "MessageDisplay hook",
+      "status": "located",
+      "evidence": "schema/metadata/parse + Jj9 messageDisplayFlush + A6$ executeMessageDisplayHooks + query/messages/QueryEngine call sites"
+    },
+    {
+      "id": "XjH",
+      "name": "disallowed-tools frontmatter",
+      "status": "located",
+      "evidence": "frontmatter + TG4 createGetAppStateWithForkedToolScoping + MG$ kind:disallowed_tools layers in forkedAgent.ts"
+    },
+    {
+      "id": "sv8/a9q/_J9/lhz",
+      "name": "code-review --fix / simplify",
+      "status": "located",
+      "evidence": "simplify.ts parseFlagArgs + FIX_APPENDIX + a9q ultraFallback + ohz; dist ultraFallback 6 /code-review ultra 2"
+    },
+    {
+      "id": "qJz/veH",
+      "name": "marketplace remove --scope",
+      "status": "located",
+      "evidence": "main.tsx option + marketplaceRemoveHandler + removeMarketplaceSource(scope)"
+    },
+    {
+      "id": "lB_/yLH",
+      "name": "model-not-found fallback",
+      "status": "located",
+      "evidence": "withRetry.ts tengu_api_model_not_found_fallback_triggered + FallbackTriggeredError reason"
+    },
+    {
+      "id": "tYH/rn9/wv5",
+      "name": "app.entrypoint OTEL",
+      "status": "located",
+      "evidence": "telemetryAttributes.ts default false; OTEL_METRICS_INCLUDE_ENTRYPOINT"
+    },
+    {
+      "id": "Yn$",
+      "name": "shouldPropagateTraceparent",
+      "status": "located",
+      "evidence": "providers.ts + sessionTracing.ts getW3CTraceparent gate"
+    },
+    {
+      "id": "pluginSuggestionMarketplaces",
+      "name": "pluginSuggestionMarketplaces",
+      "status": "located",
+      "evidence": "managed Zod + N17/E17/WNz in pluginSuggestionTips.ts + getRelevantTips await WNz"
+    },
+    {
+      "id": "disableWorkflows",
+      "name": "disableWorkflows",
+      "status": "located",
+      "evidence": "b78/xN/_L6/EH7/NJ5/EJ5 in src/utils/workflows/enabled.ts; Config Dynamic workflows; /workflows isEnabled; getTools teH&&xN; coordinator prompt. Script engine still deferred (146)."
+    },
+    {
+      "id": "a9q/ohz/ultraFallback",
+      "name": "/code-review ultra fallback",
+      "status": "located",
+      "evidence": "simplify.ts a9q ultraFallback + ohz + ihz/rhz; dist ultraFallback 6 code.claude.com/docs/en/ultrareview 1"
+    },
+    {
+      "id": "PI/Ap",
+      "name": "isCoordinatorMode PI() gate",
+      "status": "located",
+      "evidence": "coordinatorMode.ts isCoordinatorMode: env + HT()&&!d6()&&!REMOTE; HT=getIsInteractive d6=getIsRemoteMode. DCE when COORDINATOR_MODE feature off."
+    }
+  ],
+  "changelogCoverage": [
+    {
+      "item": "/code-review --fix; /simplify invokes --fix",
+      "status": "located",
+      "evidence": "sv8/a9q/_J9/lhz in simplify.ts"
+    },
+    {
+      "item": "disallowed-tools frontmatter",
+      "status": "located",
+      "evidence": "parse + TG4/S08 alwaysDeny command rules on skill fork"
+    },
+    {
+      "item": "/reload-skills",
+      "status": "located",
+      "evidence": "n4z/Fg4"
+    },
+    {
+      "item": "SessionStart reloadSkills",
+      "status": "located",
+      "evidence": "schema + sessionStart consume"
+    },
+    {
+      "item": "SessionStart sessionTitle",
+      "status": "located",
+      "evidence": "applyHookSessionTitle startup/resume"
+    },
+    {
+      "item": "MessageDisplay hook",
+      "status": "located",
+      "evidence": "flush engine tengu_message_display_hooks 1 in dist; QueryEngine Xj9 completed-message path"
+    },
+    {
+      "item": "pluginSuggestionMarketplaces",
+      "status": "located",
+      "evidence": "WNz consumer + Skipping plugin suggestion tips for marketplace"
+    },
+    {
+      "item": "marketplace remove --scope",
+      "status": "located",
+      "evidence": "qJz"
+    },
+    {
+      "item": "--fallback-model when model not found",
+      "status": "located",
+      "evidence": "lB_/yLH model_not_found; official user copy still high-demand"
+    },
+    {
+      "item": "Auto mode no opt-in",
+      "status": "absent-in-bundle",
+      "evidence": "tengu_auto_default_* default-false / deferred UI"
+    },
+    {
+      "item": "Vim / history, /usage streaming, thinking 3s/md/10 lines, timer, workflow progress, style pool, sandbox warning, spinner, focus-mode count, link click, table borders, plugin MCP env dedup, /doctor stale plugins, git-branch updates, remote MCP proxy, effort dialog, Agent --bare, bg worker stale prompt, cache_creation nested, PushNotification RC, thinking-signature strip",
+      "status": "shared-logic",
+      "evidence": "no hop-unique extractable string landed"
+    },
+    {
+      "item": "OTEL app.entrypoint",
+      "status": "located",
+      "evidence": "tYH/rn9/wv5"
+    }
+  ],
+  "notes": "Hop review PASS on 3ccef05. Later backfill on 2.1.153 HEAD landed MessageDisplay flush, TG4, pluginSuggestion WNz, github FwH, coordinator PI(), ultraFallback/ohz, disableWorkflows gate+Config. Script engine still deferred (146)."
+}

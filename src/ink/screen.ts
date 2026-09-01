@@ -10,6 +10,7 @@ import {
   unionRect,
 } from './layout/geometry.js'
 import { BEL, ESC, SEP } from './termio/ansi.js'
+import { logForDebugging } from '../utils/debug.js'
 import * as warn from './warn.js'
 
 // --- Shared Pools (interning for memory efficiency) ---
@@ -72,6 +73,10 @@ export class HyperlinkPool {
   get(id: number): string | undefined {
     return id === 0 ? undefined : this.strings[id]
   }
+
+  get size(): number {
+    return this.strings.length
+  }
 }
 
 // SGR 7 (inverse) as an AnsiCode. endCode '\x1b[27m' flags VISIBLE_ON_SPACE
@@ -113,10 +118,53 @@ export class StylePool {
   private ids = new Map<string, number>()
   private styles: AnsiCode[][] = []
   private transitionCache = new Map<number, string>()
+  private overflowWarned = false
+  private generationCount = 0
   readonly none: number
 
   constructor() {
     this.none = this.intern([])
+  }
+
+  get size(): number {
+    return this.styles.length
+  }
+
+  /**
+   * Official 2.1.152: recycle when overflow-warned or live styles grew past
+   * max(512, 2× last blit live size).
+   */
+  needsCompaction(lastStyleLiveSize: number): boolean {
+    return (
+      this.overflowWarned ||
+      this.styles.length > Math.max(512, 2 * lastStyleLiveSize)
+    )
+  }
+
+  /**
+   * Official 2.1.152 `compact`: rebuild the intern table and return a
+   * remapper from old encoded styleId → new encoded styleId.
+   */
+  compact(): (styleId: number) => number {
+    const previous = this.styles
+    this.ids = new Map()
+    this.styles = []
+    this.transitionCache.clear()
+    this.inverseCache.clear()
+    this.currentMatchCache.clear()
+    this.selectionBgCache.clear()
+    this.overflowWarned = false
+    this.generationCount++
+    this.intern([])
+    const mapped = new Int32Array(previous.length).fill(-1)
+    return (styleId: number): number => {
+      const raw = styleId >>> 1
+      const cached = mapped[raw]
+      if (cached !== undefined && cached !== -1) return cached
+      const next = this.intern(previous[raw] ?? [])
+      if (raw < mapped.length) mapped[raw] = next
+      return next
+    }
   }
 
   /**
@@ -131,6 +179,17 @@ export class StylePool {
     let id = this.ids.get(key)
     if (id === undefined) {
       const rawId = this.styles.length
+      // Official 2.1.152: 15-bit style index (STYLE_SHIFT=17) → max 16383.
+      if (rawId > 16383) {
+        if (!this.overflowWarned) {
+          this.overflowWarned = true
+          logForDebugging(
+            'StylePool exhausted 16383 unique styles — further style combinations render unstyled to avoid packed-cell aliasing',
+            { level: 'warn' },
+          )
+        }
+        return this.none
+      }
       this.styles.push(styles.length === 0 ? [] : styles)
       id =
         (rawId << 1) |
@@ -553,30 +612,34 @@ export function migrateScreenPools(
   screen: Screen,
   charPool: CharPool,
   hyperlinkPool: HyperlinkPool,
+  remapStyleId?: (styleId: number) => number,
 ): void {
   const oldCharPool = screen.charPool
   const oldHyperlinkPool = screen.hyperlinkPool
-  if (oldCharPool === charPool && oldHyperlinkPool === hyperlinkPool) return
+  const remapChars = oldCharPool !== charPool
+  const remapLinks = oldHyperlinkPool !== hyperlinkPool
+  if (!remapChars && !remapLinks && !remapStyleId) return
 
   const size = screen.width * screen.height
   const cells = screen.cells
 
-  // Re-intern chars and hyperlinks in a single pass, stride by 2
+  // Re-intern chars/hyperlinks and optionally remap style IDs after compact.
   for (let ci = 0; ci < size << 1; ci += 2) {
-    // Re-intern charId (word0)
-    const oldCharId = cells[ci]!
-    cells[ci] = charPool.intern(oldCharPool.get(oldCharId))
+    if (remapChars) {
+      cells[ci] = charPool.intern(oldCharPool.get(cells[ci]!))
+    }
 
-    // Re-intern hyperlinkId (packed in word1)
     const word1 = cells[ci + 1]!
     const oldHyperlinkId = (word1 >>> HYPERLINK_SHIFT) & HYPERLINK_MASK
-    if (oldHyperlinkId !== 0) {
-      const oldStr = oldHyperlinkPool.get(oldHyperlinkId)
-      const newHyperlinkId = hyperlinkPool.intern(oldStr)
-      // Repack word1 with new hyperlinkId, preserving styleId and width
-      const styleId = word1 >>> STYLE_SHIFT
-      const width = word1 & WIDTH_MASK
-      cells[ci + 1] = packWord1(styleId, newHyperlinkId, width)
+    const styleId = word1 >>> STYLE_SHIFT
+    const newHyperlinkId =
+      remapLinks && oldHyperlinkId !== 0
+        ? hyperlinkPool.intern(oldHyperlinkPool.get(oldHyperlinkId))
+        : oldHyperlinkId
+    const newStyleId =
+      remapStyleId && styleId !== 0 ? remapStyleId(styleId) : styleId
+    if (newHyperlinkId !== oldHyperlinkId || newStyleId !== styleId) {
+      cells[ci + 1] = packWord1(newStyleId, newHyperlinkId, word1 & WIDTH_MASK)
     }
   }
 

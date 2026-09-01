@@ -6,7 +6,14 @@ import { withDiagnosticsTiming } from './diagLogs.js'
 import { isBareMode } from './envUtils.js'
 import { updateWatchPaths } from './hooks/fileChangedWatcher.js'
 import { shouldAllowManagedHooksOnly } from './hooks/hooksConfigSnapshot.js'
-import { executeSessionStartHooks, executeSetupHooks } from './hooks.js'
+import {
+  applyHookSessionTitle,
+  executeSessionStartHooks,
+  executeSetupHooks,
+} from './hooks.js'
+import { logEvent } from '../services/analytics/index.js'
+import { clearCommandsCache } from '../commands.js'
+import { notifySkillsChanged } from './skills/skillChangeDetector.js'
 import { logError } from './log.js'
 import { getForceEnabledManagedPluginIds } from './plugins/managedPlugins.js'
 import { loadPluginHooks } from './plugins/loadPluginHooks.js'
@@ -51,6 +58,8 @@ export async function processSessionStartHooks(
   const hookMessages: HookResultMessage[] = []
   const additionalContexts: string[] = []
   const allWatchPaths: string[] = []
+  let pendingSessionTitle: string | undefined
+  let reloadSkills = false
 
   // Skip loading plugin hooks if restricted to managed hooks only
   // Plugin hooks are untrusted external code that should be blocked by policy
@@ -156,6 +165,24 @@ export async function processSessionStartHooks(
     if (hookResult.watchPaths && hookResult.watchPaths.length > 0) {
       allWatchPaths.push(...hookResult.watchPaths)
     }
+    if (hookResult.sessionTitle) {
+      pendingSessionTitle = hookResult.sessionTitle
+    }
+    if (hookResult.reloadSkills) {
+      reloadSkills = true
+    }
+  }
+
+  if (reloadSkills) {
+    clearCommandsCache()
+    notifySkillsChanged()
+    logEvent('hook_session_start_reload_skills', {})
+  }
+  if (
+    pendingSessionTitle &&
+    (source === 'startup' || source === 'resume')
+  ) {
+    await applyHookSessionTitle(pendingSessionTitle)
   }
 
   if (allWatchPaths.length > 0) {

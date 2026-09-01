@@ -251,6 +251,8 @@ export type AppState = DeepImmutable<{
   thinkingEnabled: boolean | undefined
   promptSuggestionEnabled: boolean
   awaySummaryEnabled: boolean
+  // Official 2.1.152: MessageDisplay hook rewrites keyed by api message id.
+  displayedMessageContent: Record<string, string>
   sessionHooks: SessionHooksState
   tungstenActiveSession?: {
     sessionName: string
@@ -573,6 +575,7 @@ export function getDefaultAppState(): AppState {
     thinkingEnabled: shouldEnableThinkingByDefault(),
     promptSuggestionEnabled: shouldEnablePromptSuggestion(),
     awaySummaryEnabled: isAwaySummaryEnabled(),
+    displayedMessageContent: {},
     sessionHooks: new Map(),
     inbox: {
       messages: [],

@@ -83,6 +83,7 @@ import {
 import { quote } from './bash/shellQuote.js'
 import { formatNumber, formatTokens } from './format.js'
 import { jsonStringify } from './slowOperations.js'
+import { getBoundMessageDisplayFlush } from './hooks/messageDisplayFlush.js'
 
 // Hook attachments that have a hookName field (excludes HookPermissionDecisionAttachment)
 type HookAttachmentWithName = Exclude<
@@ -3085,9 +3086,11 @@ export function handleMessageFromStream(
         }))
       }
     }
-    // Clear streaming text NOW so the render can switch displayedMessages
-    // from deferredMessages to messages in the same batch, making the
-    // transition from streaming text → final message atomic (no gap, no duplication).
+    // Official 2.1.152 displayTransform.entryLanded — then clear streaming
+    // text so displayedMessages can switch atomically (no gap, no duplication).
+    if (message.type === 'assistant') {
+      getBoundMessageDisplayFlush()?.entryLanded(message)
+    }
     onStreamingText?.(() => null)
     onMessage(message)
     return
@@ -3104,9 +3107,12 @@ export function handleMessageFromStream(
     }
     onStreamingToolUses(uses => (uses.length > 0 ? [] : uses))
     onStreamingText?.(text => (text !== null ? null : text))
+    const started = message as { event?: { message?: { id?: string } } }
+    getBoundMessageDisplayFlush()?.begin(started.event?.message?.id ?? '')
   }
 
   if (message.event.type === 'message_stop') {
+    getBoundMessageDisplayFlush()?.finalize()
     onSetStreamMode('tool-use')
     onStreamingToolUses(() => [])
     return
@@ -3165,6 +3171,7 @@ export function handleMessageFromStream(
           const deltaText = message.event.delta.text
           onUpdateLength(deltaText)
           onStreamingText?.(text => (text ?? '') + deltaText)
+          getBoundMessageDisplayFlush()?.delta(deltaText)
           return
         }
         case 'input_json_delta': {
@@ -4527,6 +4534,8 @@ export function createTurnDurationMessage(
   durationMs: number,
   budget?: { tokens: number; limit: number; nudges: number },
   messageCount?: number,
+  pendingBackgroundAgentCount?: number,
+  pendingWorkflowCount?: number,
 ): SystemTurnDurationMessage {
   return {
     type: 'system',
@@ -4536,6 +4545,8 @@ export function createTurnDurationMessage(
     budgetLimit: budget?.limit,
     budgetNudges: budget?.nudges,
     messageCount,
+    pendingBackgroundAgentCount,
+    pendingWorkflowCount,
     timestamp: new Date().toISOString(),
     uuid: randomUUID(),
     isMeta: false,
@@ -5555,6 +5566,54 @@ export function ensureToolResultPairing(
   }
 
   return result
+}
+
+/** Official 2.1.152 `M24`. */
+function isSignedThinkingBlock(block: {
+  type: string
+  signature?: string
+}): boolean {
+  if (block.type === 'redacted_thinking') return true
+  if (block.type === 'thinking' && 'signature' in block && block.signature) {
+    return true
+  }
+  return false
+}
+
+/** Official 2.1.152 `w24`. */
+export function stripSignedThinkingBlocks(
+  messages: (UserMessage | AssistantMessage)[],
+): (UserMessage | AssistantMessage)[] {
+  let changed = false
+  const next = messages.map(msg => {
+    if (msg.type !== 'assistant' || !Array.isArray(msg.message.content)) {
+      return msg
+    }
+    const content = msg.message.content
+    const stripped = content.filter(block => !isSignedThinkingBlock(block))
+    if (stripped.length === content.length) return msg
+    changed = true
+    const kept = stripped.filter(
+      block => block.type !== 'text' || Boolean(block.text?.trim()),
+    )
+    if (
+      kept.length === 0 ||
+      kept.every(
+        block => block.type === 'thinking' || block.type === 'redacted_thinking',
+      )
+    ) {
+      kept.push({
+        type: 'text' as const,
+        text: '[Thinking removed]',
+        citations: [],
+      })
+    }
+    return {
+      ...msg,
+      message: { ...msg.message, content: kept },
+    }
+  })
+  return changed ? next : messages
 }
 
 /**

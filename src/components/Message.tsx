@@ -1,5 +1,6 @@
 import { feature } from 'bun:bundle'
 import type { BetaContentBlock } from '@anthropic-ai/sdk/resources/beta/messages/messages.mjs'
+import { useAppState } from '../state/AppState.js'
 import type {
   ImageBlockParam,
   TextBlockParam,
@@ -110,7 +111,10 @@ function MessageImpl({
           isTranscriptMode={isTranscriptMode}
         />
       )
-    case 'assistant':
+    case 'assistant': {
+      const firstTextIndex = message.message.content.findIndex(
+        block => block.type === 'text',
+      )
       return (
         <Box flexDirection="column" width={containerWidth ?? '100%'}>
           {message.message.content.map((_, index) => (
@@ -133,10 +137,13 @@ function MessageImpl({
               thinkingBlockId={`${message.uuid}:${index}`}
               lastThinkingBlockId={lastThinkingBlockId}
               advisorModel={message.advisorModel}
+              apiMessageId={message.message.id}
+              isFirstTextBlock={index === firstTextIndex}
             />
           ))}
         </Box>
       )
+    }
     case 'user': {
       if (message.isCompactSummary) {
         return (
@@ -369,6 +376,8 @@ function AssistantMessageBlock({
   thinkingBlockId,
   lastThinkingBlockId,
   advisorModel,
+  apiMessageId,
+  isFirstTextBlock,
 }: {
   param:
     | BetaContentBlock
@@ -397,7 +406,15 @@ function AssistantMessageBlock({
   /** ID of the last thinking block to show, null means show all */
   lastThinkingBlockId?: string | null
   advisorModel?: string
+  /** Official 2.1.152: api message id for displayedMessageContent lookup. */
+  apiMessageId?: string
+  isFirstTextBlock?: boolean
 }): React.ReactNode {
+  const displayedContent = useAppState(s =>
+    param.type === 'text' && apiMessageId !== undefined
+      ? s.displayedMessageContent[apiMessageId]
+      : undefined,
+  )
   if (feature('CONNECTOR_TEXT')) {
     if (isConnectorTextBlock(param)) {
       return (
@@ -431,6 +448,21 @@ function AssistantMessageBlock({
         />
       )
     case 'text':
+      if (displayedContent !== undefined && !verbose) {
+        if (!isFirstTextBlock) {
+          return null
+        }
+        return (
+          <AssistantTextMessage
+            param={{ type: 'text', text: displayedContent }}
+            addMargin={addMargin}
+            shouldShowDot={shouldShowDot}
+            verbose={verbose}
+            width={width}
+            onOpenRateLimitOptions={onOpenRateLimitOptions}
+          />
+        )
+      }
       return (
         <AssistantTextMessage
           param={param}

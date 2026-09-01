@@ -1,9 +1,12 @@
 import { feature } from 'bun:bundle'
 import figures from 'figures'
 import { basename } from 'path'
-import React, { useRef } from 'react'
+import React, { useRef, useState } from 'react'
+import { useHoldAfterUndefined } from '../../hooks/useHoldAfterUndefined.js'
 import { useMinDisplayTime } from '../../hooks/useMinDisplayTime.js'
-import { Ansi, Box, Text, useTheme } from '../../ink.js'
+import { useTerminalSize } from '../../hooks/useTerminalSize.js'
+import { Ansi, Box, Text, useInterval, useTheme } from '../../ink.js'
+import wrapText from '../../ink/wrap-text.js'
 import { findToolByName, type Tools } from '../../Tool.js'
 import { getReplPrimitiveTools } from '../../tools/REPLTool/primitiveTools.js'
 import type {
@@ -18,9 +21,12 @@ import { isFullscreenEnvEnabled } from '../../utils/fullscreen.js'
 import type { buildMessageLookups } from '../../utils/messages.js'
 import type { ThemeName } from '../../utils/theme.js'
 import { CtrlOToExpand } from '../CtrlOToExpand.js'
+import { Markdown } from '../Markdown.js'
 import { useSelectedMessageBg } from '../messageActions.js'
 import { PrBadge } from '../PrBadge.js'
+import { useThinkingStartedAt } from '../Spinner/thinkingStartedAt.js'
 import { ToolUseLoader } from '../ToolUseLoader.js'
+import { AssistantThinkingMessage } from './AssistantThinkingMessage.js'
 
 /* eslint-disable @typescript-eslint/no-require-imports */
 const teamMemCollapsed = feature('TEAMMEM')
@@ -32,6 +38,64 @@ const teamMemCollapsed = feature('TEAMMEM')
 // (bash commands, file reads, search patterns) are actually readable instead
 // of flickering past in a single frame.
 const MIN_HINT_DISPLAY_MS = 700
+// Official 2.1.152 `R0_` / `I0_` / `C0_` / `b0_` / `vp6`
+const THINKING_HOLD_MS = 3000
+const THINKING_GUTTER_COLS = 5
+const THINKING_MAX_LINES = 10
+const THINKING_LIVE_CAP_MS = 600_000
+
+/**
+ * Official 2.1.152 `m0_`: wrap-truncate a thinking summary to `maxLines`.
+ */
+function truncateWrappedLines(
+  text: string,
+  columns: number,
+  maxLines: number,
+): string {
+  if (columns < 1) return text
+  const wrapped = wrapText(text, columns, 'wrap')
+  if (wrapped.split('\n').length <= maxLines) return text
+  let clipped = wrapped
+    .split('\n')
+    .slice(0, maxLines)
+    .join('')
+    .replace(/\s+/g, ' ')
+    .trim()
+  while (
+    clipped.length > 0 &&
+    wrapText(`${clipped}…`, columns, 'wrap').split('\n').length > maxLines
+  ) {
+    const prev = clipped.length > 1 ? clipped.codePointAt(clipped.length - 2) : undefined
+    clipped = clipped.slice(0, prev !== undefined && prev > 65535 ? -2 : -1)
+  }
+  return `${clipped.trimEnd()}…`
+}
+
+/**
+ * Official 2.1.152 `u0_`: fullscreen live "Thinking for Ns" ticker.
+ * Counts up while Sn7() (thinkingStartedAt) is non-null; freezes at baseMs
+ * if the stream is interrupted.
+ */
+function LiveThinkingDuration({
+  baseMs,
+  lastThinkingAtMs,
+}: {
+  baseMs: number
+  lastThinkingAtMs: number
+}): React.ReactNode {
+  const thinkingStartedAt = useThinkingStartedAt()
+  const [, setTick] = useState(0)
+  useInterval(() => setTick(n => n + 1), thinkingStartedAt !== null ? 1000 : null)
+  const ms =
+    thinkingStartedAt !== null
+      ? baseMs +
+        Math.min(
+          THINKING_LIVE_CAP_MS,
+          Math.max(0, Date.now() - Math.max(thinkingStartedAt, lastThinkingAtMs)),
+        )
+      : baseMs
+  return <Text bold>{formatDuration(Math.max(1000, ms))}</Text>
+}
 
 type Props = {
   message: CollapsedReadSearchGroup
@@ -139,6 +203,7 @@ export function CollapsedReadSearchContent({
     messages: groupMessages,
   } = message
   const [theme] = useTheme()
+  const { columns } = useTerminalSize()
   const toolUseIds = getToolUseIdsFromCollapsedGroup(message)
   const anyError = toolUseIds.some(id => lookups.erroredToolUseIDs.has(id))
   const hasMemoryOps =
@@ -185,6 +250,9 @@ export function CollapsedReadSearchContent({
   const editFileCount = message.editFileCount ?? 0
   const linesAdded = message.linesAdded ?? 0
   const linesRemoved = message.linesRemoved ?? 0
+  const thoughtForMs = message.thoughtForMs ?? 0
+  const hasThinking =
+    thoughtForMs > 0 || message.latestThinkingSummary !== undefined
 
   const hasNonMemoryOps =
     searchCount > 0 ||
@@ -196,7 +264,8 @@ export function CollapsedReadSearchContent({
     gitOpBashCount > 0 ||
     otherToolCount > 0 ||
     editFileCount > 0 ||
-    frameCount > 0
+    frameCount > 0 ||
+    hasThinking
 
   const readPaths = message.readFilePaths
   const searchArgs = message.searchArgs
@@ -233,6 +302,12 @@ export function CollapsedReadSearchContent({
   }
 
   const displayedHint = useMinDisplayTime(incomingHint, MIN_HINT_DISPLAY_MS)
+  const heldThinkingSummary = useHoldAfterUndefined(
+    isActiveGroup ? message.latestThinkingSummary : undefined,
+    THINKING_HOLD_MS,
+  )
+  const showingThinkingHint = isActiveGroup && heldThinkingSummary !== undefined
+  const hintText = showingThinkingHint ? heldThinkingSummary : displayedHint
 
   // In verbose mode, render each tool use with its 1-line result summary
   if (verbose) {
@@ -249,6 +324,18 @@ export function CollapsedReadSearchContent({
       <Box flexDirection="column">
         {toolUses.map(msg => {
           const content = msg.message.content[0]
+          if (content?.type === 'thinking' && content.thinking) {
+            return (
+              <Box key={msg.uuid} marginTop={1}>
+                <AssistantThinkingMessage
+                  param={content}
+                  addMargin={false}
+                  isTranscriptMode
+                  verbose
+                />
+              </Box>
+            )
+          }
           if (content?.type !== 'tool_use') return null
           return (
             <VerboseToolUse
@@ -336,6 +423,40 @@ export function CollapsedReadSearchContent({
   // Build non-memory parts first (search, read, repl, mcp, bash) — these render
   // before memory so the line reads "Ran 3 bash commands, recalled 1 memory".
   const nonMemParts: React.ReactNode[] = []
+
+  if (hasThinking) {
+    const thoughtLabel = isActiveGroup ? 'Thinking' : 'Thought'
+    let durationNode: React.ReactNode
+    if (isActiveGroup && isFullscreenEnvEnabled()) {
+      let lastThinkingAtMs = 0
+      for (let i = groupMessages.length - 1; i >= 0; i--) {
+        const msg = groupMessages[i]
+        if (
+          msg?.type === 'assistant' &&
+          msg.message.content[0]?.type === 'thinking'
+        ) {
+          const parsed = Date.parse(msg.timestamp)
+          if (Number.isFinite(parsed)) lastThinkingAtMs = parsed
+          break
+        }
+      }
+      durationNode = (
+        <LiveThinkingDuration
+          baseMs={thoughtForMs}
+          lastThinkingAtMs={lastThinkingAtMs}
+        />
+      )
+    } else {
+      durationNode = (
+        <Text bold>{formatDuration(Math.max(1000, thoughtForMs))}</Text>
+      )
+    }
+    nonMemParts.push(
+      <Text key="thought">
+        {thoughtLabel} for {durationNode}
+      </Text>,
+    )
+  }
 
   if (editFileCount > 0) {
     const editVerb = isActiveGroup ? 'Editing' : 'Edited'
@@ -640,7 +761,7 @@ export function CollapsedReadSearchContent({
           {isActiveGroup && <Text key="ellipsis">…</Text>} <CtrlOToExpand />
         </Text>
       </Box>
-      {isActiveGroup && displayedHint !== undefined && (
+      {isActiveGroup && hintText !== undefined && (
         // Row layout: 5-wide gutter for ⎿, then a flex column for the text.
         // Ink's wrap stays inside the right column so continuation lines
         // indent under ⎿. MAX_HINT_CHARS in commandAsHint caps total at ~5 lines.
@@ -649,12 +770,22 @@ export function CollapsedReadSearchContent({
             <Text dimColor>{'  ⎿  '}</Text>
           </Box>
           <Box flexDirection="column" flexGrow={1}>
-            {displayedHint.split('\n').map((line, i, arr) => (
-              <Text key={`hint-${i}`} dimColor>
-                {line}
-                {i === arr.length - 1 && shellProgressSuffix}
-              </Text>
-            ))}
+            {showingThinkingHint ? (
+              <Markdown dimColor italic>
+                {truncateWrappedLines(
+                  hintText,
+                  columns - THINKING_GUTTER_COLS,
+                  THINKING_MAX_LINES,
+                )}
+              </Markdown>
+            ) : (
+              hintText.split('\n').map((line, i, arr) => (
+                <Text key={`hint-${i}`} dimColor>
+                  {line}
+                  {i === arr.length - 1 && shellProgressSuffix}
+                </Text>
+              ))
+            )}
           </Box>
         </Box>
       )}

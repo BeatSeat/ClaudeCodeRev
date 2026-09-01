@@ -389,6 +389,7 @@ export const HOOK_EVENTS = [
   'InstructionsLoaded',
   'CwdChanged',
   'FileChanged',
+  'MessageDisplay',
 ] as const
 
 export const HookEventSchema = lazySchema(() => z.enum(HOOK_EVENTS))
@@ -865,6 +866,40 @@ export const FileChangedHookInputSchema = lazySchema(() =>
   ),
 )
 
+export const MessageDisplayHookInputSchema = lazySchema(() =>
+  BaseHookInputSchema()
+    .and(
+      z.object({
+        hook_event_name: z.literal('MessageDisplay'),
+        turn_id: z.string().describe('UUID of the current turn.'),
+        message_id: z
+          .string()
+          .describe(
+            'UUID of the assistant message being displayed. Stable across every flush of the same message. Not the API msg_… id.',
+          ),
+        index: z
+          .number()
+          .int()
+          .describe(
+            'Zero-based index of this delta within the message. Increments by one per flush.',
+          ),
+        final: z
+          .boolean()
+          .describe(
+            "True on the message's last flush. Exactly one flush per message has it.",
+          ),
+        delta: z
+          .string()
+          .describe(
+            'The newly completed lines since the prior flush. Always whole lines, except on the final flush which may end mid-line. The delta of the final flush is empty when the message ends on a newline; treat final as the end-of-message signal regardless.',
+          ),
+      }),
+    )
+    .describe(
+      'Hook input for the MessageDisplay event. Fired with each batch of newly completed lines while an assistant message streams. Display-only: the stored message and what the model sees are untouched.',
+    ),
+)
+
 export const EXIT_REASONS = [
   'clear',
   'resume',
@@ -914,6 +949,7 @@ export const HookInputSchema = lazySchema(() =>
     WorktreeRemoveHookInputSchema(),
     CwdChangedHookInputSchema(),
     FileChangedHookInputSchema(),
+    MessageDisplayHookInputSchema(),
   ]),
 )
 
@@ -947,7 +983,14 @@ export const SessionStartHookSpecificOutputSchema = lazySchema(() =>
     hookEventName: z.literal('SessionStart'),
     additionalContext: z.string().optional(),
     initialUserMessage: z.string().optional(),
+    sessionTitle: z.string().optional(),
     watchPaths: z.array(z.string()).optional(),
+    reloadSkills: z
+      .boolean()
+      .optional()
+      .describe(
+        'Re-scan skill and command directories after SessionStart hooks complete, so skills installed by the hook are available in the same session',
+      ),
   }),
 )
 
@@ -1035,6 +1078,22 @@ export const FileChangedHookSpecificOutputSchema = lazySchema(() =>
   }),
 )
 
+export const MessageDisplayHookSpecificOutputSchema = lazySchema(() =>
+  z
+    .object({
+      hookEventName: z.literal('MessageDisplay'),
+      displayContent: z
+        .string()
+        .optional()
+        .describe(
+          'Text displayed in place of the delta. Omit (or return the delta unchanged) to display the original.',
+        ),
+    })
+    .describe(
+      'Hook-specific output for the MessageDisplay event. Display-only: replaces the delta on screen without changing the stored message.',
+    ),
+)
+
 export const SyncHookJSONOutputSchema = lazySchema(() =>
   z.object({
     continue: z.boolean().optional(),
@@ -1061,6 +1120,7 @@ export const SyncHookJSONOutputSchema = lazySchema(() =>
         CwdChangedHookSpecificOutputSchema(),
         FileChangedHookSpecificOutputSchema(),
         WorktreeCreateHookSpecificOutputSchema(),
+        MessageDisplayHookSpecificOutputSchema(),
       ])
       .optional(),
   }),
