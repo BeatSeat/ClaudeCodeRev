@@ -356,6 +356,11 @@ import {
 import { asSessionId } from 'src/types/ids.js'
 import { jsonStringify } from '../utils/slowOperations.js'
 import { skillChangeDetector } from '../utils/skills/skillChangeDetector.js'
+import {
+  isSkillsSyncEnabled,
+  waitForFirstSkillsSync,
+  waitForFirstSkillsSyncWithTimeout,
+} from '../utils/skills/skillsSync.js'
 import { getCommands, clearCommandsCache } from '../commands.js'
 import {
   isBareMode,
@@ -1844,6 +1849,12 @@ function runHeadlessStreaming(
   // CLAUDE_CODE_SYNC_PLUGIN_INSTALL=true: resolved in run() before the first
   // query so plugins are guaranteed available on the first ask().
   let pluginInstallPromise: Promise<void> | null = null
+  // Official 2.1.149: `bH=performance.now(),eH=tEH()?gD9():null` — start
+  // first-skills-sync now so the later `UD9` race overlaps other init.
+  const skillsSyncStartedAt = performance.now()
+  const firstSkillsSync = isSkillsSyncEnabled()
+    ? waitForFirstSkillsSync()
+    : null
   // --bare / SIMPLE: skip plugin install. Scripted calls don't add plugins
   // mid-session; the next interactive run reconciles.
   if (!isBareMode()) {
@@ -1991,6 +2002,11 @@ function runHeadlessStreaming(
 
     await updateSdkMcp()
     headlessProfilerCheckpoint('after_updateSdkMcp')
+
+    // Official 2.1.149: `if(eH){ race eH vs remaining UD9 from bH; A7q on timeout }`
+    if (firstSkillsSync) {
+      await waitForFirstSkillsSyncWithTimeout(skillsSyncStartedAt)
+    }
 
     // Resolve deferred plugin installation (CLAUDE_CODE_SYNC_PLUGIN_INSTALL).
     // The promise was started eagerly so installation overlaps with other init.

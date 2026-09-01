@@ -65,6 +65,11 @@ import { escapeRegExp } from '../../utils/stringUtils.js'
 import type { ModelAlias } from '../../utils/model/aliases.js'
 import { resolveSkillModelOverride } from '../../utils/model/model.js'
 import { getSkillOverride } from '../../utils/settings/skillOverrides.js'
+import {
+  isSkillsSyncEnabled,
+  isSyncedRemoteSkill,
+  waitForSyncedSkill,
+} from '../../utils/skills/skillsSync.js'
 import { recordSkillUsage } from '../../utils/suggestions/skillUsageTracking.js'
 import { logOTelSkillActivated } from '../../utils/telemetry/skillActivatedEvent.js'
 import { createAgentId } from '../../utils/uuid.js'
@@ -416,6 +421,13 @@ export const SkillTool: Tool<InputSchema, Output, Progress> = buildTool({
       ? trimmed.substring(1)
       : trimmed
 
+    // Official 2.1.149 `tEH`/`pw8`: wait for remote skills-sync materialization.
+    let downloadFailure: string | undefined
+    if (isSkillsSyncEnabled()) {
+      const wait = await waitForSyncedSkill(normalizedCommandName)
+      if (wait.ok === false) downloadFailure = wait.reason
+    }
+
     // Remote canonical skill handling (ant-only experimental). Intercept
     // `_canonical_<slug>` names before local command lookup since remote
     // skills are not in the local command registry.
@@ -445,6 +457,16 @@ export const SkillTool: Tool<InputSchema, Output, Progress> = buildTool({
 
     // Check if command exists
     const foundCommand = findCommand(normalizedCommandName, commands)
+    if (
+      downloadFailure !== undefined &&
+      (!foundCommand || isSyncedRemoteSkill(foundCommand))
+    ) {
+      return {
+        result: false,
+        message: `Skill ${normalizedCommandName} could not be downloaded (${downloadFailure}). Proceed without it.`,
+        errorCode: 10,
+      }
+    }
     if (!foundCommand) {
       const suggestion = closestCommandName(
         normalizedCommandName,
