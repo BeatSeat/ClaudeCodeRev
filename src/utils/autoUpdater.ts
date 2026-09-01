@@ -17,6 +17,7 @@ import { execFileNoThrowWithCwd } from './execFileNoThrow.js'
 import { getFsImplementation } from './fsOperations.js'
 import { gracefulShutdownSync } from './gracefulShutdown.js'
 import { logError } from './log.js'
+import { parse } from 'semver'
 import { gte, lt } from './semver.js'
 import { getInitialSettings } from './settings/settings.js'
 import {
@@ -49,6 +50,19 @@ export type MaxVersionConfig = {
   ant?: string
   external_message?: string
   ant_message?: string
+  // Official 2.1.136: server-side opt-in to force the current version DOWN to
+  // maxVersion (not just cap upward updates).
+  external_force_downgrade?: boolean
+}
+
+/**
+ * Official 2.1.136: resolved max-version info from `getMaxVersionConfig()`.
+ * `maxVersion` is the validated (semver-parsed) external cap; `forceDowngradeEnabled`
+ * is the `external_force_downgrade === true` flag.
+ */
+export type MaxVersionInfo = {
+  maxVersion: string | undefined
+  forceDowngradeEnabled: boolean
 }
 
 /**
@@ -106,11 +120,8 @@ This will ensure you have access to the latest features and improvements.
  * Returns undefined if no cap is configured.
  */
 export async function getMaxVersion(): Promise<string | undefined> {
-  const config = await getMaxVersionConfig()
-  if (process.env.USER_TYPE === 'ant') {
-    return config.ant || undefined
-  }
-  return config.external || undefined
+  // Official 2.1.136 m48: return the validated external max version.
+  return (await getMaxVersionConfig()).maxVersion
 }
 
 /**
@@ -118,14 +129,12 @@ export async function getMaxVersion(): Promise<string | undefined> {
  * Shown in the warning banner when the current version exceeds the max allowed version.
  */
 export async function getMaxVersionMessage(): Promise<string | undefined> {
-  const config = await getMaxVersionConfig()
-  if (process.env.USER_TYPE === 'ant') {
-    return config.ant_message || undefined
-  }
+  // Official 2.1.136 VP7: read the raw external_message field.
+  const config = await getRawMaxVersionConfig()
   return config.external_message || undefined
 }
 
-async function getMaxVersionConfig(): Promise<MaxVersionConfig> {
+async function getRawMaxVersionConfig(): Promise<MaxVersionConfig> {
   try {
     return await getDynamicConfig_BLOCKS_ON_INIT<MaxVersionConfig>(
       'tengu_max_version_config',
@@ -135,6 +144,57 @@ async function getMaxVersionConfig(): Promise<MaxVersionConfig> {
     logError(error as Error)
     return {}
   }
+}
+
+/**
+ * Official 2.1.136 vM$: resolve the effective max version + forced-downgrade flag.
+ *
+ * `maxVersion` is the `external` value parsed as semver. If `external` is set but
+ * not a valid semver it is ignored (logged + `tengu_max_version_config_invalid`).
+ * `forceDowngradeEnabled` is `external_force_downgrade === true`.
+ */
+export async function getMaxVersionConfig(): Promise<MaxVersionInfo> {
+  const config = await getRawMaxVersionConfig()
+  const external = config.external || undefined
+  const maxVersion = external ? parse(external)?.version ?? undefined : undefined
+  if (external && !maxVersion) {
+    logForDebugging(
+      `tengu_max_version_config has invalid version '${external}' — ignoring`,
+      { level: 'error' },
+    )
+    logEvent('tengu_max_version_config_invalid', {
+      raw_value:
+        external as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
+    })
+  }
+  return {
+    maxVersion,
+    forceDowngradeEnabled: config.external_force_downgrade === true,
+  }
+}
+
+/**
+ * Official 2.1.136 B48: decide whether a forced downgrade applies.
+ * Returns true only when the current version parses and is strictly above the
+ * target (maxVersion) version — i.e. we must move the user DOWN to the target.
+ */
+export function forceDowngradeShouldApply(
+  currentVersion: string,
+  targetVersion: string,
+  source: 'auto_updater' | 'native_update',
+): boolean {
+  const label = source === 'native_update' ? 'Native installer' : 'AutoUpdater'
+  const currentSemver = parse(currentVersion)
+  if (currentSemver && currentSemver.compare(targetVersion) > 0) {
+    logForDebugging(
+      `${label}: force-downgrade active — moving from ${currentVersion} to ${targetVersion}`,
+    )
+    return true
+  }
+  logForDebugging(
+    `${label}: force-downgrade flag set but current ${currentVersion} is not above ${targetVersion} — taking normal upgrade path`,
+  )
+  return false
 }
 
 /**

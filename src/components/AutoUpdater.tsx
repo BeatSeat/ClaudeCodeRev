@@ -9,8 +9,9 @@ import { useUpdateNotification } from '../hooks/useUpdateNotification.js'
 import { Box, Text } from '../ink.js'
 import {
   type AutoUpdaterResult,
+  forceDowngradeShouldApply,
   getLatestVersion,
-  getMaxVersion,
+  getMaxVersionConfig,
   type InstallStatus,
   installGlobalPackage,
   shouldSkipVersion,
@@ -23,7 +24,7 @@ import {
   localInstallationExists,
 } from '../utils/localInstaller.js'
 import { removeInstalledSymlink } from '../utils/nativeInstaller/index.js'
-import { gt, gte } from '../utils/semver.js'
+import { gt } from '../utils/semver.js'
 import { getInitialSettings } from '../utils/settings/settings.js'
 
 type Props = {
@@ -79,35 +80,63 @@ export function AutoUpdater({
 
     const currentVersion = MACRO.VERSION
     const channel = getInitialSettings()?.autoUpdatesChannel ?? 'latest'
-    let latestVersion = await getLatestVersion(channel)
+    const latestVersion = await getLatestVersion(channel)
     const isDisabled = isAutoUpdaterDisabled()
 
-    // Check if max version is set (server-side kill switch for auto-updates)
-    const maxVersion = await getMaxVersion()
-    if (maxVersion && latestVersion && gt(latestVersion, maxVersion)) {
-      logForDebugging(
-        `AutoUpdater: maxVersion ${maxVersion} is set, capping update from ${latestVersion} to ${maxVersion}`,
+    // Official 2.1.136: resolve the max version + forced-downgrade flag.
+    // `forceDowngradeEnabled` (external_force_downgrade === true) lets the
+    // server force the current version DOWN to maxVersion, not just cap upward
+    // updates.
+    const { maxVersion, forceDowngradeEnabled } = await getMaxVersionConfig()
+    let targetVersion: string | null = null
+    let wasForcedDowngrade = false
+
+    if (forceDowngradeEnabled && maxVersion) {
+      wasForcedDowngrade = forceDowngradeShouldApply(
+        currentVersion,
+        maxVersion,
+        'auto_updater',
       )
-      if (gte(currentVersion, maxVersion)) {
-        logForDebugging(
-          `AutoUpdater: current version ${currentVersion} is already at or above maxVersion ${maxVersion}, skipping update`,
-        )
-        setVersions({ global: currentVersion, latest: latestVersion })
-        return
+      if (wasForcedDowngrade) {
+        targetVersion = maxVersion
       }
-      latestVersion = maxVersion
     }
 
-    setVersions({ global: currentVersion, latest: latestVersion })
+    if (!targetVersion && latestVersion) {
+      if (maxVersion && gt(latestVersion, maxVersion)) {
+        logForDebugging(
+          `AutoUpdater: maxVersion ${maxVersion} is set, capping update from ${latestVersion} to ${maxVersion}`,
+        )
+        if (gt(maxVersion, currentVersion)) {
+          targetVersion = maxVersion
+        } else {
+          logForDebugging(
+            `AutoUpdater: current version ${currentVersion} is already at or above maxVersion ${maxVersion}, skipping update`,
+          )
+        }
+      } else if (gt(latestVersion, currentVersion)) {
+        targetVersion = latestVersion
+      }
+    }
+
+    setVersions({ global: currentVersion, latest: targetVersion ?? latestVersion })
 
     // Check if update needed and perform update
     if (
       !isDisabled &&
       currentVersion &&
-      latestVersion &&
-      !gte(currentVersion, latestVersion) &&
-      !shouldSkipVersion(latestVersion)
+      targetVersion &&
+      !shouldSkipVersion(targetVersion)
     ) {
+      if (wasForcedDowngrade) {
+        logEvent('tengu_auto_updater_forced_downgrade', {
+          from_version:
+            currentVersion as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
+          to_version:
+            targetVersion as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
+        })
+      }
+
       const startTime = Date.now()
       onChangeIsUpdating(true)
 
@@ -139,12 +168,12 @@ export function AutoUpdater({
         // Use local update for local installations
         logForDebugging('AutoUpdater: Using local update method')
         updateMethod = 'local'
-        installStatus = await installOrUpdateClaudePackage(channel)
+        installStatus = await installOrUpdateClaudePackage(channel, targetVersion)
       } else if (installationType === 'npm-global') {
         // Use global update for global installations
         logForDebugging('AutoUpdater: Using global update method')
         updateMethod = 'global'
-        installStatus = await installGlobalPackage()
+        installStatus = await installGlobalPackage(targetVersion)
       } else if (installationType === 'native') {
         // This shouldn't happen - native should use NativeAutoUpdater
         logForDebugging(
@@ -161,9 +190,9 @@ export function AutoUpdater({
         updateMethod = isMigrated ? 'local' : 'global'
 
         if (isMigrated) {
-          installStatus = await installOrUpdateClaudePackage(channel)
+          installStatus = await installOrUpdateClaudePackage(channel, targetVersion)
         } else {
-          installStatus = await installGlobalPackage()
+          installStatus = await installGlobalPackage(targetVersion)
         }
       }
 
@@ -174,7 +203,7 @@ export function AutoUpdater({
           fromVersion:
             currentVersion as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
           toVersion:
-            latestVersion as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
+            targetVersion as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
           durationMs: Date.now() - startTime,
           wasMigrated: updateMethod === 'local',
           installationType:
@@ -185,7 +214,7 @@ export function AutoUpdater({
           fromVersion:
             currentVersion as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
           attemptedVersion:
-            latestVersion as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
+            targetVersion as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
           status:
             installStatus as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
           durationMs: Date.now() - startTime,
@@ -196,7 +225,7 @@ export function AutoUpdater({
       }
 
       onAutoUpdaterResult({
-        version: latestVersion,
+        version: targetVersion,
         status: installStatus,
       })
     }

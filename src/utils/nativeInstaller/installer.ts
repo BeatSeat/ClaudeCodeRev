@@ -34,7 +34,11 @@ import {
   type AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
   logEvent,
 } from 'src/services/analytics/index.js'
-import { getMaxVersion, shouldSkipVersion } from '../autoUpdater.js'
+import {
+  forceDowngradeShouldApply,
+  getMaxVersionConfig,
+  shouldSkipVersion,
+} from '../autoUpdater.js'
 import { registerCleanup } from '../cleanupRegistry.js'
 import { getGlobalConfig, saveGlobalConfig } from '../config.js'
 import { logForDebugging } from '../debug.js'
@@ -502,14 +506,30 @@ async function updateLatest(
   lockHolderPid?: number
 }> {
   const startTime = Date.now()
-  let version = await getLatestVersion(channelOrVersion)
   const { executable: executablePath } = getBaseDirectories()
+
+  // Official 2.1.136: resolve the max version + forced-downgrade flag. A forced
+  // downgrade only applies to channel updates (not explicit versions), requires
+  // `external_force_downgrade === true`, and needs the current version strictly
+  // above maxVersion (forceDowngradeShouldApply). When active, the target is
+  // maxVersion instead of the resolved latest.
+  const { maxVersion, forceDowngradeEnabled } = await getMaxVersionConfig()
+  const isChannel = !/^v?\d+\.\d+\.\d+(-\S+)?$/.test(channelOrVersion)
+  const forcedDowngrade =
+    forceDowngradeEnabled &&
+    !forceReinstall &&
+    isChannel &&
+    !!maxVersion &&
+    forceDowngradeShouldApply(MACRO.VERSION, maxVersion, 'native_update')
+  let version = forcedDowngrade
+    ? maxVersion
+    : await getLatestVersion(channelOrVersion)
 
   logForDebugging(`Checking for native installer update to version ${version}`)
 
   // Check if max version is set (server-side kill switch for auto-updates)
-  if (!forceReinstall) {
-    const maxVersion = await getMaxVersion()
+  // Skipped when a forced downgrade is already active (target is maxVersion).
+  if (!forcedDowngrade && !forceReinstall) {
     if (maxVersion && gt(version, maxVersion)) {
       logForDebugging(
         `Native installer: maxVersion ${maxVersion} is set, capping update from ${version} to ${maxVersion}`,
@@ -559,6 +579,16 @@ async function updateLatest(
         version as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
     })
     return { success: true, latestVersion: version }
+  }
+
+  // Official 2.1.136: telemetry for a server-forced downgrade.
+  if (forcedDowngrade) {
+    logEvent('tengu_native_update_forced_downgrade', {
+      from_version:
+        MACRO.VERSION as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
+      to_version:
+        version as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
+    })
   }
 
   // Track if we're actually installing or just symlinking

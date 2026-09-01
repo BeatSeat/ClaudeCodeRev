@@ -1113,6 +1113,13 @@ export const SettingsSchema = lazySchema(() =>
                   .describe(
                     'Rules for the auto mode classifier deny section. Include the literal string "$defaults" to inherit the built-in rules at that position.',
                   ),
+                hard_deny: z
+                  .array(z.string())
+                  .optional()
+                  .describe(
+                    'Rules for the auto mode classifier HARD BLOCK section — security sensitive rules that user intent can clear. ' +
+                      'Include the literal string "$defaults" to inherit the built-in rules at that position.',
+                  ),
                 ...(process.env.USER_TYPE === 'ant'
                   ? {
                       // Back-compat alias for ant users; external users use soft_deny
