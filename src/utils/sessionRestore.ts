@@ -16,6 +16,10 @@ import {
 import { clearSystemPromptSections } from '../constants/systemPromptSections.js'
 import { restoreCostStateForSession } from '../cost-tracker.js'
 import {
+  isGoalEnabled,
+  restoreGoalFromTranscript,
+} from '../commands/goal/goal-restore.js'
+import {
   isRestrictedToPluginOnly,
   isSourceAdminTrusted,
 } from './settings/pluginOnlyPolicy.js'
@@ -122,6 +126,14 @@ export function restoreSessionStateFromLog(
     fileHistoryRestoreStateFromLog(result.fileHistorySnapshots, newState => {
       setAppState(prev => ({ ...prev, fileHistory: newState }))
     })
+  }
+
+  // Official 2.1.136 G30: re-attach an in-progress /goal on resume (scan the
+  // transcript for the last un-met goal_status, re-register the Stop prompt
+  // hook, and restore activeGoal). Gated on the goal feature flag
+  // (tengu_maple_tide in 2.1.136; removed upstream in 139+).
+  if (isGoalEnabled()) {
+    restoreGoalFromTranscript(result.messages, setAppState)
   }
 
   // Restore attribution state (ant-only feature)
@@ -571,6 +583,22 @@ export async function processResumedConversation(
     context.agentDefinitions,
   )
 
+  // Official 2.1.136 G30: re-attach an in-progress /goal on --continue. The
+  // bundle composes the restore updater over the initial state (D = j(D)),
+  // which registers the Stop prompt hook and sets activeGoal on it.
+  let initialState: AppState = {
+    ...context.initialState,
+    ...(resumedAgentType && { agent: resumedAgentType }),
+    ...(restoredAttribution && { attribution: restoredAttribution }),
+    ...(standaloneAgentContext && { standaloneAgentContext }),
+    agentDefinitions: refreshedAgentDefs,
+  }
+  if (isGoalEnabled()) {
+    restoreGoalFromTranscript(result.messages, updater => {
+      initialState = updater(initialState)
+    })
+  }
+
   return {
     messages: result.messages,
     fileHistorySnapshots: result.fileHistorySnapshots,
@@ -580,13 +608,7 @@ export async function processResumedConversation(
       ? undefined
       : result.agentColor) as AgentColorName | undefined,
     restoredAgentDef: restoredAgent,
-    initialState: {
-      ...context.initialState,
-      ...(resumedAgentType && { agent: resumedAgentType }),
-      ...(restoredAttribution && { attribution: restoredAttribution }),
-      ...(standaloneAgentContext && { standaloneAgentContext }),
-      agentDefinitions: refreshedAgentDefs,
-    },
+    initialState,
   }
 }
 
