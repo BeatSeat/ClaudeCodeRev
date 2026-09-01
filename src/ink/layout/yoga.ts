@@ -276,6 +276,9 @@ export class YogaLayoutNode implements LayoutNode {
   setMargin(edge: LayoutEdge, value: number): void {
     this.yoga.setMargin(EDGE_MAP[edge]!, value)
   }
+  setMarginAuto(edge: LayoutEdge): void {
+    this.yoga.setMarginAuto(EDGE_MAP[edge]!)
+  }
   setPadding(edge: LayoutEdge, value: number): void {
     this.yoga.setPadding(EDGE_MAP[edge]!, value)
   }

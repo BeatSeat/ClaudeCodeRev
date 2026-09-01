@@ -142,6 +142,7 @@ export type LayoutNode = {
   setPositionPercent(edge: LayoutEdge, value: number): void
   setOverflow(overflow: LayoutOverflow): void
   setMargin(edge: LayoutEdge, value: number): void
+  setMarginAuto(edge: LayoutEdge): void
   setPadding(edge: LayoutEdge, value: number): void
   setBorder(edge: LayoutEdge, value: number): void
   setGap(gutter: LayoutGutter, value: number): void

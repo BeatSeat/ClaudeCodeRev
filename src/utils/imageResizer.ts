@@ -8,6 +8,7 @@ import {
   IMAGE_MAX_WIDTH,
   IMAGE_TARGET_RAW_SIZE,
 } from '../constants/apiLimits.js'
+import { DEFAULT_MAX_OUTPUT_TOKENS } from '../tools/FileReadTool/limits.js'
 import { logEvent } from '../services/analytics/index.js'
 import {
   getImageProcessor,
@@ -190,6 +191,11 @@ export async function maybeResizeAndDownsampleImageBuffer(
     // If dimensions aren't available from metadata
     if (!metadata.width || !metadata.height) {
       if (originalSize > IMAGE_TARGET_RAW_SIZE) {
+        logEvent('tengu_image_resize', {
+          over_byte_limit: true,
+          over_dimension_limit: false,
+          original_size_bytes: originalSize,
+        })
         // Create fresh sharp instance for compression
         const compressedBuffer = await sharp(imageBuffer)
           .jpeg({ quality: 80 })
@@ -229,6 +235,16 @@ export async function maybeResizeAndDownsampleImageBuffer(
     const needsDimensionResize =
       width > IMAGE_MAX_WIDTH || height > IMAGE_MAX_HEIGHT
     const isPng = normalizedMediaType === 'png'
+
+    // Official 2.1.97: emit once when we actually have to compress/resize.
+    // The under-limit early return above stays silent.
+    logEvent('tengu_image_resize', {
+      over_byte_limit: originalSize > IMAGE_TARGET_RAW_SIZE,
+      over_dimension_limit: needsDimensionResize,
+      original_size_bytes: originalSize,
+      original_width: originalWidth,
+      original_height: originalHeight,
+    })
 
     // If dimensions are within limits but file is too large, try compression first
     // This preserves full resolution when possible
@@ -435,6 +451,7 @@ export async function maybeResizeAndDownsampleImageBuffer(
 export interface ImageBlockWithDimensions {
   block: ImageBlockParam
   dimensions?: ImageDimensions
+  tokenCompressed?: boolean
 }
 
 /**
@@ -455,8 +472,8 @@ export async function maybeResizeAndDownsampleImageBlock(
   const originalSize = imageBuffer.length
 
   // Extract extension from media type
-  const mediaType = imageBlock.source.media_type
-  const ext = mediaType?.split('/')[1] || 'png'
+  const sourceMediaType = imageBlock.source.media_type
+  const ext = sourceMediaType?.split('/')[1] || 'png'
 
   // Resize if needed
   const resized = await maybeResizeAndDownsampleImageBuffer(
@@ -464,6 +481,35 @@ export async function maybeResizeAndDownsampleImageBlock(
     originalSize,
     ext,
   )
+  const base64 = resized.buffer.toString('base64')
+  const resizedMediaType =
+    `image/${resized.mediaType}` as Base64ImageSource['media_type']
+
+  // Same 25k token budget as FileReadTool — a dimension-capped PNG can still
+  // blow the context window. Compress from the original buffer (not the
+  // already-resized one) so the token-limit path can pick a smaller encode.
+  if (Math.ceil(base64.length * 0.125) > DEFAULT_MAX_OUTPUT_TOKENS) {
+    try {
+      const compressed = await compressImageBufferWithTokenLimit(
+        imageBuffer,
+        DEFAULT_MAX_OUTPUT_TOKENS,
+        `image/${ext}`,
+      )
+      return {
+        block: {
+          type: 'image',
+          source: {
+            type: 'base64',
+            media_type: compressed.mediaType,
+            data: compressed.base64,
+          },
+        },
+        tokenCompressed: true,
+      }
+    } catch {
+      // Fall through to the resized (non-token-capped) block
+    }
+  }
 
   // Return resized image block with dimension info
   return {
@@ -471,9 +517,8 @@ export async function maybeResizeAndDownsampleImageBlock(
       type: 'image',
       source: {
         type: 'base64',
-        media_type:
-          `image/${resized.mediaType}` as Base64ImageSource['media_type'],
-        data: resized.buffer.toString('base64'),
+        media_type: resizedMediaType,
+        data: base64,
       },
     },
     dimensions: resized.dimensions,

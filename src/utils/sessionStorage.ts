@@ -156,6 +156,47 @@ export function isChainParticipant(m: Pick<Message, 'type'>): boolean {
   return m.type !== 'progress'
 }
 
+/**
+ * Official H38: when skipStreamingAssistant is set, persist only through the
+ * last finalized message so in-flight assistant placeholders
+ * (`stop_reason === null`) stay out of the transcript. Earlier user /
+ * attachment messages in the same flush are still written.
+ */
+export function persistEndIndex(
+  messages: readonly Message[],
+  from: number,
+  skipStreamingAssistant: boolean,
+): number {
+  if (!skipStreamingAssistant) return messages.length
+  for (let i = from; i < messages.length; i++) {
+    const message = messages[i]
+    if (
+      message.type === 'assistant' &&
+      message.message.stop_reason === null
+    ) {
+      return i
+    }
+  }
+  return messages.length
+}
+
+/** Official _DY — drop FileEdit originalFile above this size from the transcript. */
+const MAX_PERSISTED_ORIGINAL_FILE_CHARS = 10_000
+
+function stripOversizedOriginalFile(toolUseResult: unknown): unknown {
+  if (typeof toolUseResult !== 'object' || toolUseResult === null) {
+    return toolUseResult
+  }
+  const result = toolUseResult as { originalFile?: unknown }
+  if (
+    typeof result.originalFile === 'string' &&
+    result.originalFile.length > MAX_PERSISTED_ORIGINAL_FILE_CHARS
+  ) {
+    return { ...result, originalFile: null }
+  }
+  return toolUseResult
+}
+
 type LegacyProgressEntry = {
   type: 'progress'
   uuid: UUID
@@ -563,6 +604,10 @@ class Project {
     string,
     Array<{ entry: Entry; resolve: () => void }>
   >()
+  // Per-agent-file UUID dedupe. Main-session messageSet must not be used for
+  // sidechain writes (fork-inherited parents share those UUIDs), but the same
+  // agent file must not be rewritten on prompt-too-long compact retry.
+  private agentFileWrittenUuids = new Map<string, Set<UUID>>()
   private flushTimer: ReturnType<typeof setTimeout> | null = null
   private activeDrain: Promise<void> | null = null
   private FLUSH_INTERVAL_MS = 100
@@ -578,6 +623,7 @@ class Project {
     this.flushTimer = null
     this.activeDrain = null
     this.writeQueues = new Map()
+    this.agentFileWrittenUuids = new Map()
   }
 
   private incrementPendingWrites(): void {
@@ -1063,6 +1109,14 @@ class Project {
           gitBranch,
           slug,
         }
+        if (
+          transcriptMessage.type === 'user' &&
+          transcriptMessage.toolUseResult != null
+        ) {
+          transcriptMessage.toolUseResult = stripOversizedOriginalFile(
+            transcriptMessage.toolUseResult,
+          )
+        }
         await this.appendEntry(transcriptMessage)
         if (isChainParticipant(message)) {
           parentUuid = message.uuid
@@ -1241,24 +1295,32 @@ class Project {
         // sessionId, so re-POSTing a UUID it already has 409s and eventually
         // exhausts retries → gracefulShutdownSync(1). See inc-4718.
         const isNewUuid = !messageSet.has(entry.uuid)
-        if (isAgentSidechain || isNewUuid) {
+        if (isAgentSidechain) {
+          let written = this.agentFileWrittenUuids.get(targetFile)
+          if (!written) {
+            written = new Set()
+            this.agentFileWrittenUuids.set(targetFile, written)
+          }
+          if (!written.has(entry.uuid)) {
+            written.add(entry.uuid)
+            void this.enqueueWrite(targetFile, entry)
+          }
+        } else if (isNewUuid) {
           // Enqueue write — appendToFile handles ENOENT by creating directories
           void this.enqueueWrite(targetFile, entry)
 
-          if (!isAgentSidechain) {
-            // messageSet is main-file-authoritative. Sidechain entries go to a
-            // separate agent file — adding their UUIDs here causes recordTranscript
-            // to skip them on the main thread (line ~1270), so the message is never
-            // written to the main session file. The next main-thread message then
-            // chains its parentUuid to a UUID that only exists in the agent file,
-            // and --resume's buildConversationChain terminates at the dangling ref.
-            // Same constraint for remote (inc-4718 above): sidechain persisting a
-            // UUID the main thread hasn't written yet → 409 when main writes it.
-            messageSet.add(entry.uuid)
+          // messageSet is main-file-authoritative. Sidechain entries go to a
+          // separate agent file — adding their UUIDs here causes recordTranscript
+          // to skip them on the main thread (line ~1270), so the message is never
+          // written to the main session file. The next main-thread message then
+          // chains its parentUuid to a UUID that only exists in the agent file,
+          // and --resume's buildConversationChain terminates at the dangling ref.
+          // Same constraint for remote (inc-4718 above): sidechain persisting a
+          // UUID the main thread hasn't written yet → 409 when main writes it.
+          messageSet.add(entry.uuid)
 
-            if (isTranscriptMessage(entry)) {
-              await this.persistToRemote(sessionId, entry)
-            }
+          if (isTranscriptMessage(entry)) {
+            await this.persistToRemote(sessionId, entry)
           }
         }
       }
@@ -4385,30 +4447,28 @@ export async function loadAllSubagentTranscriptsFromDisk(): Promise<{
 
 // Exported so useLogMessages can sync-compute the last loggable uuid
 // without awaiting recordTranscript's return value (race-free hint tracking).
+/**
+ * Official MUY: attachment types skipped for non-ant transcripts.
+ * Empty in 2.1.97 — allow-by-default, do not deny all attachments.
+ */
+const ANT_ONLY_ATTACHMENT_TYPES = new Set<string>([])
+
 export function isLoggableMessage(m: Message): boolean {
   if (m.type === 'progress') return false
-  // IMPORTANT: We deliberately filter out most attachments for non-ants because
-  // they have sensitive info for training that we don't want exposed to the public.
-  // When enabled, we allow hook_additional_context through since it contains
-  // user-configured hook output that is useful for session context on resume.
-  if (m.type === 'attachment' && getUserType() !== 'ant') {
-    if (
-      m.attachment.type === 'hook_additional_context' &&
-      isEnvTruthy(process.env.CLAUDE_CODE_SAVE_HOOK_ADDITIONAL_CONTEXT)
-    ) {
-      return true
-    }
-    if (m.attachment.type === 'hook_deferred_tool') {
-      return true
-    }
-    if (
-      m.attachment.type === 'deferred_tools_delta' ||
-      m.attachment.type === 'mcp_instructions_delta' ||
-      m.attachment.type === 'agent_listing_delta' ||
-      m.attachment.type === 'companion_intro'
-    ) {
-      return true
-    }
+  if (
+    m.type === 'attachment' &&
+    m.attachment.type === 'hook_success' &&
+    !m.attachment.content &&
+    !m.attachment.stdout?.trim() &&
+    !m.attachment.stderr?.trim()
+  ) {
+    return false
+  }
+  if (
+    m.type === 'attachment' &&
+    getUserType() !== 'ant' &&
+    ANT_ONLY_ATTACHMENT_TYPES.has(m.attachment.type)
+  ) {
     return false
   }
   return true

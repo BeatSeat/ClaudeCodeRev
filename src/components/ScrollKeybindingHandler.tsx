@@ -322,10 +322,12 @@ export function computeWheelStep(
  *  detect which kind of terminal we're in, hence the knob. Called lazily
  *  from initAndLogWheelAccel so globalSettings.env has loaded. */
 export function readScrollSpeedBase(): number {
+  const fallback =
+    process.platform === 'win32' || process.env.WT_SESSION ? 3 : 1
   const raw = process.env.CLAUDE_CODE_SCROLL_SPEED
-  if (!raw) return 1
+  if (!raw) return fallback
   const n = parseFloat(raw)
-  return Number.isNaN(n) || n <= 0 ? 1 : Math.min(n, 20)
+  return Number.isNaN(n) || n <= 0 ? fallback : Math.min(n, 20)
 }
 
 /** Initial wheel accel state. xtermJs=true selects the decay curve.

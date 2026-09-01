@@ -81,7 +81,9 @@ const PATH_CHAR_HEAD_RE = /^[\p{L}\p{N}\p{M}_\-./\\()[\]~:]+/u
 const TOKEN_WITH_AT_RE =
   /(@[\p{L}\p{N}\p{M}_\-./\\()[\]~:]*|[\p{L}\p{N}\p{M}_\-./\\()[\]~:]+)$/u
 const TOKEN_WITHOUT_AT_RE = /[\p{L}\p{N}\p{M}_\-./\\()[\]~:]+$/u
-const HAS_AT_SYMBOL_RE = /(^|\s)@([\p{L}\p{N}\p{M}_\-./\\()[\]~:]*|"[^"]*"?)$/u
+const HAS_AT_SYMBOL_RE =
+  /(^|[\s。、？！])@([\p{L}\p{N}\p{M}_\-./\\()[\]~:]*|"[^"]*"?)$/u
+const AT_NAME_RE = /(^|[\s。、？！])@([\w-]*)$/
 const HASH_CHANNEL_RE = /(^|\s)#([a-z0-9][a-z0-9_-]*)$/
 
 // Type guard for path completion metadata
@@ -262,7 +264,7 @@ export function applyShellSuggestion(
   setCursorOffset(wordStart + replacementText.length)
 }
 
-const DM_MEMBER_RE = /(^|\s)@[\w-]*$/
+const DM_MEMBER_RE = /(^|[\s。、？！])@[\w-]*$/
 
 function applyTriggerSuggestion(
   suggestion: SuggestionItem,
@@ -384,7 +386,7 @@ export function extractCompletionToken(
     const atIdx = textBeforeCursor.lastIndexOf('@')
     if (
       atIdx >= 0 &&
-      (atIdx === 0 || /\s/.test(textBeforeCursor[atIdx - 1]!))
+      (atIdx === 0 || /[\s。、？！]/.test(textBeforeCursor[atIdx - 1]!))
     ) {
       const fromAt = textBeforeCursor.substring(atIdx)
       const atHeadMatch = fromAt.match(AT_TOKEN_HEAD_RE)
@@ -749,7 +751,7 @@ export function useTypeahead({
       // Skip in bash mode - @ has no special meaning in shell commands
       const atMatch =
         mode !== 'bash'
-          ? value.substring(0, effectiveCursorOffset).match(/(^|\s)@([\w-]*)$/)
+          ? value.substring(0, effectiveCursorOffset).match(AT_NAME_RE)
           : null
       if (atMatch) {
         const partialName = (atMatch[2] ?? '').toLowerCase()
@@ -1031,7 +1033,7 @@ export function useTypeahead({
         // we need to clear the suggestions.
         const hasAt = value
           .substring(0, effectiveCursorOffset)
-          .match(/(^|\s)@([\w-]*)$/)
+          .match(AT_NAME_RE)
         if (!hasAt) {
           clearSuggestions()
         }

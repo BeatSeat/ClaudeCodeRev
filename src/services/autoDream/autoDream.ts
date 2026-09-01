@@ -167,6 +167,11 @@ export function initAutoDream(): void {
       logForDebugging(
         `[autoDream] skip — ${sessionIds.length} sessions since last consolidation, need ${cfg.minSessions}`,
       )
+      logEvent('tengu_auto_dream_skipped', {
+        reason: 'sessions',
+        session_count: sessionIds.length,
+        min_required: cfg.minSessions,
+      })
       return
     }
 
@@ -186,7 +191,10 @@ export function initAutoDream(): void {
         )
         return
       }
-      if (priorMtime === null) return
+      if (priorMtime === null) {
+        logEvent('tengu_auto_dream_skipped', { reason: 'lock' })
+        return
+      }
     }
 
     logForDebugging(

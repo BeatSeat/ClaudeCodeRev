@@ -28,6 +28,7 @@ import { collapseBackgroundBashNotifications } from '../utils/collapseBackground
 import { collapseHookSummaries } from '../utils/collapseHookSummaries.js'
 import { collapseReadSearchGroups } from '../utils/collapseReadSearch.js'
 import { collapseTeammateShutdowns } from '../utils/collapseTeammateShutdowns.js'
+import { useAppState, useAppStateStore } from '../state/AppState.js'
 import { getGlobalConfig } from '../utils/config.js'
 import { isEnvTruthy } from '../utils/envUtils.js'
 import { isFullscreenEnvEnabled } from '../utils/fullscreen.js'
@@ -61,6 +62,10 @@ import {
   type MessageActionsState,
 } from './messageActions.js'
 import { AssistantThinkingMessage } from './messages/AssistantThinkingMessage.js'
+import {
+  filterForFocusTranscript,
+  type FocusToolStats,
+} from './filterForFocusTranscript.js'
 import { isNullRenderingAttachment } from './messages/nullRenderingAttachments.js'
 import { OffscreenFreeze } from './OffscreenFreeze.js'
 import type { ToolUseConfirm } from './permissions/PermissionRequest.js'
@@ -264,7 +269,7 @@ type Props = {
   streamingToolUses: StreamingToolUse[]
   showAllInTranscript?: boolean
   agentDefinitions?: AgentDefinitionsResult
-  onOpenRateLimitOptions?: () => void
+  onOpenRateLimitOptions?: () => boolean
   /** Hide the logo/header - used for subagent zoom view */
   hideLogo?: boolean
   isLoading: boolean
@@ -427,6 +432,8 @@ const MessagesImpl = ({
   renderRange,
 }: Props): React.ReactNode => {
   const { columns } = useTerminalSize()
+  const briefTranscript = useAppState(s => s.briefTranscript)
+  const appStore = useAppStateStore()
   const toggleShowAllShortcut = useShortcutDisplay(
     'transcript:toggleShowAll',
     'Transcript',
@@ -636,7 +643,7 @@ const MessagesImpl = ({
         verbose,
       )
 
-      const collapsed = collapseBackgroundBashNotifications(
+      const collapsedGroups = collapseBackgroundBashNotifications(
         collapseHookSummaries(
           collapseTeammateShutdowns(
             collapseReadSearchGroups(groupedMessages, tools),
@@ -644,6 +651,22 @@ const MessagesImpl = ({
         ),
         verbose,
       )
+      const collapsed =
+        isFullscreenEnvEnabled() && briefTranscript && !isTranscriptMode
+          ? filterForFocusTranscript(
+              collapsedGroups,
+              tools,
+              agentId => {
+                const task = appStore.getState().tasks[agentId] as
+                  | { type?: string; result?: { toolStats?: FocusToolStats } }
+                  | undefined
+                return task?.type === 'local_agent'
+                  ? task.result?.toolStats
+                  : undefined
+              },
+              isLoading,
+            )
+          : collapsedGroups
 
       const lookups = buildMessageLookups(normalizedMessages, messagesToShow)
 
@@ -665,6 +688,9 @@ const MessagesImpl = ({
       shouldTruncate,
       tools,
       isBriefOnly,
+      briefTranscript,
+      appStore,
+      isLoading,
     ])
 
   // Cheap slice — only runs when scroll range or slice config changes.

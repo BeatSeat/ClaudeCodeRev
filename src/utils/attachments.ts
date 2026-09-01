@@ -2772,8 +2772,8 @@ export function extractAtMentionedFiles(content: string): string[] {
   // Example: 'check @"my file.txt" please' would extract "my file.txt"
 
   // Two patterns: quoted paths and regular paths
-  const quotedAtMentionRegex = /(^|\s)@"([^"]+)"/g
-  const regularAtMentionRegex = /(^|\s)@([^\s]+)\b/g
+  const quotedAtMentionRegex = /(^|[\s。、？！])@"([^"]+)"/g
+  const regularAtMentionRegex = /(^|[\s。、？！])@([^\s]+)\b/g
 
   const quotedMatches: string[] = []
   const regularMatches: string[] = []
@@ -2803,7 +2803,7 @@ export function extractAtMentionedFiles(content: string): string[] {
 export function extractMcpResourceMentions(content: string): string[] {
   // Extract MCP resources mentioned with @ symbol in format @server:uri
   // Example: "@server1:resource/path" would extract "server1:resource/path"
-  const atMentionRegex = /(^|\s)@([^\s]+:[^\s]+)\b/g
+  const atMentionRegex = /(^|[\s。、？！])@([^\s]+:[^\s]+)\b/g
   const matches = content.match(atMentionRegex) || []
 
   // Remove the prefix (everything before @) from each match
@@ -2820,7 +2820,7 @@ export function extractAgentMentions(content: string): string[] {
   const results: string[] = []
 
   // Match quoted format: @"<type> (agent)"
-  const quotedAgentRegex = /(^|\s)@"([\w:.@-]+) \(agent\)"/g
+  const quotedAgentRegex = /(^|[\s。、？！])@"([\w:.@-]+) \(agent\)"/g
   let match
   while ((match = quotedAgentRegex.exec(content)) !== null) {
     if (match[2]) {
@@ -2829,7 +2829,7 @@ export function extractAgentMentions(content: string): string[] {
   }
 
   // Match unquoted format: @agent-<type>
-  const unquotedAgentRegex = /(^|\s)@(agent-[\w:.@-]+)/g
+  const unquotedAgentRegex = /(^|[\s。、？！])@(agent-[\w:.@-]+)/g
   const unquotedMatches = content.match(unquotedAgentRegex) || []
   for (const m of unquotedMatches) {
     results.push(m.slice(m.indexOf('@') + 1))

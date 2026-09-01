@@ -371,6 +371,7 @@ export type GlobalConfig = {
   // Todo feature configuration
   todoFeatureEnabled: boolean // Whether the todo feature is enabled
   showExpandedTodos?: boolean // Whether to show todos expanded, even when empty
+  briefTranscript?: boolean // Persist NO_FLICKER Focus (ctrl+o) transcript view
   showSpinnerTree?: boolean // Whether to show the teammate spinner tree instead of pills
 
   // First start time tracking
@@ -613,6 +614,7 @@ function createDefaultGlobalConfig(): GlobalConfig {
     btwUseCount: 0,
     todoFeatureEnabled: true,
     showExpandedTodos: false,
+    briefTranscript: false,
     messageIdleNotifThresholdMs: 60000,
     autoConnectIde: false,
     autoInstallIdeExtension: true,
@@ -646,6 +648,7 @@ export const GLOBAL_CONFIG_KEYS = [
   'tipsHistory',
   'todoFeatureEnabled',
   'showExpandedTodos',
+  'briefTranscript',
   'messageIdleNotifThresholdMs',
   'autoConnectIde',
   'autoInstallIdeExtension',

@@ -70,7 +70,10 @@ import {
   getTotalInputTokens,
   getTotalOutputTokens,
 } from '../../bootstrap/state.js'
-import { getFeatureValue_CACHED_WITH_REFRESH } from '../../services/analytics/growthbook.js'
+import {
+  getFeatureValue_CACHED_MAY_BE_STALE,
+  getFeatureValue_CACHED_WITH_REFRESH,
+} from '../../services/analytics/growthbook.js'
 import {
   type AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
   logEvent,
@@ -769,6 +772,15 @@ export const hasPermissionsToUseTool: CanUseToolFn = async (
         sessionCacheReadInputTokens: getTotalCacheReadInputTokens(),
         sessionCacheCreationInputTokens: getTotalCacheCreationInputTokens(),
         classifierCostUSD,
+        // Official 2.1.97: strip-all allowlist GB + the pre-classifier
+        // permission reason, so analytics can join YOLO outcomes to the
+        // original ask/deny path. Fast-path events omit these fields.
+        stripAllBashFlag: getFeatureValue_CACHED_MAY_BE_STALE(
+          'tengu_bash_allowlist_strip_all',
+          false,
+        ),
+        originalDecisionReasonType: result.decisionReason
+          ?.type as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
         classifierStage:
           classifierResult.stage as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
         classifierStage1InputTokens: classifierResult.stage1Usage?.inputTokens,
@@ -1454,6 +1466,8 @@ export function syncPermissionRulesFromDisk(
     'userSettings',
     'projectSettings',
     'localSettings',
+    'flagSettings',
+    'policySettings',
   ]
   for (const diskSource of diskSources) {
     for (const behavior of ['allow', 'deny', 'ask'] as PermissionBehavior[]) {

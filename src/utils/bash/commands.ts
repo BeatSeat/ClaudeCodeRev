@@ -631,13 +631,23 @@ export function isUnsafeCompoundCommand_DEPRECATED(command: string): boolean {
  *
  * @returns Object containing the command without redirections and the target paths if found
  */
+export const NETWORK_DEVICE_REDIRECT_RE = /^\/dev\/(tcp|udp)\//
+
+export type DangerousRedirectionReason = 'network_device' | 'shell_expansion'
+
+export function isNetworkDeviceRedirectTarget(target: string): boolean {
+  return NETWORK_DEVICE_REDIRECT_RE.test(target)
+}
+
 export function extractOutputRedirections(cmd: string): {
   commandWithoutRedirections: string
   redirections: Array<{ target: string; operator: '>' | '>>' }>
   hasDangerousRedirection: boolean
+  dangerousRedirectionReason?: DangerousRedirectionReason
 } {
   const redirections: Array<{ target: string; operator: '>' | '>>' }> = []
   let hasDangerousRedirection = false
+  let dangerousRedirectionReason: DangerousRedirectionReason | undefined
 
   // SECURITY: Extract heredocs BEFORE line-continuation joining AND parsing.
   // This matches splitCommandWithOperators (line 101). Quoted-heredoc bodies
@@ -695,6 +705,7 @@ export function extractOutputRedirections(cmd: string): {
       commandWithoutRedirections: cmd,
       redirections: [],
       hasDangerousRedirection: true,
+      dangerousRedirectionReason: 'shell_expansion',
     }
   }
 
@@ -769,6 +780,9 @@ export function extractOutputRedirections(cmd: string): {
       )
       if (dangerous) {
         hasDangerousRedirection = true
+        if (dangerousRedirectionReason !== 'network_device') {
+          dangerousRedirectionReason = 'shell_expansion'
+        }
       }
       if (skip > 0) {
         i += skip
@@ -779,6 +793,28 @@ export function extractOutputRedirections(cmd: string): {
     kept.push(part)
   }
 
+  for (const redirection of redirections) {
+    if (isNetworkDeviceRedirectTarget(redirection.target)) {
+      hasDangerousRedirection = true
+      dangerousRedirectionReason = 'network_device'
+    }
+  }
+
+  // Input redirects (`< /dev/tcp/...`) are not collected as output
+  // redirections but still open a network connection.
+  for (let i = 0; i < parsed.length; i++) {
+    const part = parsed[i]
+    const next = parsed[i + 1]
+    if (
+      (isOperator(part, '<') || isOperator(part, '<&')) &&
+      typeof next === 'string' &&
+      isNetworkDeviceRedirectTarget(next)
+    ) {
+      hasDangerousRedirection = true
+      dangerousRedirectionReason = 'network_device'
+    }
+  }
+
   return {
     commandWithoutRedirections: restoreHeredocs(
       [reconstructCommand(kept, processedCommand)],
@@ -786,6 +822,7 @@ export function extractOutputRedirections(cmd: string): {
     )[0]!,
     redirections,
     hasDangerousRedirection,
+    dangerousRedirectionReason,
   }
 }
 

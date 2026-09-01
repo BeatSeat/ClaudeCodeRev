@@ -85,6 +85,7 @@ import {
   updateSelection,
 } from './selection.js'
 import {
+  DECSTBM_SUPPORTED,
   SYNC_OUTPUT_SUPPORTED,
   supportsExtendedKeys,
   type Terminal,
@@ -726,7 +727,9 @@ export default class Ink {
       // renders the scrolled-but-not-yet-repainted intermediate state.
       // tmux is the main case (re-emits DECSTBM with its own timing and
       // doesn't implement DEC 2026, so SYNC_OUTPUT_SUPPORTED is false).
-      SYNC_OUTPUT_SUPPORTED,
+      // zellij sets ZELLIJ but DEC 2026 is incomplete — hardware scroll
+      // leaves smear artifacts.
+      DECSTBM_SUPPORTED,
     )
     const diffMs = performance.now() - tDiff
     // Swap buffers

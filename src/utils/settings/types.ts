@@ -558,6 +558,14 @@ export const SettingsSchema = lazySchema(() =>
           type: z.literal('command'),
           command: z.string(),
           padding: z.number().optional(),
+          refreshInterval: z
+            .number()
+            .min(1)
+            .optional()
+            .catch(undefined)
+            .describe(
+              'Re-run the status line command every N seconds in addition to event-driven updates',
+            ),
         })
         .optional()
         .describe('Custom status line display configuration'),
@@ -652,6 +660,11 @@ export const SettingsSchema = lazySchema(() =>
         .string()
         .optional()
         .describe('Controls the output style for assistant responses'),
+      viewMode: z
+        .enum(['default', 'verbose', 'focus'])
+        .optional()
+        .catch(undefined)
+        .describe('Default transcript view mode on startup'),
       language: z
         .string()
         .optional()

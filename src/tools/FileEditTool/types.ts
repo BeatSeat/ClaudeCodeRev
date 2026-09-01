@@ -67,7 +67,10 @@ const outputSchema = lazySchema(() =>
     newString: z.string().describe('The new string that replaced it'),
     originalFile: z
       .string()
-      .describe('The original file contents before editing'),
+      .nullable()
+      .describe(
+        'The original file contents before editing (null when stripped for resume)',
+      ),
     structuredPatch: z
       .array(hunkSchema())
       .describe('Diff patch showing the changes'),

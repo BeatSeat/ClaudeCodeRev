@@ -5,13 +5,9 @@ import memoize from 'lodash-es/memoize.js'
 import { isAbsolute, resolve } from 'path'
 import { join as posixJoin } from 'path/posix'
 import { logEvent } from 'src/services/analytics/index.js'
-import {
-  getOriginalCwd,
-  getSessionId,
-  setCwdState,
-} from '../bootstrap/state.js'
+import { getOriginalCwd, getSessionId } from '../bootstrap/state.js'
 import { generateTaskId } from '../Task.js'
-import { pwd } from './cwd.js'
+import { hasCwdOverride, pwd, setCwd as applyCwd } from './cwd.js'
 import { logForDebugging } from './debug.js'
 import { errorMessage, isENOENT } from './errors.js'
 import { getFsImplementation } from './fsOperations.js'
@@ -34,6 +30,7 @@ import { getClaudeTempDirName } from './permissions/filesystem.js'
 import { getPlatform } from './platform.js'
 import { SandboxManager } from './sandbox/sandbox-adapter.js'
 import { invalidateSessionEnvCache } from './sessionEnvironment.js'
+import { getW3CTraceparent } from './telemetry/sessionTracing.js'
 import { createBashShellProvider } from './shell/bashProvider.js'
 import { getCachedPowerShellPath } from './shell/powershellDetection.js'
 import { createPowerShellProvider } from './shell/powershellProvider.js'
@@ -228,7 +225,7 @@ export async function exec(
     )
     try {
       await realpath(fallback)
-      setCwdState(fallback)
+      applyCwd(fallback)
       cwd = fallback
     } catch {
       return createFailedCommand(
@@ -313,6 +310,7 @@ export async function exec(
   }
 
   try {
+    const traceparent = getW3CTraceparent()
     const childProcess = spawn(spawnBinary, shellArgs, {
       env: {
         ...subprocessEnv(),
@@ -320,6 +318,7 @@ export async function exec(
         GIT_EDITOR: 'true',
         CLAUDECODE: '1',
         ...envOverrides,
+        ...(traceparent && { TRACEPARENT: traceparent }),
         ...(process.env.USER_TYPE === 'ant'
           ? {
               CLAUDE_CODE_SESSION_ID: getSessionId(),
@@ -400,13 +399,17 @@ export async function exec(
           if (getPlatform() === 'windows') {
             newCwd = posixPathToWindowsPath(newCwd)
           }
-          // cwd is NFC-normalized (setCwdState); newCwd from `pwd -P` may be
+          // cwd is NFC-normalized (applyCwd); newCwd from `pwd -P` may be
           // NFD on macOS APFS. Normalize before comparing so Unicode paths
           // don't false-positive as "changed" on every command.
           if (newCwd.normalize('NFC') !== cwd) {
             setCwd(newCwd, cwd)
-            invalidateSessionEnvCache()
-            void onCwdChangedForHooks(cwd, newCwd)
+            // Isolated ALS cwd (worktree / cwd: subagent) must not invalidate
+            // the parent session env or fire parent CwdChanged hooks.
+            if (!hasCwdOverride()) {
+              invalidateSessionEnvCache()
+              void onCwdChangedForHooks(cwd, newCwd)
+            }
           }
         } catch {
           logEvent('tengu_shell_set_cwd', { success: false })
@@ -461,7 +464,7 @@ export function setCwd(path: string, relativeTo?: string): void {
     throw e
   }
 
-  setCwdState(physicalPath)
+  applyCwd(physicalPath)
   if (process.env.NODE_ENV !== 'test') {
     try {
       logEvent('tengu_shell_set_cwd', {
