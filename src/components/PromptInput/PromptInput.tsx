@@ -1039,8 +1039,8 @@ function PromptInput({
           highlights.push({
             start: i,
             end: i + 1,
-            color: getRainbowColor(i - trigger.start),
-            shimmerColor: getRainbowColor(i - trigger.start, true),
+            color: 'rainbow_violet',
+            shimmerColor: 'rainbow_violet_shimmer',
             priority: 10,
           })
         }

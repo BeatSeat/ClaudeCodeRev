@@ -87,59 +87,6 @@ export function registerUpstreamProxyEnvFn(
   _getUpstreamProxyEnv = fn
 }
 
-let scriptCaps: Record<string, number> | null | undefined
-const scriptCapCounts = new Map<string, number>()
-
-/** Official 2.1.98: CLAUDE_CODE_SCRIPT_CAPS JSON map of substring → max calls. */
-export function enforceScriptCaps(command: string): void {
-  if (!isEnvTruthy(process.env.CLAUDE_CODE_SUBPROCESS_ENV_SCRUB)) {
-    return
-  }
-  if (scriptCaps === undefined) {
-    const raw = process.env.CLAUDE_CODE_SCRIPT_CAPS
-    if (!raw) {
-      scriptCaps = null
-      return
-    }
-    try {
-      const parsed = JSON.parse(raw) as unknown
-      if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
-        const filtered: Record<string, number> = {}
-        for (const [key, value] of Object.entries(
-          parsed as Record<string, unknown>,
-        )) {
-          if (
-            typeof value === 'number' &&
-            Number.isFinite(value) &&
-            key.trim().length > 0
-          ) {
-            filtered[key] = value
-          }
-        }
-        scriptCaps = Object.keys(filtered).length > 0 ? filtered : null
-      } else {
-        scriptCaps = null
-      }
-    } catch {
-      scriptCaps = null
-    }
-  }
-  if (!scriptCaps) {
-    return
-  }
-  for (const [needle, cap] of Object.entries(scriptCaps)) {
-    const hits = command.split(needle).length - 1
-    if (hits <= 0) continue
-    const next = (scriptCapCounts.get(needle) ?? 0) + hits
-    scriptCapCounts.set(needle, next)
-    if (next > cap) {
-      throw new Error(
-        `Script call limit exceeded: ${needle} has been called ${next} times (cap: ${cap}). This limit prevents data exfiltration via repeated write operations in untrusted-input workflows.`,
-      )
-    }
-  }
-}
-
 const BG_SESSION_SUBPROCESS_STRIP = [
   'CLAUDE_CODE_OAUTH_TOKEN',
   'CLAUDE_CODE_SUBSCRIPTION_TYPE',

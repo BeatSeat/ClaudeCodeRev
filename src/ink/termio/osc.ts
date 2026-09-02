@@ -5,6 +5,7 @@
 import { Buffer } from 'buffer'
 import { env } from '../../utils/env.js'
 import { execFileNoThrow } from '../../utils/execFileNoThrow.js'
+import { getPlatform } from '../../utils/platform.js'
 import { BEL, ESC, ESC_TYPE, SEP } from './ansi.js'
 import type { Action, Color, TabStatusAction } from './types.js'
 
@@ -55,16 +56,26 @@ export function wrapForMultiplexer(sequence: string): string {
  * - 'osc52': only the raw OSC 52 sequence will be written to stdout.
  *   Best-effort; iTerm2 disables OSC 52 by default.
  *
- * pbcopy gating uses SSH_CONNECTION specifically, not SSH_TTY — tmux panes
- * inherit SSH_TTY forever even after local reattach, but SSH_CONNECTION is
- * in tmux's default update-environment set and gets cleared.
+ * Native-path gating uses SSH_CONNECTION specifically, not SSH_TTY — tmux
+ * panes inherit SSH_TTY forever even after local reattach, but
+ * SSH_CONNECTION is in tmux's default update-environment set and gets
+ * cleared. Official 2.1.160 `gD6` is mux `.ssh` OR this env; this tree
+ * has no mux helper, so the env is the gate.
  */
 export type ClipboardPath = 'native' | 'tmux-buffer' | 'osc52'
 
+function isClipboardSshSession(): boolean {
+  return Boolean(process.env['SSH_CONNECTION'])
+}
+
 export function getClipboardPath(): ClipboardPath {
-  const nativeAvailable =
-    process.platform === 'darwin' && !process.env['SSH_CONNECTION']
-  if (nativeAvailable) return 'native'
+  const platform = getPlatform()
+  if (
+    (platform === 'macos' || platform === 'windows' || platform === 'wsl') &&
+    !isClipboardSshSession()
+  ) {
+    return 'native'
+  }
   if (process.env['TMUX']) return 'tmux-buffer'
   return 'osc52'
 }
@@ -147,7 +158,7 @@ export async function setClipboard(text: string): Promise<string> {
   // Gated on SSH_CONNECTION (not SSH_TTY) since tmux panes inherit SSH_TTY
   // forever but SSH_CONNECTION is in tmux's default update-environment and
   // clears on local attach. Fire-and-forget.
-  if (!process.env['SSH_CONNECTION']) copyNative(text)
+  if (!isClipboardSshSession()) copyNative(text)
 
   const tmuxBufferLoaded = await tmuxLoadBuffer(text)
 
@@ -170,8 +181,10 @@ let linuxCopy: 'wl-copy' | 'xclip' | 'xsel' | null | undefined
  */
 function copyNative(text: string): void {
   const opts = { input: text, useCwd: false, timeout: 2000 }
-  switch (process.platform) {
-    case 'darwin':
+  const powershellClipboard =
+    '[Console]::InputEncoding = [Text.Encoding]::UTF8; Set-Clipboard -Value ([Console]::In.ReadToEnd())'
+  switch (getPlatform()) {
+    case 'macos':
       void execFileNoThrow('pbcopy', [], opts)
       return
     case 'linux': {
@@ -210,18 +223,18 @@ function copyNative(text: string): void {
       })
       return
     }
-    case 'win32': {
-      // Official 2.1.126 `xw1`/`bw1`: stdin, not argv. Drops the 30_000-char
-      // base64 argv cap (~22KB plaintext) and stops exposing clipboard in the
-      // process command line. Windows-only — do not invent a Linux PS path.
+    case 'wsl': {
+      void execFileNoThrow(
+        'powershell.exe',
+        ['-NoProfile', '-NonInteractive', '-Command', powershellClipboard],
+        opts,
+      )
+      return
+    }
+    case 'windows': {
       void execFileNoThrow(
         'powershell',
-        [
-          '-NoProfile',
-          '-NonInteractive',
-          '-Command',
-          '[Console]::InputEncoding = [Text.Encoding]::UTF8; Set-Clipboard -Value ([Console]::In.ReadToEnd())',
-        ],
+        ['-NoProfile', '-NonInteractive', '-Command', powershellClipboard],
         opts,
       )
       return

@@ -13,10 +13,13 @@ import {
   getDisplayedEffortLevel,
   getEffortEnvOverride,
   getEffortValueDescription,
-  isEffortLevel,
+  isUltracodeEffortAvailable,
+  parseEffortArg,
+  parseEffortLevel,
   toPersistableEffort,
   unpinOpus47LaunchEffort,
 } from '../../utils/effort.js'
+import { getMainLoopModel } from '../../utils/model/model.js'
 import { updateSettingsForSource } from '../../utils/settings/settings.js'
 import { getRainbowColor } from '../../utils/thinking.js'
 
@@ -28,8 +31,11 @@ type SliderColor =
   | 'permission'
   | 'autoAccept-shimmer'
   | 'rainbow-animated'
+  | 'violet-ripple'
 
-const SLIDER_LEVELS: { value: EffortLevel; color: SliderColor }[] = [
+type SliderStop = { value: EffortLevel | 'ultracode'; color: SliderColor }
+
+const SLIDER_LEVELS: SliderStop[] = [
   { value: 'low', color: 'warning' },
   { value: 'medium', color: 'success' },
   { value: 'high', color: 'permission' },
@@ -44,7 +50,23 @@ const XHIGH_SHIMMER = '#d0b4ff'
 
 type EffortCommandResult = {
   message: string
-  effortUpdate?: { value: EffortValue | undefined }
+  effortUpdate?: { value: EffortValue | undefined; ultracode?: boolean }
+}
+
+const XHIGH_MODEL_HINT = 'Opus 4.8/4.7 only'
+const MAX_MODEL_HINT = 'Opus 4.6+, Sonnet 4.6'
+
+function effortHelpText(): string {
+  const offerUltracode = isUltracodeEffortAvailable(getMainLoopModel())
+  return `Usage: /effort [low|medium|high|xhigh|max${offerUltracode ? '|ultracode' : ''}|auto]
+
+Effort levels:
+- low: Quick, straightforward implementation
+- medium: Balanced approach with standard testing
+- high: Comprehensive implementation with extensive testing
+- xhigh: Extended reasoning with thorough analysis (${XHIGH_MODEL_HINT})
+- max: Maximum capability with deepest reasoning (${MAX_MODEL_HINT})
+${offerUltracode ? '- ultracode: xhigh + dynamic workflow orchestration (this session only)\n' : ''}- auto: Use the default effort level for your model`
 }
 
 function setEffortValue(effortValue: EffortValue): EffortCommandResult {
@@ -74,12 +96,12 @@ function setEffortValue(effortValue: EffortValue): EffortCommandResult {
     if (persistable === undefined) {
       return {
         message: `Not applied: CLAUDE_CODE_EFFORT_LEVEL=${envRaw} overrides effort this session, and ${effortValue} is session-only (nothing saved)`,
-        effortUpdate: { value: effortValue },
+        effortUpdate: { value: effortValue, ultracode: false },
       }
     }
     return {
       message: `CLAUDE_CODE_EFFORT_LEVEL=${envRaw} overrides this session — clear it and ${effortValue} takes over`,
-      effortUpdate: { value: effortValue },
+      effortUpdate: { value: effortValue, ultracode: false },
     }
   }
 
@@ -87,17 +109,67 @@ function setEffortValue(effortValue: EffortValue): EffortCommandResult {
   const suffix = persistable !== undefined ? '' : ' (this session only)'
   return {
     message: `Set effort level to ${effortValue}${suffix}: ${description}`,
-    effortUpdate: { value: effortValue },
+    effortUpdate: { value: effortValue, ultracode: false },
+  }
+}
+
+/** Official 2.1.160 `qVA` — split workflows vs model blame. */
+function setUltracodeEffort(): EffortCommandResult {
+  if (!isUltracodeEffortAvailable()) {
+    return {
+      message:
+        'Ultracode needs dynamic workflows enabled (see /config). Valid options are: low, medium, high, xhigh, max, auto',
+    }
+  }
+  const model = getMainLoopModel()
+  if (!isUltracodeEffortAvailable(model)) {
+    return {
+      message: `Ultracode runs at xhigh effort, which ${model} doesn't support — switch to an xhigh-capable model (${XHIGH_MODEL_HINT}). Valid options are: low, medium, high, xhigh, max, auto`,
+    }
+  }
+  unpinOpus47LaunchEffort()
+  const persistable = toPersistableEffort('xhigh')
+  if (persistable !== undefined) {
+    const result = updateSettingsForSource('userSettings', {
+      effortLevel: persistable,
+    })
+    if (result.error) {
+      return {
+        message: `Failed to set effort level: ${result.error.message}`,
+      }
+    }
+  }
+  logEvent('tengu_effort_command', {
+    effort: 'ultracode' as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
+  })
+  const envOverride = getEffortEnvOverride()
+  if (envOverride !== undefined && envOverride !== 'xhigh') {
+    return {
+      message: `CLAUDE_CODE_EFFORT_LEVEL=${process.env.CLAUDE_CODE_EFFORT_LEVEL} overrides effort this session — clear it and ultracode takes over`,
+      effortUpdate: { value: 'xhigh', ultracode: true },
+    }
+  }
+  return {
+    message:
+      'Set effort level to ultracode (this session only): xhigh + dynamic workflow orchestration',
+    effortUpdate: { value: 'xhigh', ultracode: true },
   }
 }
 
 export function showCurrentEffort(
   appStateEffort: EffortValue | undefined,
   model: string,
+  ultracode?: boolean,
 ): EffortCommandResult {
   const envOverride = getEffortEnvOverride()
   const effectiveValue =
     envOverride === null ? undefined : (envOverride ?? appStateEffort)
+  if (ultracode && effectiveValue === 'xhigh') {
+    return {
+      message:
+        'Current effort level: ultracode (xhigh + dynamic workflow orchestration; this session only)',
+    }
+  }
   if (effectiveValue === undefined) {
     const level = getDisplayedEffortLevel(model, appStateEffort)
     return { message: `Effort level: auto (currently ${level})` }
@@ -129,12 +201,12 @@ function unsetEffortLevel(): EffortCommandResult {
     const envRaw = process.env.CLAUDE_CODE_EFFORT_LEVEL
     return {
       message: `Cleared effort from settings, but CLAUDE_CODE_EFFORT_LEVEL=${envRaw} still controls this session`,
-      effortUpdate: { value: undefined },
+      effortUpdate: { value: undefined, ultracode: false },
     }
   }
   return {
-    message: 'Effort level set to max',
-    effortUpdate: { value: undefined },
+    message: 'Effort level set to auto',
+    effortUpdate: { value: undefined, ultracode: false },
   }
 }
 
@@ -143,14 +215,19 @@ export function executeEffort(args: string): EffortCommandResult {
   if (normalized === 'auto' || normalized === 'unset') {
     return unsetEffortLevel()
   }
+  if (normalized === 'ultracode') {
+    return setUltracodeEffort()
+  }
 
-  if (!isEffortLevel(normalized)) {
+  const level = parseEffortLevel(args)
+  if (!level) {
+    const offerUltracode = isUltracodeEffortAvailable(getMainLoopModel())
     return {
-      message: `Invalid argument: ${args}. Valid options are: low, medium, high, xhigh, max, auto`,
+      message: `Invalid argument: ${args}. Valid options are: low, medium, high, xhigh, max,${offerUltracode ? ' ultracode,' : ''} auto`,
     }
   }
 
-  return setEffortValue(normalized)
+  return setEffortValue(level)
 }
 
 function ShowCurrentEffort({
@@ -159,30 +236,37 @@ function ShowCurrentEffort({
   onDone: (result: string) => void
 }): React.ReactNode {
   const effortValue = useAppState(s => s.effortValue)
+  const ultracode = useAppState(s => s.ultracode)
   const model = useMainLoopModel()
-  const { message } = showCurrentEffort(effortValue, model)
+  const { message } = showCurrentEffort(effortValue, model, ultracode)
   onDone(message)
   return null
 }
 
 function ApplyEffortAndClose({
   result,
+  parsed,
   onDone,
 }: {
   result: EffortCommandResult
+  parsed?: { value: EffortValue | undefined } | null
   onDone: (result: string) => void
 }): React.ReactNode {
   const setAppState = useSetAppState()
   const { effortUpdate, message } = result
   React.useEffect(() => {
+    // Official zVA: if (confirmNeeded && parsed !== null) return pq$; else OKq.
+    // This tree has no effort confirm dialog — always apply. `parsed` is eTA.
+    void parsed
     if (effortUpdate) {
       setAppState(prev => ({
         ...prev,
         effortValue: effortUpdate.value,
+        ultracode: effortUpdate.ultracode ?? false,
       }))
     }
     onDone(message)
-  }, [setAppState, effortUpdate, message, onDone])
+  }, [setAppState, effortUpdate, message, onDone, parsed])
   return null
 }
 
@@ -239,6 +323,13 @@ function SliderLevelLabel({
   if (level.color === 'autoAccept-shimmer') {
     return <ShimmerEffortLabel text={level.value} />
   }
+  if (level.color === 'violet-ripple') {
+    return (
+      <Text bold color="rainbow_violet">
+        {level.value}
+      </Text>
+    )
+  }
   return (
     <Text bold color={level.color}>
       {level.value}
@@ -252,12 +343,27 @@ function EffortSlider({
   onDone: (result: string) => void
 }): React.ReactNode {
   const current = useAppState(s => s.effortValue)
+  const ultracode = useAppState(s => s.ultracode)
+  const model = useMainLoopModel()
   const setAppState = useSetAppState()
+  const levels = React.useMemo((): SliderStop[] => {
+    if (!isUltracodeEffortAvailable(model)) {
+      return SLIDER_LEVELS
+    }
+    return [
+      ...SLIDER_LEVELS,
+      { value: 'ultracode', color: 'violet-ripple' },
+    ]
+  }, [model])
   const initialIndex = React.useMemo(() => {
+    if (ultracode) {
+      const idx = levels.findIndex(level => level.value === 'ultracode')
+      return idx === -1 ? DEFAULT_SLIDER_INDEX : idx
+    }
     if (typeof current !== 'string') return DEFAULT_SLIDER_INDEX
-    const idx = SLIDER_LEVELS.findIndex(level => level.value === current)
+    const idx = levels.findIndex(level => level.value === current)
     return idx === -1 ? DEFAULT_SLIDER_INDEX : idx
-  }, [current])
+  }, [current, ultracode, levels])
   const [index, setIndex] = React.useState(initialIndex)
 
   // eslint-disable-next-line custom-rules/prefer-use-keybindings -- official 111 slider uses raw arrows/enter/esc
@@ -265,15 +371,19 @@ function EffortSlider({
     if (key.leftArrow) {
       setIndex(i => Math.max(0, i - 1))
     } else if (key.rightArrow) {
-      setIndex(i => Math.min(SLIDER_LEVELS.length - 1, i + 1))
+      setIndex(i => Math.min(levels.length - 1, i + 1))
     } else if (key.return) {
-      const level = SLIDER_LEVELS[index]
+      const level = levels[index]
       if (!level) return
-      const result = setEffortValue(level.value)
+      const result =
+        level.value === 'ultracode'
+          ? setUltracodeEffort()
+          : setEffortValue(level.value)
       if (result.effortUpdate) {
         setAppState(prev => ({
           ...prev,
           effortValue: result.effortUpdate!.value,
+          ultracode: result.effortUpdate!.ultracode ?? false,
         }))
       }
       onDone(result.message)
@@ -302,15 +412,18 @@ function EffortSlider({
           <Text dimColor>{rightTrack}</Text>
         </Box>
         <Box>
-          {SLIDER_LEVELS.map((level, i) => (
+          {levels.map((level, i) => (
             <React.Fragment key={level.value}>
               <SliderLevelLabel level={level} selected={i === index} />
-              {i < LABEL_GAPS.length ? (
-                <Text>{' '.repeat(LABEL_GAPS[i]!)}</Text>
+              {i < levels.length - 1 ? (
+                <Text>{' '.repeat(LABEL_GAPS[i] ?? 2)}</Text>
               ) : null}
             </React.Fragment>
           ))}
         </Box>
+        {isUltracodeEffortAvailable(model) ? (
+          <Text dimColor>xhigh + workflows</Text>
+        ) : null}
       </Box>
       <Box height={2} />
       <Text dimColor>←/→ to change effort · Enter to confirm</Text>
@@ -326,9 +439,7 @@ export async function call(
   args = args?.trim() || ''
 
   if (COMMON_HELP_ARGS.includes(args)) {
-    onDone(
-      'Usage: /effort [low|medium|high|xhigh|max|auto]\n\nEffort levels:\n- low: Quick, straightforward implementation\n- medium: Balanced approach with standard testing\n- high: Comprehensive implementation with extensive testing\n- xhigh: Extended reasoning with thorough analysis (Opus 4.8/4.7 only)\n- max: Maximum capability with deepest reasoning (Opus 4.6+, Sonnet 4.6)\n- auto: Use the default effort level for your model',
-    )
+    onDone(effortHelpText())
     return
   }
 
@@ -340,6 +451,8 @@ export async function call(
     return <EffortSlider onDone={onDone} />
   }
 
+  // Official zVA: eTA(args, currentModel) cached on args+model, then OKq/gh8.
+  const parsed = parseEffortArg(args, getMainLoopModel())
   const result = executeEffort(args)
-  return <ApplyEffortAndClose result={result} onDone={onDone} />
+  return <ApplyEffortAndClose result={result} parsed={parsed} onDone={onDone} />
 }

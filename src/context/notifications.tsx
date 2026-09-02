@@ -13,6 +13,11 @@ type BaseNotification = {
    * and, if currently displayed, cleared immediately.
    */
   invalidates?: string[]
+  /**
+   * Official 2.1.160 `ZeK`: keep an immediate notification in the queue
+   * when a newer immediate preempts it.
+   */
+  requeueOnPreempt?: boolean
   priority: Priority
   timeoutMs?: number
   /**
@@ -39,6 +44,17 @@ type RemoveNotificationFn = (key: string) => void
 export type Notification = TextNotification | JSXNotification
 
 const DEFAULT_TIMEOUT_MS = 8000
+
+/** Official 2.1.160 `ZeK` — keep immediates that opt into preempt-requeue. */
+function shouldKeepQueuedNotification(
+  queued: Notification,
+  incoming: Notification,
+): boolean {
+  return (
+    (queued.priority !== 'immediate' || queued.requeueOnPreempt === true) &&
+    !incoming.invalidates?.includes(queued.key)
+  )
+}
 
 // Track current timeout to clear it when immediate notifications arrive
 let currentTimeoutId: NodeJS.Timeout | null = null
@@ -141,11 +157,7 @@ export function useNotifications(): {
                   ? [prev.notifications.current]
                   : []),
                 ...prev.notifications.queue,
-              ].filter(
-                _ =>
-                  _.priority !== 'immediate' &&
-                  !notif.invalidates?.includes(_.key),
-              ),
+              ].filter(_ => shouldKeepQueuedNotification(_, notif)),
           },
         }))
         return // IMPORTANT: Exit addNotification for immediate notifications
@@ -238,10 +250,8 @@ export function useNotifications(): {
           notifications: {
             current: invalidatesCurrent ? null : prev.notifications.current,
             queue: [
-              ...prev.notifications.queue.filter(
-                _ =>
-                  _.priority !== 'immediate' &&
-                  !notif.invalidates?.includes(_.key),
+              ...prev.notifications.queue.filter(_ =>
+                shouldKeepQueuedNotification(_, notif),
               ),
               notif,
             ],

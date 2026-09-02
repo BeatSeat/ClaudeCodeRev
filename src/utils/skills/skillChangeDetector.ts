@@ -168,6 +168,14 @@ export function dispose(): Promise<void> {
  */
 export const subscribe = skillsChanged.subscribe
 
+/** Official session-start /reload-skills: flush skill caches and notify listeners. */
+export function notifySkillsChanged(): void {
+  clearSkillCaches()
+  clearCommandsCache()
+  resetSentSkillNames()
+  skillsChanged.emit()
+}
+
 async function getWatchablePaths(): Promise<string[]> {
   const fs = getFsImplementation()
   const paths: string[] = []

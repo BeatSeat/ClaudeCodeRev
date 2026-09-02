@@ -1,0 +1,72 @@
+{
+  "version": "2.1.160",
+  "from": "2.1.159",
+  "astdiff": "0.9894",
+  "items": [
+    {
+      "item": "Prompt before writing shell startup files (.zshenv, .zlogin, .bash_login) and ~/.config/git/",
+      "status": "located",
+      "evidence": "HRA/ORA acceptEdits lists in src/utils/permissions/filesystem.ts; tokens .zshenv .zlogin .bash_login"
+    },
+    {
+      "item": "acceptEdits prompts for build-tool configs (.bazelrc, .pre-commit-config.yaml, .devcontainer/)",
+      "status": "located",
+      "evidence": "HRA/$RA/qRA in filesystem.ts; .bazelrc 0→1, .pre-commit-config.yaml 0→1, .devcontainer 0→3"
+    },
+    {
+      "item": "grep/egrep/fgrep satisfy read-before-edit",
+      "status": "located",
+      "evidence": "src/tools/BashTool/seedReadFileState.ts seeds readFileState; FileEditTool unchanged"
+    },
+    {
+      "item": "WSL copy-on-select via PowerShell instead of OSC 52",
+      "status": "located",
+      "evidence": "getClipboardPath native for wsl; powershell.exe Set-Clipboard; MobaXterm 0→0"
+    },
+    {
+      "item": "claude agents restore dropping history / overnight retire re-run",
+      "status": "shared-logic",
+      "evidence": "no unique 0→N token; salvage helpers landed, query.ts producer not in Core fence"
+    },
+    {
+      "item": "claude --bg socket missing / Windows dir delete / Completed list / IME / file:// links / voice / SIGTERM",
+      "status": "shared-logic",
+      "evidence": "scout: no unique 0→N; FleetView/daemon already at 119"
+    },
+    {
+      "item": "claude agents freeze from auto-updater re-check on every exit",
+      "status": "located",
+      "evidence": "OtH isAutoUpdateCheckThrottled; token auto-update check throttled 0→1"
+    },
+    {
+      "item": "Auto mode 3P message points to CLAUDE_CODE_ENABLE_AUTO_MODE",
+      "status": "located",
+      "evidence": "permissionSetup/messages provider copy; env 2→4"
+    },
+    {
+      "item": "/effort ultracode xhigh blame split",
+      "status": "located",
+      "evidence": "parseEffortArg(arg, model) eTA; ultracode→xhigh only if workflows AND model xhigh"
+    },
+    {
+      "item": "vim p after v$ pastes at cursor",
+      "status": "located",
+      "evidence": "getRegisterIsLinewise + i1q adjustOffsetAfterEdit"
+    },
+    {
+      "item": "Removed CLAUDE_CODE_OPUS_4_6_FAST_MODE_OVERRIDE",
+      "status": "located",
+      "evidence": "fastMode.ts is 160 no-op body"
+    },
+    {
+      "item": "Removed JetBrains plugin install suggestion",
+      "status": "located",
+      "evidence": "jetbrains-plugin-install 1→0"
+    },
+    {
+      "item": "Renamed workflow trigger keyword to ultracode; violet highlight",
+      "status": "located",
+      "evidence": "keyword.ts ultracode; PromptInput rainbow_violet / rainbow_violet_shimmer"
+    }
+  ]
+}

@@ -4,6 +4,7 @@ import { getFeatureValue_CACHED_MAY_BE_STALE } from 'src/services/analytics/grow
 import { isFirstPartyApiFamily } from './model/providers.js'
 import { get3PModelCapabilityOverride } from './model/modelSupportOverrides.js'
 import { isEnvTruthy } from './envUtils.js'
+import { isWorkflowsEnabled } from './workflows/enabled.js'
 import { getGlobalConfig, saveGlobalConfig } from './config.js'
 import type { EffortLevel } from 'src/entrypoints/sdk/runtimeTypes.js'
 
@@ -107,6 +108,43 @@ export function modelSupportsMaxEffort(model: string): boolean {
 
 export function isEffortLevel(value: string): value is EffortLevel {
   return (EFFORT_LEVELS as readonly string[]).includes(value)
+}
+
+/**
+ * Official 2.1.160 `ex`. No-arg = workflows on. With model = workflows
+ * and that model can run xhigh (ultracode maps only then).
+ */
+export function isUltracodeEffortAvailable(model?: string): boolean {
+  return isWorkflowsEnabled() && (model === undefined || modelSupportsXHighEffort(model))
+}
+
+/** Official 2.1.160 `ilH` — trim/lower + alias map + isEffortLevel. No ultracode. */
+const EFFORT_ARG_ALIASES: Record<string, string> = { med: 'medium' }
+
+export function parseEffortLevel(value: string): EffortLevel | undefined {
+  const normalized = value.trim().toLowerCase()
+  const aliased = EFFORT_ARG_ALIASES[normalized] ?? normalized
+  return isEffortLevel(aliased) ? aliased : undefined
+}
+
+/**
+ * Official 2.1.160 `eTA(H,$)`. Slash-arg parse: ultracode → xhigh only when
+ * workflows are on AND the model can run xhigh (`ex(model)`). 159 `a3z(H)`
+ * gated ultracode on workflows only.
+ */
+export function parseEffortArg(
+  arg: string,
+  model?: string,
+): { value: EffortValue | undefined } | null {
+  const q = arg.toLowerCase()
+  if (q === 'auto' || q === 'unset') {
+    return { value: undefined }
+  }
+  if (q === 'ultracode' && isUltracodeEffortAvailable(model)) {
+    return { value: 'xhigh' }
+  }
+  const level = parseEffortLevel(arg)
+  return level ? { value: level } : null
 }
 
 export function parseEffortValue(value: unknown): EffortValue | undefined {

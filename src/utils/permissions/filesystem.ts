@@ -66,9 +66,36 @@ export const DANGEROUS_FILES = [
   '.zshrc',
   '.zprofile',
   '.profile',
+  '.zshenv',
+  '.zlogin',
+  '.zlogout',
+  '.bash_login',
+  '.bash_aliases',
+  '.bash_logout',
+  '.envrc',
   '.ripgreprc',
   '.mcp.json',
   '.claude.json',
+  '.npmrc',
+  '.yarnrc',
+  '.yarnrc.yml',
+  '.pnp.cjs',
+  '.pnp.loader.mjs',
+  '.pnpmfile.cjs',
+  'bunfig.toml',
+  '.bunfig.toml',
+  '.bazelrc',
+  '.bazelversion',
+  '.bazeliskrc',
+  '.pre-commit-config.yaml',
+  'lefthook.yml',
+  '.lefthook.yml',
+  'lefthook.yaml',
+  '.lefthook.yaml',
+  'gradle-wrapper.properties',
+  'maven-wrapper.properties',
+  '.devcontainer.json',
+  'pyrightconfig.json',
 ] as const
 
 /**
@@ -81,7 +108,14 @@ export const DANGEROUS_DIRECTORIES = [
   '.idea',
   '.claude',
   '.husky',
+  '.cargo',
+  '.devcontainer',
+  '.yarn',
+  '.mvn',
 ] as const
+
+/** Official 2.1.160 `qRA` — multi-segment paths that acceptEdits must prompt. */
+export const DANGEROUS_PATH_SEGMENTS = ['.config/git'] as const
 
 /**
  * Normalizes a path for case-insensitive comparison.
@@ -473,6 +507,22 @@ function isDangerousFilePathToAutoEdit(path: string): boolean {
       }
 
       return true
+    }
+  }
+
+  // Official 2.1.160 `qRA` walk — e.g. ~/.config/git/
+  for (const multi of DANGEROUS_PATH_SEGMENTS) {
+    const parts = multi.split('/')
+    for (let i = 0; i + parts.length <= pathSegments.length; i++) {
+      if (
+        parts.every(
+          (part, offset) =>
+            normalizeCaseForComparison(pathSegments[i + offset]!) ===
+            normalizeCaseForComparison(part),
+        )
+      ) {
+        return true
+      }
     }
   }
 
@@ -1596,6 +1646,10 @@ const BG_JOB_DENIED_SEGMENTS = new Set([
   'skills',
   'commands',
   'agents',
+  '.cargo',
+  '.devcontainer',
+  '.yarn',
+  '.mvn',
 ])
 
 /** Official 2.1.153 `zH9`: allow current bg session job-dir files. */

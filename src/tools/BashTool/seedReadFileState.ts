@@ -13,7 +13,27 @@ type SeededRead = {
   filePath: string
   startLine: number | undefined
   endLine: number | undefined
+  requiresExitZero?: boolean
 }
+
+const GREP_SHORT_FLAGS = /^-[niwxEFGPHh]+$/
+const GREP_CONTEXT_SHORT = /^-[ABC]\d+$/
+const GREP_CONTEXT_LONG =
+  /^--(?:after-context|before-context|context)=\d+$/
+const GREP_ALLOWED_LONG = new Set([
+  '--line-number',
+  '--ignore-case',
+  '--word-regexp',
+  '--line-regexp',
+  '--extended-regexp',
+  '--fixed-strings',
+  '--basic-regexp',
+  '--perl-regexp',
+  '--with-filename',
+  '--no-filename',
+  '--color=never',
+  '--color=auto',
+])
 
 function tokenizeSimpleArgv(command: string): string[] | null {
   const parsed = tryParseShellCommand(command)
@@ -116,6 +136,59 @@ function parseReadonlyCat(command: string): SeededRead | null {
   return { filePath, startLine: undefined, endLine: undefined }
 }
 
+/** Official 2.1.160 `E$A` — single-file grep/egrep/fgrep seeds read-before-edit. */
+function parseReadonlyGrep(command: string): SeededRead | null {
+  const argv = tokenizeSimpleArgv(command)
+  if (
+    !argv ||
+    (argv[0] !== 'grep' && argv[0] !== 'egrep' && argv[0] !== 'fgrep')
+  ) {
+    return null
+  }
+  let pattern: string | null = null
+  let filePath: string | null = null
+  for (let i = 1; i < argv.length; i++) {
+    const arg = argv[i]!
+    if (arg.startsWith('-') && arg !== '-') {
+      if (arg === '-A' || arg === '-B' || arg === '-C') {
+        const next = argv[++i]
+        if (next === undefined || !/^\d+$/.test(next)) {
+          return null
+        }
+        continue
+      }
+      if (
+        GREP_CONTEXT_SHORT.test(arg) ||
+        GREP_CONTEXT_LONG.test(arg) ||
+        GREP_SHORT_FLAGS.test(arg) ||
+        GREP_ALLOWED_LONG.has(arg)
+      ) {
+        continue
+      }
+      return null
+    }
+    if (pattern === null) {
+      pattern = arg
+    } else if (filePath === null) {
+      filePath = arg
+    } else {
+      return null
+    }
+  }
+  if (pattern === null || filePath === null || filePath === '-') {
+    return null
+  }
+  if (/[*?[{]/.test(filePath)) {
+    return null
+  }
+  return {
+    filePath,
+    startLine: undefined,
+    endLine: undefined,
+    requiresExitZero: true,
+  }
+}
+
 function collectReadonlyFileReads(command: string): SeededRead[] {
   if (/[|<>]/.test(command)) {
     return []
@@ -131,7 +204,10 @@ function collectReadonlyFileReads(command: string): SeededRead[] {
   }
   const reads: SeededRead[] = []
   for (const sub of subcommands) {
-    const parsed = parseReadonlySedPrint(sub) ?? parseReadonlyCat(sub)
+    const parsed =
+      parseReadonlySedPrint(sub) ??
+      parseReadonlyCat(sub) ??
+      (subcommands.length === 1 ? parseReadonlyGrep(sub) : null)
     if (parsed) {
       reads.push(parsed)
     } else if (subcommands.length > 1 && !SILENT_COMPANION.test(sub)) {
@@ -150,8 +226,11 @@ export async function seedReadFileStateFromReadonlyBash(
   command: string,
   readFileState: FileStateCache,
   signal: AbortSignal,
+  exitCode?: number,
 ): Promise<void> {
-  const reads = collectReadonlyFileReads(command)
+  const reads = collectReadonlyFileReads(command).filter(
+    read => !read.requiresExitZero || exitCode === 0,
+  )
   if (reads.length === 0) {
     return
   }
