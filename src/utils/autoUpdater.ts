@@ -29,6 +29,23 @@ import {
 } from './shellConfig.js'
 import { jsonParse } from './slowOperations.js'
 
+/** Official 2.1.160 `Wu6` / `Ov5` — intra-session 5 min stamp (`OtH`). */
+let lastAutoUpdateCheckAt = 0
+const AUTO_UPDATE_CHECK_THROTTLE_MS = 300_000
+
+/** Official 2.1.160 `OtH`. Throttled → true (caller returns). */
+export function isAutoUpdateCheckThrottled(): boolean {
+  const now = Date.now()
+  if (now - lastAutoUpdateCheckAt < AUTO_UPDATE_CHECK_THROTTLE_MS) {
+    logForDebugging(
+      `auto-update check throttled (last check ${Math.round((now - lastAutoUpdateCheckAt) / 1000)}s ago)`,
+    )
+    return true
+  }
+  lastAutoUpdateCheckAt = now
+  return false
+}
+
 /** Official 2.1.153 `yaH` / `IaH()`: set when Windows npm copy-restore fails. */
 let updateApplyRestoreFailed: {
   originalPath: string

@@ -128,6 +128,10 @@ export type TombstoneMessage = MessageBase & { type: 'tombstone' }
 export type ToolUseSummaryMessage = MessageBase & { type: 'tool_use_summary' }
 export type StreamEvent = MessageBase & { type: 'stream'; event: unknown }
 export type RequestStartEvent = MessageBase & { type: 'request_start' }
+/** Official 2.1.160 query yield — not a transcript Message. */
+export type RefusalContinuationEvent =
+  | { type: 'refusal_continuation'; phase: 'begin'; salvageText: string }
+  | { type: 'refusal_continuation'; phase: 'end' }
 export type HookResultMessage = MessageBase & { type: 'hook_result'; attachment: unknown }
 
 // --- Union ---

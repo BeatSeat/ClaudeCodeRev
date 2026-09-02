@@ -4,6 +4,7 @@ import { isEnvTruthy } from 'src/utils/envUtils.js'
 import { registerBatchSkill } from './batch.js'
 import { registerClaudeInChromeSkill } from './claudeInChrome.js'
 import { registerDebugSkill } from './debug.js'
+import { registerDesignSyncSkill } from './designSync.js'
 import { registerKeybindingsSkill } from './keybindings.js'
 import { registerLessPermissionPromptsSkill } from './lessPermissionPrompts.js'
 import { registerLoremIpsumSkill } from './loremIpsum.js'
@@ -24,6 +25,8 @@ import { registerVerifySkill } from './verify.js'
  * 3. Import and call that function here
  */
 export function initBundledSkills(): void {
+  // Official 2.1.160 `Rb8`: `aJ9()` first.
+  registerDesignSyncSkill()
   registerUpdateConfigSkill()
   registerLessPermissionPromptsSkill()
   registerKeybindingsSkill()

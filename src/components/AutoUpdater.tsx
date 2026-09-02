@@ -11,6 +11,7 @@ import {
   type AutoUpdaterResult,
   getLatestVersion,
   getMaxVersion,
+  isAutoUpdateCheckThrottled,
   getUpdateApplyRestoreFailed,
   type InstallStatus,
   installGlobalPackage,
@@ -76,6 +77,15 @@ export function AutoUpdater({
       logForDebugging(
         'AutoUpdater: Skipping update check in test/dev environment',
       )
+      return
+    }
+
+    // Official 2.1.160 uz9: if(W$H())return; if(OtH())return; then wtH.
+    // Do not invent disabled-path copy (0→0) or backfill no_permissions persist skip.
+    if (isAutoUpdaterDisabled()) {
+      return
+    }
+    if (isAutoUpdateCheckThrottled()) {
       return
     }
 

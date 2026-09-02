@@ -142,6 +142,7 @@ export function useVimInput(props: UseVimInputProps): VimInputState {
       setOffset: (offset: number) => textInput.setOffset(offset),
       enterInsert: (offset: number) => switchToInsertMode(offset),
       getRegister: () => persistentRef.current.register,
+      getRegisterIsLinewise: () => persistentRef.current.registerIsLinewise,
       setRegister: (content: string, linewise: boolean) => {
         persistentRef.current.register = content
         persistentRef.current.registerIsLinewise = linewise

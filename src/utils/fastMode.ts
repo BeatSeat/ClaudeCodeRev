@@ -139,7 +139,7 @@ export function getFastModeUnavailableReason(): string | null {
 }
 
 // @[MODEL LAUNCH]: Update supported Fast Mode models.
-export const FAST_MODE_MODEL_DISPLAY = 'Opus 4.6'
+export const FAST_MODE_MODEL_DISPLAY = 'Opus 4.8'
 
 export function getFastModeModel(): string {
   return 'opus' + (isOpus1mMergeEnabled() ? '[1m]' : '')
@@ -171,7 +171,12 @@ export function isFastModeSupportedByModel(
   }
   const model = modelSetting ?? getDefaultMainLoopModelSetting()
   const parsedModel = parseUserSpecifiedModel(model)
-  return parsedModel.toLowerCase().includes('opus-4-6')
+  const lower = parsedModel.toLowerCase()
+  return (
+    lower.includes('opus-4-6') ||
+    lower.includes('opus-4-7') ||
+    lower.includes('opus-4-8')
+  )
 }
 
 // --- Fast mode runtime state ---

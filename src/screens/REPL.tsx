@@ -286,6 +286,7 @@ import {
   createSystemMessage,
   createCommandInputMessage,
   formatCommandInputTags,
+  stitchSalvageContinuation,
 } from '../utils/messages.js'
 import { getCommandQueueSnapshot } from '../utils/messageQueueManager.js'
 import {
@@ -2078,6 +2079,14 @@ export function REPL({
   const [displayedStreamingText, setDisplayedStreamingText] = useState<
     string | null
   >(null)
+  // Official 2.1.160 mTH: pR / em / HB — stitch salvaged prefix onto live text.
+  const [salvageStreaming, setSalvageStreaming] = useState<string | null>(null)
+  const salvageStreamingRef = useRef<string | null>(null)
+  salvageStreamingRef.current = salvageStreaming
+  const salvageDisplayRef = useRef<{
+    apiMessageId: string
+    salvageText: string
+  } | null>(null)
   const showStreamingTextRef = useRef(showStreamingText)
   showStreamingTextRef.current = showStreamingText
   const messageDisplayFlush = useMemo(
@@ -2088,18 +2097,24 @@ export function REPL({
           if (!showStreamingTextRef.current) return
           setDisplayedStreamingText(text)
         },
-        onMessageDisplay: (apiMessageId, output) =>
+        onMessageDisplay: (apiMessageId, output) => {
+          const pending = salvageDisplayRef.current
+          const displayed =
+            pending !== null && pending.apiMessageId === apiMessageId
+              ? stitchSalvageContinuation(pending.salvageText, output)
+              : output
           setAppState(prev =>
-            prev.displayedMessageContent[apiMessageId] === output
+            prev.displayedMessageContent[apiMessageId] === displayed
               ? prev
               : {
                   ...prev,
                   displayedMessageContent: {
                     ...prev.displayedMessageContent,
-                    [apiMessageId]: output,
+                    [apiMessageId]: displayed,
                   },
                 },
-          ),
+          )
+        },
       }),
     [store, setAppState],
   )
@@ -2112,8 +2127,11 @@ export function REPL({
     streamingText
       ? streamingText.substring(0, streamingText.lastIndexOf('\n') + 1) || null
       : null
+  const rawVisibleStreaming = displayedStreamingText ?? newlineTruncatedStreaming
   const visibleStreamingText = showStreamingText
-    ? (displayedStreamingText ?? newlineTruncatedStreaming)
+    ? salvageStreaming !== null
+      ? stitchSalvageContinuation(salvageStreaming, rawVisibleStreaming ?? '')
+      : rawVisibleStreaming
     : null
 
   const [lastQueryCompletionTime, setLastQueryCompletionTime] = useState(0)
@@ -3010,14 +3028,26 @@ export function REPL({
     // generated before pressing Esc. Pushed before resetLoadingState clears
     // streamingText, and before query.ts yields the async interrupt marker,
     // giving final order [user, partial-assistant, [Request interrupted by user]].
-    if (streamingText?.trim()) {
-      const partial = createAssistantMessage({ content: streamingText })
+    // Official 2.1.160: stitch salvage prefix (mTH) onto raw / displayed text.
+    const salvagePrefix = salvageStreamingRef.current
+    const stitchedPartial =
+      salvagePrefix !== null
+        ? stitchSalvageContinuation(salvagePrefix, streamingText ?? '')
+        : streamingText?.trim()
+          ? streamingText
+          : null
+    if (stitchedPartial) {
+      const partial = createAssistantMessage({ content: stitchedPartial })
       if (displayedStreamingText !== null) {
+        const displayed =
+          salvagePrefix !== null
+            ? stitchSalvageContinuation(salvagePrefix, displayedStreamingText)
+            : displayedStreamingText
         setAppState(prev => ({
           ...prev,
           displayedMessageContent: {
             ...prev.displayedMessageContent,
-            [partial.message.id]: displayedStreamingText,
+            [partial.message.id]: displayed,
           },
         }))
       }
@@ -3637,6 +3667,26 @@ export function REPL({
       handleMessageFromStream(
         event,
         newMessage => {
+          if (
+            newMessage.type === 'assistant' &&
+            !newMessage.isVirtual &&
+            !newMessage.isApiErrorMessage &&
+            newMessage.message.content.some(
+              block =>
+                block.type === 'text' &&
+                typeof block.text === 'string' &&
+                block.text.trim().length > 0,
+            )
+          ) {
+            const prefix = salvageStreamingRef.current
+            if (prefix !== null) {
+              salvageDisplayRef.current = {
+                apiMessageId: newMessage.message.id,
+                salvageText: prefix,
+              }
+            }
+            setSalvageStreaming(current => (current === null ? current : null))
+          }
           if (isCompactBoundaryMessage(newMessage)) {
             // Fullscreen: keep pre-compact messages for scrollback. query.ts
             // slices at the boundary for API calls, Messages.tsx skips the
@@ -3738,6 +3788,14 @@ export function REPL({
           })
         },
         onStreamingText,
+        event => {
+          if (event.phase === 'begin') {
+            salvageDisplayRef.current = null
+            setSalvageStreaming(event.salvageText)
+          } else {
+            setSalvageStreaming(null)
+          }
+        },
       )
     },
     [

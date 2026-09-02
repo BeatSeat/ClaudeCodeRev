@@ -5,7 +5,7 @@ import { isWorkflowKeywordTriggerEnabled, isWorkflowsEnabled } from './enabled.j
 export function findWorkflowTriggerPositions(
   text: string,
 ): { word: string; start: number; end: number }[] {
-  return findKeywordTriggerPositions(text, 'workflows?')
+  return findKeywordTriggerPositions(text, 'ultracode')
 }
 
 export function hasWorkflowKeyword(text: string): boolean {

@@ -598,7 +598,7 @@ export function Config({
             },
             {
               id: 'workflowKeywordTriggerEnabled',
-              label: 'Workflow keyword trigger',
+              label: 'Ultracode keyword trigger',
               value: settingsData?.workflowKeywordTriggerEnabled ?? true,
               type: 'boolean' as const,
               onChange(enabled: boolean) {
@@ -619,7 +619,7 @@ export function Config({
                 }))
                 setChanges(prev => ({
                   ...prev,
-                  workflowKeywordTrigger: enabled ? 'on' : 'off',
+                  ultracodeKeywordTrigger: enabled ? 'on' : 'off',
                 }))
               },
             },

@@ -1,7 +1,27 @@
 import { useContext, useEffect, useState } from 'react'
+import { isEnvTruthy } from '../../utils/envUtils.js'
 import { ClockContext } from '../components/ClockContext.js'
 import type { DOMElement } from '../dom.js'
 import { useTerminalViewport } from './use-terminal-viewport.js'
+
+/** Official 2.1.160 `sh` — animation clock frame. */
+const ANIMATION_FRAME_MS = 16
+
+/** Official 2.1.160 `nV1` — floor alt-screen animation interval. */
+const ALT_SCREEN_ANIMATION_INTERVAL_FLOOR_MS = 480
+
+/** Official 2.1.160 `lL6`. */
+function clampAnimationInterval(intervalMs: number): number {
+  return isEnvTruthy(process.env.CLAUDE_CODE_ALT_SCREEN_FULL_REPAINT)
+    ? Math.max(intervalMs, ALT_SCREEN_ANIMATION_INTERVAL_FLOOR_MS)
+    : intervalMs
+}
+
+/** Official 2.1.160 `fz` consumer: `Math.ceil(lL6(H)/sh)*sh`. */
+function snapAnimationInterval(intervalMs: number): number {
+  return Math.ceil(clampAnimationInterval(intervalMs) / ANIMATION_FRAME_MS) *
+    ANIMATION_FRAME_MS
+}
 
 /**
  * Hook for synchronized animations that pause when offscreen.
@@ -33,8 +53,10 @@ export function useAnimationFrame(
   const clock = useContext(ClockContext)
   const [viewportRef, { isVisible }] = useTerminalViewport()
   const [time, setTime] = useState(() => clock?.now() ?? 0)
+  const clampedIntervalMs =
+    intervalMs === null ? null : snapAnimationInterval(intervalMs)
 
-  const active = isVisible && intervalMs !== null
+  const active = isVisible && clampedIntervalMs !== null
 
   useEffect(() => {
     if (!clock || !active) return
@@ -43,7 +65,7 @@ export function useAnimationFrame(
 
     const onChange = (): void => {
       const now = clock.now()
-      if (now - lastUpdate >= intervalMs!) {
+      if (now - lastUpdate >= clampedIntervalMs!) {
         lastUpdate = now
         setTime(now)
       }
@@ -51,7 +73,7 @@ export function useAnimationFrame(
 
     // keepAlive: true — visible animations drive the clock
     return clock.subscribe(onChange, true)
-  }, [clock, intervalMs, active])
+  }, [clock, clampedIntervalMs, active])
 
   return [viewportRef, time]
 }

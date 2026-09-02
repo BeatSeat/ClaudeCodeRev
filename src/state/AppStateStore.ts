@@ -450,6 +450,8 @@ export type AppState = DeepImmutable<{
   advisorModel?: string
   // Effort value
   effortValue?: EffortValue
+  // Official 2.1.160 `/effort ultracode` — xhigh + workflow orchestration
+  ultracode?: boolean
   // Official 2.1.89 /autocompact — session copy of settings.autoCompactWindow
   autoCompactWindow?: number
   // Set synchronously in launchUltraplan before the detached flow starts.
@@ -608,6 +610,7 @@ export function getDefaultAppState(): AppState {
     authVersion: 0,
     initialMessage: null,
     effortValue: undefined,
+    ultracode: false,
     autoCompactWindow: getInitialSettings().autoCompactWindow,
     activeOverlays: new Set<string>(),
     fastMode: false,
