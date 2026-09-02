@@ -1,29 +1,7 @@
 {
   "version": "2.1.159",
   "from": "2.1.158",
-  "astdiff": {
-    "version": "2.1.159",
-    "from": "2.1.158",
-    "from_bundle": "/root/projects/ClaudeCodeRev/restore-work/artifacts/cometix/2.1.158/cli.js",
-    "to_bundle": "/root/projects/ClaudeCodeRev/restore-work/artifacts/cometix/2.1.159/cli.js",
-    "from_sha256": "a43db751a784edb77d222f2d8dc2a999bcd4fb2ce68b5563a9f138c2b0a114a0",
-    "to_sha256": "7c0abb20ac36265fc0a31426b6cc0396357b4e70fd8a9914dcc48b73cebf49dc",
-    "method": "astdiff-v0.2.0+tree-sitter0.25",
-    "parser": "tree-sitter 0.25 / tree-sitter-javascript 0.25",
-    "similarity": 100.0,
-    "matched_declarations": 24648,
-    "total_declarations_from": 24651,
-    "total_declarations_to": 24658,
-    "change_total": 9447,
-    "added": 10,
-    "removed": 3,
-    "structural": 9406,
-    "string_only": 28,
-    "command": "astdiff /root/projects/ClaudeCodeRev/restore-work/artifacts/cometix/2.1.158/cli.js /root/projects/ClaudeCodeRev/restore-work/artifacts/cometix/2.1.159/cli.js --format json",
-    "full_json": "/root/projects/Zhiman/projects/ccr-swarm/integration/astdiff-full/using/2.1.159.json",
-    "elapsed_seconds": 16.6,
-    "generated_at": "2026-11-14T15:07:51Z"
-  },
+  "astdiff": "failed-parse",
   "items": [
     {
       "item": "Internal infrastructure improvements (no user-facing changes)",

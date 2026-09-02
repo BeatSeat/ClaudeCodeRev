@@ -1219,6 +1219,7 @@ export const BashTool = buildTool({
         input.command,
         toolUseContext.readFileState,
         abortController.signal,
+        result.code,
       )
     }
 

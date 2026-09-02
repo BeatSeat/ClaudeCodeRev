@@ -163,6 +163,9 @@ import setupVertex from './commands/setup-vertex/index.js'
 import chrome from './commands/chrome/index.js'
 import stickers from './commands/stickers/index.js'
 import advisor from './commands/advisor/index.js'
+// Official 2.1.160 G11 — hidden C4E (Claude for Enterprise) upsell stand-ins
+// wrapping the remote/web commands (see c4eUpsell.ts).
+import { C4E_UPSELL_COMMANDS } from './commands/c4eUpsell.js'
 import goal, { goalNonInteractive } from './commands/goal/index.js'
 import stopHook from './commands/stop-hook/index.js'
 import teamOnboarding from './commands/team-onboarding/index.js'
@@ -381,6 +384,7 @@ const COMMANDS = memoize((): Command[] => [
   tasks,
   ...(workflowsCmd ? [workflowsCmd] : []),
   ...(torch ? [torch] : []),
+  ...C4E_UPSELL_COMMANDS,
   ...(process.env.USER_TYPE === 'ant' && !process.env.IS_DEMO
     ? INTERNAL_ONLY_COMMANDS
     : []),

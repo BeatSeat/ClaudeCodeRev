@@ -30,6 +30,7 @@ export type OperatorContext = {
   setOffset: (offset: number) => void
   enterInsert: (offset: number) => void
   getRegister: () => string
+  getRegisterIsLinewise: () => boolean
   setRegister: (content: string, linewise: boolean) => void
   getLastFind: () => { type: FindType; char: string } | null
   setLastFind: (type: FindType, char: string) => void
@@ -185,11 +186,7 @@ export function executeX(count: number, ctx: OperatorContext): void {
 
   ctx.setRegister(deleted, false)
   ctx.setText(newText)
-  const maxOff = Math.max(
-    0,
-    newText.length - (lastGrapheme(newText).length || 1),
-  )
-  ctx.setOffset(Math.min(from, maxOff))
+  ctx.setOffset(adjustOffsetAfterEdit(newText, from))
   ctx.recordChange({ type: 'x', count })
 }
 
@@ -299,8 +296,9 @@ export function executePaste(
   const register = ctx.getRegister()
   if (!register) return
 
-  const isLinewise = register.endsWith('\n')
-  const content = isLinewise ? register.slice(0, -1) : register
+  const isLinewise = ctx.getRegisterIsLinewise()
+  const content =
+    isLinewise && register.endsWith('\n') ? register.slice(0, -1) : register
 
   if (isLinewise) {
     const text = ctx.text
@@ -325,8 +323,11 @@ export function executePaste(
     ctx.setOffset(getLineStartOffset(newLines, insertLine))
   } else {
     const textToInsert = content.repeat(count)
+    const offset = ctx.cursor.offset
+    const onEmptyLine =
+      ctx.text[offset] === '\n' && (offset === 0 || ctx.text[offset - 1] === '\n')
     const insertPoint =
-      after && ctx.cursor.offset < ctx.text.length
+      after && ctx.cursor.offset < ctx.text.length && !onEmptyLine
         ? ctx.cursor.measuredText.nextOffset(ctx.cursor.offset)
         : ctx.cursor.offset
 
@@ -334,11 +335,13 @@ export function executePaste(
       ctx.text.slice(0, insertPoint) +
       textToInsert +
       ctx.text.slice(insertPoint)
-    const lastGr = lastGrapheme(textToInsert)
-    const newOffset = insertPoint + textToInsert.length - (lastGr.length || 1)
+    // Official 2.1.160 `cY9`: multiline characterwise paste uses `i1q`.
+    const newOffset = textToInsert.includes('\n')
+      ? adjustOffsetAfterEdit(newText, insertPoint)
+      : insertPoint + textToInsert.length - (lastGrapheme(textToInsert).length || 1)
 
     ctx.setText(newText)
-    ctx.setOffset(Math.max(insertPoint, newOffset))
+    ctx.setOffset(newOffset)
   }
 }
 
@@ -426,6 +429,20 @@ function getLineStartOffset(lines: string[], lineIndex: number): number {
   return lines.slice(0, lineIndex).join('\n').length + (lineIndex > 0 ? 1 : 0)
 }
 
+/**
+ * Official 2.1.160 `i1q` — after a characterwise edit, do not leave the
+ * cursor on a mid-line newline or past the last grapheme.
+ */
+function adjustOffsetAfterEdit(text: string, offset: number): number {
+  if (text[offset] === '\n' && offset > 0 && text[offset - 1] !== '\n') {
+    return offset - (lastGrapheme(text.slice(0, offset)).length || 1)
+  }
+  if (offset >= text.length && !text.endsWith('\n')) {
+    return Math.max(0, text.length - (lastGrapheme(text).length || 1))
+  }
+  return offset
+}
+
 function getOperatorRange(
   cursor: Cursor,
   target: Cursor,
@@ -509,11 +526,7 @@ function applyOperator(
   } else if (op === 'delete') {
     const newText = ctx.text.slice(0, from) + ctx.text.slice(to)
     ctx.setText(newText)
-    const maxOff = Math.max(
-      0,
-      newText.length - (lastGrapheme(newText).length || 1),
-    )
-    ctx.setOffset(Math.min(from, maxOff))
+    ctx.setOffset(adjustOffsetAfterEdit(newText, from))
   } else if (op === 'change') {
     const newText = ctx.text.slice(0, from) + ctx.text.slice(to)
     ctx.setText(newText)

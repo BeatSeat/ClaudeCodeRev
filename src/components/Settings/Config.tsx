@@ -373,6 +373,32 @@ export function Config({
         })
       },
     },
+    // Official 2.1.160 G13 — refusal-fallback model-switch setting.
+    // Bundle: `...P9H()&&!_O$()?[{id:"switchModelsOnFlag",...}]:[]`
+    // (P9H = tengu_loggia_carousel gate; _O$ = clientDataCache.convolute_arcades).
+    ...(getFeatureValue_CACHED_MAY_BE_STALE('tengu_loggia_carousel', false) &&
+    getGlobalConfig().clientDataCache?.['convolute_arcades'] !== true
+      ? [
+          {
+            id: 'switchModelsOnFlag',
+            label: 'Switch models when a message is flagged',
+            value: settingsData?.switchModelsOnFlag ?? true,
+            type: 'boolean' as const,
+            onChange(switchModelsOnFlag: boolean) {
+              updateSettingsForSource('userSettings', {
+                switchModelsOnFlag,
+              })
+              setSettingsData(prev => ({
+                ...prev,
+                switchModelsOnFlag,
+              }))
+              logEvent('tengu_refusal_fallback_setting_changed', {
+                enabled: switchModelsOnFlag,
+              })
+            },
+          },
+        ]
+      : []),
     {
       id: 'spinnerTipsEnabled',
       label: 'Show tips',
@@ -598,7 +624,7 @@ export function Config({
             },
             {
               id: 'workflowKeywordTriggerEnabled',
-              label: 'Workflow keyword trigger',
+              label: 'Ultracode keyword trigger',
               value: settingsData?.workflowKeywordTriggerEnabled ?? true,
               type: 'boolean' as const,
               onChange(enabled: boolean) {
@@ -619,7 +645,7 @@ export function Config({
                 }))
                 setChanges(prev => ({
                   ...prev,
-                  workflowKeywordTrigger: enabled ? 'on' : 'off',
+                  ultracodeKeywordTrigger: enabled ? 'on' : 'off',
                 }))
               },
             },

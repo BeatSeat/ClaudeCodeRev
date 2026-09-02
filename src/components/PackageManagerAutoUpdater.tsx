@@ -9,6 +9,7 @@ import {
   type AutoUpdaterResult,
   getLatestVersionFromGcs,
   getMaxVersion,
+  isAutoUpdateCheckThrottled,
   shouldSkipVersion,
 } from '../utils/autoUpdater.js'
 import { isAutoUpdaterDisabled } from '../utils/config.js'
@@ -128,6 +129,7 @@ export function PackageManagerAutoUpdater({
     if (isUpdatingRef.current) return
     if (resultRef.current?.status === 'success') return
     if (isAutoUpdaterDisabled()) return
+    if (isAutoUpdateCheckThrottled()) return
     if (resultRef.current?.status === 'install_failed') {
       if (Date.now() - lastInstallFailedAt < CHECK_INTERVAL_MS) return
       resultRef.current = null

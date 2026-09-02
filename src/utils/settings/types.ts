@@ -606,7 +606,7 @@ export const SettingsSchema = lazySchema(() =>
         .boolean()
         .optional()
         .describe(
-          'Enable the "workflow"/"workflows" keyword trigger that opts a prompt into the Workflow tool. Set to false to type the word without triggering a workflow. Default: true.',
+          'Enable the "ultracode" keyword trigger: including the keyword in a prompt opts that turn into the Workflow tool. Set to false to disable the trigger. Default: true.',
         ),
       disableSkillShellExecution: z
         .boolean()
@@ -1353,6 +1353,13 @@ export const SettingsSchema = lazySchema(() =>
         .boolean()
         .optional()
         .describe('Automatically compact conversation when context fills'),
+      // Official 2.1.160 G13 — refusal-fallback model-switch setting.
+      switchModelsOnFlag: z
+        .boolean()
+        .optional()
+        .describe(
+          'When safety filters block a message, automatically switch to a different model to keep chatting. When off, your chat may stop instead.',
+        ),
       autoScrollEnabled: z
         .boolean()
         .optional()

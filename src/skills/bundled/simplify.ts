@@ -1,7 +1,10 @@
 import { isUltrareviewEnabled } from '../../commands/review/ultrareviewEnabled.js'
 import { AGENT_TOOL_NAME } from '../../tools/AgentTool/constants.js'
+import { WORKFLOW_TOOL_NAME } from '../../tools/WorkflowTool/constants.js'
 import type { ToolUseContext } from '../../Tool.js'
 import { isCommandEnabled } from '../../types/command.js'
+import { getFeatureValue_CACHED_MAY_BE_STALE } from '../../services/analytics/growthbook.js'
+import { isWorkflowsEnabled } from '../../utils/workflows/enabled.js'
 import {
   convertEffortValueToLevel,
   EFFORT_LEVELS,
@@ -11,6 +14,9 @@ import {
   type EffortValue,
 } from '../../utils/effort.js'
 import { registerBundledSkill } from '../bundledSkills.js'
+
+// Official 2.1.152 `WiH` — the bundled workflow that /code-review delegates to.
+const CODE_REVIEW_WORKFLOW_NAME = 'code-review'
 
 /** Official 2.1.152 `sv8`. */
 function parseFlagArgs(
@@ -271,6 +277,34 @@ function ohz({
   return ''
 }
 
+/**
+ * Official 2.1.160 G12 — `tengu_review_workflow_routing` (bundle `GlA`).
+ * At a high/xhigh/max effort, in an interactive session, with the Workflow tool
+ * available and workflows enabled, a /code-review is routed to the background
+ * `code-review` workflow instead of running inline. Gate defaults off.
+ *
+ * Bundle: `if(H!=="high"&&H!=="xhigh"&&H!=="max")return!1; if(!pL())return!1;
+ * if($.options?.isNonInteractiveSession)return!1;
+ * if(!$.options?.tools?.some(q=>v_(q,WE)))return!1;
+ * return W$("tengu_review_workflow_routing",!1)`.
+ */
+function shouldRouteCodeReviewToWorkflow(
+  level: EffortLevel,
+  context: ToolUseContext,
+): boolean {
+  if (level !== 'high' && level !== 'xhigh' && level !== 'max') return false
+  if (!isWorkflowsEnabled()) return false
+  if (context.options.isNonInteractiveSession) return false
+  const hasWorkflowTool =
+    context.options.tools?.some(
+      tool =>
+        tool.name === WORKFLOW_TOOL_NAME ||
+        (tool.aliases?.includes(WORKFLOW_TOOL_NAME) ?? false),
+    ) ?? false
+  if (!hasWorkflowTool) return false
+  return getFeatureValue_CACHED_MAY_BE_STALE('tengu_review_workflow_routing', false)
+}
+
 /** Official 2.1.152 `_J9`. */
 async function codeReviewPrompt(
   args: string,
@@ -293,6 +327,18 @@ async function codeReviewPrompt(
     level,
     context,
   })
+  // Official 2.1.160 G12 — when the `tengu_review_workflow_routing` gate fires,
+  // the model is told to invoke the background `code-review` workflow (results
+  // return as a task notification) rather than reviewing inline.
+  if (!ultraFallback && shouldRouteCodeReviewToWorkflow(level, context)) {
+    const workflowArgs = target ? `${level} ${target}` : level
+    return [
+      {
+        type: 'text',
+        text: `${warning}Run the workflow-backed code review at ${level} effort instead of reviewing inline.\n\nInvoke: ${WORKFLOW_TOOL_NAME}({ name: ${JSON.stringify(CODE_REVIEW_WORKFLOW_NAME)}, args: ${JSON.stringify(workflowArgs)} })\n\nEverything after the level in the args string is passed to the workflow as the review target / instructions. If the user gave additional instructions for this review elsewhere in the conversation (a scope restriction, files to focus on, things to skip), append them to the args string so the workflow honors them.\n\nThe workflow runs the same finder angles and verify pass as the inline review, in the background; the verified findings arrive as a task notification. When they arrive, present the findings ranked most-severe first (or note that nothing survived verification).${comment ? GITHUB_COMMENT_APPENDIX : ''}${fix ? FIX_APPENDIX : ''}`,
+      },
+    ]
+  }
   const targetBlock = target ? `Review target: \`${target}\`\n\n` : ''
   return [
     {

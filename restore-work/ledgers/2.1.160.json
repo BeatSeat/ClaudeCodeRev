@@ -1,0 +1,94 @@
+{
+  "version": "2.1.160",
+  "from": "2.1.159",
+  "astdiff": {
+    "version": "2.1.160",
+    "from": "2.1.159",
+    "from_bundle": "/root/projects/ClaudeCodeRev/restore-work/artifacts/cometix/2.1.159/cli.js",
+    "to_bundle": "/root/projects/ClaudeCodeRev/restore-work/artifacts/cometix/2.1.160/cli.js",
+    "from_sha256": "7c0abb20ac36265fc0a31426b6cc0396357b4e70fd8a9914dcc48b73cebf49dc",
+    "to_sha256": "6f9576260ab4790010c4730f668f9e608c84379e4de45bdce73ae137ea728dad",
+    "method": "astdiff-v0.2.0+tree-sitter0.25",
+    "parser": "tree-sitter 0.25 / tree-sitter-javascript 0.25",
+    "similarity": 99.0,
+    "matched_declarations": 24611,
+    "total_declarations_from": 24658,
+    "total_declarations_to": 24861,
+    "change_total": 11377,
+    "added": 250,
+    "removed": 47,
+    "structural": 11055,
+    "string_only": 25,
+    "command": "astdiff /root/projects/ClaudeCodeRev/restore-work/artifacts/cometix/2.1.159/cli.js /root/projects/ClaudeCodeRev/restore-work/artifacts/cometix/2.1.160/cli.js --format json",
+    "full_json": "/root/projects/Zhiman/projects/ccr-swarm/integration/astdiff-full/using/2.1.160.json",
+    "elapsed_seconds": 16.9,
+    "generated_at": "2026-11-14T15:08:03Z"
+  },
+  "items": [
+    {
+      "item": "Prompt before writing shell startup files (.zshenv, .zlogin, .bash_login) and ~/.config/git/",
+      "status": "located",
+      "evidence": "HRA/ORA acceptEdits lists in src/utils/permissions/filesystem.ts; tokens .zshenv .zlogin .bash_login"
+    },
+    {
+      "item": "acceptEdits prompts for build-tool configs (.bazelrc, .pre-commit-config.yaml, .devcontainer/)",
+      "status": "located",
+      "evidence": "HRA/$RA/qRA in filesystem.ts; .bazelrc 0→1, .pre-commit-config.yaml 0→1, .devcontainer 0→3"
+    },
+    {
+      "item": "grep/egrep/fgrep satisfy read-before-edit",
+      "status": "located",
+      "evidence": "src/tools/BashTool/seedReadFileState.ts seeds readFileState; FileEditTool unchanged"
+    },
+    {
+      "item": "WSL copy-on-select via PowerShell instead of OSC 52",
+      "status": "located",
+      "evidence": "getClipboardPath native for wsl; powershell.exe Set-Clipboard; MobaXterm 0→0"
+    },
+    {
+      "item": "claude agents restore dropping history / overnight retire re-run",
+      "status": "shared-logic",
+      "evidence": "no unique 0→N token; salvage helpers landed, query.ts producer not in Core fence"
+    },
+    {
+      "item": "claude --bg socket missing / Windows dir delete / Completed list / IME / file:// links / voice / SIGTERM",
+      "status": "shared-logic",
+      "evidence": "scout: no unique 0→N; FleetView/daemon already at 119"
+    },
+    {
+      "item": "claude agents freeze from auto-updater re-check on every exit",
+      "status": "located",
+      "evidence": "OtH isAutoUpdateCheckThrottled; token auto-update check throttled 0→1"
+    },
+    {
+      "item": "Auto mode 3P message points to CLAUDE_CODE_ENABLE_AUTO_MODE",
+      "status": "located",
+      "evidence": "permissionSetup/messages provider copy; env 2→4"
+    },
+    {
+      "item": "/effort ultracode xhigh blame split",
+      "status": "located",
+      "evidence": "parseEffortArg(arg, model) eTA; ultracode→xhigh only if workflows AND model xhigh"
+    },
+    {
+      "item": "vim p after v$ pastes at cursor",
+      "status": "located",
+      "evidence": "getRegisterIsLinewise + i1q adjustOffsetAfterEdit"
+    },
+    {
+      "item": "Removed CLAUDE_CODE_OPUS_4_6_FAST_MODE_OVERRIDE",
+      "status": "located",
+      "evidence": "fastMode.ts is 160 no-op body"
+    },
+    {
+      "item": "Removed JetBrains plugin install suggestion",
+      "status": "located",
+      "evidence": "jetbrains-plugin-install 1→0"
+    },
+    {
+      "item": "Renamed workflow trigger keyword to ultracode; violet highlight",
+      "status": "located",
+      "evidence": "keyword.ts ultracode; PromptInput rainbow_violet / rainbow_violet_shimmer"
+    }
+  ]
+}

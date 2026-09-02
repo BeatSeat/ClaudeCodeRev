@@ -7,7 +7,11 @@ import { useInterval } from 'usehooks-ts'
 import { useUpdateNotification } from '../hooks/useUpdateNotification.js'
 import { Box, Text } from '../ink.js'
 import type { AutoUpdaterResult } from '../utils/autoUpdater.js'
-import { getMaxVersion, getMaxVersionMessage } from '../utils/autoUpdater.js'
+import {
+  getMaxVersion,
+  getMaxVersionMessage,
+  isAutoUpdateCheckThrottled,
+} from '../utils/autoUpdater.js'
 import { isAutoUpdaterDisabled } from '../utils/config.js'
 import { installLatest } from '../utils/nativeInstaller/index.js'
 import { gt } from '../utils/semver.js'
@@ -97,6 +101,17 @@ export function NativeAutoUpdater({
       return
     }
 
+    // Official 2.1.160: cheap max-version banner before the 5-min throttle.
+    const maxVersion = await getMaxVersion()
+    if (maxVersion && gt(MACRO.VERSION, maxVersion)) {
+      const msg = await getMaxVersionMessage()
+      setMaxVersionIssue(msg ?? 'affects your version')
+    }
+
+    if (isAutoUpdateCheckThrottled()) {
+      return
+    }
+
     onChangeIsUpdating(true)
     const startTime = Date.now()
 
@@ -104,13 +119,6 @@ export function NativeAutoUpdater({
     logEvent('tengu_native_auto_updater_start', {})
 
     try {
-      // Check if current version is above the max allowed version
-      const maxVersion = await getMaxVersion()
-      if (maxVersion && gt(MACRO.VERSION, maxVersion)) {
-        const msg = await getMaxVersionMessage()
-        setMaxVersionIssue(msg ?? 'affects your version')
-      }
-
       const result = await installLatest(channel)
       const currentVersion = MACRO.VERSION
       const latencyMs = Date.now() - startTime

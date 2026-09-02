@@ -63,7 +63,11 @@ import {
   getFsImplementation,
   safeResolvePath,
 } from '../../utils/fsOperations.js'
-import { modelSupportsAutoMode } from '../betas.js'
+import {
+  isAutoModeEnabledForProvider,
+  modelSupportsAutoMode,
+} from '../betas.js'
+import { getAPIProvider } from '../model/providers.js'
 import { logForDebugging } from '../debug.js'
 import { gracefulShutdown } from '../gracefulShutdown.js'
 import { getMainLoopModel } from '../model/model.js'
@@ -1178,7 +1182,11 @@ export type AutoModeGateCheckResult = {
   notification?: string
 }
 
-export type AutoModeUnavailableReason = 'settings' | 'circuit-breaker' | 'model'
+export type AutoModeUnavailableReason =
+  | 'settings'
+  | 'circuit-breaker'
+  | 'provider'
+  | 'model'
 
 export function getAutoModeUnavailableNotification(
   reason: AutoModeUnavailableReason,
@@ -1190,6 +1198,9 @@ export function getAutoModeUnavailableNotification(
       break
     case 'circuit-breaker':
       base = 'auto mode is unavailable for your plan'
+      break
+    case 'provider':
+      base = 'auto mode requires CLAUDE_CODE_ENABLE_AUTO_MODE=1'
       break
     case 'model':
       base = 'auto mode unavailable for this model'
@@ -1304,6 +1315,12 @@ export async function verifyAutoModeGateAccess(
     reason = 'circuit-breaker'
     logForDebugging(
       'auto mode disabled: tengu_auto_mode_config.enabled === "disabled" (circuit breaker)',
+      { level: 'warn' },
+    )
+  } else if (!isAutoModeEnabledForProvider(getAPIProvider())) {
+    reason = 'provider'
+    logForDebugging(
+      `auto mode disabled: provider ${getAPIProvider()} requires the CLAUDE_CODE_ENABLE_AUTO_MODE opt-in`,
       { level: 'warn' },
     )
   } else {
@@ -1432,6 +1449,7 @@ export function getAutoModeUnavailableReason(): AutoModeUnavailableReason | null
   if (autoModeStateModule?.isAutoModeCircuitBroken() ?? false) {
     return 'circuit-breaker'
   }
+  if (!isAutoModeEnabledForProvider(getAPIProvider())) return 'provider'
   if (!modelSupportsAutoMode(getMainLoopModel())) return 'model'
   return null
 }
