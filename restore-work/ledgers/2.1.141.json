@@ -1,0 +1,59 @@
+{
+  "version": "2.1.141",
+  "fromVersion": "2.1.140",
+  "expectedFunctionCount": 0,
+  "functions": [],
+  "changelogCoverage": [
+    {
+      "item": "Added terminalSequence field to hook JSON output",
+      "status": "located",
+      "evidence": "Official 0→12. Zod schemas (src/types/hooks.ts, coreSchemas.ts). Parser $m6/u25 in src/utils/terminalSequence.ts (allowlist OSC 0/1/2/9/99/777 + BEL, 4096-byte cap). Write stack _M4/AM4 in Messages.tsx (TerminalWriteContext + pushTerminalWriter/popTerminalWriter immediately before useTerminalNotification). processHookJSONOutput stores validated seq; executeHooksInternal qm6 emit; sP8 emitHookTerminalSequence on outside-REPL callback/HTTP/MCP/command parse. parseHookOutput schema hint includes terminalSequence."
+    },
+    {
+      "item": "Added CLAUDE_CODE_PLUGIN_PREFER_HTTPS to clone GitHub plugin sources over HTTPS",
+      "status": "located",
+      "evidence": "Official 0→2. src/utils/plugins/pluginLoader.ts (2 sites) + marketplaceManager.ts."
+    },
+    {
+      "item": "Added ANTHROPIC_WORKSPACE_ID for workload identity federation",
+      "status": "shared-logic",
+      "evidence": "Official 0→5. Large OIDC federation not in recovered src tree; deferred-large-infra."
+    },
+    {
+      "item": "Added claude agents --cwd",
+      "status": "shared-logic",
+      "evidence": "No unique token."
+    },
+    {
+      "item": "/feedback can include recent sessions",
+      "status": "shared-logic",
+      "evidence": "No unique token."
+    },
+    {
+      "item": "Rewind menu Summarize up to here",
+      "status": "located",
+      "evidence": "Official 0→1. src/components/MessageSelector.tsx summarize_up_to already present; bundle push is unconditional."
+    },
+    {
+      "item": "Auto mode permission dialog explains permissions.ask rule",
+      "status": "shared-logic",
+      "evidence": "permissions.ask rule 0→0."
+    },
+    {
+      "item": "Restored view diff in your IDE option",
+      "status": "shared-logic",
+      "evidence": "ide_diff_view 4→8; Failed to show diff 0→1; TS useDiffInIDE pre-exists."
+    },
+    {
+      "item": "ast-only iM7 empty-$ rm gate",
+      "status": "located",
+      "evidence": "tengu_bash_dangerous_rm_too_complex 0→1. parseDangerousRmVariableExpansion + dangerousRmVariableExpansionAsk in pathValidation.ts; wired in bashPermissions a55 too-complex path after checkEarlyExitDeny (deny short-circuit, leftover-allow only when ruleContent===command.trim())."
+    },
+    {
+      "item": "ast-only claude plugin init",
+      "status": "located",
+      "evidence": "cli_plugin_init 0→8. src/utils/plugins/pluginInit.ts (YS4/f3$/fS4/Hp5/qp5/zp5) + src/main.tsx pluginCmd.command('init <name>')."
+    }
+  ],
+  "notes": "astdiff-driven land of prior FAIL rows: terminalSequence emit stack (Messages.tsx write stack, not Ink ctor), iM7 empty-$ rm (a55 only), claude plugin init, skills-dir sentinel + C87 hasEnterprisePolicy. HTTPS env already landed. ANTHROPIC_WORKSPACE_ID remains deferred-large-infra. Four-domain review PASS. Do not pull 142+ (auth snapshot, bgIsolation, stop-hook producers) into the 141 commit."
+}
