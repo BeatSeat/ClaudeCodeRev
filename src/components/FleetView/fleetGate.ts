@@ -1,11 +1,22 @@
 import { getFeatureValue_CACHED_MAY_BE_STALE } from '../../services/analytics/growthbook.js'
+import { isEnvTruthy } from '../../utils/envUtils.js'
+import { getInitialSettings } from '../../utils/settings/settings.js'
 
 /**
  * Official 2.1.119 `C26` / `CZH`.
  * GrowthBook `tengu_slate_meadow` (default false).
  */
+export function isAgentViewDisabled(): boolean {
+  return (
+    isEnvTruthy(process.env.CLAUDE_CODE_DISABLE_AGENT_VIEW) ||
+    isEnvTruthy(process.env.CLAUDE_CODE_DISABLE_AGENTS_FLEET) ||
+    getInitialSettings().disableBackgroundAgents === true
+  )
+}
+
+/** Official 2.1.139: announced agent view — on unless env/managed disable. */
 export function isAgentsFleetEnabled(): boolean {
-  return getFeatureValue_CACHED_MAY_BE_STALE('tengu_slate_meadow', false)
+  return !isAgentViewDisabled()
 }
 
 /**
