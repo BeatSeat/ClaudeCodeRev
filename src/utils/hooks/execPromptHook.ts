@@ -281,7 +281,7 @@ Always include a "reason" field.`,
             blockingError: `[${hook.prompt}]: ${parsed.data.reason}`,
             command: hook.prompt,
           },
-          preventContinuation: !isStopHook,
+          preventContinuation: !isStopHook && hook.continueOnBlock !== true,
           stopReason: parsed.data.reason,
         }
       }

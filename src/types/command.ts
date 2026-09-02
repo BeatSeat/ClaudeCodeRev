@@ -21,6 +21,8 @@ export type LocalCommandResult =
       displayText?: string
     }
   | { type: 'skip' } // Skip messages
+  /** Official 2.1.139: local command then immediately query the model. */
+  | { type: 'query'; value: string; prompt: string }
 
 export type PromptCommand = {
   type: 'prompt'
@@ -28,6 +30,7 @@ export type PromptCommand = {
   contentLength: number // Length of command content in characters (used for token estimation)
   argNames?: string[]
   allowedTools?: string[]
+  disallowedTools?: string[]
   model?: string
   source: SettingSource | 'builtin' | 'mcp' | 'plugin' | 'bundled'
   pluginInfo?: {
@@ -47,6 +50,8 @@ export type PromptCommand = {
   // Only applicable when context is 'fork'
   agent?: string
   effort?: EffortValue
+  /** Official 2.1.147: parse args for an explicit effort (e.g. `/code-review high`). */
+  getEffort?(args: string): EffortValue | undefined
   // Glob patterns for file paths this skill applies to
   // When set, the skill is only visible after the model touches matching files
   paths?: string[]

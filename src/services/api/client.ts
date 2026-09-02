@@ -24,6 +24,7 @@ import {
   getSessionId,
 } from '../../bootstrap/state.js'
 import { getOauthConfig } from '../../constants/oauth.js'
+import { getAgentContext } from '../../utils/agentContext.js'
 import { isDebugToStdErr, logForDebugging } from '../../utils/debug.js'
 import { getFeatureValue_CACHED_MAY_BE_STALE } from '../analytics/growthbook.js'
 import {
@@ -114,6 +115,7 @@ export async function getAnthropicClient({
   const containerId = process.env.CLAUDE_CODE_CONTAINER_ID
   const remoteSessionId = process.env.CLAUDE_CODE_REMOTE_SESSION_ID
   const clientApp = process.env.CLAUDE_AGENT_SDK_CLIENT_APP
+  const agentContext = getAgentContext()
   const customHeaders = getCustomHeaders()
   const defaultHeaders: { [key: string]: string } = {
     'x-app': 'cli',
@@ -126,6 +128,13 @@ export async function getAnthropicClient({
       : {}),
     // SDK consumers can identify their app/library for backend analytics
     ...(clientApp ? { 'x-client-app': clientApp } : {}),
+    // Official 2.1.139: subagent requests carry agent / parent-agent IDs
+    ...(agentContext?.agentId
+      ? { 'x-claude-code-agent-id': agentContext.agentId }
+      : {}),
+    ...(agentContext?.parentAgentId
+      ? { 'x-claude-code-parent-agent-id': agentContext.parentAgentId }
+      : {}),
   }
 
   // Log API client configuration for HFI debugging
@@ -597,12 +606,19 @@ function buildFetch(
       // never let logging crash the fetch
     }
     const response = await inner(input, { ...init, headers })
+    const contentType = response.headers.get('content-type')
     // First-party SSE: abort if the byte stream goes silent (official 2.1.104 `m9_`,
     // 2.1.105 `WY_` + 5-minute floor).
+    const firstPartySse =
+      injectClientRequestId && contentType?.includes('text/event-stream')
+    // Official 2.1.143: Bedrock eventstream watchdog is env-gated separately.
+    const bedrockEventstream =
+      provider === 'bedrock' &&
+      contentType?.includes('vnd.amazon.eventstream') &&
+      isEnvTruthy(process.env.CLAUDE_ENABLE_BYTE_WATCHDOG_BEDROCK)
     if (
-      injectClientRequestId &&
+      (firstPartySse || bedrockEventstream) &&
       response.body &&
-      response.headers.get('content-type')?.includes('text/event-stream') &&
       isByteLevelStreamWatchdogEnabled()
     ) {
       const idleMs = getStreamIdleTimeoutMs()

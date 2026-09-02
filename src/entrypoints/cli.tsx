@@ -63,6 +63,19 @@ async function main(): Promise<void> {
   const { profileCheckpoint } = await import('../utils/startupProfiler.js')
   profileCheckpoint('cli_entry')
 
+  // Official 2.1.143 `ZU5`/`LS4`: --bg-pty-host disclaims macOS TCC first.
+  if (args.includes('--bg-pty-host')) {
+    const { disclaimMacOSTccResponsibility } = await import(
+      '../utils/macosTccDisclaim.js'
+    )
+    await disclaimMacOSTccResponsibility()
+    // Official 2.1.144: exec-form pty-host sets CLAUDE_PTY_HOST_EXEC=1, then
+    // the child deletes it after reading (nice +5 on non-Windows).
+    if (process.env.CLAUDE_PTY_HOST_EXEC === '1') {
+      delete process.env.CLAUDE_PTY_HOST_EXEC
+    }
+  }
+
   // Fast-path for --dump-system-prompt: output the rendered system prompt and exit.
   // Used by prompt sensitivity evals to extract the system prompt at a specific commit.
   // Ant-only: eliminated from external builds via feature flag.
@@ -220,7 +233,7 @@ async function main(): Promise<void> {
     return
   }
 
-  // Official 2.1.119 `rk5` + `YY5`: TTY `claude agents` mounts FleetView
+  // Official 2.1.139 `ma4` + `GQ5`: TTY `claude agents` mounts FleetView
   // before the full CLI. Extra flags (`--json`, `--cwd`, …) fall through.
   if (
     args[0] === 'agents' &&
@@ -241,10 +254,12 @@ async function main(): Promise<void> {
       const { setIsInteractive } = await import('../bootstrap/state.js')
       setIsInteractive(true)
       const { logEvent } = await import('../services/analytics/index.js')
-      logEvent('tengu_fleetview', {})
+      logEvent('tengu_fleetview', { defaultToAgentsView: false })
       const { createRoot } = await import('../ink.js')
       const root = await createRoot({ exitOnCtrlC: false })
       await mountFleetView(root)
+      // process.exit (not return) — mountFleetView's Ink TUI can leave event
+      // loop handles that prevent natural exit.
       // eslint-disable-next-line custom-rules/no-process-exit
       process.exit(0)
     }

@@ -43,7 +43,7 @@ import memoize from 'lodash-es/memoize.js'
 import uniqBy from 'lodash-es/uniqBy.js'
 import zipObject from 'lodash-es/zipObject.js'
 import pMap from 'p-map'
-import { getOriginalCwd, getSessionId } from '../../bootstrap/state.js'
+import { getOriginalCwd, getProjectRoot, getSessionId } from '../../bootstrap/state.js'
 import type { Command } from '../../commands.js'
 import { getOauthConfig } from '../../constants/oauth.js'
 import { PRODUCT_URL } from '../../constants/product.js'
@@ -994,6 +994,7 @@ export const connectToServer = memoize(
           args: finalArgs,
           env: {
             ...subprocessEnv(),
+            CLAUDE_PROJECT_DIR: getProjectRoot(),
             ...serverRef.env,
           } as Record<string, string>,
           stderr: 'pipe', // prevents error output from the MCP server from printing to the UI

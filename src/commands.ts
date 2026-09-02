@@ -13,6 +13,8 @@ import copy from './commands/copy/index.js'
 import desktop from './commands/desktop/index.js'
 import commitPushPr from './commands/commit-push-pr.js'
 import compact from './commands/compact/index.js'
+import scrollSpeed from './commands/scroll-speed/index.js'
+import goal, { goalNonInteractive } from './commands/goal/index.js'
 import {
   autocompact,
   autocompactNonInteractive,
@@ -281,6 +283,9 @@ const COMMANDS = memoize((): Command[] => [
   clear,
   color,
   compact,
+  goal,
+  goalNonInteractive,
+  scrollSpeed,
   config,
   copy,
   desktop,

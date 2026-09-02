@@ -49,6 +49,10 @@ const jobClassifierModule = feature('TEMPLATES')
 /* eslint-enable @typescript-eslint/no-require-imports */
 
 import type { QuerySource } from '../constants/querySource.js'
+import {
+  applyGoalHookBlocked,
+  applyGoalHookSucceeded,
+} from '../commands/goal/goal-core.js'
 import { executeAutoDream } from '../services/autoDream/autoDream.js'
 import { executePromptSuggestion } from '../services/PromptSuggestion/promptSuggestion.js'
 import { isBareMode, isEnvDefinedFalsy } from '../utils/envUtils.js'
@@ -238,6 +242,15 @@ export async function* handleStopHooks(
               ) {
                 hasOutput = true
               }
+              // Official 2.1.139: goal is a session Stop prompt hook that
+              // auto-clears once the condition is met.
+              const achieved = applyGoalHookSucceeded(
+                toolUseContext,
+                attachment,
+              )
+              if (achieved) {
+                yield achieved
+              }
             }
             // Extract per-hook duration for timing visibility.
             // Hooks run in parallel; match by command + first unassigned entry.
@@ -262,8 +275,18 @@ export async function* handleStopHooks(
         blockingErrors.push(userMessage)
         yield userMessage
         hasOutput = true
-        // Add to hookErrors so it appears in the summary
-        hookErrors.push(result.blockingError.blockingError)
+        // Official 2.1.139: a matching /goal Stop hook emits goal_status
+        // instead of a generic stop-hook error line.
+        const goalBlocked = applyGoalHookBlocked(
+          toolUseContext,
+          result.blockingError.command,
+          result.stopReason,
+        )
+        if (goalBlocked) {
+          yield goalBlocked
+        } else {
+          hookErrors.push(result.blockingError.blockingError)
+        }
       }
       // Check if hook wants to prevent continuation
       if (result.preventContinuation) {

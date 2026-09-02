@@ -30,6 +30,7 @@ import {
   InvalidArgumentError,
   Option,
 } from '@commander-js/extra-typings'
+import { formatHelp } from './utils/cliHelpFormat.js'
 import chalk from 'chalk'
 import { readFileSync } from 'fs'
 import mapValues from 'lodash-es/mapValues.js'
@@ -162,6 +163,7 @@ import {
   getOriginalCwd,
   setAdditionalDirectoriesForClaudeMd,
   setIsRemoteMode,
+  setStrictMcpConfig,
   setMainLoopModelOverride,
   setMainThreadAgentType,
   setTeleportedSessionInfo,
@@ -312,6 +314,7 @@ import {
   areMcpConfigsAllowedWithEnterpriseMcpConfig,
   dedupClaudeAiMcpServers,
   doesEnterpriseMcpConfigExist,
+  shouldSuppressClaudeAiMcps,
   filterMcpServersByPolicy,
   getClaudeCodeMcpConfigs,
   getMcpServerSignature,
@@ -1261,7 +1264,8 @@ async function getInputPrompt(
   ) {
     if (inputFormat === 'stream-json') {
       process.stdin.setEncoding('utf8')
-      return process.stdin
+      const { iterateStreamUntilClose } = await import('./utils/process.js')
+      return iterateStreamUntilClose(process.stdin)
     }
     process.stdin.setEncoding('utf8')
     let data = ''
@@ -1304,11 +1308,16 @@ async function run(): Promise<CommanderCommand> {
   function createSortedHelpConfig(): {
     sortSubcommands: true
     sortOptions: true
+    formatHelp: typeof formatHelp
   } {
     const getOptionSortKey = (opt: Option): string =>
       opt.long?.replace(/^--/, '') ?? opt.short?.replace(/^-/, '') ?? ''
     return Object.assign(
-      { sortSubcommands: true, sortOptions: true } as const,
+      {
+        sortSubcommands: true,
+        sortOptions: true,
+        formatHelp,
+      } as const,
       {
         compareOptions: (a: Option, b: Option) =>
           getOptionSortKey(a).localeCompare(getOptionSortKey(b)),
@@ -2521,6 +2530,7 @@ async function run(): Promise<CommanderCommand> {
 
       // Extract strict MCP config flag
       const strictMcpConfig = options.strictMcpConfig || false
+      setStrictMcpConfig(strictMcpConfig)
 
       // Check if enterprise MCP configuration exists. When it does, only allow dynamic MCP
       // configs that contain special server types (sdk)
@@ -2771,7 +2781,7 @@ async function run(): Promise<CommanderCommand> {
       > =
         isNonInteractiveSession &&
         !strictMcpConfig &&
-        !doesEnterpriseMcpConfigExist() &&
+        !shouldSuppressClaudeAiMcps() &&
         // --bare / SIMPLE: skip claude.ai proxy servers (datadog, Gmail,
         // Slack, BigQuery, PubMed — 6-14s each to connect). Scripted calls
         // that need MCP pass --mcp-config explicitly.
@@ -4361,9 +4371,21 @@ async function run(): Promise<CommanderCommand> {
         remoteSessionUrl: undefined,
         remoteConnectionStatus: 'connecting',
         remoteBackgroundTaskCount: 0,
-        replBridgeEnabled: fullRemoteControl || ccrMirrorEnabled,
-        replBridgeExplicit: remoteControl,
-        replBridgeOutboundOnly: ccrMirrorEnabled,
+        replBridgeEnabled:
+          fullRemoteControl ||
+          ccrMirrorEnabled ||
+          (Boolean(process.env.CLAUDE_BRIDGE_REATTACH_SESSION) &&
+            !isEnvTruthy(process.env.CLAUDE_BRIDGE_REATTACH_OUTBOUND_ONLY)),
+        replBridgeExplicit:
+          remoteControl ||
+          (Boolean(process.env.CLAUDE_BRIDGE_REATTACH_SESSION) &&
+            !isEnvTruthy(process.env.CLAUDE_BRIDGE_REATTACH_OUTBOUND_ONLY) &&
+            !fullRemoteControl),
+        replBridgeOutboundOnly: fullRemoteControl
+          ? false
+          : process.env.CLAUDE_BRIDGE_REATTACH_SESSION
+            ? isEnvTruthy(process.env.CLAUDE_BRIDGE_REATTACH_OUTBOUND_ONLY)
+            : ccrMirrorEnabled,
         replBridgeConnected: false,
         replBridgeSessionActive: false,
         replBridgeReconnecting: false,
@@ -4392,6 +4414,7 @@ async function run(): Promise<CommanderCommand> {
         thinkingEnabled,
         promptSuggestionEnabled: shouldEnablePromptSuggestion(),
         awaySummaryEnabled: isAwaySummaryEnabled(),
+        displayedMessageContent: {},
         sessionHooks: new Map(),
         inbox: {
           messages: [],
@@ -6141,6 +6164,43 @@ async function run(): Promise<CommanderCommand> {
       await pluginValidateHandler(manifestPath, options)
     })
 
+  // Official 2.1.157 — claude plugin init <name>
+  pluginCmd
+    .command('init <name>')
+    .alias('new')
+    .description(
+      'Scaffold a new plugin at ~/.claude/skills/<name>/ (auto-loads next session as <name>@skills-dir)',
+    )
+    .option('--description <text>', 'Manifest description')
+    .option('--author <name>', 'Author name (default: git config user.name)')
+    .option(
+      '--author-email <email>',
+      'Author email (default: git config user.email)',
+    )
+    .option(
+      '--with <components...>',
+      'Also scaffold: agents, hooks, mcp, lsp',
+    )
+    .option(
+      '-f, --force',
+      'Overwrite an existing .claude-plugin/ at the target',
+    )
+    .action(
+      async (
+        name: string,
+        options: {
+          with?: string[]
+          description?: string
+          author?: string
+          authorEmail?: string
+          force?: boolean
+        },
+      ) => {
+        const { pluginInitHandler } = await import('./cli/handlers/plugins.js')
+        await pluginInitHandler(name, options)
+      },
+    )
+
   // Official 2.1.118 pluginTagHandler
   pluginCmd
     .command('tag [path]')
@@ -6240,12 +6300,21 @@ async function run(): Promise<CommanderCommand> {
     .alias('rm')
     .description('Remove a configured marketplace')
     .addOption(coworkOption())
-    .action(async (name: string, options: { cowork?: boolean }) => {
-      const { marketplaceRemoveHandler } = await import(
-        './cli/handlers/plugins.js'
-      )
-      await marketplaceRemoveHandler(name, options)
-    })
+    .option(
+      '--scope <scope>',
+      'Remove the marketplace declaration from a specific settings scope: user, project, or local. Omit to remove it from every scope.',
+    )
+    .action(
+      async (
+        name: string,
+        options: { cowork?: boolean; scope?: string },
+      ) => {
+        const { marketplaceRemoveHandler } = await import(
+          './cli/handlers/plugins.js'
+        )
+        await marketplaceRemoveHandler(name, options)
+      },
+    )
 
   marketplaceCmd
     .command('update [name]')
@@ -6428,7 +6497,21 @@ async function run(): Promise<CommanderCommand> {
       '--setting-sources <sources>',
       'Comma-separated list of setting sources to load (user, project, local).',
     )
-    .action(async () => {
+    .option(
+      '--json',
+      'Print live sessions as a JSON array and exit (for scripting; does not require a TTY)',
+    )
+    .option('--cwd <path>', 'Filter live sessions to this working directory')
+    .option(
+      '--agent <agent>',
+      "Default agent for sessions dispatched from agent view. Overrides the 'agent' setting.",
+    )
+    .action(async (opts: { json?: boolean; cwd?: string }) => {
+      if (opts.json) {
+        const { printAgentsJson } = await import('./cli/handlers/agents.js')
+        await printAgentsJson(opts.cwd)
+        process.exit(0)
+      }
       if (process.stdout.isTTY) {
         const { isAgentsFleetEnabled, mountFleetView } = await import(
           './components/FleetView/index.js'
@@ -6436,7 +6519,7 @@ async function run(): Promise<CommanderCommand> {
         if (isAgentsFleetEnabled()) {
           const { createRoot } = await import('./ink.js')
           const { logEvent } = await import('./services/analytics/index.js')
-          logEvent('tengu_fleetview', {})
+          logEvent('tengu_fleetview', { defaultToAgentsView: false })
           const root = await createRoot(getBaseRenderOptions(false))
           await mountFleetView(root)
           process.exit(0)
