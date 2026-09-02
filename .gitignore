@@ -7,15 +7,6 @@ restore-work/astdiff/
 restore-work/ledgers/*.fp.json
 restore-work/ledgers/_*
 !restore-work/ledgers/_template.json
-# Hop working artifacts. Track review / landing / scout markdown and ledgers only.
-restore-work/diffs/*.astdump
-restore-work/diffs/*.json
-restore-work/diffs/*-index/
-restore-work/diffs/*-extract/
-restore-work/diffs/_run*/
-restore-work/diffs/extract-*.mjs
-restore-work/diffs/partition-*.mjs
-restore-work/diffs/*.sh
-restore-work/diffs/write-*.mjs
-restore-work/diffs/verify-*.mjs
+# Hop working artifacts: diffs stay on disk only, never tracked. Ledgers are tracked.
+restore-work/diffs/
 .cursor/skills/incremental-ts-restore/node_modules/
