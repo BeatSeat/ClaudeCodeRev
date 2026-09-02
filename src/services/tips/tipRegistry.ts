@@ -12,7 +12,11 @@ import { color } from '../../components/design-system/color.js'
 import { shouldShowOverageCreditUpsell } from '../../components/LogoV2/OverageCreditUpsell.js'
 import { getShortcutDisplay } from '../../keybindings/shortcutFormat.js'
 import { isKairosCronEnabled } from '../../tools/ScheduleCronTool/prompt.js'
-import { is1PApiCustomer } from '../../utils/auth.js'
+import {
+  is1PApiCustomer,
+  isClaudeAISubscriber,
+  isMaxSubscriber,
+} from '../../utils/auth.js'
 import { countConcurrentSessions } from '../../utils/concurrentSessions.js'
 import { getGlobalConfig } from '../../utils/config.js'
 import {
@@ -109,6 +113,23 @@ async function isMarketplacePluginRelevant(
 }
 
 const externalTips: Tip[] = [
+  {
+    id: 'powerup-onboarding',
+    content: async ctx => {
+      const blue = color('suggestion', ctx.theme)
+      return `New to Claude Code? Run ${blue('/powerup')} for a quick interactive tutorial`
+    },
+    cooldownSessions: 1,
+    async isRelevant() {
+      const config = getGlobalConfig()
+      if (config.numStartups >= 10) return false
+      if (config.powerupsUnlocked?.length) return false
+      return getFeatureValue_CACHED_MAY_BE_STALE<boolean>(
+        'tengu_alder_compass',
+        false,
+      )
+    },
+  },
   {
     id: 'new-user-warmup',
     content: async () =>
@@ -486,6 +507,28 @@ const externalTips: Tip[] = [
       '/mobile to use Claude Code from the Claude app on your phone',
     cooldownSessions: 15,
     isRelevant: async () => true,
+  },
+  {
+    id: 'console-api-key',
+    content: async ctx => {
+      const blue = color('suggestion', ctx.theme)
+      return `Build your AI product with Claude API. Run ${blue('/claude-api')} to get started`
+    },
+    cooldownSessions: 15,
+    isRelevant: async () => {
+      if (!isClaudeAISubscriber() || !isMaxSubscriber()) return false
+      const config = getGlobalConfig()
+      if (config.primaryApiKey) return false
+      if (config.customApiKeyResponses?.approved?.length) return false
+      if (process.env.ANTHROPIC_API_KEY) return false
+      if (config.numStartups <= 10) return false
+      return (
+        getFeatureValue_CACHED_MAY_BE_STALE<'off' | 'on'>(
+          'tengu_kestrel_arch',
+          'off',
+        ) === 'on'
+      )
+    },
   },
   {
     id: 'opusplan-mode-reminder',

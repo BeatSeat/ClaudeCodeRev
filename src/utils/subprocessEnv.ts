@@ -7,7 +7,6 @@ import {
   getManagedSandboxBwrapPath,
   resolveSandboxBwrapPath,
 } from './sandbox/sandbox-adapter.js'
-import { whichSync } from './which.js'
 
 /**
  * Env vars to strip from subprocess environments when running inside GitHub

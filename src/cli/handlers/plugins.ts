@@ -48,6 +48,7 @@ import { loadPluginMcpServers } from '../../utils/plugins/mcpPluginIntegration.j
 import { parseMarketplaceInput } from '../../utils/plugins/parseMarketplaceInput.js'
 import {
   parsePluginIdentifier,
+  buildPluginId,
   scopeToSettingSource,
 } from '../../utils/plugins/pluginIdentifier.js'
 import { formatDependencyCountSuffix } from '../../utils/plugins/dependencyResolver.js'
@@ -61,6 +62,12 @@ import {
 } from '../../utils/plugins/pluginTag.js'
 import type { PluginSource } from '../../utils/plugins/schemas.js'
 import {
+  computePluginTokenCost,
+  formatTokenEstimate,
+  getPluginInventory,
+  scaleCharsToTokens,
+} from '../../utils/plugins/pluginDetails.js'
+import {
   type ValidationResult,
   validateManifest,
   validatePluginContents,
@@ -68,6 +75,7 @@ import {
 import { jsonStringify } from '../../utils/slowOperations.js'
 import { plural } from '../../utils/stringUtils.js'
 import { cliError, cliOk } from '../exit.js'
+import { getMainLoopModel } from '../../utils/model/model.js'
 
 // Re-export for main.tsx to reference in option definitions
 export { VALID_INSTALLABLE_SCOPES, VALID_UPDATE_SCOPES }
@@ -1012,4 +1020,182 @@ export async function pluginUpdateHandler(
   }
 
   await updatePluginCli(plugin, scope)
+}
+
+// Official 2.1.139 IR5 — `claude plugin details <name>`.
+// Shows a plugin's component inventory and projected token cost.
+// NOTE: the bundle handler reads `options.json`/`options.models`, which the 139
+// command does not register (only the hidden `--cowork` is); they resolve to
+// `undefined` in practice and are kept to match the bundle's defensive reads.
+export async function pluginDetailsHandler(
+  name: string,
+  options: { cowork?: boolean; json?: boolean; models?: string[] },
+): Promise<void> {
+  if (options.cowork) setUseCoworkPlugins(true)
+  logEvent('tengu_plugin_details_command', {})
+
+  const { enabled, disabled } = await loadAllPlugins()
+  const { name: parsedName, marketplace } = parsePluginIdentifier(name)
+  const plugin = [...enabled, ...disabled].find(p =>
+    marketplace
+      ? p.source === buildPluginId(parsedName, marketplace)
+      : p.name === parsedName,
+  )
+  if (!plugin) {
+    logEvent('tengu_feature_bad', {
+      feature_name:
+        'cli_plugin_details' as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
+      error_code:
+        'not_found' as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
+    })
+    // biome-ignore lint/suspicious/noConsole:: intentional console output
+    console.error(
+      `Plugin "${name}" not found. Run \`claude plugin list\` to see installed plugins, or pass --plugin-dir <path> to load one from disk.`,
+    )
+    process.exit(1)
+  }
+
+  const sourceKind = plugin.source.split('@')[1] ?? 'inline'
+  const models = options.models?.length ? options.models : [getMainLoopModel()]
+
+  let cost: {
+    tokens: Record<string, { always_on: number; on_invoke: number }>
+    inventory: Awaited<ReturnType<typeof getPluginInventory>>
+  }
+  try {
+    const inventory = await getPluginInventory(plugin, sourceKind)
+    cost = await computePluginTokenCost(inventory, models, plugin.name)
+  } catch (error) {
+    logError(error)
+    logEvent('tengu_feature_bad', {
+      feature_name:
+        'cli_plugin_details' as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
+      error_code:
+        'inventory_failed' as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
+    })
+    // biome-ignore lint/suspicious/noConsole:: intentional console output
+    console.error(
+      `${figures.cross} Could not load details for "${plugin.name}": ${errorMessage(error)}`,
+    )
+    process.exit(1)
+  }
+
+  const { tokens, inventory } = cost
+
+  if (options.json) {
+    logEvent('tengu_feature_ok', {
+      feature_name:
+        'cli_plugin_details' as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
+    })
+    cliOk(
+      jsonStringify(
+        {
+          plugin: plugin.name,
+          version: plugin.manifest.version ?? null,
+          source: plugin.source,
+          sha: plugin.sha ?? null,
+          tokens,
+          components: inventory,
+        },
+        null,
+        2,
+      ),
+    )
+  }
+
+  const lines: string[] = []
+  lines.push(`${plugin.name} ${plugin.manifest.version ?? ''}`.trimEnd())
+  if (plugin.manifest.description) {
+    lines.push(`  ${plugin.manifest.description}`)
+  }
+  lines.push(`  Source: ${plugin.source}`)
+  lines.push('')
+  lines.push('Component inventory')
+
+  const sections: Array<[string, string[]]> = [
+    [
+      'Skills',
+      [...inventory.skills, ...inventory.commands].map(c => c.name).sort(),
+    ],
+    ['Agents', inventory.agents.map(c => c.name)],
+    ['Hooks', inventory.hooks],
+    ['MCP servers', inventory.mcpServers],
+  ]
+  for (const [label, names] of sections) {
+    const note =
+      label === 'Hooks'
+        ? '  (harness-only — no model context cost)'
+        : label === 'MCP servers'
+          ? '  (tool schemas resolved at runtime; not counted)'
+          : ''
+    lines.push(
+      `  ${label} (${names.length})` +
+        (names.length > 0 ? `  ${names.join(', ')}` : '') +
+        (names.length > 0 ? note : ''),
+    )
+  }
+  lines.push('')
+
+  const counted = [...inventory.skills, ...inventory.agents, ...inventory.commands].filter(
+    c => c.chars != null,
+  )
+  const totalChars = {
+    always_on: counted.reduce((sum, c) => sum + (c.chars?.always_on ?? 0), 0),
+    on_invoke: counted.reduce((sum, c) => sum + (c.chars?.on_invoke ?? 0), 0),
+  }
+  const primaryModelCost = tokens[models[0]]
+  const alwaysOnTokens =
+    primaryModelCost?.always_on ??
+    scaleCharsToTokens(totalChars.always_on, totalChars.always_on, undefined)
+
+  lines.push('Projected token cost')
+  lines.push(
+    `  Always-on:   ~${alwaysOnTokens.toLocaleString()} tok   added to every session`,
+  )
+  if (counted.length > 0) {
+    lines.push('')
+    lines.push('Per-component (rounded)')
+    const nameWidth = Math.max(
+      ...counted.map(c => c.name.length),
+      'component'.length,
+    )
+    lines.push(
+      `  ${'component'.padEnd(nameWidth)}  ${'always-on'.padStart(9)}  ${'on-invoke'.padStart(9)}`,
+    )
+    for (const component of counted) {
+      const alwaysOn = scaleCharsToTokens(
+        component.chars!.always_on,
+        totalChars.always_on,
+        primaryModelCost?.always_on,
+      )
+      const onInvoke = scaleCharsToTokens(
+        component.chars!.on_invoke,
+        totalChars.on_invoke,
+        primaryModelCost?.on_invoke,
+      )
+      lines.push(
+        `  ${component.name.padEnd(nameWidth)}  ${formatTokenEstimate(alwaysOn).padStart(9)}  ${formatTokenEstimate(onInvoke).padStart(9)}`,
+      )
+    }
+    lines.push('')
+    lines.push('  On-invoke cost is paid each time a skill or agent fires.')
+    lines.push('  Token counts are estimates and may differ from actual usage.')
+  }
+
+  if (primaryModelCost) {
+    logEvent('tengu_feature_ok', {
+      feature_name:
+        'cli_plugin_details' as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
+    })
+  } else {
+    logEvent('tengu_feature_sad', {
+      feature_name:
+        'cli_plugin_details' as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
+      error_code:
+        'count_tokens_unreachable' as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
+    })
+  }
+
+  // biome-ignore lint/suspicious/noConsole:: intentional console output
+  console.log(lines.join('\n'))
 }

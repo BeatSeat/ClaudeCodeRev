@@ -36,6 +36,8 @@ type OAuthStatus =
   | { state: 'platform_setup' } // 3rd-party platform picker (Bedrock wizard / docs)
   | { state: 'bedrock_wizard' } // Interactive AWS Bedrock setup wizard
   | { state: 'bedrock_done'; message: string } // Bedrock settings saved
+  | { state: 'gateway_setup' } // Cloud gateway (enterprise) login — setup in progress
+  | { state: 'gateway_done' } // Cloud gateway connected
   | { state: 'ready_to_start' } // Flow started, waiting for browser to open
   | { state: 'waiting_for_login'; url: string } // Browser opened, waiting for user to login
   | { state: 'creating_api_key' } // Got access token, creating API key
@@ -127,7 +129,8 @@ export function ConsoleOAuthFlow({
     },
   )
 
-  // Handle Enter to continue after Bedrock setup
+  // Handle Enter to continue after provider setup (Bedrock / Cloud gateway).
+  // Official 2.1.139: the done-handler also becomes active for `gateway_done`.
   useKeybinding(
     'confirm:yes',
     () => {
@@ -135,7 +138,9 @@ export function ConsoleOAuthFlow({
     },
     {
       context: 'Confirmation',
-      isActive: oauthStatus.state === 'bedrock_done',
+      isActive:
+        oauthStatus.state === 'bedrock_done' ||
+        oauthStatus.state === 'gateway_done',
     },
   )
 
@@ -481,18 +486,29 @@ function OAuthStatusMessage({
                     <Text>
                       3rd-party platform ·{' '}
                       <Text dimColor>
-                        Amazon Bedrock, Microsoft Foundry, or Vertex AI
+                      Amazon Bedrock, Microsoft Foundry, or Vertex AI
                       </Text>
                       {'\n'}
                     </Text>
                   ),
                   value: 'platform',
                 },
+                // Official 2.1.139 — the gateway (Cloud gateway) login-method slot.
+                // In the bundle this is an empty spread (`...[]`): the option is not
+                // rendered, yet the onChange below still handles `value === 'gateway'`
+                // (reached via the `gateway` force-login path). The typed empty spread
+                // keeps 'gateway' in the value union so the comparison typechecks.
+                ...(
+                  [] as { label: React.ReactNode; value: 'gateway' }[]
+                ),
               ]}
               onChange={value => {
                 if (value === 'platform') {
                   logEvent('tengu_oauth_platform_selected', {})
                   setOAuthStatus({ state: 'platform_setup' })
+                } else if (value === 'gateway') {
+                  logEvent('tengu_oauth_gateway_selected', {})
+                  setOAuthStatus({ state: 'gateway_setup' })
                 } else {
                   setOAuthStatus({ state: 'ready_to_start' })
                   if (value === 'claudeai') {
@@ -506,6 +522,22 @@ function OAuthStatusMessage({
               }}
             />
           </Box>
+        </Box>
+      )
+
+    // Official 2.1.139 — gateway (Cloud gateway) login states.
+    // `gateway_setup` is a transient in-progress state with no dedicated UI in
+    // the bundle (returns null); `gateway_done` confirms the connection.
+    case 'gateway_setup':
+      return null
+
+    case 'gateway_done':
+      return (
+        <Box flexDirection="column" gap={1} marginTop={1}>
+          <Text color="success">Connected to Cloud gateway.</Text>
+          <Text dimColor>
+            Press <Text bold>Enter</Text> to restart Claude Code.
+          </Text>
         </Box>
       )
 

@@ -74,6 +74,7 @@ import {
   prepareUserContent,
 } from '../messages.js'
 import type { ModelAlias } from '../model/aliases.js'
+import { applyAlwaysDenyCommandRulesFromContext } from '../permissions/alwaysDenyCommandRules.js'
 import { parseToolListFromCLI } from '../permissions/permissionSetup.js'
 import { hasPermissionsToUseTool } from '../permissions/permissions.js'
 import {
@@ -144,10 +145,11 @@ async function executeForkedSlashCommand(
   const { skillContent, modifiedGetAppState, baseAgent, promptMessages } =
     await prepareForkedCommandContext(command, args, context)
 
-  // Merge skill's effort into the agent definition so runAgent applies it
+  // Official 2.1.147: getEffort(args) wins over static frontmatter effort.
+  const forkedEffort = command.getEffort?.(args) ?? command.effort
   const agentDefinition =
-    command.effort !== undefined
-      ? { ...baseAgent, effort: command.effort }
+    forkedEffort !== undefined
+      ? { ...baseAgent, effort: forkedEffort }
       : baseAgent
 
   logForDebugging(
@@ -539,6 +541,7 @@ export async function processSlashCommand(
     messages: newMessages,
     shouldQuery: messageShouldQuery,
     allowedTools,
+    disallowedTools,
     model,
     effort,
     command: returnedCommand,
@@ -649,6 +652,7 @@ export async function processSlashCommand(
       messages: [createSyntheticUserCaveatMessage(), ...newMessages],
       shouldQuery: messageShouldQuery,
       allowedTools,
+      disallowedTools,
 
       model,
     }
@@ -724,6 +728,7 @@ export async function processSlashCommand(
         : [createSyntheticUserCaveatMessage(), ...newMessages],
     shouldQuery: messageShouldQuery,
     allowedTools,
+    disallowedTools,
     model,
     effort,
     resultText,
@@ -921,6 +926,23 @@ async function getMessagesForSlashCommand(
               messages: [],
               shouldQuery: false,
               command,
+            }
+          }
+
+          // Official 2.1.139: `{type:"query",value,prompt}` → stdout +
+          // meta prompt, then query. `f8` is createUserMessage.
+          if (result.type === 'query') {
+            return {
+              messages: [
+                userMessage,
+                createUserMessage({
+                  content: `<local-command-stdout>${result.value}</local-command-stdout>`,
+                }),
+                createUserMessage({ content: result.prompt, isMeta: true }),
+              ],
+              shouldQuery: true,
+              command,
+              resultText: result.value,
             }
           }
 
@@ -1209,8 +1231,11 @@ async function getMessagesForPromptSlashCommand(
         createUserMessage({ content: summaryContent, isMeta: true }),
       ],
       shouldQuery: true,
+      // Official 2.1.152 E54 coordinator arm returns parsed deny list only
+      // (no JW8). Do not invent a new PI() early-return — this arm already existed.
+      disallowedTools: parseToolListFromCLI(command.disallowedTools ?? []),
       model: command.model,
-      effort: command.effort,
+      effort: command.getEffort?.(args) ?? command.effort,
       command,
     }
   }
@@ -1255,6 +1280,17 @@ async function getMessagesForPromptSlashCommand(
   const additionalAllowedTools = parseToolListFromCLI(
     command.allowedTools ?? [],
   )
+  // Official 2.1.152 E54: zS(H.disallowedTools??[]); JW8 union into alwaysDeny
+  const additionalDisallowedTools = parseToolListFromCLI(
+    command.disallowedTools ?? [],
+  )
+  if (additionalDisallowedTools.length > 0) {
+    applyAlwaysDenyCommandRulesFromContext(
+      context,
+      additionalDisallowedTools,
+      'union',
+    )
+  }
 
   // Create content for the main message, including any pasted images
   const mainMessageContent: ContentBlockParam[] =
@@ -1303,8 +1339,9 @@ async function getMessagesForPromptSlashCommand(
     messages,
     shouldQuery: true,
     allowedTools: additionalAllowedTools,
+    disallowedTools: additionalDisallowedTools,
     model: command.model,
-    effort: command.effort,
+    effort: command.getEffort?.(args) ?? command.effort,
     command,
   }
 }

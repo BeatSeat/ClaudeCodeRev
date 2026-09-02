@@ -21,7 +21,9 @@ import { AsyncLocalStorage } from 'async_hooks'
 import { getFeatureValue_CACHED_MAY_BE_STALE } from '../../services/analytics/growthbook.js'
 import type { AssistantMessage, UserMessage } from '../../types/message.js'
 import { getIsNonInteractiveSession } from '../../bootstrap/state.js'
+import { getAgentContext } from '../agentContext.js'
 import { isEnvDefinedFalsy, isEnvTruthy } from '../envUtils.js'
+import { shouldPropagateTraceparent } from '../model/providers.js'
 import { getTelemetryAttributes } from '../telemetryAttributes.js'
 import {
   addBetaInteractionAttributes,
@@ -186,6 +188,9 @@ const ZERO_TRACE_ID = '00000000000000000000000000000000'
  * tool, or active span when tracing is on and the traceId is real.
  */
 export function getW3CTraceparent(): string | undefined {
+  if (!shouldPropagateTraceparent()) {
+    return
+  }
   if (!isAnyTracingEnabled()) {
     return
   }
@@ -396,6 +401,15 @@ export function startLLMRequestSpan(
     span.setAttribute('query_source', newContext.querySource)
   }
 
+  // Official 2.1.139: claude_code.llm_request spans include agent nesting
+  const agentContext = getAgentContext()
+  if (agentContext?.agentId) {
+    span.setAttribute('agent_id', agentContext.agentId)
+  }
+  if (agentContext?.parentAgentId) {
+    span.setAttribute('parent_agent_id', agentContext.parentAgentId)
+  }
+
   // Add experimental attributes (system prompt, new_context)
   addBetaLLMRequestAttributes(span, newContext, messagesForAPI)
 
@@ -592,6 +606,13 @@ export function startToolSpan(
     ? trace.setSpan(otelContext.active(), parentSpanCtx.span)
     : otelContext.active()
   const span = tracer.startSpan('claude_code.tool', { attributes }, ctx)
+  const agentContext = getAgentContext()
+  if (agentContext?.agentId) {
+    span.setAttribute('agent_id', agentContext.agentId)
+  }
+  if (agentContext?.parentAgentId) {
+    span.setAttribute('parent_agent_id', agentContext.parentAgentId)
+  }
 
   // Add experimental tool input attributes
   if (toolInput) {

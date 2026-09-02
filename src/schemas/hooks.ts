@@ -62,6 +62,12 @@ function buildHookSchemas() {
       .describe(
         'If true, hook runs in background and wakes the model on exit code 2 (blocking error). Implies async.',
       ),
+    continueOnBlock: z
+      .boolean()
+      .optional()
+      .describe(
+        'For PostToolUse: when true, feed the hook\'s rejection reason back to Claude and continue the turn instead of blocking',
+      ),
   })
 
   const PromptHookSchema = z.object({

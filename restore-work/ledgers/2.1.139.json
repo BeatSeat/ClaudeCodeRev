@@ -1,0 +1,29 @@
+{
+  "version": "2.1.139",
+  "fromVersion": "2.1.138",
+  "expectedFunctionCount": 0,
+  "functions": [],
+  "changelogCoverage": [
+    { "item": "Added agent view (Research Preview)", "status": "partial", "evidence": "Official agent view token 0→1, claude agents 15→15. Large new UI feature not fully landed this hop." },
+    { "item": "Added `/goal` command", "status": "partial", "evidence": "Official /goal 5→9, goal 87→102. Overlay panel feature not fully landed." },
+    { "item": "Added `/scroll-speed` command", "status": "partial", "evidence": "Official scroll-speed 0→1. Tuning UI not fully landed." },
+    { "item": "Added `claude plugin details`", "status": "shared-logic", "evidence": "token cost 1→3." },
+    { "item": "Added transcript view navigation", "status": "shared-logic", "evidence": "shortcut 56→57, keyboard shortcuts 7→7." },
+    { "item": "Added hook `args: string[]` field", "status": "shared-logic", "evidence": "args 458→475." },
+    { "item": "Added hook `continueOnBlock` for PostToolUse", "status": "partial", "evidence": "continueOnBlock 0→2. src/schemas/hooks.ts schema added; full preventContinuation wiring deferred." },
+    { "item": "MCP stdio servers receive `CLAUDE_PROJECT_DIR`", "status": "located", "evidence": "CLAUDE_PROJECT_DIR 2→9. src/services/mcp/client.ts stdio env adds CLAUDE_PROJECT_DIR: getProjectRoot()." },
+    { "item": "Compaction prompt asks to preserve sensitive user instructions", "status": "shared-logic", "evidence": "No unique token." },
+    { "item": "/mcp Reconnect picks up .mcp.json edits + shows HTTP status/URL", "status": "shared-logic", "evidence": "No unique token." },
+    { "item": "/context all per-skill token estimates", "status": "shared-logic", "evidence": "No unique token." },
+    { "item": "claude plugin install @ auto-refresh marketplace", "status": "shared-logic", "evidence": "No unique token." },
+    { "item": "/plugin installed-plugin details show hook/MCP names", "status": "shared-logic", "evidence": "No unique token." },
+    { "item": "/context shows providing plugin name", "status": "shared-logic", "evidence": "No unique token." },
+    { "item": "Remote MCP reconnect retry enabled for all users", "status": "shared-logic", "evidence": "No unique token." },
+    { "item": "Subagent x-claude-code-agent-id / parent-agent-id headers", "status": "partial", "evidence": "x-claude-code-agent-id 0→1. Requires threading agent context through client creation; not fully landed." },
+    { "item": "API-key feature gating (Remote Control, /schedule, connectors)", "status": "shared-logic", "evidence": "ANTHROPIC_API_KEY 84→88." },
+    { "item": "Fixed auth deadlock with forceRemoteSettingsRefresh", "status": "shared-logic", "evidence": "Runtime." },
+    { "item": "Fixed autoAllowBashIfSandboxed with shell expansions", "status": "shared-logic", "evidence": "Permission logic." },
+    { "item": "Fixed hook writing to terminal corrupting prompt", "status": "shared-logic", "evidence": "Runtime." }
+  ],
+  "notes": "Landed item 8 fully; items 6/7 schema landed. Large features (agent view, /goal, /scroll-speed) and header threading partially covered. 30+ remaining items shared-logic without unique landable strings."
+}
