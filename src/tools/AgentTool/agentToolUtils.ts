@@ -414,7 +414,7 @@ export async function classifyHandoffIfNeeded({
         content: [
           {
             type: 'text',
-            text: "Sub-agent has finished and is handing back control to the main agent. Review the sub-agent's work based on the block rules and let the main agent know if any file is dangerous (the main agent will see the reason).",
+            text: "Subagent has finished and is handing back control to the main agent. Review the subagent's work based on the block rules and let the main agent know if any file is dangerous (the main agent will see the reason).",
           },
         ],
       },
@@ -466,14 +466,14 @@ export async function classifyHandoffIfNeeded({
           'Handoff classifier unavailable, allowing sub-agent output with warning',
           { level: 'warn' },
         )
-        return `Note: The safety classifier was unavailable when reviewing this sub-agent's work. Please carefully verify the sub-agent's actions and output before acting on them.`
+        return `Note: The safety classifier was unavailable when reviewing this subagent's work. Please carefully verify the subagent's actions and output before acting on them.`
       }
 
       logForDebugging(
         `Handoff classifier flagged sub-agent output: ${classifierResult.reason}`,
         { level: 'warn' },
       )
-      return `SECURITY WARNING: This sub-agent performed actions that may violate security policy. Reason: ${classifierResult.reason}. Review the sub-agent's actions carefully before acting on its output.`
+      return `SECURITY WARNING: This subagent performed actions that may violate security policy. Reason: ${classifierResult.reason}. Review the subagent's actions carefully before acting on its output.`
     }
   }
 

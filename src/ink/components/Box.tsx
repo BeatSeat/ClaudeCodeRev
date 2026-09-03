@@ -46,6 +46,11 @@ export type Props = Except<Styles, 'textWrap'> & {
   onMouseEnter?: () => void
   /** Fired when the mouse moves out of this Box's rendered rect. */
   onMouseLeave?: () => void
+  /** Official 2.1.161 ink a11y props (`Tk1`). */
+  'aria-hidden'?: boolean
+  'aria-label'?: string
+  'aria-role'?: string
+  'aria-state'?: string
 }
 
 /**
@@ -71,6 +76,10 @@ function Box({
   onKeyDownCapture,
   onPaste,
   onPasteCapture,
+  'aria-hidden': ariaHidden,
+  'aria-label': ariaLabel,
+  'aria-role': ariaRole,
+  'aria-state': ariaState,
   ...style
 }: PropsWithChildren<Props>): React.ReactNode {
   // Warn if spacing values are not integers to prevent fractional layout dimensions
@@ -108,6 +117,10 @@ function Box({
       onKeyDownCapture={onKeyDownCapture}
       onPaste={onPaste}
       onPasteCapture={onPasteCapture}
+      aria-hidden={ariaHidden}
+      aria-label={ariaLabel}
+      aria-role={ariaRole}
+      aria-state={ariaState}
       style={{
         flexWrap,
         flexDirection,

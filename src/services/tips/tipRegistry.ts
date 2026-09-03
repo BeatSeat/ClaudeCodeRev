@@ -58,7 +58,10 @@ import {
   formatCreditAmount,
   getCachedReferrerReward,
 } from '../api/referral.js'
-import { getSessionsSinceLastShown } from './tipHistory.js'
+import {
+  getSessionsSinceLastShown,
+  getTipLifetimeShownCount,
+} from './tipHistory.js'
 import type { Tip, TipContext } from './types.js'
 
 /** 120 `LC6`: `Vb(kind, cwd).length > 0` — on-disk markdown under that subdir. */
@@ -160,6 +163,17 @@ const externalTips: Tip[] = [
         return !config.optionAsMetaKeyInstalled
       }
       return !config.shiftEnterKeyBindingInstalled
+    },
+  },
+  {
+    id: 'vscode-gpu-accel-garbled-glyphs',
+    providerAgnostic: true,
+    maxLifetimeShows: 5,
+    content: async () =>
+      'Corrupted terminal glyphs? Disable terminal GPU acceleration in settings or run /terminal-setup',
+    cooldownSessions: 8,
+    async isRelevant() {
+      return isSupportedVSCodeTerminal()
     },
   },
   {
@@ -674,6 +688,11 @@ export async function getRelevantTips(context?: TipContext): Promise<Tip[]> {
   const filtered = tips
     .filter((_, index) => isRelevant[index])
     .filter(_ => getSessionsSinceLastShown(_.id) >= _.cooldownSessions)
+    .filter(
+      _ =>
+        _.maxLifetimeShows === undefined ||
+        getTipLifetimeShownCount(_.id) < _.maxLifetimeShows,
+    )
 
   return [...filtered, ...customTips]
 }

@@ -274,6 +274,10 @@ export type GlobalConfig = {
   tipsHistory: {
     [tipId: string]: number // Key is tipId, value is the numStartups when tip was last shown
   }
+  /** Official 2.1.161 `tipLifetimeShownCounts` — caps tips with maxLifetimeShows. */
+  tipLifetimeShownCounts?: {
+    [tipId: string]: number
+  }
 
   /** Official 2.1.94: per-tier Bedrock upgrade the user already declined. */
   bedrockDeclinedUpgrades?: Record<string, string>

@@ -418,6 +418,18 @@ export function useRemoteSession({
         logForDebugging('[useRemoteSession] Connected')
         setConnStatus('connected')
       },
+      onCatchUpTruncated: () => {
+        logForDebugging(
+          '[useRemoteSession] Catch-up truncated — transcript gap',
+        )
+        setMessages(prev => [
+          ...prev,
+          createSystemMessage(
+            'Some earlier messages from this session could not be loaded after reconnecting.',
+            'warning',
+          ),
+        ])
+      },
       onReconnecting: () => {
         logForDebugging('[useRemoteSession] Reconnecting')
         setConnStatus('reconnecting')

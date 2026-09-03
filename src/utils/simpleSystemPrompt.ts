@@ -2,6 +2,7 @@ import memoize from 'lodash-es/memoize.js'
 import { CYBER_RISK_INSTRUCTION } from '../constants/cyberRiskInstruction.js'
 import { getFeatureValue_CACHED_MAY_BE_STALE } from '../services/analytics/growthbook.js'
 import { getGlobalConfig } from './config.js'
+import { logForDebugging } from './debug.js'
 import { isEnvDefinedFalsy, isEnvTruthy } from './envUtils.js'
 import { getCanonicalName } from './model/model.js'
 import { getAPIProvider } from './model/providers.js'
@@ -101,15 +102,36 @@ export const isSimpleSystemPrompt = memoize(
 )
 
 /**
- * Official 2.1.154 `oXz` — lean static prefix when `X3` is true.
+ * Official 2.1.161 `E1q` — ownership-frame arm (env or `tengu_walnut_prism`).
+ */
+export const isOwnershipFrameArmed = memoize((): boolean => {
+  const fromEnv = isEnvTruthy(process.env.CLAUDE_CODE_OWNERSHIP_FRAME)
+  const armed =
+    fromEnv ||
+    getFeatureValue_CACHED_MAY_BE_STALE('tengu_walnut_prism', false)
+  if (armed) {
+    logForDebugging(
+      `ownership_frame_arm_active source=${fromEnv ? 'env' : 'growthbook'}`,
+    )
+  }
+  return armed
+})
+
+/**
+ * Official 2.1.154 `oXz` / 161 `gxA` — lean static prefix when `X3` is true.
  */
 export function getLeanHarnessSection(
   outputStyleConfig: { name?: string } | null,
 ): string {
-  const identity =
-    outputStyleConfig !== null
-      ? 'You are an interactive agent that helps users according to your "Output Style" below, which describes how you should respond to user queries.'
-      : 'You are an interactive agent that helps users with software engineering tasks.'
+  const ownership = isOwnershipFrameArmed()
+  let identity = ownership
+    ? 'You work alongside the user on software engineering tasks and own the outcome of what you take on.'
+    : 'You are an interactive agent that helps users with software engineering tasks.'
+  if (outputStyleConfig !== null) {
+    identity = ownership
+      ? 'You work alongside the user and own the outcome of what you take on; your "Output Style" below describes how you should respond to queries.'
+      : 'You are an interactive agent that helps users according to your "Output Style" below, which describes how you should respond to user queries.'
+  }
   return `
 ${identity}
 
@@ -128,9 +150,12 @@ export function getLeanAntiVerbositySection(): string {
   return 'Write code that reads like the surrounding code: match its comment density, naming, and idiom.'
 }
 
-/** Official 2.1.154 `mXz` (null unless lean; this is the lean body). */
+/** Official 2.1.161 `yxA` (null unless lean; this is the lean body). */
 export function getLeanActionCautionSection(): string {
-  return 'For actions that are hard to reverse or outward-facing, confirm first unless durably authorized or explicitly told to proceed without asking; approval in one context doesn\'t extend to the next. Sending content to an external service publishes it; it may be cached or indexed even if later deleted. Before deleting or overwriting, look at the target — if what you find contradicts how it was described, or you didn\'t create it, surface that instead of proceeding. Report outcomes faithfully: if tests fail, say so with the output; if a step was skipped, say that; when something is done and verified, state it plainly without hedging.'
+  const lead = isOwnershipFrameArmed()
+    ? 'For actions that are hard to reverse or outward-facing, confirm first unless durably authorized or explicitly told to proceed without asking.'
+    : 'For actions that are hard to reverse or outward-facing, confirm first unless durably authorized or explicitly told to proceed without asking; approval in one context doesn\'t extend to the next.'
+  return `${lead} Sending content to an external service publishes it; it may be cached or indexed even if later deleted. Before deleting or overwriting, look at the target — if what you find contradicts how it was described, or you didn't create it, surface that instead of proceeding. Report outcomes faithfully: if tests fail, say so with the output; if a step was skipped, say that; when something is done and verified, state it plainly without hedging.`
 }
 
 /**

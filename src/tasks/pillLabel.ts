@@ -1,4 +1,5 @@
 import { DIAMOND_FILLED, DIAMOND_OPEN } from '../constants/figures.js'
+import { getFeatureValue_CACHED_MAY_BE_STALE } from '../services/analytics/growthbook.js'
 import { count } from '../utils/array.js'
 import type { BackgroundTaskState } from './types.js'
 
@@ -10,6 +11,20 @@ import type { BackgroundTaskState } from './types.js'
 export function getPillLabel(tasks: BackgroundTaskState[]): string {
   const n = tasks.length
   const allSameType = tasks.every(t => t.type === tasks[0]!.type)
+
+  // Official 161 `mcp_task` + `tengu_copper_thistle` ("job" vs "task").
+  // TaskState union in this tree is a pre-existing gap; match on the wire type.
+  // Cast the object (not `.type`) so TS does not report TS2339 on this access.
+  const first = tasks[0]
+  if (allSameType && first && (first as { type?: string }).type === 'mcp_task') {
+    const noun = getFeatureValue_CACHED_MAY_BE_STALE(
+      'tengu_copper_thistle',
+      false,
+    )
+      ? 'job'
+      : 'task'
+    return n === 1 ? `1 MCP ${noun}` : `${n} MCP ${noun}s`
+  }
 
   if (allSameType) {
     switch (tasks[0]!.type) {

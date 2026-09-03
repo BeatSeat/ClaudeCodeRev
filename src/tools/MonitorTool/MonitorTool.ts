@@ -254,7 +254,7 @@ async function startMonitor(
       stopped = true
       enqueueMonitorEvent(
         description,
-        `[Monitor stopped — your script produced too much output (${suppressed} events suppressed over ${Math.round((Date.now() - overRateSince) / 1000)}s). Write a new monitor command that filters more aggressively — pipe through grep --line-buffered, awk, or a wrapper script that only emits the specific events you need.]`,
+        `[Monitor stopped — your script produced too much output (${suppressed} events suppressed over ${Math.round((Date.now() - overRateSince) / 1000)}s). Write a new monitor command that filters more aggressively — a tighter grep --line-buffered pattern or a wrapper script that only emits the specific events you need.]`,
         taskRef.id,
         { housekeeping: true },
       )

@@ -15,6 +15,7 @@ import { Byline } from '../design-system/Byline.js'
 import { Dialog } from '../design-system/Dialog.js'
 import { KeyboardShortcutHint } from '../design-system/KeyboardShortcutHint.js'
 import { McpParsingWarnings } from './McpParsingWarnings.js'
+import { hasClaudeAiMcpEverConnected } from '../../services/mcp/claudeai.js'
 import type { AgentMcpServerInfo, ServerInfo } from './types.js'
 
 type Props = {
@@ -34,6 +35,7 @@ type Props = {
 type SelectableItem =
   | { type: 'server'; server: ServerInfo }
   | { type: 'agent-server'; agentServer: AgentMcpServerInfo }
+  | { type: 'unused-connectors-fold' }
 
 // Define scope order for display (constant, outside component)
 // 'dynamic' (built-in) is rendered separately at the end
@@ -152,6 +154,7 @@ export function MCPListPanel({
   const counts = toolCountsByServer ?? {}
   const [theme] = useTheme()
   const [selectedIndex, setSelectedIndex] = useState(0)
+  const [unusedFoldOpen, setUnusedFoldOpen] = useState(false)
   const hiddenConnectors = suppressedClaudeAiConnectors ?? []
 
   // Non-claudeai servers grouped by scope
@@ -162,13 +165,25 @@ export function MCPListPanel({
     return groupServersByScope(regularServers)
   }, [servers])
 
-  const claudeAiServers = React.useMemo(
-    () =>
-      servers
-        .filter(s => s.client.config.type === 'claudeai-proxy')
-        .sort((a, b) => a.name.localeCompare(b.name)),
-    [servers],
-  )
+  const { claudeAiServers, unusedClaudeAiServers } = React.useMemo(() => {
+    const used: ServerInfo[] = []
+    const unused: ServerInfo[] = []
+    for (const server of servers) {
+      if (server.client.config.type !== 'claudeai-proxy') continue
+      if (
+        (server.client.type === 'needs-auth' ||
+          server.client.type === 'failed') &&
+        !hasClaudeAiMcpEverConnected(server.name)
+      ) {
+        unused.push(server)
+      } else {
+        used.push(server)
+      }
+    }
+    used.sort((a, b) => a.name.localeCompare(b.name))
+    unused.sort((a, b) => a.name.localeCompare(b.name))
+    return { claudeAiServers: used, unusedClaudeAiServers: unused }
+  }, [servers])
 
   // Built-in (dynamic) servers - rendered last
   const dynamicServers = React.useMemo(
@@ -194,6 +209,14 @@ export function MCPListPanel({
     for (const server of claudeAiServers) {
       items.push({ type: 'server', server })
     }
+    if (unusedClaudeAiServers.length > 0) {
+      items.push({ type: 'unused-connectors-fold' })
+      if (unusedFoldOpen) {
+        for (const server of unusedClaudeAiServers) {
+          items.push({ type: 'server', server })
+        }
+      }
+    }
     for (const agentServer of agentServers) {
       items.push({ type: 'agent-server', agentServer })
     }
@@ -202,7 +225,14 @@ export function MCPListPanel({
       items.push({ type: 'server', server })
     }
     return items
-  }, [serversByScope, claudeAiServers, agentServers, dynamicServers])
+  }, [
+    serversByScope,
+    claudeAiServers,
+    unusedClaudeAiServers,
+    unusedFoldOpen,
+    agentServers,
+    dynamicServers,
+  ])
 
   const handleCancel = useCallback((): void => {
     onComplete('MCP dialog dismissed', {
@@ -217,6 +247,8 @@ export function MCPListPanel({
       onSelectServer(item.server)
     } else if (item.type === 'agent-server' && onSelectAgentServer) {
       onSelectAgentServer(item.agentServer)
+    } else if (item.type === 'unused-connectors-fold') {
+      setUnusedFoldOpen(open => !open)
     }
   }, [selectableItems, selectedIndex, onSelectServer, onSelectAgentServer])
 
@@ -251,7 +283,19 @@ export function MCPListPanel({
   }
 
   const debugMode = isDebugMode()
-  const hasFailedClients = servers.some(s => s.client.type === 'failed')
+  const unusedFoldIndex = selectableItems.findIndex(
+    item => item.type === 'unused-connectors-fold',
+  )
+  const hasFailedClients = servers.some(s => {
+    if (s.client.type !== 'failed') return false
+    if (
+      !unusedFoldOpen &&
+      unusedClaudeAiServers.some(u => u.name === s.name)
+    ) {
+      return false
+    }
+    return true
+  })
 
   if (
     servers.length === 0 &&
@@ -368,12 +412,34 @@ export function MCPListPanel({
           })}
 
           {/* Claude.ai servers section — includes same-URL hidden connectors */}
-          {(claudeAiServers.length > 0 || hiddenConnectors.length > 0) && (
+          {(claudeAiServers.length > 0 ||
+            unusedClaudeAiServers.length > 0 ||
+            hiddenConnectors.length > 0) && (
             <Box flexDirection="column" marginBottom={1}>
               <Box paddingLeft={2}>
                 <Text bold>claude.ai</Text>
               </Box>
               {claudeAiServers.map(server => renderServerItem(server))}
+              {unusedClaudeAiServers.length > 0 && (
+                <Box key="claudeai-unused-fold">
+                  <Text
+                    color={
+                      selectedIndex === unusedFoldIndex
+                        ? 'suggestion'
+                        : undefined
+                    }
+                  >
+                    {selectedIndex === unusedFoldIndex
+                      ? `${figures.pointer} `
+                      : '  '}
+                    {unusedFoldOpen ? figures.arrowDown : figures.arrowRight}{' '}
+                    Show unused connectors{' '}
+                    <Text dimColor>({unusedClaudeAiServers.length})</Text>
+                  </Text>
+                </Box>
+              )}
+              {unusedFoldOpen &&
+                unusedClaudeAiServers.map(server => renderServerItem(server))}
               {hiddenConnectors.map(connector => (
                 <HiddenConnectorRow
                   key={connector.name}

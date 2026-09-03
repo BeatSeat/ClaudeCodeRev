@@ -4618,7 +4618,10 @@ export function REPL({
               result?: string,
               doneOptions?: {
                 display?: CommandResultDisplay
+                shouldQuery?: boolean
                 metaMessages?: string[]
+                nextInput?: string
+                submitNextInput?: boolean
               },
             ): void => {
               doneWasCalled = true
@@ -4628,7 +4631,13 @@ export function REPL({
                 clearLocalJSX: true,
               })
               const newMessages: MessageType[] = []
-              if (result && doneOptions?.display !== 'skip') {
+              if (result && doneOptions?.shouldQuery) {
+                enqueue({
+                  value: result,
+                  mode: 'prompt',
+                  origin: { kind: 'auto-continuation' as const },
+                })
+              } else if (result && doneOptions?.display !== 'skip') {
                 addNotification({
                   key: `immediate-${matchingCommand.name}`,
                   text: result,
@@ -4674,6 +4683,17 @@ export function REPL({
                 helpers.setCursorOffset(stashedPrompt.cursorOffset)
                 setPastedContents(stashedPrompt.pastedContents)
                 setStashedPrompt(undefined)
+              }
+              if (doneOptions?.nextInput) {
+                if (doneOptions.submitNextInput) {
+                  enqueue({
+                    value: doneOptions.nextInput,
+                    mode: 'prompt',
+                    origin: { kind: 'auto-continuation' as const },
+                  })
+                } else {
+                  setInputValue(doneOptions.nextInput)
+                }
               }
             }
 

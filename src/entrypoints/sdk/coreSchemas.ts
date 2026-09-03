@@ -1469,6 +1469,26 @@ export const SDKStatusSchema = lazySchema(() =>
   z.union([z.literal('compacting'), z.null()]),
 )
 
+/** Official 161 `fS6` — user-message provenance. */
+export const SDKMessageOriginSchema = lazySchema(() =>
+  z
+    .discriminatedUnion('kind', [
+      z.object({ kind: z.literal('human') }),
+      z.object({ kind: z.literal('channel'), server: z.string() }),
+      z.object({
+        kind: z.literal('peer'),
+        from: z.string(),
+        name: z.string().optional(),
+      }),
+      z.object({ kind: z.literal('task-notification') }),
+      z.object({ kind: z.literal('coordinator') }),
+      z.object({ kind: z.literal('auto-continuation') }),
+    ])
+    .describe(
+      'Provenance of a user-role message (peer session, team lead, channel). Absent or `human` means keyboard input from the user.',
+    ),
+)
+
 // SDKUserMessage content without uuid/session_id
 const SDKUserMessageContentSchema = lazySchema(() =>
   z.object({
@@ -1478,6 +1498,7 @@ const SDKUserMessageContentSchema = lazySchema(() =>
     isSynthetic: z.boolean().optional(),
     tool_use_result: z.unknown().optional(),
     priority: z.enum(['now', 'next', 'later']).optional(),
+    origin: SDKMessageOriginSchema().optional(),
     timestamp: z
       .string()
       .optional()
@@ -1526,6 +1547,7 @@ export const SDKRateLimitInfoSchema = lazySchema(() =>
           'overage_not_provisioned',
           'org_level_disabled',
           'org_level_disabled_until',
+          'org_spend_cap_reached',
           'out_of_credits',
           'seat_tier_level_disabled',
           'member_level_disabled',
@@ -1967,6 +1989,20 @@ export const SDKSessionStateChangedMessageSchema = lazySchema(() =>
     ),
 )
 
+export const SDKCommandsChangedMessageSchema = lazySchema(() =>
+  z
+    .object({
+      type: z.literal('system'),
+      subtype: z.literal('commands_changed'),
+      commands: z.array(z.string()),
+      uuid: UUIDPlaceholder(),
+      session_id: z.string(),
+    })
+    .describe(
+      'Fire-and-forget push of the full slash-command list after a mid-session change (e.g. skills discovered dynamically as the agent works in a subdirectory). Clients should REPLACE their cached command list with this payload: supportedCommands() is captured once at initialize and never reflects mid-session changes, so a client re-fetch would return the stale init list.',
+    ),
+)
+
 
 export const SDKTaskProgressMessageSchema = lazySchema(() =>
   z.object({
@@ -2093,6 +2129,7 @@ export const SDKMessageSchema = lazySchema(() =>
     SDKTaskStartedMessageSchema(),
     SDKTaskProgressMessageSchema(),
     SDKSessionStateChangedMessageSchema(),
+    SDKCommandsChangedMessageSchema(),
     SDKFilesPersistedEventSchema(),
     SDKToolUseSummaryMessageSchema(),
     SDKRateLimitEventSchema(),

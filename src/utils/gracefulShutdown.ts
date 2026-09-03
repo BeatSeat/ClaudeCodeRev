@@ -12,24 +12,9 @@ import {
 } from '../bootstrap/state.js'
 import { registerProcessIOErrorHandlers } from './process.js'
 import instances from '../ink/instances.js'
-import {
-  DISABLE_KITTY_KEYBOARD,
-  DISABLE_MODIFY_OTHER_KEYS,
-} from '../ink/termio/csi.js'
-import {
-  DBP,
-  DFE,
-  DISABLE_MOUSE_TRACKING,
-  EXIT_ALT_SCREEN,
-  SHOW_CURSOR,
-} from '../ink/termio/dec.js'
-import {
-  CLEAR_ITERM2_PROGRESS,
-  CLEAR_TAB_STATUS,
-  CLEAR_TERMINAL_TITLE,
-  supportsTabStatus,
-  wrapForMultiplexer,
-} from '../ink/termio/osc.js'
+import { restoreTerminalModes } from '../ink/restoreTerminalModes.js'
+import { DISABLE_MOUSE_TRACKING, EXIT_ALT_SCREEN } from '../ink/termio/dec.js'
+import { CLEAR_TERMINAL_TITLE } from '../ink/termio/osc.js'
 import { shutdownDatadog } from '../services/analytics/datadog.js'
 import { shutdown1PEventLogging } from '../services/analytics/firstPartyEventLogger.js'
 import {
@@ -106,21 +91,7 @@ function cleanupTerminalModes(): void {
     // saved cursor position. Safe to skip full unmount: this function already
     // sends all the terminal-reset sequences, and the process is exiting.
     inst?.detachForShutdown()
-    // Disable extended key reporting — always send both since terminals
-    // silently ignore whichever they don't implement
-    writeSync(1, DISABLE_MODIFY_OTHER_KEYS)
-    writeSync(1, DISABLE_KITTY_KEYBOARD)
-    // Disable focus events (DECSET 1004)
-    writeSync(1, DFE)
-    // Disable bracketed paste mode
-    writeSync(1, DBP)
-    // Show cursor
-    writeSync(1, SHOW_CURSOR)
-    // Clear iTerm2 progress bar - prevents lingering progress indicator
-    // that can cause bell sounds when returning to the terminal tab
-    writeSync(1, CLEAR_ITERM2_PROGRESS)
-    // Clear tab status (OSC 21337) so a stale dot doesn't linger
-    if (supportsTabStatus()) writeSync(1, wrapForMultiplexer(CLEAR_TAB_STATUS))
+    restoreTerminalModes()
     // Clear terminal title so the tab doesn't show stale session info.
     // Respect CLAUDE_CODE_DISABLE_TERMINAL_TITLE — if the user opted out of
     // title changes, don't clear their existing title on exit either.

@@ -22,11 +22,10 @@ import type {
 } from './types.js'
 
 /* eslint-disable @typescript-eslint/no-require-imports */
-const fetchMcpSkillsForClient = feature('MCP_SKILLS')
-  ? (
-      require('../../skills/mcpSkills.js') as typeof import('../../skills/mcpSkills.js')
-    ).fetchMcpSkillsForClient
+const mcpSkillsMod = feature('MCP_SKILLS')
+  ? (require('../../skills/mcpSkills.js') as typeof import('../../skills/mcpSkills.js'))
   : null
+const fetchMcpSkillsForClient = mcpSkillsMod?.fetchMcpSkillsForClient ?? null
 const clearSkillIndexCache = feature('EXPERIMENTAL_SKILL_SEARCH')
   ? (
       require('../skillSearch/localSearch.js') as typeof import('../skillSearch/localSearch.js')
@@ -724,7 +723,7 @@ export function useManageMCPConnections(
                   fetchCommandsForClient.cache.delete(client.name)
                   const [mcpPrompts, mcpSkills] = await Promise.all([
                     fetchCommandsForClient(client),
-                    feature('MCP_SKILLS')
+                    feature('MCP_SKILLS') && mcpSkillsMod?.isMcpSkillsEnabled()
                       ? fetchMcpSkillsForClient!(client)
                       : Promise.resolve([]),
                   ])
@@ -759,7 +758,7 @@ export function useManageMCPConnections(
                 try {
                   fetchResourcesForClient.cache.delete(client.name)
                   fetchResourceTemplatesForClient.cache.delete(client.name)
-                  if (feature('MCP_SKILLS')) {
+                  if (feature('MCP_SKILLS') && mcpSkillsMod?.isMcpSkillsEnabled()) {
                     // Skills are discovered from resources, so refresh them too.
                     // Invalidate prompts cache as well: we write commands here,
                     // and a concurrent prompts/list_changed could otherwise have

@@ -125,11 +125,10 @@ import { isOfficialMcpUrl } from './officialRegistry.js'
 import { getLoggingSafeMcpBaseUrl } from './utils.js'
 
 /* eslint-disable @typescript-eslint/no-require-imports */
-const fetchMcpSkillsForClient = feature('MCP_SKILLS')
-  ? (
-      require('../../skills/mcpSkills.js') as typeof import('../../skills/mcpSkills.js')
-    ).fetchMcpSkillsForClient
+const mcpSkillsMod = feature('MCP_SKILLS')
+  ? (require('../../skills/mcpSkills.js') as typeof import('../../skills/mcpSkills.js'))
   : null
+const fetchMcpSkillsForClient = mcpSkillsMod?.fetchMcpSkillsForClient ?? null
 
 import { UnauthorizedError } from '@modelcontextprotocol/sdk/client/auth.js'
 import type { AssistantMessage } from 'src/types/message.js'
@@ -142,6 +141,7 @@ import {
   hasMcpDiscoveryButNoToken,
   wrapFetchWithStepUpDetection,
 } from './auth.js'
+import { registerMCPSkillClientBuilders } from '../../skills/mcpSkillBuilders.js'
 import { markClaudeAiMcpConnected } from './claudeai.js'
 import { getAllMcpConfigs, isMcpServerDisabled } from './config.js'
 import { getMcpServerHeaders } from './headersHelper.js'
@@ -2531,7 +2531,9 @@ export async function reconnectMcpServerImpl(
     const [tools, mcpCommands, mcpSkills, resources] = await Promise.all([
       fetchToolsForClient(client),
       fetchCommandsForClient(client),
-      feature('MCP_SKILLS') && supportsResources
+      feature('MCP_SKILLS') &&
+      mcpSkillsMod?.isMcpSkillsEnabled() &&
+      supportsResources
         ? fetchMcpSkillsForClient!(client)
         : Promise.resolve([]),
       supportsResources ? fetchResourcesForClient(client) : Promise.resolve([]),
@@ -2711,7 +2713,9 @@ export async function getMcpToolsCommandsAndResources(
         fetchToolsForClient(client),
         fetchCommandsForClient(client),
         // Discover skills from skill:// resources
-        feature('MCP_SKILLS') && supportsResources
+        feature('MCP_SKILLS') &&
+        mcpSkillsMod?.isMcpSkillsEnabled() &&
+        supportsResources
           ? fetchMcpSkillsForClient!(client)
           : Promise.resolve([]),
         // Fetch resources if supported
@@ -3780,3 +3784,9 @@ export async function setupSdkMcpClients(
 
   return { clients, tools }
 }
+
+// Official 161 `lV6` — client helpers for MCP skill templates.
+// eslint-disable-next-line custom-rules/no-top-level-side-effects -- write-once registration
+registerMCPSkillClientBuilders({
+  ensureConnectedClient,
+})

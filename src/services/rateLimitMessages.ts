@@ -146,6 +146,11 @@ export function getRateLimitWarning(
   return null
 }
 
+const ORG_SPEND_CAP_REASONS = new Set([
+  'org_level_disabled_until',
+  'org_spend_cap_reached',
+])
+
 function getLimitReachedText(limits: ClaudeAILimits, model: string): string {
   const resetsAt = limits.resetsAt
   const resetTime = resetsAt ? formatResetTime(resetsAt, true) : undefined
@@ -153,6 +158,32 @@ function getLimitReachedText(limits: ClaudeAILimits, model: string): string {
     ? formatResetTime(limits.overageResetsAt, true)
     : undefined
   const resetMessage = resetTime ? ` · resets ${resetTime}` : ''
+  const usageBased =
+    String(getOauthAccountInfo()?.billingType ?? '') === 'usage_based'
+  const canRaise = hasClaudeAiBillingAccess()
+
+  // Official 161 `OG6`: spend-cap reasons get a dedicated raise-it-at URL
+  // instead of the generic limit sentence (skipped for usage-based billing).
+  if (
+    !usageBased &&
+    limits.overageDisabledReason &&
+    ORG_SPEND_CAP_REASONS.has(limits.overageDisabledReason)
+  ) {
+    const subscriptionType = getSubscriptionType()
+    const isTeamOrEnt =
+      subscriptionType === 'team' || subscriptionType === 'enterprise'
+    const url = isTeamOrEnt
+      ? 'claude.ai/admin-settings/usage'
+      : 'claude.ai/settings/usage'
+    const noun =
+      canRaise && !isTeamOrEnt
+        ? 'monthly spend limit'
+        : "org's monthly spend limit"
+    const raise = canRaise
+      ? ` · raise it at ${url}`
+      : ` · ask your admin to raise it at ${url}`
+    return `You've hit your ${noun}${raise}`
+  }
 
   // if BOTH subscription (checked before this method) and overage are exhausted
   if (limits.overageStatus === 'rejected') {

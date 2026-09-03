@@ -44,6 +44,10 @@ export type Props = BaseStylesWithoutColors &
     onKeyDownCapture?: (event: KeyboardEvent) => void
     onMouseEnter?: () => void
     onMouseLeave?: () => void
+    'aria-hidden'?: boolean
+    'aria-label'?: string
+    'aria-role'?: string
+    'aria-state'?: string
   }
 
 /**

@@ -145,6 +145,7 @@ export function UltraplanChoiceDialog({
         enqueuePendingNotification({
           value: `Here is the approved implementation plan:\n\n${plan}\n\nImplement this plan.`,
           mode: 'prompt',
+          origin: { kind: 'auto-continuation' as const },
         })
         break
       }

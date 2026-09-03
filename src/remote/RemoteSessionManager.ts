@@ -80,6 +80,8 @@ export type RemoteSessionCallbacks = {
   onDisconnected?: () => void
   /** Called on transient WS drop while reconnect backoff is in progress */
   onReconnecting?: () => void
+  /** Official 161: SSE catch_up_truncated — transcript has a gap. */
+  onCatchUpTruncated?: () => void
   /** Called on error */
   onError?: (error: Error) => void
 }
@@ -124,8 +126,15 @@ export class RemoteSessionManager {
         logForDebugging('[RemoteSessionManager] Reconnecting')
         this.callbacks.onReconnecting?.()
       },
+      onCatchUpTruncated: () => {
+        logForDebugging('[RemoteSessionManager] Catch-up truncated')
+        this.callbacks.onCatchUpTruncated?.()
+      },
       onError: error => {
-        logError(error)
+        logForDebugging(
+          `[RemoteSessionManager] Stream error: ${error.message}`,
+          { level: 'error' },
+        )
         this.callbacks.onError?.(error)
       },
     }

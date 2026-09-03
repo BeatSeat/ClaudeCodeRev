@@ -32,6 +32,16 @@ export function isAbortError(e: unknown): boolean {
   )
 }
 
+/** Official `IY` — Node write/fs errors expose a numeric `errno`. */
+export function isErrnoException(e: unknown): e is NodeJS.ErrnoException {
+  return (
+    e !== null &&
+    typeof e === 'object' &&
+    'errno' in e &&
+    typeof (e as { errno: unknown }).errno === 'number'
+  )
+}
+
 /**
  * Custom error class for configuration file parsing errors
  * Includes the file path and the default configuration that should be used

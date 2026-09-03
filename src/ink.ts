@@ -44,6 +44,7 @@ export {
   useThemeSetting,
 } from './components/design-system/ThemeProvider.js'
 export { Ansi } from './ink/Ansi.js'
+export { default as AccessibilityContext } from './ink/components/AccessibilityContext.js'
 export type { Props as AppProps } from './ink/components/AppContext.js'
 export type { Props as BaseBoxProps } from './ink/components/Box.js'
 export { default as BaseBox } from './ink/components/Box.js'

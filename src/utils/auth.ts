@@ -2071,12 +2071,36 @@ export async function validateForceLoginOrg(): Promise<OrgValidationResult> {
     return { valid: true }
   }
 
+  const policySettings = getSettingsForSource('policySettings')
+  const requiredOrgUuid = policySettings?.forceLoginOrgUUID
+  const pinActive =
+    requiredOrgUuid !== undefined ||
+    policySettings?.forceLoginMethod !== undefined
+
+  // Official 161 `J_H`: a first-party org pin cannot be satisfied by an
+  // Anthropic-issued API key / auth token / apiKeyHelper.
   if (!isAnthropicAuthEnabled()) {
+    const hasNonOauthAnthropicCred =
+      Boolean(process.env.ANTHROPIC_API_KEY) ||
+      Boolean(process.env.ANTHROPIC_AUTH_TOKEN) ||
+      Boolean(process.env.CLAUDE_CODE_API_KEY_FILE_DESCRIPTOR) ||
+      Boolean(getConfiguredApiKeyHelper())
+    if (pinActive && hasNonOauthAnthropicCred) {
+      return {
+        valid: false,
+        message: `This machine's managed settings require a first-party login, but an
+Anthropic-issued credential (ANTHROPIC_API_KEY, ANTHROPIC_AUTH_TOKEN,
+or apiKeyHelper) is configured. A non-OAuth Anthropic credential
+cannot satisfy the org pin.
+
+Remove the credential and run: claude auth login
+
+If this is a third-party desktop session: forceLoginOrgUUID targets first-party OAuth and should be removed from managed-settings.json.`,
+      }
+    }
     return { valid: true }
   }
 
-  const requiredOrgUuid =
-    getSettingsForSource('policySettings')?.forceLoginOrgUUID
   if (!requiredOrgUuid) {
     return { valid: true }
   }

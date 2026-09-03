@@ -225,9 +225,9 @@ export function LogoV2(): React.ReactNode {
         <ModelPinHeader />
         {isDebugMode() && (
           <Box paddingLeft={2} flexDirection="column">
-            <Text color="warning">Debug mode enabled</Text>
-            <Text dimColor>
-              Logging to: {isDebugToStdErr() ? 'stderr' : getDebugLogPath()}
+            <Text color="warning">
+              Debug mode enabled · logging to{' '}
+              {isDebugToStdErr() ? 'stderr' : getDebugLogPath()}
             </Text>
           </Box>
         )}
@@ -239,8 +239,8 @@ export function LogoV2(): React.ReactNode {
             </Text>
             <Text dimColor>
               {process.env.CLAUDE_CODE_TMUX_PREFIX_CONFLICTS
-                ? `Detach: ${process.env.CLAUDE_CODE_TMUX_PREFIX} ${process.env.CLAUDE_CODE_TMUX_PREFIX} d (press prefix twice - Claude uses ${process.env.CLAUDE_CODE_TMUX_PREFIX})`
-                : `Detach: ${process.env.CLAUDE_CODE_TMUX_PREFIX} d`}
+                ? ` · detach with ${process.env.CLAUDE_CODE_TMUX_PREFIX} ${process.env.CLAUDE_CODE_TMUX_PREFIX} d (press prefix twice - Claude uses ${process.env.CLAUDE_CODE_TMUX_PREFIX})`
+                : ` · detach with ${process.env.CLAUDE_CODE_TMUX_PREFIX} d`}
             </Text>
           </Box>
         )}
@@ -472,9 +472,9 @@ export function LogoV2(): React.ReactNode {
       <ModelPinHeader />
       {isDebugMode() && (
         <Box paddingLeft={2} flexDirection="column">
-          <Text color="warning">Debug mode enabled</Text>
-          <Text dimColor>
-            Logging to: {isDebugToStdErr() ? 'stderr' : getDebugLogPath()}
+          <Text color="warning">
+            Debug mode enabled · logging to{' '}
+            {isDebugToStdErr() ? 'stderr' : getDebugLogPath()}
           </Text>
         </Box>
       )}
@@ -486,8 +486,8 @@ export function LogoV2(): React.ReactNode {
           </Text>
           <Text dimColor>
             {process.env.CLAUDE_CODE_TMUX_PREFIX_CONFLICTS
-              ? `Detach: ${process.env.CLAUDE_CODE_TMUX_PREFIX} ${process.env.CLAUDE_CODE_TMUX_PREFIX} d (press prefix twice - Claude uses ${process.env.CLAUDE_CODE_TMUX_PREFIX})`
-              : `Detach: ${process.env.CLAUDE_CODE_TMUX_PREFIX} d`}
+              ? ` · detach with ${process.env.CLAUDE_CODE_TMUX_PREFIX} ${process.env.CLAUDE_CODE_TMUX_PREFIX} d (press prefix twice - Claude uses ${process.env.CLAUDE_CODE_TMUX_PREFIX})`
+              : ` · detach with ${process.env.CLAUDE_CODE_TMUX_PREFIX} d`}
           </Text>
         </Box>
       )}

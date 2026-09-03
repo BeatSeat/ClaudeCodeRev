@@ -2311,6 +2311,12 @@ const BARE_SUBSCRIPT_NAME_BUILTINS = new Set(['read', 'unset'])
  * prompt string. `-a` is intentionally absent — its operand IS a NAME.
  */
 const READ_DATA_FLAGS = new Set(['-p', '-d', '-n', '-N', '-t', '-u', '-i'])
+/** Official 161 `Jz7` — read flags whose operand is a timeout/count. */
+const READ_NUMERIC_FLAGS = new Set(['-t', '-n', '-N'])
+const READ_NUMERIC_OPERAND = /^(?:[0-9]+(?:\.[0-9]+)?|\.[0-9]+)$/
+const READ_SUBSCRIPT_NAME = /^[A-Za-z_][A-Za-z0-9_]*\[/
+/** Official 161 `sNH` — `[[` arith-cmp operands that are safe numeric literals. */
+const TEST_ARITH_NUMERIC = /^-?(0[xX][0-9a-fA-F]+|[0-9]+#[0-9a-zA-Z]+|[0-9]+)$/
 
 // SHELL_KEYWORDS imported from bashParser.ts — shell reserved words can never
 // be legitimate argv[0]; if they appear, the parser mis-parsed a compound
@@ -2610,43 +2616,87 @@ export function checkSemantics(commands: SimpleCommand[]): SemanticCheckResult {
       // operand. A binary op can't appear before index 2.
       for (let i = 2; i < a.length; i++) {
         if (!TEST_ARITH_CMP_OPS.has(a[i]!)) continue
-        if (a[i - 1]?.includes('[') || a[i + 1]?.includes('[')) {
-          return {
-            ok: false,
-            reason: `'[[ ... ${a[i]} ... ]]' operand contains array subscript — bash arithmetically evaluates $(cmd) in subscripts`,
+        for (const operand of [a[i - 1], a[i + 1]]) {
+          if (operand === undefined) continue
+          if (operand.includes('[') || !TEST_ARITH_NUMERIC.test(operand)) {
+            return {
+              ok: false,
+              reason: `'${name} ... ${a[i]} ...' operand is non-numeric — \`[[\` arithmetically evaluates identifiers/subscripts (may run $(cmd))`,
+            }
           }
         }
       }
     }
 
     // SECURITY: `read`/`unset` treat EVERY bare positional as a NAME —
-    // no flag needed. `read 'a[$(id)]' <<< data` executes id even though
-    // argv[1] arrived from a single-quoted raw_string and no -a flag is
-    // present. Same primitive as SUBSCRIPT_EVAL_FLAGS but the trigger is
-    // positional, not flag-gated. Skip operands of read's data-taking
-    // flags (-p PROMPT etc.) to avoid blocking `read -p '[foo] ' var`.
+    // no flag needed. Official 161 also models zsh: `-p` takes no operand
+    // (so a following NAME/`$(cmd)` can reach matheval), and `-t`/`-n`/`-N`
+    // arith-eval a non-numeric operand.
     if (BARE_SUBSCRIPT_NAME_BUILTINS.has(name)) {
-      let skipNext = false
+      let pending: false | 'numeric' | 'prompt' | 'string' = false
       for (let i = 1; i < a.length; i++) {
         const arg = a[i]!
-        if (skipNext) {
-          skipNext = false
+        if (pending !== false) {
+          const kind = pending
+          pending = false
+          if (kind === 'numeric' && !READ_NUMERIC_OPERAND.test(arg)) {
+            return {
+              ok: false,
+              reason: `'read ${a[i - 1]}' operand '${arg}' is non-numeric — zsh arith-evals subscripts/expressions (may run $(cmd))`,
+            }
+          }
+          if (
+            kind === 'prompt' &&
+            (READ_SUBSCRIPT_NAME.test(arg) ||
+              (arg[0] === '-' && /[A-Za-z_][A-Za-z0-9_]*\[/.test(arg)) ||
+              containsAnyPlaceholder(arg))
+          ) {
+            return {
+              ok: false,
+              reason: `'read ${a[i - 1]}' operand '${arg}' is a subscripted NAME, dash-prefixed with a subscript, or runtime-determined — zsh -p takes no operand; may arith-eval the subscript and run $(cmd)`,
+            }
+          }
           continue
         }
         if (arg[0] === '-') {
           if (name === 'read') {
-            if (READ_DATA_FLAGS.has(arg)) {
-              skipNext = true
+            if (READ_NUMERIC_FLAGS.has(arg)) {
+              pending = 'numeric'
+            } else if (arg === '-p') {
+              pending = 'prompt'
+            } else if (READ_DATA_FLAGS.has(arg)) {
+              pending = 'string'
             } else if (arg.length > 2 && arg[1] !== '-') {
-              // Combined short flag like `-rp`. Getopt-style: first
-              // data-flag char consumes rest-of-arg as its operand
-              // (`-p[foo]` → prompt=`[foo]`), or next-arg if last
-              // (`-rp '[foo]'` → prompt=`[foo]`). So skipNext iff a
-              // data-flag char appears at the END after only no-arg
-              // flags like `-r`/`-s`.
               for (let j = 1; j < arg.length; j++) {
-                if (READ_DATA_FLAGS.has('-' + arg[j])) {
-                  if (j === arg.length - 1) skipNext = true
+                const flag = '-' + arg[j]
+                const numeric = READ_NUMERIC_FLAGS.has(flag)
+                if (numeric || READ_DATA_FLAGS.has(flag)) {
+                  if (j === arg.length - 1) {
+                    pending = numeric
+                      ? 'numeric'
+                      : flag === '-p'
+                        ? 'prompt'
+                        : 'string'
+                  } else if (
+                    numeric &&
+                    !READ_NUMERIC_OPERAND.test(arg.slice(j + 1))
+                  ) {
+                    return {
+                      ok: false,
+                      reason: `'read ${flag}' (fused in '${arg}') operand is non-numeric — zsh arith-evals subscripts/expressions (may run $(cmd))`,
+                    }
+                  } else if (flag === '-p') {
+                    const rest = arg.slice(j + 1)
+                    if (
+                      /[A-Za-z_][A-Za-z0-9_]*\[/.test(rest) ||
+                      containsAnyPlaceholder(rest)
+                    ) {
+                      return {
+                        ok: false,
+                        reason: `'read -p' fused remainder '${rest}' contains a subscripted identifier or cmdsub — on zsh (-p is no-arg) this may reach matheval via a following option and run $(cmd)`,
+                      }
+                    }
+                  }
                   break
                 }
               }
@@ -2654,10 +2704,10 @@ export function checkSemantics(commands: SimpleCommand[]): SemanticCheckResult {
           }
           continue
         }
-        if (arg.includes('[')) {
+        if (arg.includes('[') || containsAnyPlaceholder(arg)) {
           return {
             ok: false,
-            reason: `'${name}' positional NAME '${arg}' contains array subscript — bash evaluates $(cmd) in subscripts`,
+            reason: `'${name}' positional NAME '${arg}' contains array subscript or runtime-determined value — bash evaluates $(cmd) in subscripts`,
           }
         }
       }
@@ -2724,10 +2774,17 @@ export function checkSemantics(commands: SimpleCommand[]): SemanticCheckResult {
               'jq command contains system() function which executes arbitrary commands',
           }
         }
+        if (/\b(?:include|import)\b/.test(arg)) {
+          return {
+            ok: false,
+            reason:
+              'jq command contains include/import — modules can load arbitrary .jq files via {search:"."} and call env or other builtins',
+          }
+        }
       }
       if (
         a.some(arg =>
-          /^(?:-[fL](?:$|[^A-Za-z])|--(?:from-file|rawfile|slurpfile|library-path)(?:$|=))/.test(
+          /^(?:-[A-Za-z]*[fL]|--(?:from-file|rawfile|slurpfile|library-path)(?:$|=))/.test(
             arg,
           ),
         )

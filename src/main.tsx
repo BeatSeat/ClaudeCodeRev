@@ -5625,7 +5625,7 @@ async function run(): Promise<CommanderCommand> {
   program.addOption(
     new Option(
       '--team-name <name>',
-      'Team name for swarm coordination',
+      'Team name for teammate coordination',
     ).hideHelp(),
   )
   program.addOption(

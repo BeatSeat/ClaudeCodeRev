@@ -16,4 +16,6 @@ export type Tip = {
   isRelevant: (context?: TipContext) => Promise<boolean>
   priority?: number
   providerAgnostic?: boolean
+  /** Official 2.1.161 — hide the tip after this many lifetime shows. */
+  maxLifetimeShows?: number
 }

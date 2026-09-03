@@ -15,6 +15,7 @@ import type {
 import type { PermissionDecision } from '../../types/permissions.js'
 import { createAttachmentMessage } from '../../utils/attachments.js'
 import { logForDebugging } from '../../utils/debug.js'
+import { isAbortError } from '../../utils/errors.js'
 import {
   executePostToolHooks,
   executePostToolUseFailureHooks,
@@ -325,6 +326,13 @@ export async function* runPostToolUseFailureHooks<Input extends AnyObject>(
       }
     }
   } catch (outerError) {
+    if (
+      isAbortError(outerError) &&
+      toolUseContext.abortController.signal.aborted
+    ) {
+      logForDebugging('PostToolUseFailure hook cancelled (parent abort)')
+      return
+    }
     logError(outerError)
   }
 }
@@ -684,7 +692,14 @@ export async function* runPreToolUseHooks(
       yield { type: 'defer', hookName: pendingDeferHookName }
     }
   } catch (error) {
-    logError(error)
+    if (
+      isAbortError(error) &&
+      toolUseContext.abortController.signal.aborted
+    ) {
+      logForDebugging('PreToolUse hook cancelled (parent abort)')
+    } else {
+      logError(error)
+    }
     yield { type: 'stop' }
     return
   }

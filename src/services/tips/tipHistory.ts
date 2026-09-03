@@ -5,8 +5,20 @@ export function recordTipShown(tipId: string): void {
   saveGlobalConfig(c => {
     const history = c.tipsHistory ?? {}
     if (history[tipId] === numStartups) return c
-    return { ...c, tipsHistory: { ...history, [tipId]: numStartups } }
+    const lifetime = c.tipLifetimeShownCounts ?? {}
+    return {
+      ...c,
+      tipsHistory: { ...history, [tipId]: numStartups },
+      tipLifetimeShownCounts: {
+        ...lifetime,
+        [tipId]: (lifetime[tipId] ?? 0) + 1,
+      },
+    }
   })
+}
+
+export function getTipLifetimeShownCount(tipId: string): number {
+  return getGlobalConfig().tipLifetimeShownCounts?.[tipId] ?? 0
 }
 
 export function getSessionsSinceLastShown(tipId: string): number {

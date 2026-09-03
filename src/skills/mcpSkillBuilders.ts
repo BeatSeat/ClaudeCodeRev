@@ -28,17 +28,27 @@ export type MCPSkillBuilders = {
   parseSkillFrontmatterFields: typeof parseSkillFrontmatterFields
 }
 
+export type MCPSkillClientBuilders = {
+  ensureConnectedClient: (client: unknown) => Promise<unknown>
+}
+
 let builders: MCPSkillBuilders | null = null
+let clientBuilders: MCPSkillClientBuilders | null = null
 
 export function registerMCPSkillBuilders(b: MCPSkillBuilders): void {
   builders = b
 }
 
-export function getMCPSkillBuilders(): MCPSkillBuilders {
-  if (!builders) {
+export function registerMCPSkillClientBuilders(b: MCPSkillClientBuilders): void {
+  clientBuilders = b
+}
+
+/** Official 161 `hY7`. */
+export function getMCPSkillBuilders(): MCPSkillBuilders & MCPSkillClientBuilders {
+  if (!builders || !clientBuilders) {
     throw new Error(
-      'MCP skill builders not registered — loadSkillsDir.ts has not been evaluated yet',
+      'MCP skill builders not registered — loadSkillsDir.ts / client.ts have not been evaluated yet',
     )
   }
-  return builders
+  return { ...builders, ...clientBuilders }
 }

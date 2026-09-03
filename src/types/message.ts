@@ -4,7 +4,22 @@
 import type { APIError } from '@anthropic-ai/sdk'
 import type { BetaContentBlock, BetaMessage, BetaUsage, ContentBlockParam, ToolUseBlock, ToolResultBlockParam } from '@anthropic-ai/sdk/resources/beta/index.js'
 
-export type MessageOrigin = 'keyboard' | 'SendUserMessage' | 'queue' | 'hook' | 'agent' | string
+export type StructuredMessageOrigin =
+  | { kind: 'human' }
+  | { kind: 'channel'; server: string }
+  | { kind: 'peer'; from: string; name?: string }
+  | { kind: 'task-notification' }
+  | { kind: 'coordinator' }
+  | { kind: 'auto-continuation' }
+
+export type MessageOrigin =
+  | StructuredMessageOrigin
+  | 'keyboard'
+  | 'SendUserMessage'
+  | 'queue'
+  | 'hook'
+  | 'agent'
+  | string
 
 export type SystemMessageLevel = 'info' | 'warning' | 'suggestion'
 

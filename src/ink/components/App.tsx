@@ -6,6 +6,7 @@ import { isEnvTruthy } from '../../utils/envUtils.js'
 import { execFileNoThrow } from '../../utils/execFileNoThrow.js'
 import { isMouseClicksDisabled } from '../../utils/fullscreen.js'
 import { logError } from '../../utils/log.js'
+import AccessibilityContext from './AccessibilityContext.js'
 import { EventEmitter } from '../events/emitter.js'
 import { InputEvent } from '../events/input-event.js'
 import { TerminalFocusEvent } from '../events/terminal-focus-event.js'
@@ -271,19 +272,23 @@ export default class App extends PureComponent<Props, State> {
               internal_querier: this.querier,
             }}
           >
-            <TerminalFocusProvider>
-              <ClockProvider>
-                <CursorDeclarationContext.Provider
-                  value={this.props.onCursorDeclaration ?? (() => {})}
-                >
-                  {this.state.error ? (
-                    <ErrorOverview error={this.state.error as Error} />
-                  ) : (
-                    this.props.children
-                  )}
-                </CursorDeclarationContext.Provider>
-              </ClockProvider>
-            </TerminalFocusProvider>
+            <AccessibilityContext.Provider
+              value={isEnvTruthy(process.env.CLAUDE_CODE_ACCESSIBILITY)}
+            >
+              <TerminalFocusProvider>
+                <ClockProvider>
+                  <CursorDeclarationContext.Provider
+                    value={this.props.onCursorDeclaration ?? (() => {})}
+                  >
+                    {this.state.error ? (
+                      <ErrorOverview error={this.state.error as Error} />
+                    ) : (
+                      this.props.children
+                    )}
+                  </CursorDeclarationContext.Provider>
+                </ClockProvider>
+              </TerminalFocusProvider>
+            </AccessibilityContext.Provider>
           </StdinContext.Provider>
         </AppContext.Provider>
       </TerminalSizeContext.Provider>

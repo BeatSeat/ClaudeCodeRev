@@ -586,7 +586,12 @@ export function clearCommandsCache(): void {
 export function getMcpSkillCommands(
   mcpCommands: readonly Command[],
 ): readonly Command[] {
-  if (feature('MCP_SKILLS')) {
+  if (
+    feature('MCP_SKILLS') &&
+    (
+      require('./skills/mcpSkills.js') as typeof import('./skills/mcpSkills.js')
+    ).isMcpSkillsEnabled()
+  ) {
     return mcpCommands.filter(
       cmd =>
         cmd.type === 'prompt' &&
