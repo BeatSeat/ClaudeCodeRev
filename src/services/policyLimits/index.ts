@@ -507,6 +507,30 @@ const ESSENTIAL_TRAFFIC_DENY_ON_MISS = new Set(['allow_product_feedback'])
  * Exception: policies in ESSENTIAL_TRAFFIC_DENY_ON_MISS fail closed when
  * essential-traffic-only mode is active and the cache is unavailable.
  */
+/**
+ * Official 2.1.162 cloud-session gate: eligible orgs that never loaded
+ * restrictions fail closed with a verify-network message; explicit deny
+ * keeps the existing disabled copy.
+ */
+export function getCloudSessionsPolicyError(): string | null {
+  if (!isPolicyLimitsEligible()) {
+    const provider = getAPIProvider()
+    if (provider !== 'firstParty') {
+      return `Cloud sessions aren't available with ${provider}. They run on Anthropic's infrastructure and require an Anthropic account.`
+    }
+    return null
+  }
+  const restrictions = getRestrictionsFromCache()
+  if (restrictions === null) {
+    return "Couldn't verify your organization's policy for cloud sessions. Check your network connection and try again."
+  }
+  const restriction = restrictions['allow_remote_sessions']
+  if (restriction && !restriction.allowed) {
+    return "Remote sessions are disabled by your organization's policy."
+  }
+  return null
+}
+
 export function isPolicyAllowed(policy: string): boolean {
   const restrictions = getRestrictionsFromCache()
   if (!restrictions) {

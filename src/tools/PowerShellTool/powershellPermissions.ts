@@ -10,7 +10,7 @@ import type {
   PermissionResult,
 } from '../../types/permissions.js'
 import { getCwd } from '../../utils/cwd.js'
-import { isCurrentDirectoryBareGitRepo } from '../../utils/git.js'
+import { classifyGitBareRepoGate } from '../../utils/git.js'
 import type { PermissionRule } from '../../utils/permissions/PermissionRule.js'
 import type { PermissionUpdate } from '../../utils/permissions/PermissionUpdateSchema.js'
 import {
@@ -1157,11 +1157,14 @@ export async function powershellToolHasPermission(
   // cwd as a bare repository and runs hooks from cwd. Attacker creates
   // hooks/pre-commit, deletes .git/HEAD, then any git subcommand runs it.
   // Port of BashTool readOnlyValidation.ts isCurrentDirectoryBareGitRepo.
-  if (hasGitSubCommand && isCurrentDirectoryBareGitRepo()) {
+  const bareRepoGate = hasGitSubCommand ? classifyGitBareRepoGate() : false
+  if (bareRepoGate) {
     decisions.push({
       behavior: 'ask',
       message:
-        'Git command in a directory with bare-repository indicators (HEAD, objects/, refs/ in cwd without .git/HEAD). Git may execute hooks from cwd.',
+        bareRepoGate === 'bare-indicators'
+          ? 'Git command in a directory with bare-repo indicators (HEAD/objects/refs outside a .git/ directory). Git may treat it as a git dir and run config/hooks from here.'
+          : 'The .git file or symlink here redirects to a location that cannot be verified as safe (it may have been planted by an untrusted archive). Git commands need approval.',
     })
   }
 

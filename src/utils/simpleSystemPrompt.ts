@@ -104,6 +104,22 @@ export const isSimpleSystemPrompt = memoize(
 /**
  * Official 2.1.161 `E1q` — ownership-frame arm (env or `tengu_walnut_prism`).
  */
+export const isActDontRederiveArmed = memoize((): boolean => {
+  const fromEnv = isEnvTruthy(process.env.CLAUDE_CODE_ACT_DONT_REDERIVE)
+  const armed =
+    fromEnv ||
+    getFeatureValue_CACHED_MAY_BE_STALE('tengu_cedar_lantern', false)
+  if (armed) {
+    logForDebugging(
+      `act_dont_rederive_arm_active source=${fromEnv ? 'env' : 'growthbook'}`,
+    )
+  }
+  return armed
+})
+
+export const ACT_DONT_REDERIVE_SECTION =
+  'When you have enough information to act, act. Do not re-derive facts already established in the conversation, re-litigate a decision the user has already made, or narrate options you will not pursue. If you are weighing a choice, give a recommendation, not an exhaustive survey'
+
 export const isOwnershipFrameArmed = memoize((): boolean => {
   const fromEnv = isEnvTruthy(process.env.CLAUDE_CODE_OWNERSHIP_FRAME)
   const armed =

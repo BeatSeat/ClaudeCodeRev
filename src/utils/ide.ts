@@ -137,10 +137,10 @@ const supportedIdeConfigs: Record<IdeType, IdeConfig> = {
   },
   windsurf: {
     ideKind: 'vscode',
-    displayName: 'Windsurf',
-    processKeywordsMac: ['Windsurf Helper', 'Windsurf.app'],
-    processKeywordsWindows: ['windsurf.exe'],
-    processKeywordsLinux: ['windsurf'],
+    displayName: 'Devin Desktop',
+    processKeywordsMac: ['Windsurf Helper', 'Windsurf.app', 'Devin Helper', 'Devin.app'],
+    processKeywordsWindows: ['windsurf.exe', 'Devin.exe'],
+    processKeywordsLinux: ['windsurf', 'devin-desktop'],
   },
   vscode: {
     ideKind: 'vscode',
@@ -1080,7 +1080,7 @@ async function detectRunningIDEsImpl(): Promise<IdeType[]> {
     if (platform === 'macos') {
       // On macOS, use ps with process name matching
       const result = await execa(
-        'ps aux | grep -E "Visual Studio Code|Code Helper|Cursor Helper|Windsurf Helper|IntelliJ IDEA|PyCharm|WebStorm|PhpStorm|RubyMine|CLion|GoLand|Rider|DataGrip|AppCode|DataSpell|Aqua|Gateway|Fleet|Android Studio" | grep -v grep',
+        'ps aux | grep -E "Visual Studio Code|Code Helper|Cursor Helper|Windsurf Helper|Devin Helper|Devin.app|IntelliJ IDEA|PyCharm|WebStorm|PhpStorm|RubyMine|CLion|GoLand|Rider|DataGrip|AppCode|DataSpell|Aqua|Gateway|Fleet|Android Studio" | grep -v grep',
         { shell: true, reject: false },
       )
       const stdout = result.stdout ?? ''
@@ -1095,7 +1095,7 @@ async function detectRunningIDEsImpl(): Promise<IdeType[]> {
     } else if (platform === 'windows') {
       // On Windows, use tasklist with findstr for multiple patterns
       const result = await execa(
-        'tasklist | findstr /I "Code.exe Cursor.exe Windsurf.exe idea64.exe pycharm64.exe webstorm64.exe phpstorm64.exe rubymine64.exe clion64.exe goland64.exe rider64.exe datagrip64.exe appcode.exe dataspell64.exe aqua64.exe gateway64.exe fleet.exe studio64.exe"',
+        'tasklist | findstr /I "Code.exe Cursor.exe Windsurf.exe Devin.exe idea64.exe pycharm64.exe webstorm64.exe phpstorm64.exe rubymine64.exe clion64.exe goland64.exe rider64.exe datagrip64.exe appcode.exe dataspell64.exe aqua64.exe gateway64.exe fleet.exe studio64.exe"',
         { shell: true, reject: false },
       )
       const stdout = result.stdout ?? ''
@@ -1113,7 +1113,7 @@ async function detectRunningIDEsImpl(): Promise<IdeType[]> {
     } else if (platform === 'linux') {
       // On Linux, use ps with process name matching
       const result = await execa(
-        'ps aux | grep -E "code|cursor|windsurf|idea|pycharm|webstorm|phpstorm|rubymine|clion|goland|rider|datagrip|dataspell|aqua|gateway|fleet|android-studio" | grep -v grep',
+        'ps aux | grep -E "code|cursor|windsurf|devin-desktop|idea|pycharm|webstorm|phpstorm|rubymine|clion|goland|rider|datagrip|dataspell|aqua|gateway|fleet|android-studio" | grep -v grep',
         { shell: true, reject: false },
       )
       const stdout = result.stdout ?? ''
@@ -1199,7 +1199,7 @@ export function getIdeClientName(
 const EDITOR_DISPLAY_NAMES: Record<string, string> = {
   code: 'VS Code',
   cursor: 'Cursor',
-  windsurf: 'Windsurf',
+  windsurf: 'Devin Desktop',
   antigravity: 'Antigravity',
   vi: 'Vim',
   vim: 'Vim',

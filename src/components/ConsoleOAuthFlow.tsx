@@ -27,7 +27,7 @@ type Props = {
   onDone(): void
   startingMessage?: string
   mode?: 'login' | 'setup-token'
-  forceLoginMethod?: 'claudeai' | 'console'
+  forceLoginMethod?: 'claudeai' | 'console' | 'gateway'
   urlOutdent?: number
 }
 

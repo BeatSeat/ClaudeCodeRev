@@ -6,7 +6,7 @@ import {
 } from '../../utils/bash/commands.js'
 import { tryParseShellCommand } from '../../utils/bash/shellQuote.js'
 import { getCwd } from '../../utils/cwd.js'
-import { isCurrentDirectoryBareGitRepo } from '../../utils/git.js'
+import { classifyGitBareRepoGate } from '../../utils/git.js'
 import type { PermissionResult } from '../../utils/permissions/PermissionResult.js'
 import { getPlatform } from '../../utils/platform.js'
 import { SandboxManager } from '../../utils/sandbox/sandbox-adapter.js'
@@ -1963,11 +1963,14 @@ export function checkReadOnlyConstraints(
   // 1. Deleted .git/HEAD to invalidate the normal git directory
   // 2. Created hooks/pre-commit or other git-internal files in the current directory
   // Git would then treat the cwd as the git directory and execute malicious hooks.
-  if (hasGitCommand && isCurrentDirectoryBareGitRepo()) {
+  const bareRepoGate = hasGitCommand ? classifyGitBareRepoGate() : false
+  if (bareRepoGate) {
     return {
       behavior: 'passthrough',
       message:
-        'Git commands in directories with bare repository structure require permission checks for enhanced security',
+        bareRepoGate === 'bare-indicators'
+          ? 'The current directory has bare-repo indicators (HEAD/objects/refs outside a .git/ directory). Git may treat it as a git dir and run config/hooks from here, so git commands need approval.'
+          : 'The .git file or symlink here redirects to a location Claude cannot verify is safe (it may have been planted by an untrusted archive). Git commands need approval.',
     }
   }
 

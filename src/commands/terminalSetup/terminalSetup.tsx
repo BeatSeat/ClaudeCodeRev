@@ -59,9 +59,11 @@ function isVSCodeRemoteSSH(): boolean {
     askpassMain.includes('.vscode-server') ||
     askpassMain.includes('.cursor-server') ||
     askpassMain.includes('.windsurf-server') ||
+    askpassMain.includes('.devin-server') ||
     path.includes('.vscode-server') ||
     path.includes('.cursor-server') ||
-    path.includes('.windsurf-server')
+    path.includes('.windsurf-server') ||
+    path.includes('.devin-server')
   )
 }
 
@@ -124,9 +126,9 @@ export async function setupTerminal(theme: ThemeName): Promise<string> {
       result += await configureEditorGpuAcceleration('Cursor', theme)
       break
     case 'windsurf':
-      result = await installBindingsForVSCodeTerminal('Windsurf', theme)
-      result += await configureEditorScrollSensitivity('Windsurf', theme)
-      result += await configureEditorGpuAcceleration('Windsurf', theme)
+      result = await installBindingsForVSCodeTerminal('Devin Desktop', theme)
+      result += await configureEditorScrollSensitivity('Devin Desktop', theme)
+      result += await configureEditorGpuAcceleration('Devin Desktop', theme)
       break
     case 'alacritty':
       result = await installBindingsForAlacritty(theme)
@@ -274,7 +276,7 @@ ${chalk.dim('Note: You can already use backslash (\\\\) + return to add newlines
 To set up the shortcut (optional):
 1. Exit tmux/screen temporarily
 2. Run /terminal-setup directly in one of these terminals:
-${platformTerminals}   • IDE: VSCode, Cursor, Windsurf, Zed
+${platformTerminals}   • IDE: VSCode, Cursor, Devin Desktop, Zed
    • Other: Alacritty
 3. Return to tmux/screen - settings will persist
 
@@ -303,7 +305,7 @@ const EDITOR_SCROLL_SENSITIVITY_KEY =
 const EDITOR_SCROLL_SENSITIVITY = 3
 
 function getEditorUserDir(
-  editor: 'VSCode' | 'Cursor' | 'Windsurf',
+  editor: 'VSCode' | 'Cursor' | 'Windsurf' | 'Devin Desktop',
 ): string {
   const editorDir = editor === 'VSCode' ? 'Code' : editor
   return join(
@@ -317,7 +319,7 @@ function getEditorUserDir(
 }
 
 async function configureEditorScrollSensitivity(
-  editor: 'VSCode' | 'Cursor' | 'Windsurf',
+  editor: 'VSCode' | 'Cursor' | 'Windsurf' | 'Devin Desktop',
   theme: ThemeName,
 ): Promise<string> {
   const hint = chalk.dim(
@@ -400,7 +402,7 @@ const EDITOR_GPU_ACCEL_OFF = 'off'
 
 /** Official 2.1.157 `p78`. */
 async function configureEditorGpuAcceleration(
-  editor: 'VSCode' | 'Cursor' | 'Windsurf',
+  editor: 'VSCode' | 'Cursor' | 'Windsurf' | 'Devin Desktop',
   theme: ThemeName,
 ): Promise<string> {
   const hint = chalk.dim(
@@ -482,7 +484,7 @@ async function configureEditorGpuAcceleration(
 }
 
 async function installBindingsForVSCodeTerminal(
-  editor: 'VSCode' | 'Cursor' | 'Windsurf' = 'VSCode',
+  editor: 'VSCode' | 'Cursor' | 'Windsurf' | 'Devin Desktop' = 'VSCode',
   theme: ThemeName,
 ): Promise<string> {
   // Check if we're running in a VSCode Remote SSH session

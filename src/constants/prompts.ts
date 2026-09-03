@@ -63,7 +63,9 @@ import { isUndercover } from '../utils/undercover.js'
 import { isMcpInstructionsDeltaEnabled } from '../utils/mcpInstructionsDelta.js'
 import { getThinkingGuidanceSection } from '../utils/thinking.js'
 import {
+  ACT_DONT_REDERIVE_SECTION,
   getLeanSystemPromptSections,
+  isActDontRederiveArmed,
   isSimpleSystemPrompt,
 } from '../utils/simpleSystemPrompt.js'
 
@@ -583,6 +585,9 @@ ${CYBER_RISK_INSTRUCTION}`,
       ? [systemPromptSection('brief', () => getBriefSection())]
       : []),
     systemPromptSection('focus_mode', () => getFocusModeSection()),
+    systemPromptSection('act_dont_rederive', () =>
+      isActDontRederiveArmed() ? ACT_DONT_REDERIVE_SECTION : null,
+    ),
   ]
 
   const resolvedDynamicSections =

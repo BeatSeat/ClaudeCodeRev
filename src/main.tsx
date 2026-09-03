@@ -64,7 +64,7 @@ import type {
   ScopedMcpServerConfig,
 } from './services/mcp/types.js'
 import {
-  isPolicyAllowed,
+  getCloudSessionsPolicyError,
   loadPolicyLimits,
   refreshPolicyLimits,
   waitForPolicyLimitsToLoad,
@@ -938,6 +938,46 @@ const _pendingSSH: PendingSSH | undefined = feature('SSH_REMOTE')
       extraCliArgs: [],
     }
   : undefined
+
+/** Official 2.1.162 `T19` — `--remote` is exclusive with other backends / headless. */
+function getRemoteFlagConflict(opts: {
+  print: unknown
+  continue: unknown
+  resume: unknown
+  fromPr: unknown
+  teleport: unknown
+  initOnly: boolean
+  argv: string[]
+  hasSSH: boolean
+  hasAssistant: boolean
+}): string | null {
+  if (opts.print) {
+    return 'Error: --remote cannot be combined with --print.\nCloud sessions are interactive only. Drop --print, or drop --remote to run locally.'
+  }
+  const nonInteractive =
+    opts.initOnly ||
+    !process.stdout.isTTY ||
+    opts.argv.some(a => a === '--sdk-url' || a.startsWith('--sdk-url='))
+  if (nonInteractive) {
+    return 'Error: --remote requires an interactive terminal.\nNon-interactive invocations (piped stdout, --init-only, --sdk-url) run locally and would silently ignore --remote. Drop --remote, or run from a TTY.'
+  }
+  if (opts.continue) {
+    return 'Error: --remote cannot be combined with --continue.\nTo reattach to a cloud session, pass its id: `claude --remote <session-id>` (find IDs at claude.ai/code).'
+  }
+  const hasConnect = opts.argv.some(
+    a => a.startsWith('cc://') || a.startsWith('cc+unix://'),
+  )
+  if (hasConnect || opts.hasSSH || opts.hasAssistant || opts.teleport) {
+    return `Error: --remote cannot be combined with ${hasConnect ? 'a cc:// connect URL' : opts.hasSSH ? '`claude ssh`' : opts.hasAssistant ? '`claude assistant`' : '--teleport'} — both select a remote backend; pick one.`
+  }
+  if (opts.resume || opts.fromPr) {
+    return `Error: --remote cannot be combined with ${opts.resume ? '--resume' : '--from-pr'}.\nTo reattach to a cloud session, pass its id: \`claude --remote <session-id>\` (find IDs at claude.ai/code).`
+  }
+  if (opts.argv.some(a => a === '--bg' || a.startsWith('--bg='))) {
+    return `--bg and --remote are different backends. Use \`claude --remote '<task>'\` directly to start a cloud session.`
+  }
+  return null
+}
 
 export async function main() {
   profileCheckpoint('main_function_start')
@@ -4928,16 +4968,38 @@ async function run(): Promise<CommanderCommand> {
         // Remote Control (--rc) is a separate feature gated in initReplBridge.ts.
         if (remote !== null || teleport) {
           await waitForPolicyLimitsToLoad()
-          if (!isPolicyAllowed('allow_remote_sessions')) {
+          const cloudPolicyError = getCloudSessionsPolicyError()
+          if (cloudPolicyError) {
             return await exitWithError(
               root,
-              "Error: Remote sessions are disabled by your organization's policy.",
+              cloudPolicyError.startsWith('Error:')
+                ? cloudPolicyError
+                : `Error: ${cloudPolicyError}`,
               () => gracefulShutdown(1),
             )
           }
         }
 
         if (remote !== null) {
+          const remoteConflict = getRemoteFlagConflict({
+            print,
+            continue: options.continue,
+            resume: options.resume,
+            fromPr: options.fromPr,
+            teleport,
+            initOnly,
+            argv: process.argv.slice(2),
+            hasSSH: Boolean(_pendingSSH?.host),
+            hasAssistant: Boolean(
+              _pendingAssistantChat?.sessionId ||
+                _pendingAssistantChat?.discover,
+            ),
+          })
+          if (remoteConflict) {
+            return await exitWithError(root, remoteConflict, () =>
+              gracefulShutdown(1),
+            )
+          }
           // Create remote session (optionally with initial prompt)
           const hasInitialPrompt = remote.length > 0
 

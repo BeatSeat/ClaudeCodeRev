@@ -80,7 +80,7 @@ function sourceToString(
   }
   switch (source.type) {
     case 'hook':
-      return 'hook'
+      return 'hook:PermissionRequest'
     case 'user':
       return source.permanent ? 'user_permanent' : 'user_temporary'
     case 'user_abort':

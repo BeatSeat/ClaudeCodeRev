@@ -736,12 +736,19 @@ export const SettingsSchema = lazySchema(() =>
         .describe(
           'Marketplace names whose plugins may surface as contextual install suggestions (relevance-based tips), in addition to the official marketplace. Only honored when set in managed settings (policy scope); the key is ignored in user, project, and local settings. A name only takes effect when the marketplace is registered on the machine AND its registered source is also declared in managed settings, either as the extraKnownMarketplaces entry for that name or as an entry of strictKnownMarketplaces. A marketplace registered from a different source under an allowlisted name is ignored.',
         ),
-      // Force a specific login method: 'claudeai' for Claude Pro/Max, 'console' for Console billing
+      // Force a specific login method: 'claudeai' for Claude Pro/Max, 'console' for Console billing, 'gateway' for Cloud gateway OIDC
       forceLoginMethod: z
-        .enum(['claudeai', 'console'])
+        .enum(['claudeai', 'console', 'gateway'])
         .optional()
         .describe(
-          'Force a specific login method: "claudeai" for Claude Pro/Max, "console" for Console billing',
+          'Force a specific login method: "claudeai" for Claude Pro/Max, "console" for Console billing, "gateway" for the Cloud gateway OIDC device flow',
+        ),
+      cloudGatewayUrl: z
+        .string()
+        .url()
+        .optional()
+        .describe(
+          '@internal Cloud gateway URL to pre-fill and auto-connect to during login. Typically set in local managed settings alongside forceLoginMethod: "gateway" so users never type the URL. Hidden from public SDK types until Cloud gateway is documented.',
         ),
       parentSettingsBehavior: z
         .enum(['first-wins', 'merge'])
