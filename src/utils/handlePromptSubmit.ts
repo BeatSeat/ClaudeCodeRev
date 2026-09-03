@@ -289,7 +289,11 @@ export async function handlePromptSubmit(
         }
         if (options?.nextInput) {
           if (options.submitNextInput) {
-            enqueue({ value: options.nextInput, mode: 'prompt' })
+            enqueue({
+              value: options.nextInput,
+              mode: 'prompt',
+              origin: { kind: 'auto-continuation' as const },
+            })
           } else {
             onInputChange(options.nextInput)
           }
@@ -591,7 +595,11 @@ async function executeUserInput(params: ExecuteUserInputParams): Promise<void> {
       // Handle nextInput from commands that want to chain (e.g., /discover activation)
       if (nextInput) {
         if (submitNextInput) {
-          enqueue({ value: nextInput, mode: 'prompt' })
+          enqueue({
+            value: nextInput,
+            mode: 'prompt',
+            origin: { kind: 'auto-continuation' as const },
+          })
         } else {
           params.onInputChange(nextInput)
         }

@@ -64,8 +64,52 @@ export function wrapForMultiplexer(sequence: string): string {
  */
 export type ClipboardPath = 'native' | 'tmux-buffer' | 'osc52'
 
+const VSCODE_FAMILY = new Set([
+  'vscode',
+  'cursor',
+  'windsurf',
+  'antigravity',
+  'codium',
+])
+
+const SHIFT_SELECT_TERMINALS = new Set([
+  'ghostty',
+  'kitty',
+  'WezTerm',
+  'alacritty',
+  'xterm',
+  'gnome-terminal',
+  'vte-based',
+  'konsole',
+  'windows-terminal',
+  'mintty',
+])
+
 function isClipboardSshSession(): boolean {
   return Boolean(process.env['SSH_CONNECTION'])
+}
+
+/**
+ * Official `D78` — modifier the toast tells the user to hold for native copy
+ * when OSC 52 may not have landed in the system clipboard.
+ */
+export function nativeCopyModifierHint(): string {
+  const terminal = env.terminal
+  if (terminal === 'Apple_Terminal') return 'Fn'
+  if (terminal === 'iTerm.app') return 'Option'
+  if (
+    process.env.TERM_PROGRAM === 'vscode' ||
+    (terminal !== null && VSCODE_FAMILY.has(terminal))
+  ) {
+    return getPlatform() === 'macos' ? 'Option' : 'Shift'
+  }
+  if (terminal !== null && SHIFT_SELECT_TERMINALS.has(terminal)) return 'Shift'
+  if (process.env.LC_TERMINAL === 'iTerm2') return 'Option'
+  const mux = Boolean(process.env.TMUX || process.env.STY)
+  if (isClipboardSshSession() || mux || getPlatform() === 'macos') {
+    return 'Shift (Option in iTerm2, Fn in Terminal.app)'
+  }
+  return 'Shift'
 }
 
 export function getClipboardPath(): ClipboardPath {

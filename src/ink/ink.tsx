@@ -15,6 +15,7 @@ import { onExit } from 'signal-exit'
 import { flushInteractionTime } from 'src/bootstrap/state.js'
 import { getYogaCounters } from 'src/native-ts/yoga-layout/index.js'
 import { logForDebugging } from 'src/utils/debug.js'
+import { isErrnoException } from 'src/utils/errors.js'
 import { isEnvTruthy } from 'src/utils/envUtils.js'
 import { logError } from 'src/utils/log.js'
 import { format } from 'util'
@@ -105,21 +106,13 @@ import {
   ERASE_SCREEN,
 } from './termio/csi.js'
 import {
-  DBP,
-  DFE,
   DISABLE_MOUSE_TRACKING,
   ENABLE_MOUSE_TRACKING,
   ENTER_ALT_SCREEN,
   EXIT_ALT_SCREEN,
-  SHOW_CURSOR,
 } from './termio/dec.js'
-import {
-  CLEAR_ITERM2_PROGRESS,
-  CLEAR_TAB_STATUS,
-  setClipboard,
-  supportsTabStatus,
-  wrapForMultiplexer,
-} from './termio/osc.js'
+import { setClipboard } from './termio/osc.js'
+import { restoreTerminalModes } from './restoreTerminalModes.js'
 import { TerminalWriteProvider } from './useTerminalNotification.js'
 
 // Alt-screen: renderer.ts sets cursor.visible = !isTTY || screen.height===0,
@@ -1788,31 +1781,29 @@ export default class Ink {
     // terminals that don't support them.
     /* eslint-disable custom-rules/no-sync-fs -- process exiting; async writes would be dropped */
     if (this.options.stdout.isTTY) {
-      if (this.altScreenActive) {
-        // <AlternateScreen>'s unmount effect won't run during signal-exit.
-        // Exit alt screen FIRST so other cleanup sequences go to the main screen.
-        writeSync(1, EXIT_ALT_SCREEN)
+      try {
+        if (this.altScreenActive) {
+          // <AlternateScreen>'s unmount effect won't run during signal-exit.
+          // Exit alt screen FIRST so other cleanup sequences go to the main screen.
+          writeSync(1, EXIT_ALT_SCREEN)
+        }
+        // Disable mouse tracking — unconditional because altScreenActive can be
+        // stale if AlternateScreen's unmount (which flips the flag) raced a
+        // blocked event loop + SIGINT. No-op if tracking was never enabled.
+        writeSync(1, DISABLE_MOUSE_TRACKING)
+        // Drain stdin so in-flight mouse events don't leak to the shell
+        this.drainStdin()
+        restoreTerminalModes()
+      } catch (error) {
+        if (isErrnoException(error)) {
+          logForDebugging(
+            `unmount terminal cleanup writeSync failed: ${error}`,
+            { level: 'error' },
+          )
+        } else {
+          throw error
+        }
       }
-      // Disable mouse tracking — unconditional because altScreenActive can be
-      // stale if AlternateScreen's unmount (which flips the flag) raced a
-      // blocked event loop + SIGINT. No-op if tracking was never enabled.
-      writeSync(1, DISABLE_MOUSE_TRACKING)
-      // Drain stdin so in-flight mouse events don't leak to the shell
-      this.drainStdin()
-      // Disable extended key reporting (both kitty and modifyOtherKeys)
-      writeSync(1, DISABLE_MODIFY_OTHER_KEYS)
-      writeSync(1, DISABLE_KITTY_KEYBOARD)
-      // Disable focus events (DECSET 1004)
-      writeSync(1, DFE)
-      // Disable bracketed paste mode
-      writeSync(1, DBP)
-      // Show cursor
-      writeSync(1, SHOW_CURSOR)
-      // Clear iTerm2 progress bar
-      writeSync(1, CLEAR_ITERM2_PROGRESS)
-      // Clear tab status (OSC 21337) so a stale dot doesn't linger
-      if (supportsTabStatus())
-        writeSync(1, wrapForMultiplexer(CLEAR_TAB_STATUS))
     }
     /* eslint-enable custom-rules/no-sync-fs */
 

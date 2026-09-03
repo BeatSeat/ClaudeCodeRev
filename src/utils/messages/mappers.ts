@@ -240,7 +240,10 @@ export function toSDKRateLimitInfo(
       overageResetsAt: limits.overageResetsAt,
     }),
     ...(limits.overageDisabledReason !== undefined && {
-      overageDisabledReason: limits.overageDisabledReason,
+      overageDisabledReason:
+        limits.overageDisabledReason === 'org_spend_cap_reached'
+          ? 'org_level_disabled_until'
+          : limits.overageDisabledReason,
     }),
     ...(limits.isUsingOverage !== undefined && {
       isUsingOverage: limits.isUsingOverage,

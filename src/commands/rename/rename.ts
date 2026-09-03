@@ -25,7 +25,7 @@ export async function call(
   // Prevent teammates from renaming - their names are set by team leader
   if (isTeammate()) {
     onDone(
-      'Cannot rename: This session is a swarm teammate. Teammate names are set by the team leader.',
+      'Cannot rename: This session is a teammate. Teammate names are set by the team leader.',
       { display: 'system' },
     )
     return null

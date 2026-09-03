@@ -22,7 +22,7 @@ function foldSpawn(acc: Notification, _incoming: Notification): Notification {
 function makeSpawnNotif(count: number): Notification {
   return {
     key: 'teammate-spawn',
-    text: count === 1 ? '1 agent spawned' : `${count} agents spawned`,
+    text: count === 1 ? '1 teammate started' : `${count} teammates started`,
     priority: 'low',
     timeoutMs: 5000,
     fold: foldSpawn,
@@ -39,7 +39,7 @@ function foldShutdown(
 function makeShutdownNotif(count: number): Notification {
   return {
     key: 'teammate-shutdown',
-    text: count === 1 ? '1 agent shut down' : `${count} agents shut down`,
+    text: count === 1 ? '1 teammate shut down' : `${count} teammates shut down`,
     priority: 'low',
     timeoutMs: 5000,
     fold: foldShutdown,
@@ -49,7 +49,7 @@ function makeShutdownNotif(count: number): Notification {
 /**
  * Fires batched notifications when in-process teammates spawn or shut down.
  * Uses fold() to combine repeated events into a single notification
- * like "3 agents spawned" or "2 agents shut down".
+ * like "3 teammates started" or "2 teammates shut down".
  */
 export function useTeammateLifecycleNotification(): void {
   const tasks = useAppState(s => s.tasks)

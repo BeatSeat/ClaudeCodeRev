@@ -12,6 +12,10 @@ import type {
   SDKControlRequestInner,
   SDKControlResponse,
 } from '../entrypoints/sdk/controlTypes.js'
+import {
+  type AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
+  logEvent,
+} from '../services/analytics/index.js'
 import { logForDebugging } from '../utils/debug.js'
 import { errorMessage, toError } from '../utils/errors.js'
 import { logError } from '../utils/log.js'
@@ -23,7 +27,26 @@ const RECONNECT_BASE_MS = 1000
 const RECONNECT_MAX_MS = 30_000
 const MAX_RECONNECT_ATTEMPTS = 5
 const LIVENESS_TIMEOUT_MS = 45_000
+const CONNECT_TIMEOUT_MS = 30_000
 const PERMANENT_HTTP_STATUSES = new Set([401, 403, 404])
+
+function featureSad(featureName: string, errorCode: string): void {
+  logEvent('tengu_feature_sad', {
+    feature_name:
+      featureName as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
+    error_code:
+      errorCode as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
+  })
+}
+
+function featureBad(featureName: string, errorCode: string): void {
+  logEvent('tengu_feature_bad', {
+    feature_name:
+      featureName as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
+    error_code:
+      errorCode as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
+  })
+}
 
 type SessionsV2State = 'idle' | 'connecting' | 'connected' | 'closed'
 
@@ -39,6 +62,7 @@ export type SessionsV2ClientCallbacks = {
   onError?: (error: Error) => void
   onConnected?: () => void
   onReconnecting?: () => void
+  onCatchUpTruncated?: () => void
 }
 
 function isSessionsPayload(value: unknown): value is SessionsV2Message {
@@ -127,6 +151,11 @@ export class SessionsV2Client {
     abort: AbortController,
   ): Promise<void> {
     let response: Response
+    let timedOut = false
+    const connectTimer = setTimeout(() => {
+      timedOut = true
+      abort.abort()
+    }, CONNECT_TIMEOUT_MS)
     try {
       response = await fetch(url.href, {
         method: 'GET',
@@ -134,11 +163,23 @@ export class SessionsV2Client {
         signal: abort.signal,
         ...getProxyFetchOptions({ url: url.href }),
       })
+      clearTimeout(connectTimer)
     } catch (err) {
+      clearTimeout(connectTimer)
+      if (timedOut) {
+        logForDebugging(
+          `[SessionsV2Client] Connect timed out after ${CONNECT_TIMEOUT_MS}ms, reconnecting`,
+          { level: 'error' },
+        )
+        featureSad('remote_connect', 'remote_connect_timeout')
+        this.handleStreamEnd()
+        return
+      }
       if (abort.signal.aborted) return
       logForDebugging(`[SessionsV2Client] Connect error: ${errorMessage(err)}`, {
         level: 'error',
       })
+      featureSad('remote_connect', 'remote_connect_request_failed')
       this.callbacks.onError?.(toError(err))
       this.handleStreamEnd()
       return
@@ -228,9 +269,15 @@ export class SessionsV2Client {
         if (isSessionsPayload(payload)) this.callbacks.onMessage(payload)
         return
       }
+      case 'catch_up_truncated':
+        logForDebugging(
+          '[SessionsV2Client] catch_up_truncated — transcript gap',
+        )
+        featureSad('remote_connect', 'remote_catch_up_truncated')
+        this.callbacks.onCatchUpTruncated?.()
+        return
       case 'session_update':
       case 'delivery_update':
-      case 'catch_up_truncated':
         logForDebugging(`[SessionsV2Client] Ignoring ${event} frame`)
         return
       default:
@@ -248,6 +295,7 @@ export class SessionsV2Client {
       logForDebugging(
         `[SessionsV2Client] Reconnect budget exhausted (${MAX_RECONNECT_ATTEMPTS}), closing`,
       )
+      featureBad('remote_connect', 'remote_connect_reconnect_exhausted')
       this.state = 'closed'
       this.callbacks.onClose?.()
       return

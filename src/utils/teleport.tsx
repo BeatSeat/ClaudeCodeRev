@@ -67,6 +67,7 @@ import {
 } from './teleport/api.js'
 import {
   createDefaultCloudEnvironment,
+  type EnvironmentResource,
   fetchEnvironments,
 } from './teleport/environments.js'
 import { createAndUploadGitBundle } from './teleport/gitBundle.js'
@@ -1030,6 +1031,9 @@ export async function teleportToRemote(options: {
   source?: string
 }): Promise<TeleportToRemoteResponse | null> {
   const { initialMessage, signal } = options
+  let gitSource: GitSource | null = null
+  let seedBundleFileId: string | null = null
+  let selectedEnvironment: EnvironmentResource | undefined
   try {
     // Check authentication
     await checkAndRefreshOAuthTokenIfNeeded()
@@ -1070,8 +1074,6 @@ export async function teleportToRemote(options: {
       // Bundle mode: upload local working tree (uncommitted changes via
       // refs/seed/stash), container clones from the bundle. No GitHub.
       // Otherwise: github.com source — caller checked eligibility.
-      let gitSource: GitSource | null = null
-      let seedBundleFileId: string | null = null
       if (options.useBundle) {
         const bundle = await createAndUploadGitBundle(
           {
@@ -1121,11 +1123,20 @@ export async function teleportToRemote(options: {
       )
       const response = await axios.post(url, requestBody, { headers, signal })
       if (response.status !== 200 && response.status !== 201) {
-        logError(
-          new Error(
-            `CreateSession ${response.status}: ${jsonStringify(response.data)}`,
-          ),
-        )
+        const fail = monorepoSessionCreateFail({
+          status: response.status,
+          statusText: response.statusText,
+          data: response.data,
+          gitSource,
+          seedBundleFileId,
+          selectedEnvironment: { name: options.environmentId },
+        })
+        if (fail.debugOnly) {
+          logForDebugging(fail.log, { level: 'error' })
+        } else {
+          logError(new Error(fail.log))
+        }
+        options.onCreateFail?.(fail.userMessage)
         return null
       }
       const sessionData = response.data as SessionResource
@@ -1149,9 +1160,7 @@ export async function teleportToRemote(options: {
       }
     }
 
-    let gitSource: GitSource | null = null
     let gitOutcome: GitRepositoryOutcome | null = null
-    let seedBundleFileId: string | null = null
 
     // Source selection ladder: GitHub clone (if CCR can actually pull it) →
     // bundle fallback (if .git exists) → empty sandbox.
@@ -1391,7 +1400,7 @@ export async function teleportToRemote(options: {
       }
       if (retried) environments = retried
     }
-    const selectedEnvironment =
+    selectedEnvironment =
       (defaultEnvironmentId &&
         environments.find(
           env => env.environment_id === defaultEnvironmentId,
@@ -1490,14 +1499,20 @@ export async function teleportToRemote(options: {
     const isSuccess = response.status === 200 || response.status === 201
 
     if (!isSuccess) {
-      logError(
-        new Error(
-          `API request failed with status ${response.status}: ${response.statusText}\n\nResponse data: ${jsonStringify(response.data, null, 2)}`,
-        ),
-      )
-      options.onCreateFail?.(
-        `${response.status} ${response.statusText}: ${jsonStringify(response.data)}`,
-      )
+      const fail = monorepoSessionCreateFail({
+        status: response.status,
+        statusText: response.statusText,
+        data: response.data,
+        gitSource,
+        seedBundleFileId,
+        selectedEnvironment,
+      })
+      if (fail.debugOnly) {
+        logForDebugging(fail.log, { level: 'error' })
+      } else {
+        logError(new Error(fail.log))
+      }
+      options.onCreateFail?.(fail.userMessage)
       return null
     }
 
@@ -1524,10 +1539,97 @@ export async function teleportToRemote(options: {
       title: sessionData.title || requestBody.title,
     }
   } catch (error) {
+    if (axios.isAxiosError(error) && error.response) {
+      const fail = monorepoSessionCreateFail({
+        status: error.response.status,
+        statusText: error.response.statusText,
+        data: error.response.data,
+        gitSource,
+        seedBundleFileId,
+        selectedEnvironment,
+      })
+      if (fail.debugOnly) {
+        logForDebugging(fail.log, { level: 'error' })
+      } else {
+        logError(new Error(fail.log))
+      }
+      options.onCreateFail?.(fail.userMessage)
+      return null
+    }
     const err = toError(error)
     logError(err)
     return null
   }
+}
+
+const MONOREPO_SOURCE_REASONS = new Set([
+  'monorepo_source_disallowed',
+  'monorepo_byoc_source_missing',
+  'monorepo_source_env_mismatch',
+])
+
+/** Official 161 session-create remap for monorepo/BYOC source mismatches. */
+function monorepoSessionCreateFail({
+  status,
+  statusText,
+  data,
+  gitSource,
+  seedBundleFileId,
+  selectedEnvironment,
+}: {
+  status: number
+  statusText: string
+  data: unknown
+  gitSource: { url?: string } | null
+  seedBundleFileId: string | null | undefined
+  selectedEnvironment: { name?: string } | undefined
+}): { log: string; userMessage: string; debugOnly: boolean } {
+  const log = `API request failed with status ${status}: ${statusText}\n\nResponse data: ${jsonStringify(data, null, 2)}`
+  const err =
+    data && typeof data === 'object' && 'error' in data
+      ? (data as { error?: { type?: string; reason?: string; message?: string } })
+          .error
+      : undefined
+  const type = err?.type
+  const reason = err?.reason
+  const message = err?.message
+  const parsed = gitSource?.url ? parseGitRemote(gitSource.url) : null
+  const sourceLabel = parsed
+    ? `${parsed.owner}/${parsed.name}`
+    : seedBundleFileId
+      ? 'a seed bundle (no git source)'
+      : (gitSource?.url ?? 'no source')
+  const isAnthropicMonorepo =
+    parsed !== null &&
+    parsed.host.toLowerCase() === 'github.com' &&
+    parsed.owner.toLowerCase() === 'anthropics' &&
+    parsed.name.toLowerCase() === 'anthropic'
+  const isMonorepoMismatch =
+    (typeof message === 'string' &&
+      message.includes(
+        'source repository configuration is not permitted for this environment',
+      )) ||
+    (typeof reason === 'string' && MONOREPO_SOURCE_REASONS.has(reason)) ||
+    (status === 400 &&
+      !reason &&
+      type === 'invalid_request_error' &&
+      gitSource !== null &&
+      !seedBundleFileId &&
+      isAnthropicMonorepo &&
+      typeof message === 'string' &&
+      /^the request was invalid\.?$/i.test(message))
+  const envName = selectedEnvironment?.name ?? 'unknown'
+  let userMessage = message || `${status} ${statusText || ''}`.trim()
+  if (isMonorepoMismatch) {
+    userMessage = isAnthropicMonorepo
+      ? `The source anthropics/anthropic requires a monorepo environment, but "${envName}" was selected. Configure a monorepo environment, or run from a different repository.`
+      : `The selected environment "${envName}" only accepts the Anthropic monorepo (anthropics/anthropic), but the source was ${sourceLabel}. Run this from a monorepo checkout, or select a different environment.`
+  }
+  const debugOnly =
+    [401, 403, 429].includes(status) ||
+    type === 'github_repo_access_denied' ||
+    isMonorepoMismatch
+  return { log, userMessage, debugOnly }
 }
 
 /**

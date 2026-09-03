@@ -31,7 +31,7 @@ export type Input = z.infer<InputSchema>
 
 export const TeamDeleteTool: Tool<InputSchema, Output> = buildTool({
   name: TEAM_DELETE_TOOL_NAME,
-  searchHint: 'disband a swarm team and clean up',
+  searchHint: 'disband a team and clean up',
   maxResultSizeChars: 100_000,
   shouldDefer: true,
 
@@ -48,7 +48,7 @@ export const TeamDeleteTool: Tool<InputSchema, Output> = buildTool({
   },
 
   async description() {
-    return 'Clean up team and task directories when the swarm is complete'
+    return 'Clean up team and task directories when the team is complete'
   },
 
   async prompt() {

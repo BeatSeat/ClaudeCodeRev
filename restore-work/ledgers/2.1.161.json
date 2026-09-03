@@ -1,0 +1,82 @@
+{
+  "version": "2.1.161",
+  "from": "2.1.160",
+  "astdiff": "0.99244",
+  "items": [
+    {
+      "item": "Hook parent-abort: PreToolUse / PostToolUseFailure cancelled when signal.aborted",
+      "status": "located",
+      "evidence": "toolHooks.ts isAbortError + parent abort strings; tokens 0→1"
+    },
+    {
+      "item": "Terminal restore + OSC 52 native-copy hint + vscode-gpu-accel-garbled-glyphs tip",
+      "status": "located",
+      "evidence": "restoreTerminalModes.ts s48; ink.tsx unmount errno wrap; osc.ts nativeCopyModifierHint"
+    },
+    {
+      "item": "zsh/jq command safety: non-numeric [[ arith, read -p fused remainder, jq include/import",
+      "status": "located",
+      "evidence": "src/utils/bash/ast.ts unique tokens 'read -p' fused remainder / jq include/import"
+    },
+    {
+      "item": "Org spend cap reached + unused claude.ai connectors fold",
+      "status": "located",
+      "evidence": "org_spend_cap_reached in claudeAiLimits/fastMode/rateLimitMessages; MCPListPanel unused-connectors-fold"
+    },
+    {
+      "item": "Subagent wording + /fork coordinator guard",
+      "status": "located",
+      "evidence": "agentToolUtils subagent copy; fork.ts coordinator /branch; subagent_fork_coordinator_mode. Ft6 spawn body is earlier-hop gap"
+    },
+    {
+      "item": "Team/teammate wording (dropped swarm)",
+      "status": "located",
+      "evidence": "TeamCreate/Delete searchHints; --team-name; color/rename; 1 teammate started/shut down"
+    },
+    {
+      "item": "Remote session connect timeout + catch_up_truncated",
+      "status": "located",
+      "evidence": "SessionsV2Client 30s abort remote_connect_timeout; RemoteSessionManager onCatchUpTruncated"
+    },
+    {
+      "item": "Ink accessibility aria-* + InternalAccessibilityContext",
+      "status": "located",
+      "evidence": "Box.tsx aria-hidden/label/role/state; AccessibilityContext.ts"
+    },
+    {
+      "item": "GrowthBook tengu_copper_thistle + tengu_walnut_prism ownership frame",
+      "status": "located",
+      "evidence": "pillLabel mcp_task; PromptInputFooter PrBadge; simpleSystemPrompt E1q"
+    },
+    {
+      "item": "MCP skills discovery (skill://index.json, tengu_mcp_skills default false)",
+      "status": "located",
+      "evidence": "mcpSkills.ts C$A/GT4; skill_mcp_load analytics; isMcpSkillsEnabled Wk(). vM8 slash dispatch not fully traced"
+    },
+    {
+      "item": "Monorepo BYOC session-create remap",
+      "status": "located",
+      "evidence": "teleport.tsx monorepoSessionCreateFail; tokens monorepo_byoc_source_missing / env_mismatch / disallowed"
+    },
+    {
+      "item": "SDK commands_changed + auto-continuation origin + force-login vs API key",
+      "status": "located",
+      "evidence": "coreSchemas SDKCommandsChangedMessageSchema + SDKMessageOriginSchema auto-continuation; handlePromptSubmit/REPL/UltraplanChoiceDialog origin:{kind:auto-continuation}; auth.ts J_H"
+    },
+    {
+      "item": "Monitor prompt + TaskOutput DEPRECATED + insights subagents wording",
+      "status": "located",
+      "evidence": "MonitorTool prompt 161 unique body; TaskOutputTool subagent JSONL; insights.ts subagents"
+    },
+    {
+      "item": "Memory bulk inflate tengu_memory_bulk_inflate / LineTooLongError",
+      "status": "absent-in-tree",
+      "evidence": "no exportAll/remoteHashes/kKA/yk4 home in src/; team_memory_multistore_bulk_inflate same"
+    },
+    {
+      "item": "SwarmPaneError / catch-up skill generator / workerAgent / jh4 overloaded classifier",
+      "status": "absent-in-tree",
+      "evidence": "coordinator/workerAgent.ts is stub; no catch-up skill generator; no needs-classifier consumer for API overloaded"
+    }
+  ]
+}

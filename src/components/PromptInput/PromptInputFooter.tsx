@@ -6,6 +6,7 @@ import { getBridgeStatus } from '../../bridge/bridgeStatusUtil.js'
 import { useSetPromptOverlay } from '../../context/promptOverlayContext.js'
 import type { VerificationStatus } from '../../hooks/useApiKeyVerification.js'
 import type { IDESelection } from '../../hooks/useIdeSelection.js'
+import { usePrStatus } from '../../hooks/usePrStatus.js'
 import { useSettings } from '../../hooks/useSettings.js'
 import { useTerminalSize } from '../../hooks/useTerminalSize.js'
 import { Box, Text } from '../../ink.js'
@@ -15,9 +16,12 @@ import type { ToolPermissionContext } from '../../Tool.js'
 import type { Message } from '../../types/message.js'
 import type { PromptInputMode, VimMode } from '../../types/textInputTypes.js'
 import type { AutoUpdaterResult } from '../../utils/autoUpdater.js'
+import { getFeatureValue_CACHED_MAY_BE_STALE } from '../../services/analytics/growthbook.js'
+import { getGlobalConfig } from '../../utils/config.js'
 import { isFullscreenEnvEnabled } from '../../utils/fullscreen.js'
 import { isUndercover } from '../../utils/undercover.js'
 import { KeyboardShortcutHint } from '../design-system/KeyboardShortcutHint.js'
+import { PrBadge } from '../PrBadge.js'
 import {
   CoordinatorTaskPanel,
   useCoordinatorTaskCount,
@@ -111,6 +115,20 @@ function PromptInputFooter({
 }: Props): ReactNode {
   const settings = useSettings()
   const { columns, rows } = useTerminalSize()
+  const copperThistle = getFeatureValue_CACHED_MAY_BE_STALE(
+    'tengu_copper_thistle',
+    false,
+  )
+  const prStatus = usePrStatus(
+    isLoading,
+    getGlobalConfig().prStatusFooterEnabled ?? true,
+  )
+  const showRightPr =
+    copperThistle &&
+    (getGlobalConfig().prStatusFooterEnabled ?? true) &&
+    prStatus.number !== null &&
+    prStatus.url !== null &&
+    prStatus.reviewState !== null
   const messagesRef = useRef(messages)
   messagesRef.current = messages
   const lastAssistantMessageId = useMemo(
@@ -247,6 +265,13 @@ function PromptInputFooter({
           )}
           {"external" === 'ant' && isUndercover() && (
             <Text dimColor>undercover</Text>
+          )}
+          {showRightPr && (
+            <PrBadge
+              number={prStatus.number!}
+              url={prStatus.url!}
+              reviewState={prStatus.reviewState!}
+            />
           )}
           <BridgeStatusIndicator bridgeSelected={bridgeSelected} />
           {footerRowLabels.length > 0 && (

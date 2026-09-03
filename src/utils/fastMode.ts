@@ -272,6 +272,7 @@ function getOverageDisabledMessage(reason: string | null): string {
     case 'org_service_level_disabled':
       return 'Fast mode disabled · usage credits turned off by your organization'
     case 'org_level_disabled_until':
+    case 'org_spend_cap_reached':
       return 'Fast mode disabled · usage credit limit reached'
     case 'member_level_disabled':
       return 'Fast mode disabled · usage credits turned off for your account'
@@ -288,7 +289,11 @@ function getOverageDisabledMessage(reason: string | null): string {
 }
 
 function isOutOfCreditsReason(reason: string | null): boolean {
-  return reason === 'org_level_disabled_until' || reason === 'out_of_credits'
+  return (
+    reason === 'org_level_disabled_until' ||
+    reason === 'org_spend_cap_reached' ||
+    reason === 'out_of_credits'
+  )
 }
 
 /**

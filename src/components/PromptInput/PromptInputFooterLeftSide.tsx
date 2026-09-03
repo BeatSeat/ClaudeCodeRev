@@ -37,6 +37,7 @@ import { TeamStatus } from '../teams/TeamStatus.js'
 import { isInProcessEnabled } from '../../utils/swarm/backends/registry.js'
 import { useAppState, useAppStateStore } from 'src/state/AppState.js'
 import { getIsRemoteMode } from '../../bootstrap/state.js'
+import { getFeatureValue_CACHED_MAY_BE_STALE } from '../../services/analytics/growthbook.js'
 import HistorySearchInput from './HistorySearchInput.js'
 import { usePrStatus } from '../../hooks/usePrStatus.js'
 import { KeyboardShortcutHint } from '../design-system/KeyboardShortcutHint.js'
@@ -362,7 +363,13 @@ function ModeIndicator({
   // >=100 threshold was tuned for. Now that auto mode is effectively the
   // baseline, primaryItemCount is ≥1 for most sessions; keep the threshold
   // low enough to show PR status on standard 80-col terminals.
+  // Official 161 `tengu_copper_thistle`: PR badge moves to the right footer.
+  const copperThistle = getFeatureValue_CACHED_MAY_BE_STALE(
+    'tengu_copper_thistle',
+    false,
+  )
   const shouldShowPrStatus =
+    !copperThistle &&
     isPrStatusEnabled() &&
     prStatus.number !== null &&
     prStatus.reviewState !== null &&

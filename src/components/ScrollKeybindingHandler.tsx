@@ -8,7 +8,7 @@ import type { ScrollBoxHandle } from '../ink/components/ScrollBox.js'
 import { useSelection } from '../ink/hooks/use-selection.js'
 import type { FocusMove, SelectionState } from '../ink/selection.js'
 import { isXtermJs } from '../ink/terminal.js'
-import { getClipboardPath } from '../ink/termio/osc.js'
+import { getClipboardPath, nativeCopyModifierHint } from '../ink/termio/osc.js'
 // eslint-disable-next-line custom-rules/prefer-use-keybindings -- Esc needs conditional propagation based on selection state
 import { type Key, useInput, useStdin } from '../ink.js'
 import { useKeybindings } from '../keybindings/useKeybinding.js'
@@ -499,7 +499,7 @@ export function ScrollKeybindingHandler({
         msg = `copied ${n} ${unit} to tmux buffer · paste with prefix + ]`
         break
       case 'osc52':
-        msg = `sent ${n} ${unit} via OSC 52 · check terminal clipboard settings if paste fails`
+        msg = `sent ${n} ${unit} via OSC 52 · if paste fails, hold ${nativeCopyModifierHint()} while selecting for native copy`
         break
     }
     addNotification({
