@@ -195,6 +195,18 @@ export async function* runPostToolUseHooks<Input extends AnyObject, Output>(
       }
     }
   } catch (error) {
+    if (isAbortError(error)) {
+      if (toolUseContext.abortController.signal.aborted) {
+        throw error
+      }
+      logForDebugging('PostToolUse hook timed out (per-hook abort)')
+      logEvent('tengu_sdk_hook_callback_timeout', {
+        hookEvent:
+          'PostToolUse' as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
+        toolName: sanitizeToolNameForAnalytics(tool.name),
+      })
+      return
+    }
     logError(error)
   }
 }
@@ -331,6 +343,15 @@ export async function* runPostToolUseFailureHooks<Input extends AnyObject>(
       toolUseContext.abortController.signal.aborted
     ) {
       logForDebugging('PostToolUseFailure hook cancelled (parent abort)')
+      return
+    }
+    if (isAbortError(outerError)) {
+      logForDebugging('PostToolUseFailure hook timed out (per-hook abort)')
+      logEvent('tengu_sdk_hook_callback_timeout', {
+        hookEvent:
+          'PostToolUseFailure' as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
+        toolName: sanitizeToolNameForAnalytics(tool.name),
+      })
       return
     }
     logError(outerError)
@@ -697,6 +718,13 @@ export async function* runPreToolUseHooks(
       toolUseContext.abortController.signal.aborted
     ) {
       logForDebugging('PreToolUse hook cancelled (parent abort)')
+    } else if (isAbortError(error)) {
+      logForDebugging('PreToolUse hook timed out (per-hook abort)')
+      logEvent('tengu_sdk_hook_callback_timeout', {
+        hookEvent:
+          'PreToolUse' as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
+        toolName: sanitizeToolNameForAnalytics(tool.name),
+      })
     } else {
       logError(error)
     }

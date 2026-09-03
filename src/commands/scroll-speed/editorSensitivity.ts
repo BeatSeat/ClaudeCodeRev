@@ -10,7 +10,7 @@ export const EDITOR_SCROLL_SENSITIVITY_KEY =
   'terminal.integrated.mouseWheelScrollSensitivity'
 export const EDITOR_SCROLL_SENSITIVITY = 3
 
-export type EditorKind = 'VSCode' | 'Cursor' | 'Windsurf'
+export type EditorKind = 'VSCode' | 'Cursor' | 'Windsurf' | 'Devin Desktop'
 
 export type EditorSensitivity = {
   editor: EditorKind
@@ -26,9 +26,11 @@ function isVSCodeRemoteSSH(): boolean {
     askpassMain.includes('.vscode-server') ||
     askpassMain.includes('.cursor-server') ||
     askpassMain.includes('.windsurf-server') ||
+    askpassMain.includes('.devin-server') ||
     path.includes('.vscode-server') ||
     path.includes('.cursor-server') ||
-    path.includes('.windsurf-server')
+    path.includes('.windsurf-server') ||
+    path.includes('.devin-server')
   )
 }
 
@@ -40,7 +42,7 @@ function detectEditor(): EditorKind | null {
     case 'cursor':
       return 'Cursor'
     case 'windsurf':
-      return 'Windsurf'
+      return 'Devin Desktop'
     default:
       return null
   }

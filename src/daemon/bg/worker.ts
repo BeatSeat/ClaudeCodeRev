@@ -397,6 +397,7 @@ export class BgWorker {
 
   async respawnIfIdleStale(
     pinned?: Set<string>,
+    source = 'sweep',
   ): Promise<{ respawned: boolean; reason: string }> {
     if (this.dispatch.launch.mode === 'exec') {
       return { respawned: false, reason: 'not-stale' }
@@ -409,7 +410,7 @@ export class BgWorker {
     if (this.record.outcome) return { respawned: false, reason: 'no-state' }
     if (this.attachers.size > 0) return { respawned: false, reason: 'attached' }
     if (!state) return { respawned: false, reason: 'no-state' }
-    if (isSettled(state) && !pinned?.has(this.dispatch.short)) {
+    if (isSettled(state) && source !== 'attach' && !pinned?.has(this.dispatch.short)) {
       return { respawned: false, reason: 'settled' }
     }
     if (!state.cliVersion || state.cliVersion === MACRO.VERSION) {
@@ -425,6 +426,7 @@ export class BgWorker {
     bgEvent('tengu_bg_respawn_stale', {
       short: asMeta(this.dispatch.short),
       rvSent: asMeta(this.shutdownWorker()),
+      trigger: asMeta(source),
     })
     return { respawned: true, reason: 'stale' }
   }
