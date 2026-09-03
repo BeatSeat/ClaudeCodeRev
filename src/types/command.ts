@@ -42,6 +42,8 @@ export type PromptCommand = {
   hooks?: HooksSettings
   // Base directory for skill resources (used to set CLAUDE_PLUGIN_ROOT environment variable for skill hooks)
   skillRoot?: string
+  // Official 2.1.161 MCP skill templates (`b$A`).
+  urlTemplate?: string
   // Execution context: 'inline' (default) or 'fork' (run as sub-agent)
   // 'inline' = skill content expands into the current conversation
   // 'fork' = skill runs in a sub-agent with separate context and token budget

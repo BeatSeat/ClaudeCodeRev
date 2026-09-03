@@ -1,29 +1,7 @@
 {
   "version": "2.1.160",
   "from": "2.1.159",
-  "astdiff": {
-    "version": "2.1.160",
-    "from": "2.1.159",
-    "from_bundle": "/root/projects/ClaudeCodeRev/restore-work/artifacts/cometix/2.1.159/cli.js",
-    "to_bundle": "/root/projects/ClaudeCodeRev/restore-work/artifacts/cometix/2.1.160/cli.js",
-    "from_sha256": "7c0abb20ac36265fc0a31426b6cc0396357b4e70fd8a9914dcc48b73cebf49dc",
-    "to_sha256": "6f9576260ab4790010c4730f668f9e608c84379e4de45bdce73ae137ea728dad",
-    "method": "astdiff-v0.2.0+tree-sitter0.25",
-    "parser": "tree-sitter 0.25 / tree-sitter-javascript 0.25",
-    "similarity": 99.0,
-    "matched_declarations": 24611,
-    "total_declarations_from": 24658,
-    "total_declarations_to": 24861,
-    "change_total": 11377,
-    "added": 250,
-    "removed": 47,
-    "structural": 11055,
-    "string_only": 25,
-    "command": "astdiff /root/projects/ClaudeCodeRev/restore-work/artifacts/cometix/2.1.159/cli.js /root/projects/ClaudeCodeRev/restore-work/artifacts/cometix/2.1.160/cli.js --format json",
-    "full_json": "/root/projects/Zhiman/projects/ccr-swarm/integration/astdiff-full/using/2.1.160.json",
-    "elapsed_seconds": 16.9,
-    "generated_at": "2026-11-14T15:08:03Z"
-  },
+  "astdiff": "0.9894",
   "items": [
     {
       "item": "Prompt before writing shell startup files (.zshenv, .zlogin, .bash_login) and ~/.config/git/",

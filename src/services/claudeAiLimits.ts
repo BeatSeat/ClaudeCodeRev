@@ -172,6 +172,7 @@ export type OverageDisabledReason =
   | 'overage_not_provisioned' // Overage is not provisioned for this org or seat tier
   | 'org_level_disabled' // Organization doesn't have overage enabled
   | 'org_level_disabled_until' // Organization overage temporarily disabled
+  | 'org_spend_cap_reached' // Official 2.1.161 — org monthly spend cap
   | 'out_of_credits' // Organization has insufficient credits
   | 'seat_tier_level_disabled' // Seat tier doesn't have overage enabled
   | 'member_level_disabled' // Account specifically has overage disabled

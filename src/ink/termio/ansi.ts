@@ -47,6 +47,11 @@ export const C0 = {
 export const ESC = '\x1b'
 export const BEL = '\x07'
 export const SEP = ';'
+/** SCS G0 = USASCII + SI. Official restoreTerminalModes `O78`. */
+export const RESET_G0_USASCII = ESC + '(B' + String.fromCharCode(C0.SI)
+/** DECSC / DECRC (ESC 7 / ESC 8). */
+export const SAVE_CURSOR = ESC + '7'
+export const RESTORE_CURSOR = ESC + '8'
 
 /**
  * Escape sequence type introducers (byte after ESC)

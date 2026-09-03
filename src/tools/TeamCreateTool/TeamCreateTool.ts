@@ -58,7 +58,7 @@ export type Input = z.infer<InputSchema>
 
 export const TeamCreateTool: Tool<InputSchema, Output> = buildTool({
   name: TEAM_CREATE_TOOL_NAME,
-  searchHint: 'create a multi-agent swarm team',
+  searchHint: 'create a multi-agent team',
   maxResultSizeChars: 100_000,
   shouldDefer: true,
 
