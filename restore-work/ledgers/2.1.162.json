@@ -1,0 +1,72 @@
+{
+  "version": "2.1.162",
+  "from": "2.1.161",
+  "astdiff": "0.993",
+  "items": [
+    {
+      "item": "NotebookEdit cell_id prompt (replace/insert/delete)",
+      "status": "located",
+      "evidence": "prompt.ts F94/Q94; tokens Edit a cell in a Jupyter notebook / Replaces, inserts, or deletes a single cell 0→1"
+    },
+    {
+      "item": "Per-hook abort timeout vs parent abort",
+      "status": "located",
+      "evidence": "toolHooks.ts Pre/Post/PostToolUseFailure timed out (per-hook abort) + tengu_sdk_hook_callback_timeout"
+    },
+    {
+      "item": "act_dont_rederive / tengu_cedar_lantern",
+      "status": "located",
+      "evidence": "simpleSystemPrompt.ts gBA/dBA; prompts.ts act_dont_rederive section"
+    },
+    {
+      "item": "Devin Desktop IDE detect + terminal-setup",
+      "status": "located",
+      "evidence": "ide.ts/env.ts fs8; terminalSetup windsurf→Devin Desktop; .devin-server"
+    },
+    {
+      "item": "forceLoginMethod gateway + cloudGatewayUrl",
+      "status": "located",
+      "evidence": "settings/types.ts describe Force a specific login method ... gateway; cloudGatewayUrl @internal"
+    },
+    {
+      "item": "git_bare_repo_gate gitdir plantable/oversized/bare-indicators",
+      "status": "located",
+      "evidence": "git.ts classifyGitBareRepoGate; bash/PS user copy 0→1"
+    },
+    {
+      "item": "--remote exclusive flags + cloud session policy",
+      "status": "located",
+      "evidence": "main.tsx T19 getRemoteFlagConflict; policyLimits getCloudSessionsPolicyError"
+    },
+    {
+      "item": "Hosted MCP local-OAuth block list",
+      "status": "located",
+      "evidence": "mcp/auth.ts dV4 microsoft365/gmail/gcal.mcp.claude.com; tengu_mcp_local_oauth_blocked_hosts"
+    },
+    {
+      "item": "LSP workspaceSymbol query describe",
+      "status": "located",
+      "evidence": "LSPTool/schemas.ts workspaceSymbol only empty-query copy"
+    },
+    {
+      "item": "hook:PermissionRequest analytics source",
+      "status": "located",
+      "evidence": "permissionLogging sourceToString hook→hook:PermissionRequest"
+    },
+    {
+      "item": "Dropped sonnet-46-update / opus-pro-update banners",
+      "status": "located",
+      "evidence": "useModelMigrationNotifications emptied; N→0"
+    },
+    {
+      "item": "design-sync / Storybook converter rewrite",
+      "status": "absent-in-tree",
+      "evidence": "bundled skill blobs 30k+; not rewritten this hop — existing design-sync skill remains"
+    },
+    {
+      "item": "ConnectorOptInRequired expected-error Set / compact single-exchange / attach permission-mode toast",
+      "status": "absent-in-tree",
+      "evidence": "no expected-error Set consumer; compact abort formatter not in src/; attach toast path not landed"
+    }
+  ]
+}

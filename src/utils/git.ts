@@ -18,6 +18,10 @@ import {
   isShallowClone as isShallowCloneFs,
   resolveGitDir,
 } from './git/gitFilesystem.js'
+import {
+  type AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
+  logEvent,
+} from '../services/analytics/index.js'
 import { logError } from './log.js'
 import { memoizeWithLRU } from './memoize.js'
 import { whichSync } from './which.js'
@@ -905,75 +909,176 @@ function isLocalHost(host: string): boolean {
   )
 }
 
-/**
- * Checks if the current working directory appears to be a bare git repository
- * or has been manipulated to look like one (sandbox escape attack vector).
- *
- * SECURITY: Git's is_git_directory() function (setup.c:417-455) checks for:
- * 1. HEAD file - Must be a valid ref
- * 2. objects/ directory - Must exist and be accessible
- * 3. refs/ directory - Must exist and be accessible
- *
- * If all three exist in the current directory (not in a .git subdirectory),
- * Git treats the current directory as a bare repository and will execute
- * hooks/pre-commit and other hook scripts from the cwd.
- *
- * Attack scenario:
- * 1. Attacker creates HEAD, objects/, refs/, and hooks/pre-commit in cwd
- * 2. Attacker deletes or corrupts .git/HEAD to invalidate the normal git directory
- * 3. When user runs 'git status', Git treats cwd as the git dir and runs the hook
- *
- * @returns true if the cwd looks like a bare/exploited git directory
- */
-/* eslint-disable custom-rules/no-sync-fs -- sync permission-eval check */
-export function isCurrentDirectoryBareGitRepo(): boolean {
+export type GitBareRepoGateReason =
+  | 'bare-indicators'
+  | 'gitdir-redirect-plantable'
+  | 'gitdir-file-oversized'
+
+/** Official 2.1.162 `DW1` — `.git` pointer file larger than this is treated as planted. */
+const GITDIR_FILE_MAX_BYTES = 4096
+
+function gitBareRepoGateBad(errorCode: string): void {
+  logEvent('tengu_feature_bad', {
+    feature_name:
+      'git_bare_repo_gate' as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
+    error_code:
+      errorCode as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
+  })
+}
+
+function gitBareRepoGateOk(): false {
+  logEvent('tengu_feature_ok', {
+    feature_name:
+      'git_bare_repo_gate' as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
+  })
+  return false
+}
+
+function hasBareRepoIndicators(dir: string): boolean {
   const fs = getFsImplementation()
-  const cwd = getCwd()
-
-  const gitPath = join(cwd, '.git')
   try {
-    const stats = fs.statSync(gitPath)
-    if (stats.isFile()) {
-      // worktree/submodule — Git follows the gitdir reference
-      return false
-    }
-    if (stats.isDirectory()) {
-      const gitHeadPath = join(gitPath, 'HEAD')
-      try {
-        // SECURITY: check isFile(). An attacker creating .git/HEAD as a
-        // DIRECTORY would pass a bare statSync but Git's setup_git_directory
-        // rejects it (not a valid HEAD) and falls back to cwd discovery.
-        if (fs.statSync(gitHeadPath).isFile()) {
-          // normal repo — .git/HEAD valid, Git won't fall back to cwd
-          return false
-        }
-        // .git/HEAD exists but is not a regular file — fall through
-      } catch {
-        // .git exists but no HEAD — fall through to bare-repo check
-      }
-    }
-  } catch {
-    // no .git — fall through to bare-repo indicator check
-  }
-
-  // No valid .git/HEAD found. Check if cwd has bare git repo indicators.
-  // Be cautious — flag if ANY of these exist without a valid .git reference.
-  // Per-indicator try/catch so an error on one doesn't mask another.
-  try {
-    if (fs.statSync(join(cwd, 'HEAD')).isFile()) return true
+    if (fs.statSync(join(dir, 'HEAD')).isFile()) return true
   } catch {
     // no HEAD
   }
-  try {
-    if (fs.statSync(join(cwd, 'objects')).isDirectory()) return true
-  } catch {
-    // no objects/
-  }
-  try {
-    if (fs.statSync(join(cwd, 'refs')).isDirectory()) return true
-  } catch {
-    // no refs/
+  for (const name of ['objects', 'refs'] as const) {
+    try {
+      fs.statSync(join(dir, name))
+      return true
+    } catch {
+      // missing
+    }
   }
   return false
+}
+
+function isTrustedGitDir(gitDir: string): boolean {
+  const fs = getFsImplementation()
+  try {
+    return fs.statSync(join(gitDir, 'HEAD')).isFile()
+  } catch {
+    return false
+  }
+}
+
+function canonicalizeGitdirTarget(
+  target: string,
+): { canonical: string } | null {
+  try {
+    return { canonical: realpathSync(target) }
+  } catch {
+    return null
+  }
+}
+
+function isPlantableGitdirTarget(canonical: string): boolean {
+  const fs = getFsImplementation()
+  try {
+    const stats = fs.lstatSync(canonical)
+    // A `gitdir:` / symlink target must be a directory (or another link).
+    // A regular file here is a planted redirect.
+    return !stats.isDirectory() && !stats.isSymbolicLink()
+  } catch {
+    return false
+  }
+}
+
+function classifyDotGit(
+  dir: string,
+): 'plantable' | 'oversized' | 'trusted' | 'none' {
+  const fs = getFsImplementation()
+  const classifyTarget = (
+    target: string,
+  ): 'plantable' | 'trusted' | 'none' => {
+    const resolved = canonicalizeGitdirTarget(target)
+    if (resolved === null) {
+      gitBareRepoGateBad('gitdir_target_uncanonical')
+      return 'plantable'
+    }
+    if (isPlantableGitdirTarget(resolved.canonical)) {
+      gitBareRepoGateBad('gitdir_target_plantable')
+      return 'plantable'
+    }
+    return isTrustedGitDir(resolved.canonical) ? 'trusted' : 'none'
+  }
+
+  try {
+    const gitPath = join(dir, '.git')
+    const stats = fs.lstatSync(gitPath)
+    if (stats.isSymbolicLink()) {
+      let link: string
+      try {
+        link = fs.readlinkSync(gitPath)
+      } catch {
+        return 'plantable'
+      }
+      return classifyTarget(resolve(dir, link))
+    }
+    if (stats.isFile()) {
+      if (stats.size > GITDIR_FILE_MAX_BYTES) return 'oversized'
+      try {
+        const content = readFileSync(gitPath, 'utf8')
+        if (content.includes('\0')) return 'plantable'
+        if (!content.startsWith('gitdir: ')) return 'none'
+        const raw = content.slice('gitdir: '.length).replace(/[\r\n]+$/, '')
+        return classifyTarget(resolve(dir, raw))
+      } catch {
+        return 'none'
+      }
+    }
+    if (stats.isDirectory()) {
+      return isTrustedGitDir(gitPath) ? 'trusted' : 'none'
+    }
+  } catch {
+    return 'none'
+  }
+  return 'none'
+}
+
+/**
+ * Official 2.1.162 git_bare_repo_gate — walk cwd and parents for planted
+ * `gitdir:` redirects and bare-repo indicators (HEAD/objects/refs outside
+ * a trusted `.git/`).
+ */
+/* eslint-disable custom-rules/no-sync-fs -- sync permission-eval check */
+export function classifyGitBareRepoGate(
+  cwd: string = getCwd(),
+): GitBareRepoGateReason | false {
+  switch (classifyDotGit(cwd)) {
+    case 'plantable':
+      return 'gitdir-redirect-plantable'
+    case 'oversized':
+      return 'gitdir-file-oversized'
+    case 'trusted':
+      return gitBareRepoGateOk()
+    case 'none':
+      break
+  }
+
+  let dir = cwd
+  for (;;) {
+    if (hasBareRepoIndicators(dir)) {
+      gitBareRepoGateBad('bare_indicators')
+      return 'bare-indicators'
+    }
+    const parent = dirname(dir)
+    if (parent === dir) break
+    switch (classifyDotGit(parent)) {
+      case 'trusted':
+        return gitBareRepoGateOk()
+      case 'plantable':
+        return 'gitdir-redirect-plantable'
+      case 'oversized':
+        return 'gitdir-file-oversized'
+      case 'none':
+        break
+    }
+    dir = parent
+  }
+  return gitBareRepoGateOk()
+}
+
+export function isCurrentDirectoryBareGitRepo(): boolean {
+  return classifyGitBareRepoGate() !== false
 }
 /* eslint-enable custom-rules/no-sync-fs */

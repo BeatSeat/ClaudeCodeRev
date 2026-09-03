@@ -430,7 +430,13 @@ async function ingestControl(
     clients: () => { label?: string }[]
   },
 ): Promise<void> {
-  let j: { op?: string; proto?: number; reapWorkers?: boolean; client?: { label?: string } }
+  let j: {
+    op?: string
+    proto?: number
+    reapWorkers?: boolean
+    client?: { label?: string }
+    short?: string
+  }
   try {
     j = JSON.parse(line) as typeof j
   } catch {
@@ -487,6 +493,52 @@ async function ingestControl(
       serverProto: DAEMON_PROTO,
       serverVersion: MACRO.VERSION,
     })
+  }
+  // G9 (tengu_bg_attach_upgrade, 2.1.162 delta)：attach 到 cliVersion 过期（stale）的
+  // bg 作业时，若 gate 命中（默认 ON）则尝试 respawn 并以 ERESPAWNING 拒绝本次 attach。
+  if (w === 'attach') {
+    const short = j.short
+    if (typeof short !== 'string') {
+      return writeJson(sock, {
+        ok: false,
+        error: 'job not found — it may have already exited',
+        code: 'ENOJOB',
+      })
+    }
+    const worker = ctx.handles.get(short)
+    if (!worker) {
+      return writeJson(sock, {
+        ok: false,
+        error: 'job not found — it may have already exited',
+        code: 'ENOJOB',
+      })
+    }
+    if (
+      worker.record.cliVersion &&
+      worker.record.cliVersion !== MACRO.VERSION &&
+      getFeatureValue_CACHED_MAY_BE_STALE('tengu_bg_attach_upgrade', true)
+    ) {
+      const respawn = await worker.respawnIfIdleStale(undefined, 'attach')
+      if (respawn.respawned || respawn.reason === 'in-progress') {
+        return writeJson(sock, {
+          ok: false,
+          error: 'job is restarting on the updated Claude Code; retry attach',
+          code: 'ERESPAWNING',
+        })
+      }
+      if (ctx.handles.get(short) !== worker || sock.destroyed) {
+        return writeJson(sock, {
+          ok: false,
+          error: 'supervisor restarting',
+          code: 'ERESPAWNING',
+        })
+      }
+    }
+    // 未覆盖（bundle P9z case"attach" 的其余部分，属更早 hop 的既有更大缺口）：
+    // 前置检查 EUNVERIFIED / isRetiring→ERESPAWNING / legacy autorespawn 块，以及
+    // gate 通过后的 attach I/O 成功路径（decModeSnapshot 序列化 + tengu_bg_attach 打点
+    // + stall/timeout/interval 读回显机制），依赖树中不存在的 bundle 符号
+    // （RH/V$/z/H4/zHH/yH/UJ/LjH/iZ/X9z）。gate 通过后此处落到下方 unknown op（与移植前一致）。
   }
   writeJson(sock, { ok: false, error: 'unknown op', code: 'EUNKNOWN' })
 }

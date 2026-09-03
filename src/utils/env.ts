@@ -10,6 +10,18 @@ import { which } from './which.js'
 
 type Platform = 'win32' | 'darwin' | 'linux'
 
+/** Official 2.1.162 `fs8` — Windsurf / Devin Desktop askpass or bundle path. */
+function isDevinOrWindsurfAskpass(value: string | undefined): boolean {
+  const s = (value ?? '').toLowerCase()
+  return (
+    s.includes('windsurf') ||
+    s.includes('devin.app') ||
+    s.includes('devin desktop') ||
+    s.includes('devin-desktop') ||
+    /appdata[\\/]local[\\/](programs[\\/])?devin[\\/]/.test(s)
+  )
+}
+
 // Config and data paths
 export const getGlobalClaudeFile = memoize((): string => {
   // Legacy fallback for backwards compatibility
@@ -138,7 +150,7 @@ function detectTerminal(): string | null {
   if (process.env.VSCODE_GIT_ASKPASS_MAIN?.includes('cursor')) {
     return 'cursor'
   }
-  if (process.env.VSCODE_GIT_ASKPASS_MAIN?.includes('windsurf')) {
+  if (isDevinOrWindsurfAskpass(process.env.VSCODE_GIT_ASKPASS_MAIN)) {
     return 'windsurf'
   }
   if (process.env.VSCODE_GIT_ASKPASS_MAIN?.includes('antigravity')) {
@@ -146,7 +158,9 @@ function detectTerminal(): string | null {
   }
   const bundleId = process.env.__CFBundleIdentifier?.toLowerCase()
   if (bundleId?.includes('vscodium')) return 'codium'
-  if (bundleId?.includes('windsurf')) return 'windsurf'
+  if (bundleId?.includes('windsurf') || bundleId?.includes('devin')) {
+    return 'windsurf'
+  }
   if (bundleId?.includes('com.google.android.studio')) return 'androidstudio'
   // Check for JetBrains IDEs in bundle ID
   if (bundleId) {

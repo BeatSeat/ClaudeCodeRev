@@ -886,6 +886,13 @@ async function performMCPXaaAuth(
   }
 }
 
+/** Official 2.1.162 `dV4` — Anthropic-hosted connectors reject local OAuth. */
+const HOSTED_MCP_LOCAL_OAUTH_BLOCKED_HOSTS = [
+  'microsoft365.mcp.claude.com',
+  'gmail.mcp.claude.com',
+  'gcal.mcp.claude.com',
+]
+
 export async function performMCPOAuthFlow(
   serverName: string,
   serverConfig: McpSSEServerConfig | McpHTTPServerConfig,
@@ -901,6 +908,23 @@ export async function performMCPOAuthFlow(
     ) => void
   },
 ): Promise<void> {
+  try {
+    const hostedHost = new URL(serverConfig.url).hostname
+    if (HOSTED_MCP_LOCAL_OAUTH_BLOCKED_HOSTS.includes(hostedHost)) {
+      logEvent('tengu_mcp_local_oauth_blocked_hosts', {
+        hostname:
+          hostedHost as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
+      })
+      throw new Error(
+        `"${hostedHost}" is Anthropic-hosted and doesn't support local OAuth. Connect it via Settings → Connectors on claude.ai (requires \`claude login\`), then it'll be available here automatically.`,
+      )
+    }
+  } catch (err) {
+    if (err instanceof Error && err.message.includes('is Anthropic-hosted')) {
+      throw err
+    }
+  }
+
   // XAA (SEP-990): if configured, bypass the per-server consent dance.
   // If the IdP id_token isn't cached, this pops the browser once at the IdP
   // (shared across all XAA servers for that issuer). Subsequent servers hit
