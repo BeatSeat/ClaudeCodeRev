@@ -78,6 +78,7 @@ import {
   reAppendSessionMetadata,
 } from '../../utils/sessionStorage.js'
 import { sleep } from '../../utils/sleep.js'
+import { isThinkingEnabledByClientFlag } from '../../utils/thinking.js'
 import { jsonStringify } from '../../utils/slowOperations.js'
 /* eslint-enable @typescript-eslint/no-require-imports */
 import { asSystemPrompt } from '../../utils/systemPromptType.js'
@@ -1338,7 +1339,11 @@ async function streamCompactSummary({
         systemPrompt: asSystemPrompt([
           'You are a helpful AI assistant tasked with summarizing conversations.',
         ]),
-        thinkingConfig: { type: 'disabled' as const },
+        thinkingConfig: isThinkingEnabledByClientFlag(
+          context.options.mainLoopModel,
+        )
+          ? context.options.thinkingConfig
+          : { type: 'disabled' as const },
         tools,
         signal: context.abortController.signal,
         options: {

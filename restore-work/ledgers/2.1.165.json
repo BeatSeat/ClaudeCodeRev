@@ -1,0 +1,38 @@
+{
+  "version": "2.1.165",
+  "from": "2.1.163",
+  "astdiff": "0.9996",
+  "items": [
+    {
+      "item": "Bug fixes and reliability improvements",
+      "status": "partial",
+      "evidence": "Hop is logic-only/string-invariant: unique-string scan found no product tokens (only Cometix rebrand, do-not-land). Two genuine logic changes landed from bundle evidence: LP __dpBinOk bfs/ugrep probe + hM8 cedar_lagoon thinking keep-alive."
+    },
+    {
+      "item": "ast-only: hasEmbeddedSearchTools (LP) bfs/ugrep PATH probe",
+      "status": "located",
+      "evidence": "src/utils/embeddedTools.ts \u2014 which/where execFileSync probe cached in globalThis.__dpBinOk (165 bundle LP); searchToolsOptIn gate (QQ8) + entrypoint!==local-agent; searchToolsOptIn field/getter/setter in src/bootstrap/state.ts"
+    },
+    {
+      "item": "ast-only: cedar_lagoon clientDataCache thinking keep-alive (hM8)",
+      "status": "located",
+      "evidence": "src/utils/thinking.ts isThinkingEnabledByClientFlag (hM8); callers: REPL main-loop thinkingConfig (P||hM8(x)?config:disabled), compact summarizer thinkingConfig"
+    },
+    {
+      "item": "Cometix rebrand strings (@cometix/claude-code, cc_is_subagent)",
+      "status": "do-not-land",
+      "evidence": "Packaging-only (P9); 8 sub-99% astdiff mods are exactly this string swap; zero @cometix tokens in dist/cli.js"
+    },
+    {
+      "item": "update-announce functions module move (cli/update.ts -> HelpV2 chunk)",
+      "status": "bundler-relocation",
+      "evidence": "13 functions identical string sets modulo 2.1.165 build stamp (2.1.165|2026-06-05T04:32:54Z|7864e199...); bundler chunk reassignment, no semantic change, no TS move landed"
+    },
+    {
+      "item": "residual astdiff (hop 163->165, 95 sub-99% modification candidates)",
+      "status": "verified-clean",
+      "evidence": "restore-work/diffs/verify-165-full.txt: 74 CLEAN pure renames, 8 rebrand-only ndiff=1, 4 module-init list churn (jzH/_s/wC9), 17 NO-PAIR astdiff pairing gaps, 2 decl-extract errors (IMq/bp$ = init-list regex shuffle); zero unexplained product differences"
+    }
+  ],
+  "notes": "2.1.164 not published in Cometix inventory \u2014 hop is 2.1.163->2.1.165. Gates: build green (dist/cli.js 16.9MB), typecheck delta 0 vs clean HEAD, tokens cedar_lagoon/__dpBinOk/searchToolsOptIn present, no @cometix leak."
+}

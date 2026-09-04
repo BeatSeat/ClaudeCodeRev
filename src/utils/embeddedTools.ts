@@ -1,4 +1,8 @@
+import { execFileSync } from 'node:child_process'
 import { isEnvTruthy } from './envUtils.js'
+import { getSearchToolsOptIn } from '../bootstrap/state.js'
+
+type DpBinGlobal = typeof globalThis & { __dpBinOk?: boolean }
 
 /**
  * Whether this build has bfs/ugrep embedded in the bun binary (ant-native only).
@@ -14,10 +18,22 @@ import { isEnvTruthy } from './envUtils.js'
  */
 export function hasEmbeddedSearchTools(): boolean {
   if (!isEnvTruthy(process.env.EMBEDDED_SEARCH_TOOLS)) return false
-  const e = process.env.CLAUDE_CODE_ENTRYPOINT
-  return (
-    e !== 'sdk-ts' && e !== 'sdk-py' && e !== 'sdk-cli' && e !== 'local-agent'
-  )
+  // Official 2.1.165 LP: probe for the bfs/ugrep shims on PATH once and
+  // cache the result. Cometix builds don't embed the binaries, so the probe
+  // fails and embedded search tools stay off.
+  if (typeof (globalThis as DpBinGlobal).__dpBinOk === 'undefined') {
+    try {
+      const which = process.platform === 'win32' ? 'where' : 'which'
+      execFileSync(which, ['bfs'], { encoding: 'utf8', timeout: 2000 })
+      execFileSync(which, ['ugrep'], { encoding: 'utf8', timeout: 2000 })
+      ;(globalThis as DpBinGlobal).__dpBinOk = true
+    } catch {
+      ;(globalThis as DpBinGlobal).__dpBinOk = false
+    }
+  }
+  if (!(globalThis as DpBinGlobal).__dpBinOk) return false
+  if (getSearchToolsOptIn()) return false
+  return process.env.CLAUDE_CODE_ENTRYPOINT !== 'local-agent'
 }
 
 /**

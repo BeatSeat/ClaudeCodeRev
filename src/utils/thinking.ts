@@ -184,6 +184,21 @@ export function isThinkingGuidanceEnabled(model: string): boolean {
 }
 
 /**
+ * Official 2.1.165 hM8 — clientDataCache.cedar_lagoon per-model thinking
+ * keep-alive. Map of model-id substring → true; when the canonical family
+ * id of the main-loop model matches a true entry, the session keeps its
+ * thinking config instead of forcing {type:'disabled'}.
+ */
+export function isThinkingEnabledByClientFlag(model: string): boolean {
+  const flag = getGlobalConfig().clientDataCache?.cedar_lagoon
+  if (typeof flag !== 'object' || flag === null) return false
+  const canonical = getCanonicalName(model)
+  return Object.entries(flag).some(
+    ([key, value]) => value === true && canonical.includes(key),
+  )
+}
+
+/**
  * Official 2.1.107 NeY — system-prompt section `thinking_guidance`.
  */
 export function getThinkingGuidanceSection(model: string): string | null {
