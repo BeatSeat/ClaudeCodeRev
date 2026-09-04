@@ -1,0 +1,60 @@
+{
+  "version": "2.1.165",
+  "from": "2.1.163",
+  "astdiff": {
+    "version": "2.1.165",
+    "from": "2.1.163",
+    "from_bundle": "/root/projects/ClaudeCodeRev/restore-work/artifacts/cometix/2.1.163/cli.js",
+    "to_bundle": "/root/projects/ClaudeCodeRev/restore-work/artifacts/cometix/2.1.165/cli.js",
+    "from_sha256": "96896ca47a5fdedc810c085ab758421084cddd452595bdd9f72b9d8a81df31ba",
+    "to_sha256": "b6ba4a5ebde36393ef24484c8fb3372fedb59f3c25ad0c3ac796f87532a3c875",
+    "method": "astdiff-v0.2.0+tree-sitter0.25",
+    "parser": "tree-sitter 0.25 / tree-sitter-javascript 0.25",
+    "similarity": 100.0,
+    "matched_declarations": 25271,
+    "total_declarations_from": 25275,
+    "total_declarations_to": 25277,
+    "change_total": 6259,
+    "added": 6,
+    "removed": 4,
+    "structural": 6206,
+    "string_only": 43,
+    "command": "astdiff /root/projects/ClaudeCodeRev/restore-work/artifacts/cometix/2.1.163/cli.js /root/projects/ClaudeCodeRev/restore-work/artifacts/cometix/2.1.165/cli.js --format json",
+    "full_json": "/root/projects/Zhiman/projects/ccr-swarm/integration/astdiff-full/using/2.1.165.json",
+    "elapsed_seconds": 16.1,
+    "generated_at": "2026-11-14T15:08:36Z"
+  },
+  "items": [
+    {
+      "item": "Bug fixes and reliability improvements",
+      "status": "partial",
+      "evidence": "Hop is logic-only/string-invariant: unique-string scan found no product tokens (only Cometix rebrand, do-not-land). Two genuine logic changes landed from bundle evidence: LP __dpBinOk bfs/ugrep probe + hM8 cedar_lagoon thinking keep-alive."
+    },
+    {
+      "item": "ast-only: hasEmbeddedSearchTools (LP) bfs/ugrep PATH probe",
+      "status": "located",
+      "evidence": "src/utils/embeddedTools.ts — which/where execFileSync probe cached in globalThis.__dpBinOk (165 bundle LP); searchToolsOptIn gate (QQ8) + entrypoint!==local-agent; searchToolsOptIn field/getter/setter in src/bootstrap/state.ts"
+    },
+    {
+      "item": "ast-only: cedar_lagoon clientDataCache thinking keep-alive (hM8)",
+      "status": "located",
+      "evidence": "src/utils/thinking.ts isThinkingEnabledByClientFlag (hM8); callers: REPL main-loop thinkingConfig (P||hM8(x)?config:disabled), compact summarizer thinkingConfig"
+    },
+    {
+      "item": "Cometix rebrand strings (@cometix/claude-code, cc_is_subagent)",
+      "status": "do-not-land",
+      "evidence": "Packaging-only (P9); 8 sub-99% astdiff mods are exactly this string swap; zero @cometix tokens in dist/cli.js"
+    },
+    {
+      "item": "update-announce functions module move (cli/update.ts -> HelpV2 chunk)",
+      "status": "bundler-relocation",
+      "evidence": "13 functions identical string sets modulo 2.1.165 build stamp (2.1.165|2026-06-05T04:32:54Z|7864e199...); bundler chunk reassignment, no semantic change, no TS move landed"
+    },
+    {
+      "item": "residual astdiff (hop 163->165, 95 sub-99% modification candidates)",
+      "status": "verified-clean",
+      "evidence": "restore-work/diffs/verify-165-full.txt: 74 CLEAN pure renames, 8 rebrand-only ndiff=1, 4 module-init list churn (jzH/_s/wC9), 17 NO-PAIR astdiff pairing gaps, 2 decl-extract errors (IMq/bp$ = init-list regex shuffle); zero unexplained product differences"
+    }
+  ],
+  "notes": "2.1.164 not published in Cometix inventory — hop is 2.1.163->2.1.165. Gates: build green (dist/cli.js 16.9MB), typecheck delta 0 vs clean HEAD, tokens cedar_lagoon/__dpBinOk/searchToolsOptIn present, no @cometix leak."
+}

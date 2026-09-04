@@ -1,0 +1,23 @@
+{
+  "version": "2.1.165",
+  "from": "2.1.163",
+  "from_bundle": "/root/projects/ClaudeCodeRev/restore-work/artifacts/cometix/2.1.163/cli.js",
+  "to_bundle": "/root/projects/ClaudeCodeRev/restore-work/artifacts/cometix/2.1.165/cli.js",
+  "from_sha256": "96896ca47a5fdedc810c085ab758421084cddd452595bdd9f72b9d8a81df31ba",
+  "to_sha256": "b6ba4a5ebde36393ef24484c8fb3372fedb59f3c25ad0c3ac796f87532a3c875",
+  "method": "astdiff-v0.2.0+tree-sitter0.25",
+  "parser": "tree-sitter 0.25 / tree-sitter-javascript 0.25",
+  "similarity": 100.0,
+  "matched_declarations": 25271,
+  "total_declarations_from": 25275,
+  "total_declarations_to": 25277,
+  "change_total": 6259,
+  "added": 6,
+  "removed": 4,
+  "structural": 6206,
+  "string_only": 43,
+  "command": "astdiff /root/projects/ClaudeCodeRev/restore-work/artifacts/cometix/2.1.163/cli.js /root/projects/ClaudeCodeRev/restore-work/artifacts/cometix/2.1.165/cli.js --format json",
+  "full_json": "/root/projects/Zhiman/projects/ccr-swarm/integration/astdiff-full/using/2.1.165.json",
+  "elapsed_seconds": 16.1,
+  "generated_at": "2026-11-14T15:08:36Z"
+}
