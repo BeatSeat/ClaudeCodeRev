@@ -77,6 +77,7 @@ type State = {
   strictToolResultPairing: boolean
   sdkAgentProgressSummariesEnabled: boolean
   userMsgOptIn: boolean
+  searchToolsOptIn: boolean
   // Official 2.1.90 G8.memoryToggledOff — session /toggle-memory latch
   memoryToggledOff: boolean
   clientType: string
@@ -315,6 +316,7 @@ function getInitialState(): State {
     strictToolResultPairing: false,
     sdkAgentProgressSummariesEnabled: false,
     userMsgOptIn: false,
+    searchToolsOptIn: false,
     memoryToggledOff: false,
     clientType: 'cli',
     sessionSource: undefined,
@@ -1132,6 +1134,16 @@ export function getUserMsgOptIn(): boolean {
 
 export function setUserMsgOptIn(value: boolean): void {
   STATE.userMsgOptIn = value
+}
+
+// Official 2.1.165 QQ8/gQ8 — searchToolsOptIn latch read by
+// hasEmbeddedSearchTools (LP).
+export function getSearchToolsOptIn(): boolean {
+  return STATE.searchToolsOptIn
+}
+
+export function setSearchToolsOptIn(value: boolean): void {
+  STATE.searchToolsOptIn = value
 }
 
 export function getMemoryToggledOff(): boolean {

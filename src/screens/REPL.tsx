@@ -302,6 +302,7 @@ import {
 } from '../constants/xml.js'
 import { escapeXml } from '../utils/xml.js'
 import type { ThinkingConfig } from '../utils/thinking.js'
+import { isThinkingEnabledByClientFlag } from '../utils/thinking.js'
 import { gracefulShutdownSync } from '../utils/gracefulShutdown.js'
 import {
   handlePromptSubmit,
@@ -3415,7 +3416,10 @@ export function REPL({
           verbose: s.verbose,
           mainLoopModel,
           thinkingConfig:
-            s.thinkingEnabled !== false ? thinkingConfig : { type: 'disabled' },
+            s.thinkingEnabled !== false ||
+            isThinkingEnabledByClientFlag(mainLoopModel)
+              ? thinkingConfig
+              : { type: 'disabled' },
           // Merge fresh from store rather than closing over useMergedClients'
           // memoized output. initialMcpClients is a prop (session-constant).
           mcpClients: mergeClients(initialMcpClients, s.mcp.clients),
