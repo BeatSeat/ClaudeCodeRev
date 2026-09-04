@@ -1,0 +1,42 @@
+{
+  "version": "2.1.163",
+  "from": "2.1.162",
+  "astdiff": "0.992",
+  "items": [
+    {
+      "item": "requiredMinimumVersion / requiredMaximumVersion managed policy gate",
+      "status": "located",
+      "evidence": "settings/types.ts + autoUpdater getManagedVersionPolicyError I39/C39"
+    },
+    {
+      "item": "Stop / SubagentStop additionalContext continues conversation",
+      "status": "located",
+      "evidence": "types/hooks.ts L35/P35 describes 0→1"
+    },
+    {
+      "item": "/loop + command description rewrite",
+      "status": "located",
+      "evidence": "loop.ts Repeat a prompt…; focus/config/tasks/permissions/memory/goal/chrome/advisor/web-setup/remote-env/workflows"
+    },
+    {
+      "item": "/plugin list [--enabled|--disabled]",
+      "status": "located",
+      "evidence": "main.tsx plugin list options; PluginSettings help line"
+    },
+    {
+      "item": "Gateway /v1/models skip unless CLAUDE_CODE_ENABLE_GATEWAY_MODEL_DISCOVERY",
+      "status": "located",
+      "evidence": "bootstrap.ts [Bootstrap] Skipped gateway /v1/models"
+    },
+    {
+      "item": "Remote sessions block ! bash",
+      "status": "located",
+      "evidence": "handlePromptSubmit remote-bash-mode-unavailable"
+    },
+    {
+      "item": "OAuth 401 zombie / memory-service / workflow VM / design-sync rewrite",
+      "status": "absent-in-tree",
+      "evidence": "oauth 401 exit + CLAUDE_MEMORY_STORES + workflow VM boundary helpers not fully ported; skill blobs deferred"
+    }
+  ]
+}
