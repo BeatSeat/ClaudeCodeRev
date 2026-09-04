@@ -4,7 +4,7 @@ const focus = {
   type: 'local-jsx',
   name: 'focus',
   description:
-    'Toggle focus view (show only your prompt, a tool summary, and the final response)',
+    'Toggle focus view: just your prompt, summary, and response',
   immediate: true,
   load: () => import('./focus.js'),
 } satisfies Command

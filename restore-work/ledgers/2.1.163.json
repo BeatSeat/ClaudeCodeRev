@@ -1,0 +1,64 @@
+{
+  "version": "2.1.163",
+  "from": "2.1.162",
+  "astdiff": {
+    "version": "2.1.163",
+    "from": "2.1.162",
+    "from_bundle": "/root/projects/ClaudeCodeRev/restore-work/artifacts/cometix/2.1.162/cli.js",
+    "to_bundle": "/root/projects/ClaudeCodeRev/restore-work/artifacts/cometix/2.1.163/cli.js",
+    "from_sha256": "f7de23f4b2c895debdd0bcf243e6b477190c424df172d29673bf518e39acdc6b",
+    "to_sha256": "96896ca47a5fdedc810c085ab758421084cddd452595bdd9f72b9d8a81df31ba",
+    "method": "astdiff-v0.2.0+tree-sitter0.25",
+    "parser": "tree-sitter 0.25 / tree-sitter-javascript 0.25",
+    "similarity": 99.2,
+    "matched_declarations": 25081,
+    "total_declarations_from": 25100,
+    "total_declarations_to": 25275,
+    "change_total": 10915,
+    "added": 194,
+    "removed": 19,
+    "structural": 10670,
+    "string_only": 32,
+    "command": "astdiff /root/projects/ClaudeCodeRev/restore-work/artifacts/cometix/2.1.162/cli.js /root/projects/ClaudeCodeRev/restore-work/artifacts/cometix/2.1.163/cli.js --format json",
+    "full_json": "/root/projects/Zhiman/projects/ccr-swarm/integration/astdiff-full/using/2.1.163.json",
+    "elapsed_seconds": 17.5,
+    "generated_at": "2026-11-14T15:08:25Z"
+  },
+  "items": [
+    {
+      "item": "requiredMinimumVersion / requiredMaximumVersion managed policy gate",
+      "status": "located",
+      "evidence": "settings/types.ts + autoUpdater getManagedVersionPolicyError I39/C39"
+    },
+    {
+      "item": "Stop / SubagentStop additionalContext continues conversation",
+      "status": "located",
+      "evidence": "types/hooks.ts L35/P35 describes 0→1"
+    },
+    {
+      "item": "/loop + command description rewrite",
+      "status": "located",
+      "evidence": "loop.ts Repeat a prompt…; focus/config/tasks/permissions/memory/goal/chrome/advisor/web-setup/remote-env/workflows"
+    },
+    {
+      "item": "/plugin list [--enabled|--disabled]",
+      "status": "located",
+      "evidence": "main.tsx plugin list options; PluginSettings help line"
+    },
+    {
+      "item": "Gateway /v1/models skip unless CLAUDE_CODE_ENABLE_GATEWAY_MODEL_DISCOVERY",
+      "status": "located",
+      "evidence": "bootstrap.ts [Bootstrap] Skipped gateway /v1/models"
+    },
+    {
+      "item": "Remote sessions block ! bash",
+      "status": "located",
+      "evidence": "handlePromptSubmit remote-bash-mode-unavailable"
+    },
+    {
+      "item": "OAuth 401 zombie / memory-service / workflow VM / design-sync rewrite",
+      "status": "absent-in-tree",
+      "evidence": "oauth 401 exit + CLAUDE_MEMORY_STORES + workflow VM boundary helpers not fully ported; skill blobs deferred"
+    }
+  ]
+}

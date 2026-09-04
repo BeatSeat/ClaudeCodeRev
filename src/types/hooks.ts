@@ -136,6 +136,24 @@ export const syncHookResponseSchema = lazySchema(() =>
           additionalContext: z.string().optional(),
         }),
         z.object({
+          hookEventName: z.literal('Stop'),
+          additionalContext: z
+            .string()
+            .optional()
+            .describe(
+              'Hook-specific output for the Stop event. additionalContext is non-error feedback delivered to the model; the conversation continues so the model can act on it.',
+            ),
+        }),
+        z.object({
+          hookEventName: z.literal('SubagentStop'),
+          additionalContext: z
+            .string()
+            .optional()
+            .describe(
+              'Hook-specific output for the SubagentStop event. additionalContext is non-error feedback delivered to the subagent; the subagent continues so it can act on it.',
+            ),
+        }),
+        z.object({
           hookEventName: z.literal('PermissionDenied'),
           retry: z.boolean().optional(),
         }),

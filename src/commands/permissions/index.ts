@@ -4,7 +4,7 @@ const permissions = {
   type: 'local-jsx',
   name: 'permissions',
   aliases: ['allowed-tools'],
-  description: 'Manage allow & deny tool permission rules',
+  description: 'Manage allow and deny tool permission rules',
   load: () => import('./permissions.js'),
 } satisfies Command
 
