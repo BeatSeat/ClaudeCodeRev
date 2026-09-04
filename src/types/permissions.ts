@@ -59,6 +59,7 @@ export type PermissionRuleSource =
   | 'cliArg'
   | 'command'
   | 'session'
+  | 'toolsNarrowing'
 
 /**
  * The value of a permission rule - specifies which tool and optional content

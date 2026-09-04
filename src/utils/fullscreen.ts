@@ -7,6 +7,7 @@ import { execFileNoThrow } from './execFileNoThrow.js'
 import { getInitialSettings } from './settings/settings.js'
 
 let loggedTmuxCcDisable = false
+let loggedWinSshDisable = false
 let checkedTmuxMouseHint = false
 /** Official dq() caches tengu_pewter_brook so settings/GB aren't re-read every render. */
 let gbGateCached: boolean | undefined
@@ -105,9 +106,24 @@ export function isTmuxControlMode(): boolean {
   return tmuxControlModeProbed ?? false
 }
 
+/**
+ * Official `L26` (shipped before 2.1.166; consumed by the 166 `EtK` mapping):
+ * Windows over SSH re-renders through ConPTY, which corrupts the alt-screen
+ * fullscreen renderer — auto-disable with the same escape hatch as tmux -CC.
+ */
+function isWindowsOverSsh(): boolean {
+  if (process.platform !== 'win32') return false
+  return Boolean(
+    process.env.SSH_CONNECTION ||
+      process.env.SSH_CLIENT ||
+      process.env.SSH_TTY,
+  )
+}
+
 export function _resetTmuxControlModeProbeForTesting(): void {
   tmuxControlModeProbed = undefined
   loggedTmuxCcDisable = false
+  loggedWinSshDisable = false
 }
 
 /**
@@ -125,6 +141,7 @@ export function getTuiEntryPath(): string {
   }
   if (isEnvTruthy(process.env.CLAUDE_CODE_NO_FLICKER)) return 'env_on'
   if (isTmuxControlMode()) return 'tmux_cc_auto_off'
+  if (isWindowsOverSsh()) return 'win_ssh_auto_off'
   if (process.env.CLAUDE_CODE_SESSION_KIND === 'bg') return 'bg_forced_on'
   switch (getInitialSettings().tui) {
     case 'fullscreen':
@@ -172,6 +189,15 @@ export function isFullscreenEnvEnabled(): boolean {
       loggedTmuxCcDisable = true
       logForDebugging(
         'fullscreen disabled: tmux -CC (iTerm2 integration mode) detected · set CLAUDE_CODE_NO_FLICKER=1 to override',
+      )
+    }
+    return false
+  }
+  if (isWindowsOverSsh()) {
+    if (!loggedWinSshDisable) {
+      loggedWinSshDisable = true
+      logForDebugging(
+        'fullscreen disabled: Windows over SSH (ConPTY re-rendering) detected · set CLAUDE_CODE_NO_FLICKER=1 to override',
       )
     }
     return false
@@ -258,7 +284,73 @@ export async function maybeGetTmuxMouseHint(): Promise<string | null> {
 /** Test-only: reset module-level once-per-session flags. */
 export function _resetForTesting(): void {
   loggedTmuxCcDisable = false
+  loggedWinSshDisable = false
   checkedTmuxMouseHint = false
   gbGateCached = undefined
   downsellGateCached = undefined
 }
+
+/**
+ * Official 2.1.166 `EtK` (was `OsK`): fold a getTuiEntryPath() reason into
+ * the binary fullscreen/default bucket fed to tengu_terminal_probe telemetry
+ * as `from_entry_path`. The 166 delta adds `sr_auto_off` (scroll-region
+ * auto-off) to the default bucket.
+ */
+export function mapTuiEntryPathReasonToMode(
+  reason:
+    | 'env_on'
+    | 'env_off'
+    | 'sr_auto_off'
+    | 'tmux_cc_auto_off'
+    | 'win_ssh_auto_off'
+    | 'bg_forced_on'
+    | 'settings_on'
+    | 'settings_off'
+    | 'ant_default'
+    | 'downsell_on'
+    | 'gb_on'
+    | 'gb_off',
+): 'fullscreen' | 'default' {
+  switch (reason) {
+    case 'env_on':
+    case 'bg_forced_on':
+    case 'settings_on':
+    case 'ant_default':
+    case 'downsell_on':
+    case 'gb_on':
+      return 'fullscreen'
+    case 'env_off':
+    case 'sr_auto_off':
+    case 'tmux_cc_auto_off':
+    case 'win_ssh_auto_off':
+    case 'settings_off':
+    case 'gb_off':
+      return 'default'
+  }
+}
+
+/**
+ * Official 2.1.166 `ktK`: inert gate stub (isEnabled() always false; the
+ * private cache is written only by reset()). Official instantiates it once
+ * as `X2Y` in the fullscreen module's lazy init (`vX$`); no in-tree consumer
+ * reads it yet — kept verbatim so the declaration shape matches the bundle.
+ */
+export class FullscreenGateStub {
+  #cached: boolean | undefined
+  isEnabled(): boolean {
+    return false
+  }
+  reset(): void {
+    this.#cached = undefined
+  }
+}
+
+// Official 2.1.166 `vX$`: the stub is instantiated once at fullscreen-module
+// init (`X2Y = new ktK`); no consumer reads it yet, kept for shape parity.
+let fullscreenGateStub: FullscreenGateStub | undefined
+
+function initFullscreenGateStub(): void {
+  fullscreenGateStub = new FullscreenGateStub()
+}
+
+initFullscreenGateStub()

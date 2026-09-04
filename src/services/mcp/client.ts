@@ -268,6 +268,75 @@ import { getClaudeConfigHomeDir } from '../../utils/envUtils.js'
 /* eslint-enable @typescript-eslint/no-require-imports */
 import { jsonParse, jsonStringify } from '../../utils/slowOperations.js'
 
+// -- Client capabilities (official 2.1.166 `bj8`/`em7`/`tm7`/`Ij8` cluster) --
+//
+// The 166 bundle extracts the inline MCP initialize capabilities into `bj8()`
+// and adds `em7()` init-projection request headers for claudeai-proxy
+// transports. Both projections are gated off in external builds (`Ij8`/`tm7`
+// are hard `return !1` stubs there), so externally this is a faithful
+// no-op refactor of the pre-166 inline object.
+
+/** Official `Ij8`: ant-only related-task projection — off in external builds. */
+function isRelatedTaskProjectionEnabled(): boolean {
+  return false
+}
+
+/**
+ * Official 2.1.166 `bj8`: client capabilities sent in the MCP initialize
+ * handshake. Verbatim external shape — the ant-only `tasks` projection is
+ * gated off by `Ij8`. Empty object declares the elicitation capability:
+ * sending {form:{},url:{}} breaks Java MCP SDK servers (Spring AI) whose
+ * Elicitation class has zero fields and fails on unknown properties.
+ */
+export function getMcpClientCapabilities(): {
+  roots: Record<string, never>
+  elicitation: Record<string, never>
+  tasks?: { requests: { elicitation: { create: Record<string, never> } } }
+} {
+  return {
+    roots: {},
+    elicitation: {},
+    ...((isRelatedTaskProjectionEnabled() as boolean) && {
+      tasks: { requests: { elicitation: { create: {} } } },
+    }),
+  }
+}
+
+/** Official `tm7`: claudeai-proxy capabilities-header projection — off externally. */
+function isClientCapabilitiesHeaderEnabled(): boolean {
+  return false
+}
+
+/** Official `gD5`: 6KiB cap on the base64 capabilities header. */
+const MCP_CLIENT_CAPABILITIES_HEADER_LIMIT_BYTES = 6144
+
+/** Official `RHH`: MCP protocol version advertised alongside the header. */
+const MCP_CAPABILITIES_PROTOCOL_VERSION = '2025-11-25'
+
+/**
+ * Official 2.1.166 `em7`: init-projection request headers for claudeai-proxy
+ * transports (`anthropic-mcp-client-capabilities` + `MCP-Protocol-Version`).
+ * Dead-gated off externally (`tm7` → {}); kept verbatim for shape parity.
+ */
+export function getMcpClientCapabilitiesHeaders(): Record<string, string> {
+  if (!isClientCapabilitiesHeaderEnabled()) return {}
+  const capabilities = getMcpClientCapabilities()
+  const encoded = Buffer.from(jsonStringify(capabilities)).toString('base64')
+  if (
+    Buffer.byteLength(encoded, 'ascii') >
+    MCP_CLIENT_CAPABILITIES_HEADER_LIMIT_BYTES
+  ) {
+    logForDebugging(
+      '[claudeai-mcp] client capabilities header exceeds size limit — omitting init-projection headers',
+    )
+    return {}
+  }
+  return {
+    'anthropic-mcp-client-capabilities': encoded,
+    'MCP-Protocol-Version': MCP_CAPABILITIES_PROTOCOL_VERSION,
+  }
+}
+
 const MCP_AUTH_CACHE_TTL_MS = 15 * 60 * 1000 // 15 min (http/sse)
 const CLAUDEAI_PROXY_AUTH_CACHE_TTL_MS = 4 * 60 * 60 * 1000 // 4h — 120 ox_
 
@@ -1048,13 +1117,7 @@ export const connectToServer = memoize(
           websiteUrl: PRODUCT_URL,
         },
         {
-          capabilities: {
-            roots: {},
-            // Empty object declares the capability. Sending {form:{},url:{}}
-            // breaks Java MCP SDK servers (Spring AI) whose Elicitation class
-            // has zero fields and fails on unknown properties.
-            elicitation: {},
-          },
+          capabilities: getMcpClientCapabilities(),
         },
       )
 

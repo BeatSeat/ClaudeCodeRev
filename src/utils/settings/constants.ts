@@ -70,7 +70,7 @@ export function getSourceDisplayName(
  * @returns Display name for the source in lowercase
  */
 export function getSettingSourceDisplayNameLowercase(
-  source: SettingSource | 'cliArg' | 'command' | 'session',
+  source: SettingSource | 'cliArg' | 'command' | 'session' | 'toolsNarrowing',
 ): string {
   switch (source) {
     case 'userSettings':
@@ -89,6 +89,8 @@ export function getSettingSourceDisplayNameLowercase(
       return 'command configuration'
     case 'session':
       return 'current session'
+    case 'toolsNarrowing':
+      return 'CLI tool narrowing'
   }
 }
 

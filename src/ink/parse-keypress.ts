@@ -560,6 +560,11 @@ function keycodeToName(keycode: number): string | undefined {
       if (keycode >= 32 && keycode <= 126) {
         return String.fromCharCode(keycode).toLowerCase()
       }
+      // Non-ASCII printable codepoints (Kitty Shift+<non-ASCII> arrives as
+      // CSI u with the shifted codepoint — map it to the character itself)
+      if (keycode >= 160 && keycode < 55296) {
+        return String.fromCodePoint(keycode)
+      }
       return undefined
   }
 }

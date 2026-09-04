@@ -1,58 +1,92 @@
-// Official 2.1.160 G13 — `RjK` refusal-fallback prompt classifier.
-//
-// When the API stream signals a safety-filter refusal with a suggested
-// fallback model, the query loop decides HOW to deliver the prompt to the
-// user before switching models. This classifier returns the delivery mode
-// (or undefined = "no dialog, just switch silently per the setting").
-//
-// Bundle mapping (cli.js 2.1.160):
-//   RjK({requestDialog,isMainThread,silentAbArm})
-//     if (H.silentAbArm) return "silent_ab";
-//     if (!H.isMainThread) return "subagent";
-//     if (H.requestDialog === void 0) return "no_dialog_host";
-//     if (S_("switchModelsOnFlag", !0).value) return "setting";
-//     return;
-//
-// The query-loop call-site (the `fallback_request` branch) and the
-// `cIH` refusal_fallback_prompt dialog live in the refusal-fallback base
-// flow, which is NOT present in the 2.1.160 TypeScript tree (the tree only
-// carries the 529 model-fallback, `tengu_model_fallback_triggered`). This
-// classifier is the self-contained 160 delta, exported for that wiring.
-import { getInitialSettings } from './settings/settings.js'
+/**
+ * Official 2.1.166 switch-models-on-refusal classifier.
+ *
+ * When a model response is refused, Claude Code can automatically switch to a
+ * fallback model to keep the conversation going, gated by the
+ * `switchModelsOnFlag` settings field (default on). This module holds the two
+ * pure decision helpers the query loop consults around that flow:
+ *
+ * - `classifyRefusalFallbackReason` (`f2K`): why a given attempt would NOT get
+ *   a refusal-fallback switch/dialog — one of four reasons, or `undefined` when
+ *   it would proceed normally.
+ * - `isRefusalFallbackSuppressed` (`gf6`): the specific "suppressed" case the
+ *   loop logs as `tengu_refusal_fallback_suppressed` (reason
+ *   `no_dialog_host_setting_off`) — main thread, no dialog host wired, and the
+ *   switch-models-on-refusal setting turned off.
+ *
+ * BOUNDARY: the surrounding refusal-fallback machinery (the `fallback_request`
+ * stream event, the `tengu_loggia_carousel` / `CLAUDE_CODE_DISABLE_REFUSAL_FALLBACK`
+ * feature gate, the fallback-model picker, and the "has specific safety
+ * measures…" user-facing message builders) is not present in the 2.1.166 tree,
+ * so these helpers are exported for the loop to call once that machinery lands.
+ */
+import { getEnabledSettingSources } from './settings/constants.js'
+import { getSettingsForSource } from './settings/settings.js'
 
-/** Bundle RjK return literal. */
-export type RefusalFallbackPromptMode =
+/**
+ * Inputs to the switch-models-on-refusal reason classifier.
+ */
+export type RefusalFallbackClassifierInput = {
+  /** The silent A/B arm is armed (clientDataCache `convolute_arcades` flag). */
+  silentAbArm: boolean
+  /** True when this is the main repl thread (vs. a subagent). */
+  isMainThread: boolean
+  /** The dialog host handle, if any. `undefined` means no dialog host is wired. */
+  requestDialog?: unknown
+}
+
+/** The four ways a refusal-fallback is declined before it can show. */
+export type RefusalFallbackReason =
   | 'silent_ab'
   | 'subagent'
   | 'no_dialog_host'
   | 'setting'
 
-export type RefusalFallbackClassifierInput = {
-  /**
-   * The query-loop dialog host callback. Present only in the interactive
-   * main-thread REPL; `undefined` for SDK / non-interactive / subagent hosts.
-   */
-  requestDialog: unknown
-  /** Whether this query runs on the main thread (vs. a subagent). */
-  isMainThread: boolean
-  /**
-   * Bundle `_O$` — `clientDataCache.convolute_arcades === true`: the A/B arm
-   * where the refusal-fallback prompt is shown silently (no dialog).
-   */
-  silentAbArm: boolean
+/**
+ * Official 2.1.166 `u1("switchModelsOnFlag", !0).value` — read the
+ * switch-models-on-refusal settings flag (default `true`).
+ *
+ * `switchModelsOnFlag` is a settings key (not a `/config` user-intent key), so —
+ * unlike the bundle's general `u1` reader — there is no legacy-global-config
+ * fallback: walk the enabled settings sources high→low and return the first
+ * defined value, else the default `true`.
+ */
+function isSwitchModelsOnFlagEnabled(): boolean {
+  const sources = getEnabledSettingSources()
+  for (let i = sources.length - 1; i >= 0; i--) {
+    const source = sources[i]
+    if (!source) continue
+    const value = getSettingsForSource(source)?.switchModelsOnFlag
+    if (value !== undefined) return value
+  }
+  return true
 }
 
 /**
- * Bundle `RjK` — classify how a refusal-fallback model switch is delivered.
- * Returns `undefined` when the `switchModelsOnFlag` setting is off (the
- * switch proceeds silently without a prompt).
+ * Official 2.1.166 `f2K` — classify why a refusal-fallback dialog/switch would
+ * be declined for this attempt, or `undefined` when it would proceed.
  */
-export function classifyRefusalFallback(
+export function classifyRefusalFallbackReason(
   input: RefusalFallbackClassifierInput,
-): RefusalFallbackPromptMode | undefined {
+): RefusalFallbackReason | undefined {
   if (input.silentAbArm) return 'silent_ab'
   if (!input.isMainThread) return 'subagent'
   if (input.requestDialog === undefined) return 'no_dialog_host'
-  if (getInitialSettings().switchModelsOnFlag ?? true) return 'setting'
+  if (isSwitchModelsOnFlagEnabled()) return 'setting'
   return undefined
+}
+
+/**
+ * Official 2.1.166 `gf6` — the exact case the query loop logs as
+ * `tengu_refusal_fallback_suppressed` (`reason: "no_dialog_host_setting_off"`):
+ * main thread, no dialog host wired, and switch-models-on-refusal off.
+ */
+export function isRefusalFallbackSuppressed(
+  input: RefusalFallbackClassifierInput,
+): boolean {
+  return (
+    input.isMainThread &&
+    input.requestDialog === undefined &&
+    isSwitchModelsOnFlagEnabled() === false
+  )
 }

@@ -1,7 +1,10 @@
 import { feature } from 'bun:bundle'
 import type { UUID } from 'crypto'
-import { relative } from 'path'
+import { access } from 'fs/promises'
+import { join, relative } from 'path'
+import { logEvent } from 'src/services/analytics/index.js'
 import { getCwd } from 'src/utils/cwd.js'
+import { getOriginalCwd } from '../bootstrap/state.js'
 import { addInvokedSkill } from '../bootstrap/state.js'
 import { asSessionId } from '../types/ids.js'
 import type {
@@ -45,6 +48,7 @@ import {
   buildConversationChain,
   checkResumeConsistency,
   getLastSessionLog,
+  getProjectDir,
   getSessionIdFromLog,
   isLiteLog,
   loadFullLog,
@@ -52,6 +56,7 @@ import {
   loadTranscriptFile,
   removeExtraFields,
 } from './sessionStorage.js'
+import { getWorktreePaths } from './getWorktreePaths.js'
 import type { ContentReplacementRecord } from './toolResultStorage.js'
 
 // Dead code elimination: ant-only tool names are conditionally required so
@@ -523,6 +528,37 @@ export async function findUnresolvedDeferredTool(
   }
 }
 
+/**
+ * Official 2.1.166 `jr5`: fallback for resuming by bare session ID when the
+ * transcript isn't under the current project dir. Background agents that ran
+ * inside a git worktree wrote their transcript under the worktree's project
+ * dir; without this fallback, reopening such a session from `claude agents`
+ * failed with "No conversation found" and the worker crash-looped. Scans the
+ * project dirs of every git worktree of the original cwd for `<id>.jsonl`.
+ */
+async function loadSessionLogFromWorktrees(
+  sessionId: UUID,
+): Promise<{ messages: Message[]; fullPath: string } | null> {
+  try {
+    const worktreePaths = await getWorktreePaths(getOriginalCwd())
+    for (const worktreePath of worktreePaths) {
+      const fullPath = join(getProjectDir(worktreePath), `${sessionId}.jsonl`)
+      try {
+        await access(fullPath)
+      } catch {
+        continue
+      }
+      const loaded = await loadMessagesFromJsonlPath(fullPath)
+      if (loaded.messages.length === 0) continue
+      logEvent('tengu_resume_worktree_fallback', {})
+      return { messages: loaded.messages, fullPath }
+    }
+  } catch {
+    // Worktree listing is best-effort — resume falls through to not-found.
+  }
+  return null
+}
+
 export async function loadConversationForResume(
   source: string | LogOption | undefined,
   sourceJsonlFile: string | undefined,
@@ -554,6 +590,7 @@ export async function loadConversationForResume(
     let log: LogOption | null = null
     let messages: Message[] | null = null
     let sessionId: UUID | undefined
+    let worktreeFallbackPath: string | undefined
 
     if (source === undefined) {
       // --continue: most recent session, skipping live --bg/daemon sessions
@@ -592,6 +629,17 @@ export async function loadConversationForResume(
       // Load specific session by ID
       log = await getLastSessionLog(source as UUID)
       sessionId = source as UUID
+      if (!log) {
+        // Official 2.1.166: fall back to git-worktree project dirs (bg
+        // agents that ran in a worktree).
+        const worktreeFallback = await loadSessionLogFromWorktrees(
+          source as UUID,
+        )
+        if (worktreeFallback) {
+          messages = worktreeFallback.messages
+          worktreeFallbackPath = worktreeFallback.fullPath
+        }
+      }
     } else {
       // Already have a LogOption
       log = source
@@ -633,7 +681,7 @@ export async function loadConversationForResume(
     // This ensures skills survive multiple compaction cycles after resume.
     restoreSkillStateFromMessages(messages!)
 
-    const fullPath = log?.fullPath ?? sourceJsonlFile
+    const fullPath = log?.fullPath ?? sourceJsonlFile ?? worktreeFallbackPath
     const deferredToolUse = fullPath
       ? ((await findUnresolvedDeferredTool(fullPath)) ?? undefined)
       : undefined

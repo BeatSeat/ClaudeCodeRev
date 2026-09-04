@@ -28,6 +28,7 @@ const RECONNECT_MAX_MS = 30_000
 const MAX_RECONNECT_ATTEMPTS = 5
 const LIVENESS_TIMEOUT_MS = 45_000
 const CONNECT_TIMEOUT_MS = 30_000
+const DRIFT_CHECK_INTERVAL_MS = 5_000
 const PERMANENT_HTTP_STATUSES = new Set([401, 403, 404])
 
 function featureSad(featureName: string, errorCode: string): void {
@@ -103,8 +104,11 @@ export class SessionsV2Client {
   state: SessionsV2State = 'idle'
   abortController: AbortController | null = null
   reconnectAttempts = 0
+  exhaustedBudget = false
   reconnectTimer: ReturnType<typeof setTimeout> | null = null
   livenessTimer: ReturnType<typeof setTimeout> | null = null
+  driftTimer: ReturnType<typeof setInterval> | null = null
+  lastDriftCheck = 0
   lastSequenceNum = 0
 
   constructor(
@@ -201,6 +205,7 @@ export class SessionsV2Client {
     this.state = 'connected'
     this.reconnectAttempts = 0
     this.resetLivenessTimer()
+    this.startDriftWatch()
     logForDebugging('[SessionsV2Client] Connected')
     this.callbacks.onConnected?.()
 
@@ -289,6 +294,7 @@ export class SessionsV2Client {
 
   handleStreamEnd(): void {
     this.clearLivenessTimer()
+    this.clearDriftWatch()
     if (this.state === 'closed') return
     this.abortController = null
     if (this.reconnectAttempts >= MAX_RECONNECT_ATTEMPTS) {
@@ -297,6 +303,7 @@ export class SessionsV2Client {
       )
       featureBad('remote_connect', 'remote_connect_reconnect_exhausted')
       this.state = 'closed'
+      this.exhaustedBudget = true
       this.callbacks.onClose?.()
       return
     }
@@ -335,6 +342,35 @@ export class SessionsV2Client {
     if (this.livenessTimer) {
       clearTimeout(this.livenessTimer)
       this.livenessTimer = null
+    }
+  }
+
+  /**
+   * Official 2.1.166: wall-clock drift watch — a tick gap larger than twice
+   * the interval means the process was suspended; reconnect so the stream
+   * doesn't sit half-dead after resume.
+   */
+  startDriftWatch(): void {
+    this.clearDriftWatch()
+    this.lastDriftCheck = Date.now()
+    this.driftTimer = setInterval(() => {
+      const now = Date.now()
+      const elapsed = now - this.lastDriftCheck
+      this.lastDriftCheck = now
+      if (elapsed > DRIFT_CHECK_INTERVAL_MS * 2 && this.state === 'connected') {
+        logForDebugging(
+          `[SessionsV2Client] Wall-clock drift ${elapsed}ms — reconnecting after suspend`,
+        )
+        this.reconnect()
+      }
+    }, DRIFT_CHECK_INTERVAL_MS)
+    this.driftTimer.unref?.()
+  }
+
+  clearDriftWatch(): void {
+    if (this.driftTimer) {
+      clearInterval(this.driftTimer)
+      this.driftTimer = null
     }
   }
 
@@ -414,7 +450,9 @@ export class SessionsV2Client {
   close(): void {
     logForDebugging('[SessionsV2Client] Closing')
     this.state = 'closed'
+    this.exhaustedBudget = false
     this.clearLivenessTimer()
+    this.clearDriftWatch()
     if (this.reconnectTimer) {
       clearTimeout(this.reconnectTimer)
       this.reconnectTimer = null
@@ -426,7 +464,9 @@ export class SessionsV2Client {
   reconnect(): void {
     logForDebugging('[SessionsV2Client] Force reconnect')
     this.reconnectAttempts = 0
+    this.exhaustedBudget = false
     this.clearLivenessTimer()
+    this.clearDriftWatch()
     if (this.reconnectTimer) {
       clearTimeout(this.reconnectTimer)
       this.reconnectTimer = null
@@ -435,6 +475,18 @@ export class SessionsV2Client {
     this.abortController = null
     this.state = 'idle'
     void this.connect()
+  }
+
+  /**
+   * Official 2.1.166: when the reconnect budget was exhausted (brief backend
+   * disruption) the client used to be stuck closed; a user action (send) can
+   * now revive the stream.
+   */
+  reviveAfterExhaustion(): boolean {
+    if (this.state !== 'closed' || !this.exhaustedBudget) return false
+    featureSad('remote_connect', 'remote_connect_revived_by_user_send')
+    this.reconnect()
+    return true
   }
 
   authHeaders(): Record<string, string> {

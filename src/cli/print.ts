@@ -546,7 +546,7 @@ export async function runHeadless(
     systemPrompt: string | undefined
     appendSystemPrompt: string | undefined
     userSpecifiedModel: string | undefined
-    fallbackModel: string | undefined
+    fallbackModel: string | string[] | undefined
     teleport: string | true | null | undefined
     sdkUrl: string | undefined
     replayUserMessages: boolean | undefined
@@ -1106,7 +1106,7 @@ function runHeadlessStreaming(
     systemPrompt: string | undefined
     appendSystemPrompt: string | undefined
     userSpecifiedModel: string | undefined
-    fallbackModel: string | undefined
+    fallbackModel: string | string[] | undefined
     replayUserMessages?: boolean | undefined
     includePartialMessages?: boolean | undefined
     excludeDynamicSections?: boolean | undefined

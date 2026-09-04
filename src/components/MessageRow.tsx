@@ -17,7 +17,7 @@ import {
   getSiblingToolUseIDsFromLookup,
   getToolUseID,
 } from '../utils/messages.js'
-import { hasThinkingContent, Message } from './Message.js'
+import { Message } from './Message.js'
 import { MessageModel } from './MessageModel.js'
 import { shouldRenderStatically } from './Messages.js'
 import { MessageTimestamp } from './MessageTimestamp.js'
@@ -41,7 +41,6 @@ export type Props = {
   screen: Screen
   canAnimate: boolean
   onOpenRateLimitOptions?: () => boolean
-  lastThinkingBlockId: string | null
   latestBashOutputUUID: string | null
   columns: number
   isLoading: boolean
@@ -127,7 +126,6 @@ function MessageRowImpl({
   screen,
   canAnimate,
   onOpenRateLimitOptions,
-  lastThinkingBlockId,
   latestBashOutputUUID,
   columns,
   isLoading,
@@ -210,7 +208,6 @@ function MessageRowImpl({
       onOpenRateLimitOptions={onOpenRateLimitOptions}
       isActiveCollapsedGroup={isActiveCollapsedGroup}
       isUserContinuation={isUserContinuation}
-      lastThinkingBlockId={lastThinkingBlockId}
       latestBashOutputUUID={latestBashOutputUUID}
     />
   )
@@ -329,16 +326,6 @@ export function areMessageRowPropsEqual(prev: Props, next: Props): boolean {
   const prevIsLatestBash = prev.latestBashOutputUUID === prev.message.uuid
   const nextIsLatestBash = next.latestBashOutputUUID === next.message.uuid
   if (prevIsLatestBash !== nextIsLatestBash) return false
-
-  // lastThinkingBlockId affects thinking block visibility — but only for
-  // messages that HAVE thinking content. Checking unconditionally busts the
-  // memo for every scrollback message whenever thinking starts/stops (CC-941).
-  if (
-    prev.lastThinkingBlockId !== next.lastThinkingBlockId &&
-    hasThinkingContent(next.message)
-  ) {
-    return false
-  }
 
   // Check if this message is still "in flight"
   const isStreaming = isMessageStreaming(prev.message, prev.streamingToolUseIDs)
