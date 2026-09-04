@@ -45,8 +45,10 @@ import type {
   PermissionUpdateDestination,
 } from './PermissionUpdateSchema.js'
 import {
+  containsWildcardPattern,
   permissionRuleValueFromString,
   permissionRuleValueToString,
+  wildcardPatternMatches,
 } from './permissionRuleParser.js'
 import {
   deletePermissionRuleFromSettings,
@@ -281,10 +283,16 @@ export function getAskRules(context: ToolPermissionContext): PermissionRule[] {
  * Check if the entire tool matches a rule
  * For example, this matches "Bash" but not "Bash(prefix:*)" for BashTool
  * This also matches MCP tools with a server name, e.g. the rule "mcp__server1"
+ *
+ * Official 2.1.166 `E$q`: with `globMatching`, deny/ask rules accept wildcards
+ * anywhere in the tool-name position — a deny rule of "*" denies all tools.
+ * Allow rules do not glob match (their tool name must be literal or an
+ * mcp__<server>__* wildcard, enforced at validation time).
  */
 function toolMatchesRule(
   tool: Pick<Tool, 'name' | 'mcpInfo'>,
   rule: PermissionRule,
+  { globMatching = false }: { globMatching?: boolean } = {},
 ): boolean {
   // Rule must not have content to match the entire tool
   if (rule.ruleValue.ruleContent !== undefined) {
@@ -299,6 +307,15 @@ function toolMatchesRule(
 
   // Direct tool name match
   if (rule.ruleValue.toolName === nameForRuleMatch) {
+    return true
+  }
+
+  // Wildcard glob match (deny/ask only): "*" matches every tool name.
+  if (
+    globMatching &&
+    containsWildcardPattern(rule.ruleValue.toolName) &&
+    wildcardPatternMatches(rule.ruleValue.toolName, nameForRuleMatch)
+  ) {
     return true
   }
 
@@ -335,7 +352,11 @@ export function getDenyRuleForTool(
   context: ToolPermissionContext,
   tool: Pick<Tool, 'name' | 'mcpInfo'>,
 ): PermissionRule | null {
-  return getDenyRules(context).find(rule => toolMatchesRule(tool, rule)) || null
+  return (
+    getDenyRules(context).find(rule =>
+      toolMatchesRule(tool, rule, { globMatching: true }),
+    ) || null
+  )
 }
 
 /**
@@ -345,7 +366,11 @@ export function getAskRuleForTool(
   context: ToolPermissionContext,
   tool: Pick<Tool, 'name' | 'mcpInfo'>,
 ): PermissionRule | null {
-  return getAskRules(context).find(rule => toolMatchesRule(tool, rule)) || null
+  return (
+    getAskRules(context).find(rule =>
+      toolMatchesRule(tool, rule, { globMatching: true }),
+    ) || null
+  )
 }
 
 /**

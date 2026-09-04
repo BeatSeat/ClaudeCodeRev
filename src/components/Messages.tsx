@@ -44,7 +44,6 @@ import {
   isNotEmptyMessage,
   normalizeMessages,
   reorderMessagesInUI,
-  type StreamingThinking,
   type StreamingToolUse,
   shouldShowUserMessage,
 } from '../utils/messages.js'
@@ -61,7 +60,7 @@ import {
   MessageActionsSelectedContext,
   type MessageActionsState,
 } from './messageActions.js'
-import { AssistantThinkingMessage } from './messages/AssistantThinkingMessage.js'
+
 import {
   filterForFocusTranscript,
   type FocusToolStats,
@@ -273,10 +272,6 @@ type Props = {
   /** Hide the logo/header - used for subagent zoom view */
   hideLogo?: boolean
   isLoading: boolean
-  /** In transcript mode, hide all thinking blocks except the last one */
-  hidePastThinking?: boolean
-  /** Streaming thinking content (live updates, not frozen) */
-  streamingThinking?: StreamingThinking | null
   /** Streaming text preview (rendered as last item so transition to final message is positionally seamless) */
   streamingText?: string | null
   /** When true, only show Brief tool output (hide everything else) */
@@ -414,8 +409,6 @@ const MessagesImpl = ({
   onOpenRateLimitOptions,
   hideLogo = false,
   isLoading,
-  hidePastThinking = false,
-  streamingThinking,
   streamingText,
   isBriefOnly = false,
   unseenDivider,
@@ -448,47 +441,6 @@ const MessagesImpl = ({
   )
 
   // Check if streaming thinking should be visible (streaming or within 30s timeout)
-  const isStreamingThinkingVisible = useMemo(() => {
-    if (!streamingThinking) return false
-    if (streamingThinking.isStreaming) return true
-    if (streamingThinking.streamingEndedAt) {
-      return Date.now() - streamingThinking.streamingEndedAt < 30000
-    }
-    return false
-  }, [streamingThinking])
-
-  // Find the last thinking block (message UUID + content index) for hiding past thinking in transcript mode
-  // When streaming thinking is visible, use a special ID that won't match any completed thinking block
-  // With adaptive thinking, only consider thinking blocks from the current turn and stop searching once we
-  // hit the last user message.
-  const lastThinkingBlockId = useMemo(() => {
-    if (!hidePastThinking) return null
-    // If streaming thinking is visible, hide all completed thinking blocks by using a non-matching ID
-    if (isStreamingThinkingVisible) return 'streaming'
-    // Iterate backwards to find the last message with a thinking block
-    for (let i = normalizedMessages.length - 1; i >= 0; i--) {
-      const msg = normalizedMessages[i]
-      if (msg?.type === 'assistant') {
-        const content = msg.message.content
-        // Find the last thinking block in this message
-        for (let j = content.length - 1; j >= 0; j--) {
-          if (content[j]?.type === 'thinking') {
-            return `${msg.uuid}:${j}`
-          }
-        }
-      } else if (msg?.type === 'user') {
-        const hasToolResult = msg.message.content.some(
-          block => block.type === 'tool_result',
-        )
-        if (!hasToolResult) {
-          // Reached a previous user turn so don't show stale thinking from before
-          return 'no-thinking'
-        }
-      }
-    }
-    return null
-  }, [normalizedMessages, hidePastThinking, isStreamingThinkingVisible])
-
   // Find the latest user bash output message (from ! commands)
   // This allows us to show full output for the most recent bash command
   const latestBashOutputUUID = useMemo(() => {
@@ -863,7 +815,6 @@ const MessagesImpl = ({
         screen={screen}
         canAnimate={canAnimate}
         onOpenRateLimitOptions={onOpenRateLimitOptions}
-        lastThinkingBlockId={lastThinkingBlockId}
         latestBashOutputUUID={latestBashOutputUUID}
         columns={columns}
         isLoading={isLoading}
@@ -1025,21 +976,6 @@ const MessagesImpl = ({
           </Box>
         </Box>
       )}
-
-      {isStreamingThinkingVisible && streamingThinking && !isBriefOnly && (
-        <Box marginTop={1}>
-          <AssistantThinkingMessage
-            param={{
-              type: 'thinking',
-              thinking: streamingThinking.thinking,
-            }}
-            addMargin={false}
-            isTranscriptMode={true}
-            verbose={verbose}
-            hideInTranscript={false}
-          />
-        </Box>
-      )}
     </>
   )
 }
@@ -1058,7 +994,6 @@ function expandKey(msg: RenderableMessage): string {
 // Default React.memo does shallow comparison which fails when:
 // 1. onOpenRateLimitOptions callback is recreated (doesn't affect render output)
 // 2. streamingToolUses array is recreated on every delta, but only contentBlock matters for rendering
-// 3. streamingThinking changes on every delta - we DO want to re-render for this
 function setsEqual<T>(a: Set<T>, b: Set<T>): boolean {
   if (a.size !== b.size) return false
   for (const item of a) {
@@ -1118,10 +1053,7 @@ export const Messages = React.memo(MessagesImpl, (prev, next) => {
           continue
         }
       }
-      // streamingThinking changes frequently - always re-render when it changes
-      // (no special handling needed, default behavior is correct)
-      return false
-    }
+      return false    }
   }
   return true
 })

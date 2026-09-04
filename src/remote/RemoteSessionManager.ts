@@ -232,6 +232,7 @@ export class RemoteSessionManager {
     logForDebugging(
       `[RemoteSessionManager] Sending message to session ${this.config.sessionId}`,
     )
+    this.reviveStreamForUserSend()
 
     const success = await sendEventToRemoteSession(
       this.config.sessionId,
@@ -268,6 +269,7 @@ export class RemoteSessionManager {
     }
 
     this.pendingPermissionRequests.delete(requestId)
+    this.reviveStreamForUserSend()
 
     const response: SDKControlResponse = {
       type: 'control_response',
@@ -288,6 +290,17 @@ export class RemoteSessionManager {
     )
 
     this.client?.sendControlResponse(response)
+  }
+
+  /**
+   * Official 2.1.166: when the stream's reconnect budget was exhausted during
+   * a brief backend disruption the session was stuck closed; revive it on the
+   * next user-initiated send.
+   */
+  reviveStreamForUserSend(): void {
+    if (this.client?.reviveAfterExhaustion()) {
+      this.callbacks.onReconnecting?.()
+    }
   }
 
   /**

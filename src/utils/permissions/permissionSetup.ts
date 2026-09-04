@@ -28,7 +28,11 @@ import {
   type PermissionMode,
   permissionModeFromString,
 } from './PermissionMode.js'
-import { applyPermissionRulesToPermissionContext } from './permissions.js'
+import {
+  applyPermissionRulesToPermissionContext,
+  getAskRules,
+  getDenyRules,
+} from './permissions.js'
 import { loadAllPermissionRulesFromDisk } from './permissionsLoader.js'
 
 /* eslint-disable @typescript-eslint/no-require-imports */
@@ -56,7 +60,9 @@ import { AGENT_TOOL_NAME } from '../../tools/AgentTool/constants.js'
 import { BASH_TOOL_NAME } from '../../tools/BashTool/toolName.js'
 /* eslint-enable @typescript-eslint/no-require-imports */
 import { POWERSHELL_TOOL_NAME } from '../../tools/PowerShellTool/toolName.js'
-import { getToolsForDefaultPreset, parseToolPreset } from '../../tools.js'
+import { GLOB_TOOL_NAME } from '../../tools/GlobTool/prompt.js'
+import { GREP_TOOL_NAME } from '../../tools/GrepTool/prompt.js'
+import { getAllBaseTools, getToolsForDefaultPreset, parseToolPreset } from '../../tools.js'
 import { getPlatform } from '../platform.js'
 import { isBashShellAvailable } from '../shell/shellToolUtils.js'
 import {
@@ -86,10 +92,13 @@ import {
 } from './PermissionUpdate.js'
 import type { PermissionUpdateDestination } from './PermissionUpdateSchema.js'
 import {
+  containsWildcardPattern,
+  getLegacyToolNames,
   normalizeLegacyToolName,
   permissionRuleValueFromString,
   permissionRuleValueToString,
 } from './permissionRuleParser.js'
+import { validateAllowRuleWildcardToolName } from '../settings/permissionValidation.js'
 
 /**
  * Official 2.1.146 `LzA`. Bg children restore session allow/deny from env.
@@ -281,6 +290,77 @@ export function isDangerousTaskPermission(
   _ruleContent: string | undefined,
 ): boolean {
   return normalizeLegacyToolName(toolName) === AGENT_TOOL_NAME
+}
+
+// -- Shell allow-rule telemetry (official 2.1.166 `Mn6`/`mO4`/`In5`/`BO4`) --
+//
+// Buckets the startup always-allow rules per rule-source × shell tool ×
+// category (`bare` tool-wide rule, `dangerous_prefix` matching a known
+// code-exec/network prefix, `scoped` anything narrower) and logs the counts
+// once at init (`tengu_shell_allow_rules_at_init`).
+
+/** Official 2.1.166 `Mn6`: the shell tool a rule tool-name scopes to, else null. */
+export function shellToolForRuleToolName(toolName: string): string | null {
+  if (toolName === BASH_TOOL_NAME) return BASH_TOOL_NAME
+  if (toolName === POWERSHELL_TOOL_NAME) return POWERSHELL_TOOL_NAME
+  return null
+}
+
+type ShellAllowRuleCategory = 'bare' | 'dangerous_prefix' | 'scoped'
+
+/** Official 2.1.166 `mO4`: categorize a shell allow-rule's content shape. */
+export function categorizeShellAllowRule(
+  toolName: string,
+  ruleContent: string | undefined,
+): ShellAllowRuleCategory | null {
+  const shellTool = shellToolForRuleToolName(toolName)
+  if (shellTool === null) return null
+  if (ruleContent === undefined || ruleContent === '' || /^[\s*]+$/.test(ruleContent)) {
+    return 'bare'
+  }
+  return (shellTool === BASH_TOOL_NAME
+    ? isDangerousBashPermission(shellTool, ruleContent)
+    : isDangerousPowerShellPermission(shellTool, ruleContent))
+    ? 'dangerous_prefix'
+    : 'scoped'
+}
+
+/** Official `Rn5`: rule-list sources bucketed by the init telemetry. */
+const SHELL_ALLOW_RULE_SOURCES = [
+  'userSettings',
+  'projectSettings',
+  'localSettings',
+  'flagSettings',
+  'cliArg',
+  'session',
+] as const
+
+/** Official 2.1.166 `In5`: per-source × shell × category counts (+ total). */
+export function countShellAllowRules(rulesBySource: {
+  readonly [source in PermissionRuleSource]?: readonly string[]
+}): Record<string, number> {
+  const counts: Record<string, number> = {}
+  let total = 0
+  for (const source of SHELL_ALLOW_RULE_SOURCES) {
+    for (const rule of rulesBySource[source] ?? []) {
+      const { toolName, ruleContent } = permissionRuleValueFromString(rule)
+      const shellTool = shellToolForRuleToolName(toolName)
+      if (shellTool === null) continue
+      const category = categorizeShellAllowRule(shellTool, ruleContent)
+      if (category === null) continue
+      const key = `${source}_${shellTool}_${category}`
+      counts[key] = (counts[key] ?? 0) + 1
+      total++
+    }
+  }
+  return (counts.total_shell_allow_rules = total), counts
+}
+
+/** Official 2.1.166 `BO4`: one-shot init telemetry for always-allow rules. */
+export function logShellAllowRulesAtInit(alwaysAllowRules: {
+  readonly [source in PermissionRuleSource]?: readonly string[]
+}): void {
+  logEvent('tengu_shell_allow_rules_at_init', countShellAllowRules(alwaysAllowRules))
 }
 
 function formatPermissionSource(source: PermissionRuleSource): string {
@@ -979,9 +1059,24 @@ export async function initializeToolPermissionContext({
   // Parse comma-separated allowed and disallowed tools if provided
   // Normalize legacy tool names (e.g., 'Task' → 'Agent') so that in-memory
   // rule removal in stripDangerousPermissionsForAutoMode matches correctly.
-  const parsedAllowedToolsCli = parseToolListFromCLI(allowedToolsCli).map(
-    rule => permissionRuleValueToString(permissionRuleValueFromString(rule)),
-  )
+  // Official 2.1.166 `u$q`: wildcard tool names are not supported in allow
+  // rules — drop them with a warning instead of silently accepting a rule
+  // that can never match.
+  const warnings: string[] = []
+  const parsedAllowedToolsCli = parseToolListFromCLI(allowedToolsCli)
+    .map(rule => permissionRuleValueToString(permissionRuleValueFromString(rule)))
+    .filter(rule => {
+      const wildcardCheck = validateAllowRuleWildcardToolName(
+        permissionRuleValueFromString(rule).toolName,
+      )
+      if (wildcardCheck) {
+        warnings.push(
+          `Ignoring --allowedTools rule "${rule}": ${wildcardCheck.error}. ${wildcardCheck.suggestion}.`,
+        )
+        return false
+      }
+      return true
+    })
   let parsedDisallowedToolsCli = parseToolListFromCLI(disallowedToolsCli)
 
   // If base tools are specified, automatically deny all tools NOT in the base set
@@ -996,7 +1091,6 @@ export async function initializeToolPermissionContext({
     parsedDisallowedToolsCli = [...parsedDisallowedToolsCli, ...toolsToDisallow]
   }
 
-  const warnings: string[] = []
   const additionalWorkingDirectories = new Map<
     string,
     AdditionalWorkingDirectory
@@ -1121,6 +1215,36 @@ export async function initializeToolPermissionContext({
     },
     rulesFromDisk,
   )
+
+  // Official 2.1.166 `u$q`: warn at startup when a deny/ask rule names a tool
+  // that doesn't exist — usually a typo. Globs, mcp-style names (contain "_"),
+  // legacy aliases, and known tool names are all fine; toolsNarrowing/session
+  // sources are internally generated, not user-typed.
+  const knownToolNames = new Set([
+    ...getAllBaseTools().map(tool => tool.name),
+    BASH_TOOL_NAME,
+    POWERSHELL_TOOL_NAME,
+    GLOB_TOOL_NAME,
+    GREP_TOOL_NAME,
+  ])
+  for (const rule of [
+    ...getDenyRules(toolPermissionContext),
+    ...getAskRules(toolPermissionContext),
+  ]) {
+    if (rule.source === 'toolsNarrowing' || rule.source === 'session') continue
+    const { toolName } = rule.ruleValue
+    if (
+      containsWildcardPattern(toolName) ||
+      toolName.includes('_') ||
+      getLegacyToolNames(toolName).length > 0 ||
+      knownToolNames.has(toolName)
+    ) {
+      continue
+    }
+    warnings.push(
+      `Permission ${rule.ruleBehavior} rule "${permissionRuleValueToString(rule.ruleValue)}" matches no known tool — check for typos.`,
+    )
+  }
 
   // Settings dirs are localSettings so mid-session settings edits can
   // add/remove them without touching --add-dir (cliArg) isolation.

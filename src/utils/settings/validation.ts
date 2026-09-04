@@ -1,5 +1,5 @@
 import type { ConfigScope } from 'src/services/mcp/types.js'
-import type { ZodError, ZodIssue } from 'zod/v4'
+import { z, type ZodError, type ZodIssue } from 'zod/v4'
 import { HOOK_EVENTS } from '../../entrypoints/sdk/coreTypes.js'
 import { jsonParse } from '../slowOperations.js'
 import { plural } from '../stringUtils.js'
@@ -240,7 +240,7 @@ export function filterInvalidPermissionRules(
   const perms = obj.permissions as Record<string, unknown>
 
   const warnings: ValidationError[] = []
-  for (const key of ['allow', 'deny', 'ask']) {
+  for (const key of ['allow', 'deny', 'ask'] as const) {
     const rules = perms[key]
     if (!Array.isArray(rules)) continue
 
@@ -254,7 +254,7 @@ export function filterInvalidPermissionRules(
         })
         return false
       }
-      const result = validatePermissionRule(rule)
+      const result = validatePermissionRule(rule, key)
       if (!result.valid) {
         let message = `Invalid permission rule "${rule}" was skipped`
         if (result.error) message += `: ${result.error}`
@@ -398,14 +398,130 @@ function filterInvalidMcpServerPolicyEntries(
   return warnings
 }
 
-/** Official 2.1.101 GC + 2.1.154 V71: permission-rule + unknown-hook + MCP policy. */
+/** Official 2.1.101 GC + 2.1.154 V71: permission-rule + unknown-hook + MCP policy.
+ * 166 `sI`: managed parsing skips the MCP entry filter (the per-entry catch in
+ * ManagedSettingsSchema reports those instead). */
 export function filterSettingsWarnings(
   data: unknown,
   filePath: string,
+  options?: { skipMcpServerEntryFilter?: boolean },
 ): ValidationError[] {
   return [
     ...filterInvalidPermissionRules(data, filePath),
     ...filterUnknownHookEvents(data, filePath),
-    ...filterInvalidMcpServerPolicyEntries(data, filePath),
+    ...(options?.skipMcpServerEntryFilter
+      ? []
+      : filterInvalidMcpServerPolicyEntries(data, filePath)),
   ]
+}
+
+/**
+ * Official 2.1.166 `omq`: sentinel a managed-policy entry catch returns so
+ * the array transform can drop the entry after reporting it.
+ */
+const INVALID_MANAGED_POLICY_ENTRY: unique symbol = Symbol(
+  'invalid-managed-policy-entry',
+)
+
+type ManagedSettingsIssue = { path: string; message: string }
+
+/**
+ * Official 2.1.166 `amq`: managed-policy entry array where each invalid entry
+ * is reported (as a warning) and dropped individually, so one bad row does
+ * not disable the remaining valid policies.
+ */
+function managedPolicyEntryArray<Schema extends z.ZodType>(
+  path: string,
+  entrySchema: () => Schema,
+  report: (issue: ManagedSettingsIssue) => void,
+) {
+  return z
+    .array(
+      entrySchema().catch(ctx => {
+        report({
+          path: `${path}[]`,
+          message: `Invalid entry was ignored: ${ctx.error.issues[0]?.message ?? 'failed validation'}`,
+        })
+        return INVALID_MANAGED_POLICY_ENTRY as unknown as z.output<Schema>
+      }),
+    )
+    .transform(arr =>
+      arr.filter(item => item !== (INVALID_MANAGED_POLICY_ENTRY as unknown)),
+    )
+    .optional()
+}
+
+/**
+ * Official 2.1.166 `tmq`: managed-settings schema that catches each field
+ * independently — one invalid field is ignored (with a warning) while the
+ * remaining valid policies stay in effect. Field-level catches are replaced
+ * for the policy-critical fields below, where a silent fallback is safer
+ * than dropping the field.
+ */
+export function ManagedSettingsSchema(
+  report: (issue: ManagedSettingsIssue) => void,
+) {
+  const settingsSchema = SettingsSchema()
+  const shape: Record<string, z.ZodType> = {}
+  for (const [key, field] of Object.entries(settingsSchema.shape)) {
+    shape[key] = (field as z.ZodTypeAny).catch(ctx => {
+      report({
+        path: key,
+        message: `${ctx.error.issues[0]?.message ?? 'Failed schema validation'}. This field was ignored.`,
+      })
+      return undefined
+    })
+  }
+  shape.allowedMcpServers = managedPolicyEntryArray(
+    'allowedMcpServers',
+    AllowedMcpServerEntrySchema,
+    report,
+  ).catch(() => {
+    report({
+      path: 'allowedMcpServers',
+      message:
+        '"allowedMcpServers" was present but invalid; enforcing an empty allowlist (no MCP servers admitted) until it is fixed.',
+    })
+    return []
+  })
+  shape.deniedMcpServers = managedPolicyEntryArray(
+    'deniedMcpServers',
+    DeniedMcpServerEntrySchema,
+    report,
+  ).catch(() => {
+    report({
+      path: 'deniedMcpServers',
+      message:
+        '"deniedMcpServers" was present but invalid and was dropped; its entries cannot be enforced until it is fixed.',
+    })
+    return undefined
+  })
+  shape.allowManagedMcpServersOnly = settingsSchema.shape.allowManagedMcpServersOnly.catch(
+    () => {
+      report({
+        path: 'allowManagedMcpServersOnly',
+        message:
+          '"allowManagedMcpServersOnly" was present but invalid; treating it as true until it is fixed.',
+      })
+      return true
+    },
+  )
+  shape.forceLoginOrgUUID = settingsSchema.shape.forceLoginOrgUUID.catch(() => {
+    report({
+      path: 'forceLoginOrgUUID',
+      message:
+        '"forceLoginOrgUUID" was present but invalid; no organization is permitted to log in until it is fixed.',
+    })
+    // Official 2.1.166 `tmq` returns `[]` here verbatim (zod catch value).
+    return [] as unknown as string | undefined
+  })
+  return z
+    .object(shape)
+    .passthrough()
+    .transform(obj => {
+      for (const key of Object.keys(obj)) {
+        if (obj[key] === undefined) delete obj[key]
+      }
+      return obj
+    })
 }

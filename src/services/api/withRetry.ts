@@ -50,6 +50,11 @@ import {
   isMockRateLimitError,
 } from '../rateLimitMocking.js'
 import { REPEATED_529_ERROR_MESSAGE } from './errors.js'
+import {
+  isCreditBalanceTooLowError,
+  isOrgDisabledError,
+  isPromptTooLongError,
+} from './errors.js'
 import { extractConnectionErrorDetails } from './errorUtils.js'
 
 const abortError = () => new APIUserAbortError()
@@ -58,6 +63,53 @@ const DEFAULT_MAX_RETRIES = 10
 const FLOOR_OUTPUT_TOKENS = 3000
 const MAX_529_RETRIES = 3
 export const BASE_DELAY_MS = 500
+
+// Official 2.1.166 `oOA` — APIError.type values the first-party API returns,
+// used to tag last-resort fallback telemetry.
+const API_ERROR_TYPES = [
+  'invalid_request_error',
+  'authentication_error',
+  'billing_error',
+  'permission_error',
+  'not_found_error',
+  'request_too_large',
+  'rate_limit_error',
+  'timeout_error',
+  'api_error',
+  'overloaded_error',
+]
+
+// Official 2.1.166 `aOA` — statuses that surface to the user immediately
+// (auth, rate-limit, request-size, ...). These never trigger the last-resort
+// fallback-model retry.
+const IMMEDIATELY_SURFACED_STATUSES = new Set([401, 407, 429, 404, 403, 413])
+
+// Official 2.1.166 `sOA` — non-status error predicates that also surface
+// immediately rather than falling back to the fallback model.
+const IMMEDIATELY_SURFACED_ERROR_CHECKS = [
+  isPromptTooLongError,
+  isCreditBalanceTooLowError,
+  isOrgDisabledError,
+  isFastModeNotEnabledError,
+]
+
+function featureBad(featureName: string, errorCode: string): void {
+  logEvent('tengu_feature_bad', {
+    feature_name:
+      featureName as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
+    error_code:
+      errorCode as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
+  })
+}
+
+function featureSad(featureName: string, errorCode: string): void {
+  logEvent('tengu_feature_sad', {
+    feature_name:
+      featureName as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
+    error_code:
+      errorCode as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
+  })
+}
 
 // Foreground query sources where the user IS blocking on the result — these
 // retry on 529. Everything else (summaries, titles, suggestions, classifiers)
@@ -138,6 +190,13 @@ interface RetryOptions {
   signal?: AbortSignal
   querySource?: QuerySource
   /**
+   * Set when this retry loop serves a non-streaming request. A 404 there is
+   * expected (some gateways reject streaming endpoints but serve
+   * non-streaming) and must surface immediately rather than trigger the
+   * last-resort fallback-model retry.
+   */
+  isNonStreamingRequest?: boolean
+  /**
    * Pre-seed the consecutive 529 counter. Used when this retry loop is a
    * non-streaming fallback after a streaming 529 — the streaming 529 should
    * count toward MAX_529_RETRIES so total 529s-before-fallback is consistent
@@ -171,7 +230,12 @@ export class FallbackTriggeredError extends Error {
   constructor(
     public readonly originalModel: string,
     public readonly fallbackModel: string,
-    public readonly reason: 'overloaded' | 'model_not_found' = 'overloaded',
+    public readonly reason:
+      | 'overloaded'
+      | 'model_not_found'
+      | 'permission_denied'
+      | 'server_error'
+      | 'last_resort' = 'overloaded',
   ) {
     super(`Model fallback triggered: ${originalModel} -> ${fallbackModel}`)
     this.name = 'FallbackTriggeredError'
@@ -193,6 +257,39 @@ function isModelNotFoundError(error: unknown): boolean {
       message.includes('"type":"not_found_error"')) &&
     message.includes('model:')
   )
+}
+
+/** Official 2.1.166 `Rb4` — 403 permission_error mentioning a model id. */
+function isModelPermissionDeniedError(error: unknown): boolean {
+  if (!(error instanceof APIError) || error.status !== 403) return false
+  const message = error.message ?? ''
+  const typed =
+    typeof error.error === 'object' &&
+    error.error !== null &&
+    'type' in error.error
+      ? String((error.error as { type?: string }).type)
+      : undefined
+  return (
+    (typed === 'permission_error' ||
+      message.includes('"type":"permission_error"')) &&
+    message.includes('model:')
+  )
+}
+
+/** Official 2.1.166 `tOA` — 5xx (except 529) server errors. */
+function isServerError(error: unknown): boolean {
+  return (
+    error instanceof APIError &&
+    error.status !== undefined &&
+    error.status >= 500 &&
+    error.status < 600 &&
+    error.status !== 529
+  )
+}
+
+/** Official 2.1.166 `lbH`. */
+function isRetryWatchdog(): boolean {
+  return isEnvTruthy(process.env.CLAUDE_CODE_RETRY_WATCHDOG)
 }
 
 export async function* withRetry<T>(
@@ -301,22 +398,33 @@ export async function* withRetry<T>(
         continue
       }
 
+      // Official 2.1.166: 404 model_not_found, 403 permission_error, and
+      // (off retry-watchdog) 5xx server errors all trigger the fallback chain.
       if (
-        isModelNotFoundError(error) &&
+        (isModelNotFoundError(error) ||
+          isModelPermissionDeniedError(error) ||
+          (!isRetryWatchdog() && isServerError(error))) &&
         options.fallbackModel &&
         options.fallbackModel !== options.model
       ) {
+        const fallbackReason = isModelNotFoundError(error)
+          ? ('model_not_found' as const)
+          : isModelPermissionDeniedError(error)
+            ? ('permission_denied' as const)
+            : ('server_error' as const)
         logEvent('tengu_api_model_not_found_fallback_triggered', {
           original_model:
             options.model as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
           fallback_model:
             options.fallbackModel as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
           provider: getAPIProviderForStatsig(),
+          reason:
+            fallbackReason as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
         })
         throw new FallbackTriggeredError(
           options.model,
           options.fallbackModel,
-          'model_not_found',
+          fallbackReason,
         )
       }
 
@@ -457,6 +565,40 @@ export async function* withRetry<T>(
         !handledCloudAuthError &&
         (!(error instanceof APIError) || !shouldRetry(error))
       ) {
+        // Official 2.1.166: on an unexpected non-retryable error, retry the
+        // turn once on the fallback model. Auth, rate-limit, request-size and
+        // transport errors surface immediately and never reach the fallback.
+        const isImmediatelySurfacedError =
+          error instanceof APIError &&
+          ((error.status !== undefined &&
+            IMMEDIATELY_SURFACED_STATUSES.has(error.status) &&
+            !(error.status === 404 && options.isNonStreamingRequest)) ||
+            (error as APIError & { type?: string | null }).type ===
+              'billing_error' ||
+            IMMEDIATELY_SURFACED_ERROR_CHECKS.some(check => check(error)))
+        if (
+          error instanceof APIError &&
+          error.status !== undefined &&
+          !isImmediatelySurfacedError &&
+          options.fallbackModel &&
+          options.fallbackModel !== options.model
+        ) {
+          const errorType = (error as APIError & { type?: string | null }).type
+          logEvent('tengu_api_fallback_last_resort', {
+            status: error.status,
+            errorType: (API_ERROR_TYPES.find(t => t === errorType) ??
+              'other') as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
+            provider: getAPIProviderForStatsig(),
+            fastMode: retryContext.fastMode ?? false,
+          })
+          featureSad('api_request', 'api_request_last_resort_fallback')
+          throw new FallbackTriggeredError(
+            options.model,
+            options.fallbackModel,
+            'last_resort',
+          )
+        }
+        featureBad('api_request', 'api_request_non_retryable')
         throw new CannotRetryError(error, retryContext)
       }
 

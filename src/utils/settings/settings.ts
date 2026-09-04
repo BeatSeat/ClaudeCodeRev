@@ -10,6 +10,7 @@ import {
   getUseCoworkPlugins,
 } from '../../bootstrap/state.js'
 import { getRemoteManagedSettingsSyncFromCache } from '../../services/remoteManagedSettings/syncCacheState.js'
+import { logEvent } from '../../services/analytics/index.js'
 import { uniq } from '../array.js'
 import { logForDebugging } from '../debug.js'
 import { logForDiagnosticsNoPII } from '../diagLogs.js'
@@ -52,6 +53,7 @@ import { type SettingsJson, SettingsSchema } from './types.js'
 import {
   filterSettingsWarnings,
   formatZodError,
+  ManagedSettingsSchema,
   type SettingsWithErrors,
   type ValidationError,
 } from './validation.js'
@@ -99,6 +101,8 @@ function loadManagedFileSettingsFromDir(dir: string): {
 
   const { settings, errors: baseErrors } = parseSettingsFile(
     join(dir, 'managed-settings.json'),
+    undefined,
+    true,
   )
   errors.push(...baseErrors)
   if (settings && Object.keys(settings).length > 0) {
@@ -121,6 +125,8 @@ function loadManagedFileSettingsFromDir(dir: string): {
     for (const name of entries) {
       const { settings, errors: fileErrors } = parseSettingsFile(
         join(dropInDir, name),
+        undefined,
+        true,
       )
       errors.push(...fileErrors)
       if (settings && Object.keys(settings).length > 0) {
@@ -179,6 +185,8 @@ export function getManagedFileSettingsPresence(): {
   for (const dir of dirs) {
     const { settings: base } = parseSettingsFile(
       join(dir, 'managed-settings.json'),
+      undefined,
+      true,
     )
     const { wslInheritsWindowsSettings: _flag, ...remainder } = base ?? {}
     const hasBase = Object.keys(remainder).length > 0
@@ -195,7 +203,11 @@ export function getManagedFileSettingsPresence(): {
           ) {
             return false
           }
-          const { settings } = parseSettingsFile(join(dropInDir, d.name))
+          const { settings } = parseSettingsFile(
+            join(dropInDir, d.name),
+            undefined,
+            true,
+          )
           const { wslInheritsWindowsSettings: _dropFlag, ...rest } =
             settings ?? {}
           return Object.keys(rest).length > 0
@@ -262,7 +274,11 @@ function handleFileSystemError(error: unknown, path: string): void {
  * @param source The source of the settings (optional, for error reporting)
  * @returns Parsed settings data and validation errors
  */
-export function parseSettingsFile(path: string): {
+export function parseSettingsFile(
+  path: string,
+  content?: string,
+  isManaged = false,
+): {
   settings: SettingsJson | null
   errors: ValidationError[]
 } {
@@ -275,7 +291,7 @@ export function parseSettingsFile(path: string): {
       errors: cached.errors,
     }
   }
-  const result = parseSettingsFileUncached(path)
+  const result = parseSettingsFileUncached(path, content, isManaged)
   setCachedParsedFile(path, result)
   // Clone the first return too — the caller may mutate before
   // another caller reads the same cache entry.
@@ -285,19 +301,53 @@ export function parseSettingsFile(path: string): {
   }
 }
 
-function parseSettingsFileUncached(path: string): {
+function parseSettingsFileUncached(
+  path: string,
+  content?: string,
+  isManaged = false,
+): {
   settings: SettingsJson | null
   errors: ValidationError[]
 } {
   try {
-    const { resolvedPath } = safeResolvePath(getFsImplementation(), path)
-    const content = readFileSync(resolvedPath)
+    let fileContent: string
+    if (content !== undefined) {
+      fileContent = content
+    } else {
+      const { resolvedPath } = safeResolvePath(getFsImplementation(), path)
+      fileContent = readFileSync(resolvedPath)
+    }
 
-    if (content.trim() === '') {
+    if (fileContent.trim() === '') {
       return { settings: {}, errors: [] }
     }
 
-    const data = safeParseJSON(content, false)
+    const data = safeParseJSON(fileContent, false)
+
+    if (isManaged) {
+      // Official 2.1.166 `c86`: validate managed settings field-by-field so
+      // one invalid field no longer silently disables the remaining valid
+      // policies. MCP entry filtering happens via the per-entry catch below.
+      const ruleWarnings = filterSettingsWarnings(data, path, {
+        skipMcpServerEntryFilter: true,
+      })
+      const fieldWarnings: ValidationError[] = []
+      const result = ManagedSettingsSchema(issue =>
+        fieldWarnings.push({
+          file: path,
+          path: issue.path,
+          message: issue.message,
+          severity: 'warning',
+        }),
+      ).safeParse(data)
+      if (!result.success) {
+        return {
+          settings: null,
+          errors: [...ruleWarnings, ...formatZodError(result.error, path)],
+        }
+      }
+      return { settings: result.data, errors: [...ruleWarnings, ...fieldWarnings] }
+    }
 
     // Filter invalid permission rules before schema validation so one bad
     // rule doesn't cause the entire settings file to be rejected.
@@ -573,6 +623,45 @@ export function getPolicySettingsOrigin():
 }
 
 /**
+ * Official 2.1.166 `_3$` — validation errors from every managed policy
+ * source: MDM (plist/HKLM), file-based managed settings, parent managed
+ * settings, and HKCU.
+ */
+export function getPolicySettingsLoadErrors(): ValidationError[] {
+  const errors: ValidationError[] = []
+  errors.push(...getMdmSettings().errors)
+  errors.push(...loadManagedFileSettings().errors)
+  errors.push(...loadParentManagedSettings().errors)
+  errors.push(...getHkcuSettings().errors)
+  return errors
+}
+
+/**
+ * Official 2.1.166 `H66` — print managed-settings validation problems to
+ * stderr at startup (headless surface). Fatal errors (missing severity, i.e.
+ * the whole source failed) mean that source's policies are NOT in effect;
+ * warnings mean invalid entries were dropped but remaining valid policies
+ * are still enforced.
+ */
+export function surfaceManagedSettingsErrorsHeadless(): void {
+  const errors = getPolicySettingsLoadErrors()
+  if (errors.length === 0) return
+  const fatal = errors.some(error => error.severity !== 'warning')
+  const header = fatal
+    ? 'Managed settings failed to load; policies from the failed source are NOT in effect:'
+    : 'Managed settings contain invalid entries (remaining valid policies are still enforced):'
+  const lines = errors.map(
+    error =>
+      `  ${error.file ?? 'managed settings'}${error.path ? ` (${error.path})` : ''}: ${error.message}`,
+  )
+  process.stderr.write(`${header}\n${lines.join('\n')}\n`)
+  logEvent('tengu_managed_settings_validation_errors', {
+    error_count: errors.length,
+    fatal,
+  })
+}
+
+/**
  * Merges `settings` into the existing settings for `source` using lodash mergeWith.
  *
  * To delete a key from a record field (e.g. enabledPlugins, extraKnownMarketplaces),
@@ -701,12 +790,19 @@ function mergeArrays<T>(targetArray: T[], sourceArray: T[]): T[] {
  * Custom merge function for lodash mergeWith when merging settings.
  * Arrays are concatenated and deduplicated; other values use default lodash merge behavior.
  * Exported for testing.
+ *
+ * Official 2.1.166 `z$H`: `fallbackModel` overrides instead of concatenating
+ * across sources — the more specific source's fallback list wins whole.
  */
 export function settingsMergeCustomizer(
   objValue: unknown,
   srcValue: unknown,
+  key?: string,
 ): unknown {
   if (Array.isArray(objValue) && Array.isArray(srcValue)) {
+    if (key === 'fallbackModel') {
+      return srcValue
+    }
     return mergeArrays(objValue, srcValue)
   }
   // Return undefined to let lodash handle default merge behavior

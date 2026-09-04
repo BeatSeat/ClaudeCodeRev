@@ -72,3 +72,23 @@ export default function wrapText(
 
   return text
 }
+
+/**
+ * Official 2.1.166 `kS8`: whether the character before `offset` is a newline
+ * — or this is the first line of the text. Feeds the `isPrecededByNewline`
+ * field of the official frozen-lines wrap model (`rp4`); that model and its
+ * SearchBox consumer are not in-tree yet, kept verbatim for shape parity.
+ */
+export function isPrecededByNewline(
+  text: string,
+  offset: number,
+  isFirstLine: boolean,
+): boolean {
+  if (isFirstLine) return true
+  return offset > 0 && text[offset - 1] === '\n'
+}
+
+/** Official 2.1.166 `sp4`: clamp `value` into [min, max]. */
+export function clampToRange(value: number, min: number, max: number): number {
+  return value < min ? min : value > max ? max : value
+}

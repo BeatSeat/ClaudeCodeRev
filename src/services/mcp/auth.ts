@@ -73,6 +73,9 @@ type MCPRefreshFailureReason =
   | 'no_client_info'
   | 'no_tokens_returned'
   | 'invalid_grant'
+  | 'concurrent_reregister'
+  | 'unauthorized_client'
+  | 'invalid_client'
   | 'transient_retries_exhausted'
   | 'request_failed'
 
@@ -2267,6 +2270,60 @@ export class ClaudeAuthProvider implements OAuthClientProvider {
     }
   }
 
+  /**
+   * Official 2.1.166: re-read secure storage (cache-cleared) and check whether
+   * another process landed fresh tokens or holds a different client
+   * registration while this process was refreshing.
+   */
+  private async readConcurrentRefreshWinner(): Promise<{
+    tokenData:
+      | {
+          accessToken?: string
+          refreshToken?: string
+          expiresAt?: number
+          scope?: string
+          clientId?: string
+          clientSecret?: string
+        }
+      | undefined
+    freshTokens: OAuthTokens | undefined
+  }> {
+    clearKeychainCache()
+    const storage = getSecureStorage()
+    const data = await storage.readAsync()
+    const serverKey = getServerKey(this.serverName, this.serverConfig)
+    const mcpOAuth = data?.mcpOAuth as Record<string, unknown> | undefined
+    const tokenData = mcpOAuth?.[serverKey] as
+      | {
+          accessToken?: string
+          refreshToken?: string
+          expiresAt?: number
+          scope?: string
+          clientId?: string
+          clientSecret?: string
+        }
+      | undefined
+    const expiresIn =
+      tokenData?.expiresAt != null
+        ? (tokenData.expiresAt - Date.now()) / 1000
+        : undefined
+    if (tokenData?.accessToken && (expiresIn == null || expiresIn > 300)) {
+      logMCPDebug(
+        this.serverName,
+        `Another process landed fresh tokens; using those`,
+      )
+      const freshTokens: OAuthTokens = {
+        access_token: tokenData.accessToken,
+        refresh_token: tokenData.refreshToken,
+        expires_in: expiresIn,
+        scope: tokenData.scope,
+        token_type: 'Bearer',
+      }
+      return { tokenData, freshTokens }
+    }
+    return { tokenData, freshTokens: undefined }
+  }
+
   private async _doRefresh(
     refreshToken: string,
   ): Promise<OAuthTokens | undefined> {
@@ -2301,6 +2358,7 @@ export class ClaudeAuthProvider implements OAuthClientProvider {
     }
 
     for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+      let clientInfo: OAuthClientInformation | undefined
       try {
         logMCPDebug(this.serverName, `Starting token refresh`)
         const authFetch = createAuthFetch()
@@ -2348,7 +2406,7 @@ export class ClaudeAuthProvider implements OAuthClientProvider {
         // Cache for future refreshes
         this._metadata = metadata
 
-        const clientInfo = await this.clientInformation()
+        clientInfo = await this.clientInformation()
         if (!clientInfo) {
           logMCPDebug(this.serverName, `No client information available`)
           emitRefreshEvent('failure', 'no_client_info')
@@ -2384,36 +2442,54 @@ export class ClaudeAuthProvider implements OAuthClientProvider {
             this.serverName,
             `Token refresh failed with invalid_grant: ${error.message}`,
           )
-          clearKeychainCache()
-          const storage = getSecureStorage()
-          const data = storage.read()
-          const serverKey = getServerKey(this.serverName, this.serverConfig)
-          const tokenData = data?.mcpOAuth?.[serverKey]
-          if (tokenData) {
-            const expiresIn = (tokenData.expiresAt - Date.now()) / 1000
-            if (expiresIn > 300) {
-              logMCPDebug(
-                this.serverName,
-                `Another process refreshed tokens, using those`,
-              )
-              // Not emitted as success: this process did not perform a
-              // refresh, and the winning process already emitted its own
-              // success event. Emitting here would double-count.
-              return {
-                access_token: tokenData.accessToken,
-                refresh_token: tokenData.refreshToken,
-                expires_in: expiresIn,
-                scope: tokenData.scope,
-                token_type: 'Bearer',
-              }
-            }
+          const { freshTokens } = await this.readConcurrentRefreshWinner()
+          if (freshTokens) {
+            return freshTokens
           }
           logMCPDebug(
             this.serverName,
             `No valid tokens in storage, clearing stored tokens`,
           )
-          await this.invalidateCredentials('tokens')
           emitRefreshEvent('failure', 'invalid_grant')
+          await this.invalidateCredentials('tokens')
+          return undefined
+        }
+
+        // DCR client registration expired or was rejected. Another process
+        // may have re-registered concurrently — check storage before clearing.
+        if (
+          error instanceof OAuthError &&
+          (error.errorCode === 'invalid_client' ||
+            error.errorCode === 'unauthorized_client')
+        ) {
+          logMCPDebug(
+            this.serverName,
+            `Token refresh failed: DCR client expired or invalid; clearing stored client registration`,
+          )
+          const { tokenData, freshTokens } =
+            await this.readConcurrentRefreshWinner()
+          if (freshTokens) {
+            return freshTokens
+          }
+          if (
+            tokenData?.clientId &&
+            clientInfo &&
+            tokenData.clientId !== clientInfo.client_id
+          ) {
+            logMCPDebug(
+              this.serverName,
+              `Another process re-registered client; preserving`,
+            )
+            emitRefreshEvent('failure', 'concurrent_reregister')
+            return undefined
+          }
+          emitRefreshEvent(
+            'failure',
+            error.errorCode === 'unauthorized_client'
+              ? 'unauthorized_client'
+              : 'invalid_client',
+          )
+          await this.invalidateCredentials('all')
           return undefined
         }
 

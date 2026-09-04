@@ -244,6 +244,7 @@ import { getGhAuthStatus } from './utils/github/ghAuthStatus.js'
 import { safeParseJSON } from './utils/json.js'
 import { logError } from './utils/log.js'
 import { getModelDeprecationWarning } from './utils/model/deprecation.js'
+import { isModelAllowed } from './utils/model/modelAllowlist.js'
 import {
   getDefaultMainLoopModel,
   getUserSpecifiedModelSetting,
@@ -258,6 +259,7 @@ import {
   initializeToolPermissionContext,
   initialPermissionModeFromCLI,
   isDefaultPermissionModeAuto,
+  logShellAllowRulesAtInit,
   parseToolListFromCLI,
   removeDangerousPermissions,
   stripDangerousPermissionsForAutoMode,
@@ -1339,6 +1341,55 @@ async function getInputPrompt(
   return prompt
 }
 
+// Official 2.1.166 `yQ_` — maximum number of fallback models kept in the
+// resolved chain (CLI flag + settings combined).
+const MAX_FALLBACK_MODELS = 3
+
+/**
+ * Official 2.1.166 `DA7` — resolve the ordered fallback-model chain from the
+ * CLI `--fallback-model` flag (comma-separated) or the settings
+ * `fallbackModel` array (CLI takes precedence). Entries are trimmed,
+ * `"default"` expands to the default model, each resolved model must pass
+ * the availableModels allowlist, and duplicates are dropped. Returns
+ * `undefined` when no valid fallback remains.
+ */
+function resolveFallbackModels(input: {
+  cli: { fallbackModel?: string }
+  settings: { fallbackModel?: unknown }
+}): string[] | undefined {
+  const list =
+    input.cli.fallbackModel?.split(',') ??
+    (Array.isArray(input.settings.fallbackModel)
+      ? input.settings.fallbackModel
+      : undefined)
+  if (list === undefined) {
+    return undefined
+  }
+  const seen = new Set<string>()
+  const chain: string[] = []
+  for (const entry of list) {
+    const name = typeof entry === 'string' ? entry.trim() : ''
+    if (name === '') {
+      continue
+    }
+    const resolved = parseUserSpecifiedModel(
+      name === 'default' ? getDefaultMainLoopModel() : name,
+    )
+    if (seen.has(resolved)) {
+      continue
+    }
+    if (!isModelAllowed(resolved)) {
+      continue
+    }
+    seen.add(resolved)
+    chain.push(resolved)
+    if (chain.length === MAX_FALLBACK_MODELS) {
+      break
+    }
+  }
+  return chain.length > 0 ? chain : undefined
+}
+
 async function run(): Promise<CommanderCommand> {
   profileCheckpoint('run_function_start')
 
@@ -1789,7 +1840,7 @@ async function run(): Promise<CommanderCommand> {
     )
     .option(
       '--fallback-model <model>',
-      'Enable automatic fallback to specified model when default model is overloaded (only works with --print)',
+      'Enable automatic fallback to specified model(s) when the default model is overloaded or not available. Accepts a comma-separated list to try each in order. Re-tries the primary at the start of each user turn. (only works with --print)',
     )
     .addOption(
       new Option(
@@ -3117,8 +3168,13 @@ async function run(): Promise<CommanderCommand> {
       // NOTE: Model resolution happens after setup() to ensure trust is established before AWS auth
       const userSpecifiedModel =
         options.model === 'default' ? getDefaultMainLoopModel() : options.model
-      const userSpecifiedFallbackModel =
-        fallbackModel === 'default' ? getDefaultMainLoopModel() : fallbackModel
+      // Official 2.1.166 `DA7` — resolve the ordered fallback chain (up to
+      // MAX_FALLBACK_MODELS entries) from --fallback-model or the settings
+      // fallbackModel array; the CLI flag wins when both are present.
+      const userSpecifiedFallbackModels = resolveFallbackModels({
+        cli: { fallbackModel },
+        settings: getInitialSettings(),
+      })
 
       // Reuse preSetupCwd unless setup() chdir'd (worktreeEnabled). Saves a
       // getCwd() syscall in the common path.
@@ -3794,6 +3850,11 @@ async function run(): Promise<CommanderCommand> {
       // Log context metrics once at initialization
       void logContextMetrics(regularMcpConfigs, toolPermissionContext)
 
+      // Official 2.1.166 `BO4(a$.alwaysAllowRules)`: one-shot bucketed
+      // telemetry for startup always-allow shell rules, fired right before
+      // the ants permission-context log.
+      logShellAllowRulesAtInit(toolPermissionContext.alwaysAllowRules)
+
       void logPermissionContextForAnts(null, 'initialization')
 
       logManagedSettings()
@@ -4262,7 +4323,7 @@ async function run(): Promise<CommanderCommand> {
             systemPrompt,
             appendSystemPrompt,
             userSpecifiedModel: effectiveModel,
-            fallbackModel: userSpecifiedFallbackModel,
+            fallbackModel: userSpecifiedFallbackModels,
             teleport,
             sdkUrl,
             replayUserMessages: effectiveReplayUserMessages,

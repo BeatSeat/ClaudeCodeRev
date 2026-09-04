@@ -152,6 +152,30 @@ export function isMediaSizeErrorMessage(msg: AssistantMessage): boolean {
     isMediaSizeError(msg.errorDetails)
   )
 }
+
+/** Official 2.1.166 `_v6` — raw error-level prompt-too-long check. */
+export function isPromptTooLongError(error: unknown): boolean {
+  return (
+    error instanceof Error &&
+    error.message.toLowerCase().includes('prompt is too long')
+  )
+}
+
+/** Official 2.1.166 `Av6` — raw error-level credit-balance check. */
+export function isCreditBalanceTooLowError(error: unknown): boolean {
+  return (
+    error instanceof Error &&
+    error.message.toLowerCase().includes('credit balance is too low')
+  )
+}
+
+/** Official 2.1.166 `eA8` — raw error-level org-disabled check. */
+export function isOrgDisabledError(error: unknown): boolean {
+  return (
+    error instanceof Error &&
+    error.message.toLowerCase().includes('organization has been disabled')
+  )
+}
 export const CREDIT_BALANCE_TOO_LOW_ERROR_MESSAGE = 'Credit balance is too low'
 export const INVALID_API_KEY_ERROR_MESSAGE = 'Not logged in · Please run /login'
 export const INVALID_API_KEY_ERROR_MESSAGE_EXTERNAL =
@@ -1127,6 +1151,65 @@ export function classifyAPIError(error: unknown): string {
     error.message.toLowerCase().includes('invalid model name')
   ) {
     return 'invalid_model'
+  }
+
+  // Invalid thinking-block signature (400) — signed thinking blocks were
+  // modified or corrupted in conversation history.
+  if (
+    error instanceof APIError &&
+    error.status === 400 &&
+    /invalid `?signature`? in `?thinking`? block/i.test(error.message)
+  ) {
+    return 'invalid_thinking_signature'
+  }
+
+  // Empty text content blocks (400)
+  if (
+    error instanceof APIError &&
+    error.status === 400 &&
+    (error.message.includes('text content blocks must be non-empty') ||
+      error.message.includes(
+        'text content blocks must contain non-whitespace text',
+      ))
+  ) {
+    return 'empty_text_block'
+  }
+
+  // diagnostics.previous_message_id mismatch (400)
+  if (
+    error instanceof APIError &&
+    error.status === 400 &&
+    error.message.includes('diagnostics.previous_message_id')
+  ) {
+    return 'previous_message_id_invalid'
+  }
+
+  // Malformed tool_use_id (400)
+  if (
+    error instanceof APIError &&
+    error.status === 400 &&
+    error.message.includes('.tool_use_id') &&
+    error.message.includes('String should match pattern')
+  ) {
+    return 'tool_use_id_invalid'
+  }
+
+  // Structured-output grammar compilation failure (400)
+  if (
+    error instanceof APIError &&
+    error.status === 400 &&
+    error.message.includes('Grammar compilation')
+  ) {
+    return 'grammar_compile_error'
+  }
+
+  // Request body rejected as non-JSON (400)
+  if (
+    error instanceof APIError &&
+    error.status === 400 &&
+    error.message.toLowerCase().includes('request body is not valid json')
+  ) {
+    return 'request_body_invalid_json'
   }
 
   // Credit/billing errors

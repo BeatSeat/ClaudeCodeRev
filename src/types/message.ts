@@ -139,7 +139,7 @@ export type SystemMessage =
 // --- Other message types ---
 export type AttachmentMessage = MessageBase & { type: 'attachment'; attachment: { type: string; [key: string]: unknown } }
 export type ProgressMessage<P = unknown> = MessageBase & { type: 'progress'; data: P; toolUseID: string; parentToolUseID: string }
-export type TombstoneMessage = MessageBase & { type: 'tombstone' }
+export type TombstoneMessage = MessageBase & { type: 'tombstone'; message: Message }
 export type ToolUseSummaryMessage = MessageBase & { type: 'tool_use_summary' }
 export type StreamEvent = MessageBase & { type: 'stream'; event: unknown }
 export type RequestStartEvent = MessageBase & { type: 'request_start' }

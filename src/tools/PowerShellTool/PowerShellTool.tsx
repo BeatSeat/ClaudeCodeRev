@@ -522,10 +522,13 @@ export const PowerShellTool = buildTool({
   },
 
   renderToolUseMessage,
-  renderToolUseProgressMessage,
+  renderToolUseProgressMessage:
+    renderToolUseProgressMessage as unknown as Tool<InputSchema, Out>['renderToolUseProgressMessage'],
   renderToolUseQueuedMessage,
-  renderToolResultMessage,
-  renderToolUseErrorMessage,
+  renderToolResultMessage:
+    renderToolResultMessage as unknown as Tool<InputSchema, Out>['renderToolResultMessage'],
+  renderToolUseErrorMessage:
+    renderToolUseErrorMessage as unknown as Tool<InputSchema, Out>['renderToolUseErrorMessage'],
 
   mapToolResultToToolResultBlockParam(
     {

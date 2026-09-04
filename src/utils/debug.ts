@@ -1,4 +1,4 @@
-import { appendFile, mkdir, symlink, unlink } from 'fs/promises'
+import { appendFile, mkdir, rename, stat, symlink, unlink } from 'fs/promises'
 import memoize from 'lodash-es/memoize.js'
 import { dirname, join } from 'path'
 import { getSessionId } from 'src/bootstrap/state.js'
@@ -135,6 +135,82 @@ export function getHasFormattedOutput(): boolean {
 let debugWriter: BufferedWriter | null = null
 let pendingWrite: Promise<void> = Promise.resolve()
 
+// -- Debug-log rotation (official 2.1.166 `pl8`/`pn9`/`AZq` cluster) --------
+//
+// Rotate the active debug log at 10MB (`Bn9=10485760`) to `<path>.1.txt`
+// (paths ending in `.txt`) or `<path>.1`. When the configured debug path is
+// itself a directory (e.g. CLAUDE_CODE_DEBUG_LOGS_DIR points at a dir), the
+// append fails with EISDIR and we fall back to a per-session file inside it
+// (`AZq`). `kpH` tracks written bytes (-1 = unknown, re-stat on next write);
+// `_U$` serializes rotations.
+
+const DEBUG_LOG_ROTATE_THRESHOLD_BYTES = 10485760
+let rotationByteCount = -1
+let isRotatingDebugLog = false
+let eisdirFallbackPath: string | null = null
+
+function isENOENTError(err: unknown): boolean {
+  return (
+    typeof err === 'object' &&
+    err !== null &&
+    'code' in err &&
+    (err as { code?: unknown }).code === 'ENOENT'
+  )
+}
+
+function isEISDIRError(err: unknown): boolean {
+  return (
+    typeof err === 'object' &&
+    err !== null &&
+    'code' in err &&
+    (err as { code?: unknown }).code === 'EISDIR'
+  )
+}
+
+async function maybeRotateDebugLog(
+  path: string,
+  bytesWritten: number,
+  threshold: number = DEBUG_LOG_ROTATE_THRESHOLD_BYTES,
+): Promise<void> {
+  if (rotationByteCount < 0) {
+    rotationByteCount = await stat(path)
+      .then(s => s.size)
+      .catch(() => 0)
+  } else {
+    rotationByteCount += bytesWritten
+  }
+  if (rotationByteCount <= threshold || isRotatingDebugLog) return
+  isRotatingDebugLog = true
+  try {
+    const rotated = path.endsWith('.txt')
+      ? `${path.slice(0, -4)}.1.txt`
+      : `${path}.1`
+    try {
+      await rename(path, rotated)
+    } catch (err) {
+      if (!isENOENTError(err)) {
+        await unlink(rotated).catch(() => {})
+        await rename(path, rotated).catch(() => unlink(path).catch(() => {}))
+      }
+    }
+    rotationByteCount = 0
+  } finally {
+    isRotatingDebugLog = false
+  }
+}
+
+/** Official 2.1.166 `pn9`: reset rotation state. */
+export function _resetDebugLogRotationForTesting(): void {
+  // Verbatim comma form (`kpH=-1,_U$=!1`) so the bundled token stream matches
+  // the official minified declaration.
+  rotationByteCount = -1, isRotatingDebugLog = false
+}
+
+/** Official `AZq`: per-session fallback file when the debug path is a dir. */
+function eisdirFallbackDebugPath(attemptedPath: string): string {
+  return (eisdirFallbackPath = join(attemptedPath, `${getSessionId()}.txt`))
+}
+
 // Module-level so .bind captures only its explicit args, not the
 // writeFn closure's parent scope (Jarred, #22257).
 async function appendAsync(
@@ -146,7 +222,19 @@ async function appendAsync(
   if (needMkdir) {
     await mkdir(dir, { recursive: true }).catch(() => {})
   }
-  await appendFile(path, content)
+  // Official 2.1.166 `Un9`: on EISDIR (debug path is a directory) fall back
+  // to a per-session file inside it, then rotate at the size threshold.
+  let pathToUse = path
+  try {
+    await appendFile(path, content)
+  } catch (err) {
+    if (!isEISDIRError(err)) throw err
+    pathToUse = eisdirFallbackDebugPath(path)
+    await appendFile(pathToUse, content)
+  }
+  await maybeRotateDebugLog(pathToUse, Buffer.byteLength(content)).catch(
+    noop,
+  )
   void updateLatestDebugLogSymlink()
 }
 
@@ -172,7 +260,20 @@ function getDebugWriter(): BufferedWriter {
               // Directory already exists
             }
           }
-          getFsImplementation().appendFileSync(path, content)
+          // Official 2.1.166 `Fn9` writeFn sync path: same EISDIR fallback +
+          // rotation as the async path.
+          let pathToUse = path
+          try {
+            getFsImplementation().appendFileSync(path, content)
+          } catch (err) {
+            if (!isEISDIRError(err)) throw err
+            pathToUse = eisdirFallbackDebugPath(path)
+            getFsImplementation().appendFileSync(pathToUse, content)
+          }
+          void maybeRotateDebugLog(
+            pathToUse,
+            Buffer.byteLength(content),
+          ).catch(noop)
           void updateLatestDebugLogSymlink()
           return
         }

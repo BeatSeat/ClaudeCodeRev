@@ -77,6 +77,32 @@ function formatClassifierUnevaluableReason(): string {
   return 'Auto mode could not evaluate this action and is blocking it for safety — run with --debug for details'
 }
 
+/**
+ * Official 2.1.166 `Jw` (ant-only api-provider routing for classifier
+ * models): externally always the default provider, so the routing merge is
+ * a no-op. Kept as a seam so the tree mirrors the official call shape.
+ */
+function classifierProviderForModel(_model: string): string | null {
+  return null
+}
+
+/** Official `pJ5`: ant-only routing merge — empty in external builds. */
+function mergeClassifierRouting(
+  _params: Record<string, unknown>,
+  _provider: string | null,
+): void {}
+
+/**
+ * Official 2.1.166 `sx6`: auto_mode classifier extraBodyParams. Verbatim
+ * shape `let $=SSH();return pJ5($,Jw(H)),$` — merges the ant-only provider
+ * routing hook into the shared CLAUDE_CODE_EXTRA_BODY base (pass-through
+ * externally).
+ */
+function getClassifierExtraBodyParams(model: string) {
+  let params = getExtraBodyParams()
+  return mergeClassifierRouting(params, classifierProviderForModel(model)), params
+}
+
 function isUsingExternalPermissions(): boolean {
   if (process.env.USER_TYPE !== 'ant') return true
   const config = getFeatureValue_CACHED_MAY_BE_STALE(
@@ -867,7 +893,7 @@ async function classifyYoloActionXml(
         signal,
         ...(mode !== 'fast' && { stop_sequences: ['</block>'] }),
         querySource: 'auto_mode',
-        extraBodyParams: getExtraBodyParams(),
+        extraBodyParams: getClassifierExtraBodyParams(model),
       }
       const stage1Raw = await sideQuery(stage1Opts)
       stage1DurationMs = Date.now() - stage1Start
@@ -954,7 +980,7 @@ async function classifyYoloActionXml(
       maxRetries: getDefaultMaxRetries(),
       signal,
       querySource: 'auto_mode' as const,
-      extraBodyParams: getExtraBodyParams(),
+      extraBodyParams: getClassifierExtraBodyParams(model),
     }
     const stage2Raw = await sideQuery(stage2Opts)
     const stage2DurationMs = Date.now() - stage2Start
@@ -1280,7 +1306,7 @@ export async function classifyYoloAction(
       maxRetries: getDefaultMaxRetries(),
       signal,
       querySource: 'auto_mode' as const,
-      extraBodyParams: getExtraBodyParams(),
+      extraBodyParams: getClassifierExtraBodyParams(model),
     }
     const result = await sideQuery(sideQueryOpts)
     void maybeDumpAutoMode(sideQueryOpts, result, start)

@@ -50,15 +50,15 @@ export const PermissionsSchema = lazySchema(() =>
   z
     .object({
       allow: z
-        .array(PermissionRuleSchema())
+        .array(PermissionRuleSchema('allow'))
         .optional()
         .describe('List of permission rules for allowed operations'),
       deny: z
-        .array(PermissionRuleSchema())
+        .array(PermissionRuleSchema('deny'))
         .optional()
         .describe('List of permission rules for denied operations'),
       ask: z
-        .array(PermissionRuleSchema())
+        .array(PermissionRuleSchema('ask'))
         .optional()
         .describe(
           'List of permission rules that should always prompt for confirmation',
@@ -405,6 +405,12 @@ export const SettingsSchema = lazySchema(() =>
         .string()
         .optional()
         .describe('Override the default model used by Claude Code'),
+      fallbackModel: z
+        .array(z.string())
+        .optional()
+        .describe(
+          'Fallback model(s) tried in order when the primary model is overloaded or unavailable. Each element accepts a model name or alias; "default" expands to the default model. CLI --fallback-model takes precedence.',
+        ),
       // Enterprise allowlist of models
       availableModels: z
         .array(z.string())
@@ -1053,6 +1059,29 @@ export const SettingsSchema = lazySchema(() =>
               .boolean()
               .optional()
               .describe('Enable voice mode (hold-to-talk dictation)'),
+            // Official 2.1.166 user-settings voice object (written by the
+            // /voice hold|tap flow): the nested `enabled` wins over the
+            // legacy flat `voiceEnabled` flag when present.
+            voice: z
+              .object({
+                enabled: z.boolean().optional(),
+                mode: z
+                  .enum(['hold', 'tap'])
+                  .optional()
+                  .describe(
+                    "'hold' (default): hold to talk. 'tap': tap to start, tap to stop+submit.",
+                  ),
+                autoSubmit: z
+                  .boolean()
+                  .optional()
+                  .describe(
+                    'Submit the prompt when hold-to-talk is released (hold mode only)',
+                  ),
+              })
+              .optional()
+              .describe(
+                'Voice mode settings (hold-to-talk / tap-to-toggle dictation)',
+              ),
           }
         : {}),
       ...(feature('KAIROS')

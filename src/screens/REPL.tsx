@@ -321,6 +321,7 @@ import type {
   HookResultMessage,
   PartialCompactDirection,
 } from '../types/message.js'
+import type { InternalPermissionMode } from '../types/permissions.js'
 import { query } from '../query.js'
 import { mergeClients, useMergedClients } from '../hooks/useMergedClients.js'
 import { getQuerySourceForREPL } from '../utils/promptCategory.js'
@@ -5252,7 +5253,7 @@ export function REPL({
           prev.toolPermissionContext.mode !== message.permissionMode
             ? {
                 ...prev.toolPermissionContext,
-                mode: message.permissionMode,
+                mode: message.permissionMode as InternalPermissionMode,
               }
             : prev.toolPermissionContext,
         // Clear stale prompt suggestion from previous conversation state
@@ -6153,8 +6154,6 @@ export function REPL({
         showAllInTranscript={showAllInTranscript}
         onOpenRateLimitOptions={handleOpenRateLimitOptions}
         isLoading={isLoading}
-        hidePastThinking={true}
-        streamingThinking={streamingThinking}
         scrollRef={transcriptScrollRef}
         jumpRef={jumpRef}
         onSearchMatchesChange={onSearchMatchesChange}

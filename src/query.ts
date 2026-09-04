@@ -188,6 +188,23 @@ function isWithheldMaxOutputTokens(
   return msg?.type === 'assistant' && msg.apiError === 'max_output_tokens'
 }
 
+/**
+ * Official 2.1.166 `UwA` — user-facing copy for a fallback switch, by reason.
+ */
+function fallbackSwitchMessage(
+  reason: 'overloaded' | 'server_error' | 'last_resort',
+  originalModel: string,
+  fallbackModel: string,
+): string {
+  switch (reason) {
+    case 'overloaded':
+    case 'server_error':
+      return `Switched to ${fallbackModel} due to high demand for ${originalModel}`
+    case 'last_resort':
+      return `Switched to ${fallbackModel} because ${originalModel} returned an error that could not be retried`
+  }
+}
+
 export type QueryParams = {
   messages: Message[]
   systemPrompt: SystemPrompt
@@ -195,7 +212,9 @@ export type QueryParams = {
   systemContext: { [k: string]: string }
   canUseTool: CanUseToolFn
   toolUseContext: ToolUseContext
-  fallbackModel?: string
+  // Official 2.1.166: ordered fallback chain (up to 3, incl. the legacy
+  // single-string form — DA7 normalizes both into modelChain).
+  fallbackModel?: string | string[]
   querySource: QuerySource
   maxOutputTokensOverride?: number
   maxTurns?: number
@@ -617,6 +636,20 @@ async function* queryLoop(
         doesMostRecentAssistantMessageExceed200k(messagesForQuery),
     })
 
+    // Official 2.1.166 fallback chain: [primary, ...fallbacks] with the
+    // primary deduped out of the fallback list. Per-request retry options
+    // receive modelChain[chainIndex + 1] — the next model to try.
+    const fallbackChainInput = Array.isArray(fallbackModel)
+      ? fallbackModel
+      : fallbackModel !== undefined
+        ? [fallbackModel]
+        : []
+    const modelChain = [
+      currentModel,
+      ...fallbackChainInput.filter(m => m !== currentModel),
+    ]
+    let chainIndex = 0
+
     queryCheckpoint('query_setup_end')
 
     // Create fetch wrapper once per query session to avoid memory retention.
@@ -713,7 +746,7 @@ async function* queryLoop(
               toolChoice: undefined,
               isNonInteractiveSession:
                 toolUseContext.options.isNonInteractiveSession,
-              fallbackModel,
+              fallbackModel: modelChain[chainIndex + 1],
               onStreamingFallback: () => {
                 streamingFallbackOccured = true
               },
@@ -762,7 +795,7 @@ async function* queryLoop(
               // These partial messages (especially thinking blocks) have invalid signatures
               // that would cause "thinking blocks cannot be modified" API errors.
               for (const msg of assistantMessages) {
-                yield { type: 'tombstone' as const, message: msg }
+                yield { type: 'tombstone' as const, message: msg } as TombstoneMessage
               }
               logEvent('tengu_orphaned_messages_tombstoned', {
                 orphanedMessageCount: assistantMessages.length,
@@ -939,10 +972,24 @@ async function* queryLoop(
             }
           }
         } catch (innerError) {
-          if (innerError instanceof FallbackTriggeredError && fallbackModel) {
-            // Fallback was triggered - switch model and retry
-            currentModel = fallbackModel
+          const nextModel = modelChain[chainIndex + 1]
+          if (
+            innerError instanceof FallbackTriggeredError &&
+            nextModel !== undefined
+          ) {
+            // Fallback was triggered - advance the chain and retry
+            chainIndex++
+            currentModel = nextModel
             attemptWithFallback = true
+
+            // Retract the refused partial: tombstone the in-flight assistant
+            // and tool-result messages so UI and transcript drop them.
+            for (const msg of assistantMessages) {
+              yield { type: 'tombstone' as const, message: msg } as TombstoneMessage
+            }
+            for (const msg of toolResults) {
+              yield { type: 'tombstone' as const, message: msg } as TombstoneMessage
+            }
 
             // Clear assistant messages since we'll retry the entire request
             yield* yieldMissingToolResultBlocks(
@@ -967,7 +1014,7 @@ async function* queryLoop(
             }
 
             // Update tool use context with new model
-            toolUseContext.options.mainLoopModel = fallbackModel
+            toolUseContext.options.mainLoopModel = nextModel
 
             // Thinking signatures are model-bound: replaying a protected-thinking
             // block (e.g. capybara) to an unprotected fallback (e.g. opus) 400s.
@@ -981,7 +1028,12 @@ async function* queryLoop(
               original_model:
                 innerError.originalModel as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
               fallback_model:
-                fallbackModel as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
+                nextModel as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
+              chain_index: chainIndex,
+              query_source:
+                querySource as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
+              reason:
+                innerError.reason as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
               entrypoint:
                 'cli' as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
               queryChainId: queryChainIdForAnalytics,
@@ -990,10 +1042,24 @@ async function* queryLoop(
 
             // Yield system message about fallback — use 'warning' level so
             // users see the notification without needing verbose mode
-            yield createSystemMessage(
-              `Switched to ${renderModelName(innerError.fallbackModel)} due to high demand for ${renderModelName(innerError.originalModel)}`,
-              'warning',
-            )
+            if (
+              innerError.reason === 'model_not_found' ||
+              innerError.reason === 'permission_denied'
+            ) {
+              yield createSystemMessage(
+                `Switched to ${renderModelName(innerError.fallbackModel)} because ${renderModelName(innerError.originalModel)} is not available`,
+                'warning',
+              )
+            } else {
+              yield createSystemMessage(
+                fallbackSwitchMessage(
+                  innerError.reason,
+                  renderModelName(innerError.originalModel),
+                  renderModelName(innerError.fallbackModel),
+                ),
+                'warning',
+              )
+            }
 
             continue
           }

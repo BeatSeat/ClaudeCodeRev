@@ -235,6 +235,10 @@ export function connectPty(
       }
     } else if (frame.ctrl.t === 'exit') {
       finish(Number(frame.ctrl.code) || 0, frame.ctrl.signal as string | undefined)
+    } else if (frame.ctrl.t === 'ping') {
+      // Official 2.1.166: answer the host's liveness ping so an orphaned
+      // --bg-pty-host can detect a dead client instead of spinning at 100% CPU.
+      send(ctrlFrame({ t: 'pong' }))
     }
   }
 
@@ -277,6 +281,9 @@ export function connectPty(
       sock = Q
       Q.on('drain', clearTimers)
       void unlink(sockErrPath(sockPath)).catch(() => {})
+      // Official 2.1.166: initial pong arms the host's heartbeat liveness
+      // tracking for this connection.
+      send(ctrlFrame({ t: 'pong' }))
       for (const d of pending.splice(0)) send(d)
       pendingBytes = 0
       const parse = frameParser(onFrame, d => {

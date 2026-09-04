@@ -219,6 +219,16 @@ function getParseTimeoutMs(): number {
   }
   return DEFAULT_PARSE_TIMEOUT_MS
 }
+
+// Official 2.1.166: execa kills pwsh on timeout, but killed children can
+// inherit the stdout/stderr pipes and keep them open, so the execa promise
+// may not settle until every descendant exits — hanging validation far past
+// the budget. Cap how long we wait for settlement at the kill budget below
+// (timeout + grace) and treat a hang as a timeout so the retry logic runs.
+const MAX_KILL_GRACE_MS = 10_000
+function getKillBudgetMs(parseTimeoutMs: number): number {
+  return parseTimeoutMs + Math.min(parseTimeoutMs, MAX_KILL_GRACE_MS)
+}
 // MAX_COMMAND_LENGTH is derived from PARSE_SCRIPT_BODY.length below (after the
 // script body is defined) so it cannot go stale as the script grows.
 
@@ -1201,20 +1211,38 @@ async function parsePowerShellCommandImpl(
   // "pwsh exited with code 1:" with empty stderr. A single retry absorbs
   // transient load spikes; a double timeout is reported as PwshTimeout.
   const parseTimeoutMs = getParseTimeoutMs()
+  const killBudgetMs = getKillBudgetMs(parseTimeoutMs)
   let stdout = ''
   let stderr = ''
   let code: number | null = null
   let timedOut = false
   for (let attempt = 0; attempt < 2; attempt++) {
+    let killTimer: ReturnType<typeof setTimeout> | undefined
     try {
-      const result = await execa(pwshPath, args, {
+      const execaPromise = execa(pwshPath, args, {
         timeout: parseTimeoutMs,
         reject: false,
       })
-      stdout = result.stdout
-      stderr = result.stderr
-      timedOut = result.timedOut
-      code = result.failed ? (result.exitCode ?? 1) : 0
+      // Race the execa promise against a kill-budget timer: if the timeout
+      // kill landed but orphaned children still hold the output pipes, the
+      // promise never settles — stop waiting, treat it as a timeout, and let
+      // the retry logic absorb it.
+      const result = await Promise.race([
+        execaPromise,
+        new Promise<null>(resolve => {
+          killTimer = setTimeout(() => resolve(null), killBudgetMs)
+        }),
+      ])
+      if (result === null) {
+        execaPromise.catch(() => {})
+        timedOut = true
+        code = 1
+      } else {
+        stdout = result.stdout
+        stderr = result.stderr
+        timedOut = result.timedOut
+        code = result.failed ? (result.exitCode ?? 1) : 0
+      }
     } catch (e: unknown) {
       logForDebugging(
         `PowerShell parser: failed to spawn pwsh: ${e instanceof Error ? e.message : e}`,
@@ -1224,6 +1252,8 @@ async function parsePowerShellCommandImpl(
         `Failed to spawn PowerShell: ${e instanceof Error ? e.message : e}`,
         'PwshSpawnError',
       )
+    } finally {
+      clearTimeout(killTimer)
     }
     if (!timedOut) break
     logForDebugging(

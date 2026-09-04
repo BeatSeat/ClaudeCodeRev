@@ -43,6 +43,29 @@ export function getLegacyToolNames(canonicalName: string): string[] {
 }
 
 /**
+ * Official 2.1.166 `NVH`: whether a pattern contains a `*` wildcard.
+ */
+export function containsWildcardPattern(pattern: string): boolean {
+  return pattern.includes('*')
+}
+
+/**
+ * Official 2.1.166 `Qmq`: match a value against a `*` glob pattern.
+ * Each `*` runs of characters; all other characters are regex-escaped.
+ */
+export function wildcardPatternMatches(
+  pattern: string,
+  value: string,
+): boolean {
+  return new RegExp(
+    `^${pattern
+      .split('*')
+      .map(part => part.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
+      .join('.*')}$`,
+  ).test(value)
+}
+
+/**
  * Escapes special characters in rule content for safe storage in permission rules.
  * Permission rules use the format "Tool(content)", so parentheses in content must be escaped.
  *

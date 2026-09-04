@@ -1,5 +1,6 @@
 import { coerce } from 'semver'
 import type { Writable } from 'stream'
+import { isJetBrainsIdeTerminal } from '../commands/scroll-speed/scrollProfile.js'
 import { env } from '../utils/env.js'
 import { isEnvTruthy } from '../utils/envUtils.js'
 import { gte } from '../utils/semver.js'
@@ -93,6 +94,10 @@ export function isSynchronizedOutputSupported(): boolean {
   ) {
     return true
   }
+
+  // JetBrains JediTerm implements DEC 2026 — synchronized updates fix the
+  // redraw flicker in JetBrains-terminal hosts.
+  if (isJetBrainsIdeTerminal()) return true
 
   // kitty sets TERM=xterm-kitty or KITTY_WINDOW_ID
   if (term?.includes('kitty') || process.env.KITTY_WINDOW_ID) return true
@@ -197,9 +202,30 @@ export function hasCursorUpViewportYankBug(): boolean {
 // Exported so callers can pass a sync-skip hint gated to specific modes.
 export const SYNC_OUTPUT_SUPPORTED = isSynchronizedOutputSupported()
 
-/** DECSTBM + SU/SD is unsafe in zellij (DEC 2026 incomplete). */
+/** DECSTBM + SU/SD is unsafe in zellij (DEC 2026 incomplete) and in
+ *  JetBrains JediTerm (incomplete DECSTBM support). */
 export const DECSTBM_SUPPORTED =
-  SYNC_OUTPUT_SUPPORTED && process.env.ZELLIJ == null
+  SYNC_OUTPUT_SUPPORTED &&
+  process.env.ZELLIJ == null &&
+  !isJetBrainsIdeTerminal()
+
+/**
+ * Official 2.1.166 `MZ6` (was `nW6`): fullscreen DECSTBM eligibility probe,
+ * evaluated once at init (`l18=MZ6()` in `ij()`). The 166 delta prepends the
+ * daemon guard — when the bg daemon owns the pty (CLAUDE_BG_BACKEND=daemon)
+ * synchronized output is proxied and DECSTBM must stay off. Otherwise same
+ * shape as DECSTBM_SUPPORTED plus the xterm.js exclusion (`!bM()`), consumed
+ * by the `TEH()` DECSTBM gate in the official bundle (absent in-tree).
+ */
+export function isFullscreenDecstbmEligible(): boolean {
+  if (process.env.CLAUDE_BG_BACKEND === 'daemon') return false
+  return (
+    isSynchronizedOutputSupported() &&
+    process.env.ZELLIJ == null &&
+    !isJetBrainsIdeTerminal() &&
+    !isXtermJs()
+  )
+}
 
 export type Terminal = {
   stdout: Writable
