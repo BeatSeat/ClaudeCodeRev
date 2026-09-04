@@ -40,6 +40,7 @@ import {
   persistPermissionUpdates,
   supportsPersistence,
 } from '../../utils/permissions/PermissionUpdate.js'
+import { logShellAllowRuleAdded } from '../../utils/permissions/permissionSetup.js'
 import type { PermissionUpdate } from '../../utils/permissions/PermissionUpdateSchema.js'
 import {
   logPermissionDecision,
@@ -336,6 +337,8 @@ function createPermissionContext(
     ): Promise<PermissionAllowDecision> {
       const acceptedPermanentUpdates =
         await this.persistPermissions(permissionUpdates)
+      // Official 2.1.166 `pT8`: log each newly-added shell allow-rule.
+      logShellAllowRuleAdded(permissionUpdates)
       this.logDecision(
         {
           decision: 'accept',

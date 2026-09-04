@@ -74,8 +74,6 @@ export type Props = {
   onOpenRateLimitOptions?: () => boolean
   isActiveCollapsedGroup?: boolean
   isUserContinuation?: boolean
-  /** ID of the last thinking block (uuid:index) to show, used for hiding past thinking in transcript mode */
-  lastThinkingBlockId?: string | null
   /** UUID of the latest user bash output message (for auto-expanding) */
   latestBashOutputUUID?: string | null
 }
@@ -98,7 +96,6 @@ function MessageImpl({
   onOpenRateLimitOptions,
   isActiveCollapsedGroup,
   isUserContinuation = false,
-  lastThinkingBlockId,
   latestBashOutputUUID,
 }: Props): React.ReactNode {
   switch (message.type) {
@@ -134,8 +131,6 @@ function MessageImpl({
               isTranscriptMode={isTranscriptMode}
               lookups={lookups}
               onOpenRateLimitOptions={onOpenRateLimitOptions}
-              thinkingBlockId={`${message.uuid}:${index}`}
-              lastThinkingBlockId={lastThinkingBlockId}
               advisorModel={message.advisorModel}
               apiMessageId={message.message.id}
               isFirstTextBlock={index === firstTextIndex}
@@ -373,8 +368,6 @@ function AssistantMessageBlock({
   isTranscriptMode,
   lookups,
   onOpenRateLimitOptions,
-  thinkingBlockId,
-  lastThinkingBlockId,
   advisorModel,
   apiMessageId,
   isFirstTextBlock,
@@ -401,10 +394,6 @@ function AssistantMessageBlock({
   isTranscriptMode: boolean
   lookups: ReturnType<typeof buildMessageLookups>
   onOpenRateLimitOptions?: () => boolean
-  /** ID of this content block's message:index for thinking block comparison */
-  thinkingBlockId: string
-  /** ID of the last thinking block to show, null means show all */
-  lastThinkingBlockId?: string | null
   advisorModel?: string
   /** Official 2.1.152: api message id for displayedMessageContent lookup. */
   apiMessageId?: string
@@ -482,16 +471,12 @@ function AssistantMessageBlock({
       if (!isTranscriptMode && !verbose) {
         return null
       }
-      // In transcript mode with hidePastThinking, only show the last thinking block
-      const isLastThinking =
-        !lastThinkingBlockId || thinkingBlockId === lastThinkingBlockId
       return (
         <AssistantThinkingMessage
           addMargin={addMargin}
           param={param}
           isTranscriptMode={isTranscriptMode}
           verbose={verbose}
-          hideInTranscript={isTranscriptMode && !isLastThinking}
         />
       )
     }
@@ -518,28 +503,9 @@ function AssistantMessageBlock({
   }
 }
 
-export function hasThinkingContent(m: {
-  type: string
-  message?: { content: Array<{ type: string }> }
-}): boolean {
-  if (m.type !== 'assistant' || !m.message) return false
-  return m.message.content.some(
-    b => b.type === 'thinking' || b.type === 'redacted_thinking',
-  )
-}
-
 /** Exported for testing */
 export function areMessagePropsEqual(prev: Props, next: Props): boolean {
   if (prev.message.uuid !== next.message.uuid) return false
-  // Only re-render on lastThinkingBlockId change if this message actually
-  // has thinking content — otherwise every message in scrollback re-renders
-  // whenever streaming thinking starts/stops (CC-941).
-  if (
-    prev.lastThinkingBlockId !== next.lastThinkingBlockId &&
-    hasThinkingContent(next.message)
-  ) {
-    return false
-  }
   // Verbose toggle changes thinking block visibility/expansion
   if (prev.verbose !== next.verbose) return false
   // Only re-render if this message's "is latest bash output" status changed,

@@ -1,7 +1,9 @@
 import { z } from 'zod/v4'
 import { mcpInfoFromString } from '../../services/mcp/mcpStringUtils.js'
-import { lazySchema } from '../lazySchema.js'
-import { permissionRuleValueFromString } from '../permissions/permissionRuleParser.js'
+import {
+  containsWildcardPattern,
+  permissionRuleValueFromString,
+} from '../permissions/permissionRuleParser.js'
 import { capitalize } from '../stringUtils.js'
 import {
   getCustomValidation,
@@ -53,9 +55,49 @@ function hasUnescapedEmptyParens(str: string): boolean {
 }
 
 /**
- * Validates permission rule format and content
+ * Official 2.1.166 `Yn$`: allow rules must name the scope they widen, so a
+ * wildcard tool name is only valid in the tool position after a literal
+ * mcp__<server>__ prefix (e.g. "mcp__puppeteer__*"). Deny and ask rules
+ * accept wildcards anywhere and are not checked here.
+ *
+ * Returns null when the tool name is acceptable for an allow rule.
  */
-export function validatePermissionRule(rule: string): {
+export function validateAllowRuleWildcardToolName(toolName: string): {
+  valid: boolean
+  error?: string
+  suggestion?: string
+  examples?: string[]
+} | null {
+  if (!containsWildcardPattern(toolName)) return null
+  const mcpInfo = mcpInfoFromString(toolName)
+  if (
+    mcpInfo &&
+    !containsWildcardPattern(mcpInfo.serverName) &&
+    mcpInfo.toolName === '*'
+  ) {
+    return null
+  }
+  return {
+    valid: false,
+    error: `Wildcard tool name "${toolName}" is not supported in allow rules`,
+    suggestion:
+      'An allow pattern must name the scope it widens — globs are permitted only in the tool position after a literal mcp__<server>__ prefix. Deny and ask rules accept wildcards anywhere',
+    examples: ['mcp__puppeteer__*'],
+  }
+}
+
+/**
+ * Validates permission rule format and content.
+ *
+ * Official 2.1.166 `v86`: `ruleBehavior` gates behavior-specific checks —
+ * allow rules must name the scope they widen, so wildcard tool names are
+ * rejected there (globs are permitted only after a literal mcp__<server>__
+ * prefix). Deny and ask rules accept wildcards anywhere.
+ */
+export function validatePermissionRule(
+  rule: string,
+  ruleBehavior?: 'allow' | 'deny' | 'ask',
+): {
   valid: boolean
   error?: string
   suggestion?: string
@@ -126,12 +168,22 @@ export function validatePermissionRule(rule: string): {
       }
     }
 
+    if (ruleBehavior === 'allow') {
+      const wildcardCheck = validateAllowRuleWildcardToolName(parsed.toolName)
+      if (wildcardCheck) return wildcardCheck
+    }
+
     return { valid: true } // Valid MCP rule
   }
 
   // Tool name validation (for non-MCP tools)
   if (!parsed.toolName || parsed.toolName.length === 0) {
     return { valid: false, error: 'Tool name cannot be empty' }
+  }
+
+  if (ruleBehavior === 'allow') {
+    const wildcardCheck = validateAllowRuleWildcardToolName(parsed.toolName)
+    if (wildcardCheck) return wildcardCheck
   }
 
   // Check tool name starts with uppercase (standard tools)
@@ -239,11 +291,15 @@ export function validatePermissionRule(rule: string): {
 }
 
 /**
- * Custom Zod schema for permission rule arrays
+ * Custom Zod schema for permission rule arrays.
+ *
+ * Official 2.1.166 `rmq`: the schema is built per rule behavior so
+ * behavior-specific validation (allow rules rejecting wildcard tool names)
+ * is reflected in settings files.
  */
-export const PermissionRuleSchema = lazySchema(() =>
-  z.string().superRefine((val, ctx) => {
-    const result = validatePermissionRule(val)
+export function PermissionRuleSchema(ruleBehavior: 'allow' | 'deny' | 'ask') {
+  return z.string().superRefine((val, ctx) => {
+    const result = validatePermissionRule(val, ruleBehavior)
     if (!result.valid) {
       let message = result.error!
       if (result.suggestion) {
@@ -258,5 +314,5 @@ export const PermissionRuleSchema = lazySchema(() =>
         params: { received: val },
       })
     }
-  }),
-)
+  })
+}

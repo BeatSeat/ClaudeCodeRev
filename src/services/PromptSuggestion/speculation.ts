@@ -254,9 +254,19 @@ export function prepareMessagesForInjection(messages: Message[]): Message[] {
 
   return messages
     .map(msg => {
-      if (!('message' in msg) || !Array.isArray(msg.message.content)) return msg
-      const content = msg.message.content.filter(keep)
-      if (content.length === msg.message.content.length) return msg
+      if (
+        !('message' in msg) ||
+        !Array.isArray((msg.message as { content?: unknown }).content)
+      )
+        return msg
+      const content = (msg.message as { content: unknown[] }).content.filter(
+        keep,
+      )
+      if (
+        content.length ===
+        (msg.message as { content: unknown[] }).content.length
+      )
+        return msg
       if (content.length === 0) return null
       // Drop messages where all remaining blocks are whitespace-only text
       // (API rejects these with 400: "text content blocks must contain non-whitespace text")

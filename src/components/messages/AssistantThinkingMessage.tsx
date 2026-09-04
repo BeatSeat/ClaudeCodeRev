@@ -16,8 +16,6 @@ type Props = {
   addMargin: boolean
   isTranscriptMode: boolean
   verbose: boolean
-  /** When true, hide this thinking block entirely (used for past thinking in transcript mode) */
-  hideInTranscript?: boolean
 }
 
 export function AssistantThinkingMessage({
@@ -25,13 +23,8 @@ export function AssistantThinkingMessage({
   addMargin = false,
   isTranscriptMode,
   verbose,
-  hideInTranscript = false,
 }: Props): React.ReactNode {
   if (!thinking) {
-    return null
-  }
-
-  if (hideInTranscript) {
     return null
   }
 

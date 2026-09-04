@@ -26,6 +26,7 @@ import type { FileHistoryState } from './fileHistory.js'
 import { fileHistoryEnabled, fileHistoryMakeSnapshot } from './fileHistory.js'
 import { gracefulShutdownSync } from './gracefulShutdown.js'
 import { enqueue } from './messageQueueManager.js'
+import { applyOriginWrappingToMessage } from './messages.js'
 import { resolveSkillModelOverride } from './model/model.js'
 import type { ProcessUserInputContext } from './processUserInput/processUserInput.js'
 import { processUserInput } from './processUserInput/processUserInput.js'
@@ -524,7 +525,15 @@ async function executeUserInput(params: ExecuteUserInputParams): Promise<void> {
             : undefined)
         if (origin) {
           for (const m of result.messages) {
-            if (m.type === 'user') m.origin = origin
+            if (m.type === 'user') {
+              m.origin = origin
+              // Official 2.1.166 `Xh8`: rewrite peer/channel-origin content
+              // (165 `otA` was a no-op stub).
+              applyOriginWrappingToMessage(
+                m,
+                origin as import('../types/message.js').StructuredMessageOrigin,
+              )
+            }
           }
         }
         newMessages.push(...result.messages)

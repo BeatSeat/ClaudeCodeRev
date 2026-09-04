@@ -12,6 +12,18 @@ import { isVoiceModeEnabled } from '../../voice/voiceModeEnabled.js'
 
 const LANG_HINT_MAX_SHOWS = 2
 
+/**
+ * Official 2.1.166 `RC$`: voice intent from settings — the nested
+ * `voice.enabled` object (written by the hold/tap flow) wins over the legacy
+ * flat `voiceEnabled` flag when present.
+ */
+function isVoiceEnabledInSettings(settings: {
+  voice?: { enabled?: boolean }
+  voiceEnabled?: boolean
+}): boolean {
+  return (settings.voice?.enabled ?? settings.voiceEnabled) === true
+}
+
 export const call: LocalCommandCall = async () => {
   // Check auth and kill-switch before allowing voice mode
   if (!isVoiceModeEnabled()) {
@@ -31,12 +43,13 @@ export const call: LocalCommandCall = async () => {
   }
 
   const currentSettings = getInitialSettings()
-  const isCurrentlyEnabled = currentSettings.voiceEnabled === true
+  const isCurrentlyEnabled = isVoiceEnabledInSettings(currentSettings)
 
   // Toggle OFF — no checks needed
   if (isCurrentlyEnabled) {
     const result = updateSettingsForSource('userSettings', {
       voiceEnabled: false,
+      voice: { ...currentSettings.voice, enabled: false },
     })
     if (result.error) {
       return {
@@ -110,7 +123,14 @@ export const call: LocalCommandCall = async () => {
   }
 
   // All checks passed — enable voice
-  const result = updateSettingsForSource('userSettings', { voiceEnabled: true })
+  const result = updateSettingsForSource('userSettings', {
+    voiceEnabled: true,
+    voice: {
+      ...currentSettings.voice,
+      enabled: true,
+      mode: currentSettings.voice?.mode ?? 'hold',
+    },
+  })
   if (result.error) {
     return {
       type: 'text' as const,

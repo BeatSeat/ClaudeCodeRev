@@ -50,15 +50,15 @@ export const PermissionsSchema = lazySchema(() =>
   z
     .object({
       allow: z
-        .array(PermissionRuleSchema())
+        .array(PermissionRuleSchema('allow'))
         .optional()
         .describe('List of permission rules for allowed operations'),
       deny: z
-        .array(PermissionRuleSchema())
+        .array(PermissionRuleSchema('deny'))
         .optional()
         .describe('List of permission rules for denied operations'),
       ask: z
-        .array(PermissionRuleSchema())
+        .array(PermissionRuleSchema('ask'))
         .optional()
         .describe(
           'List of permission rules that should always prompt for confirmation',
@@ -329,79 +329,6 @@ export const SettingsSchema = lazySchema(() =>
           'Whether file picker should respect .gitignore files (default: true). ' +
             'Note: .ignore files are always respected.',
         ),
-      breakReminder: z
-        .object({
-          enabled: z
-            .boolean()
-            .optional()
-            .describe(
-              'Show a friendly nudge after sustained continuous use (default false). ' +
-                'Must be true for the reminder to fire.',
-            ),
-          intervalMinutes: z
-            .number()
-            .int()
-            .positive()
-            .optional()
-            .describe(
-              'Minutes of continuous use before the reminder fires (default 120). ' +
-                'Re-fires every interval until you take a break.',
-            ),
-          breakThresholdMinutes: z
-            .number()
-            .int()
-            .positive()
-            .optional()
-            .describe(
-              'Minutes of inactivity that count as a break and reset the timer (default 15)',
-            ),
-          message: z
-            .string()
-            .optional()
-            .describe(
-              'Custom reminder text. Leave unset for a rotating set of friendly nudges.',
-            ),
-        })
-        .optional()
-        .describe(
-          '@internal Opt-in break reminder. When enabled, shows a dismissible ' +
-            'nudge after sustained continuous use. Never blocks \u2014 just a ' +
-            'friendly heads-up.',
-        ),
-      quietHours: z
-        .object({
-          enabled: z
-            .boolean()
-            .optional()
-            .describe(
-              'Show a one-time nudge when you start or keep using the CLI inside ' +
-                'your quiet-hours window (default false).',
-            ),
-          start: z
-            .string()
-            .regex(
-              /^([01]?\d|2[0-3]):[0-5]\d$/,
-              'Expected 24-hour local time "HH:MM" (e.g. "22:00")',
-            )
-            .optional()
-            .describe('Start of the quiet-hours window, 24-hour local time "HH:MM".'),
-          end: z
-            .string()
-            .regex(
-              /^([01]?\d|2[0-3]):[0-5]\d$/,
-              'Expected 24-hour local time "HH:MM" (e.g. "07:00")',
-            )
-            .optional()
-            .describe(
-              'End of the quiet-hours window, 24-hour local time "HH:MM". ' +
-                'May be earlier than start for an overnight range.',
-            ),
-        })
-        .optional()
-        .describe(
-          '@internal Opt-in quiet hours. When enabled, shows a single soft nudge ' +
-            'per session while inside the configured local-time window. Never blocks.',
-        ),
       cleanupPeriodDays: z
         .number()
         .int()
@@ -478,6 +405,12 @@ export const SettingsSchema = lazySchema(() =>
         .string()
         .optional()
         .describe('Override the default model used by Claude Code'),
+      fallbackModel: z
+        .array(z.string())
+        .optional()
+        .describe(
+          'Fallback model(s) tried in order when the primary model is overloaded or unavailable. Each element accepts a model name or alias; "default" expands to the default model. CLI --fallback-model takes precedence.',
+        ),
       // Enterprise allowlist of models
       availableModels: z
         .array(z.string())
@@ -1126,6 +1059,29 @@ export const SettingsSchema = lazySchema(() =>
               .boolean()
               .optional()
               .describe('Enable voice mode (hold-to-talk dictation)'),
+            // Official 2.1.166 user-settings voice object (written by the
+            // /voice hold|tap flow): the nested `enabled` wins over the
+            // legacy flat `voiceEnabled` flag when present.
+            voice: z
+              .object({
+                enabled: z.boolean().optional(),
+                mode: z
+                  .enum(['hold', 'tap'])
+                  .optional()
+                  .describe(
+                    "'hold' (default): hold to talk. 'tap': tap to start, tap to stop+submit.",
+                  ),
+                autoSubmit: z
+                  .boolean()
+                  .optional()
+                  .describe(
+                    'Submit the prompt when hold-to-talk is released (hold mode only)',
+                  ),
+              })
+              .optional()
+              .describe(
+                'Voice mode settings (hold-to-talk / tap-to-toggle dictation)',
+              ),
           }
         : {}),
       ...(feature('KAIROS')
@@ -1372,12 +1328,13 @@ export const SettingsSchema = lazySchema(() =>
         .boolean()
         .optional()
         .describe('Automatically compact conversation when context fills'),
-      // Official 2.1.160 G13 — refusal-fallback model-switch setting.
+      // Official 2.1.166: switch-models-on-refusal gate (settings field read
+      // by the refusal-fallback classifier in src/utils/refusalFallback.ts).
       switchModelsOnFlag: z
         .boolean()
         .optional()
         .describe(
-          'When safety filters block a message, automatically switch to a different model to keep chatting. When off, your chat may stop instead.',
+          'When safety measures flag a message, automatically switch to a different model to keep chatting. When off, your session will pause instead.',
         ),
       autoScrollEnabled: z
         .boolean()
