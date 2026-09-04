@@ -8,7 +8,7 @@ import type { Command } from '../../commands.js'
 const goal = {
   type: 'local-jsx',
   name: 'goal',
-  description: 'Set a goal \u2014 keep working until the condition is met',
+  description: 'Set a goal Claude checks before stopping',
   argumentHint: '[<condition> | clear]',
   immediate: true,
   load: () => import('./goal.js'),
@@ -20,7 +20,7 @@ export const goalNonInteractive = {
   name: 'goal',
   supportsNonInteractive: true,
   thinClientDispatch: 'post-text',
-  description: 'Set a goal \u2014 keep working until the condition is met',
+  description: 'Set a goal Claude checks before stopping',
   get isHidden() {
     return !getIsNonInteractiveSession()
   },

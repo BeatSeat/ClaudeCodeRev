@@ -19,8 +19,8 @@ import { execFileNoThrowWithCwd } from './execFileNoThrow.js'
 import { getFsImplementation } from './fsOperations.js'
 import { gracefulShutdownSync } from './gracefulShutdown.js'
 import { logError } from './log.js'
-import { gte, lt } from './semver.js'
-import { getInitialSettings } from './settings/settings.js'
+import { gt, gte, lt, order } from './semver.js'
+import { getInitialSettings, getSettingsForSource } from './settings/settings.js'
 import {
   filterClaudeAliases,
   getShellConfigPaths,
@@ -101,6 +101,14 @@ export async function assertMinVersion(): Promise<void> {
     return
   }
 
+  const policyError = getManagedVersionPolicyError(MACRO.VERSION)
+  if (policyError) {
+    // biome-ignore lint/suspicious/noConsole:: intentional console output
+    console.error(policyError)
+    gracefulShutdownSync(1)
+    return
+  }
+
   try {
     const versionConfig = await getDynamicConfig_BLOCKS_ON_INIT<{
       minVersion: string
@@ -171,6 +179,51 @@ async function getMaxVersionConfig(): Promise<MaxVersionConfig> {
  * This is used when switching to stable channel - the user can choose to stay on their
  * current version until stable catches up, preventing downgrades.
  */
+function isLooseSemver(version: string): boolean {
+  try {
+    void order(version, version)
+    return /^[0-9]/.test(version)
+  } catch {
+    return false
+  }
+}
+
+/**
+ * Official 2.1.163 `I39`/`C39` — managed policy min/max version gate.
+ */
+export function getManagedVersionPolicyError(
+  currentVersion: string,
+): string | null {
+  const policy = getSettingsForSource('policySettings')
+  const min = policy?.requiredMinimumVersion
+  const max = policy?.requiredMaximumVersion
+  if (min) {
+    if (!isLooseSemver(min)) {
+      logForDebugging(
+        `requiredMinimumVersion '${min}' is not a valid semver version — ignoring`,
+      )
+    } else if (lt(currentVersion, min)) {
+      return (
+        `Claude Code ${currentVersion} is older than the minimum version required by your organization (${min}).\n` +
+        `Update Claude Code using your organization's approved method, then try again. If automatic updates are available, \`claude update\` may also work.`
+      )
+    }
+  }
+  if (max) {
+    if (!isLooseSemver(max)) {
+      logForDebugging(
+        `requiredMaximumVersion '${max}' is not a valid semver version — ignoring`,
+      )
+    } else if (gt(currentVersion, max)) {
+      return (
+        `Claude Code ${currentVersion} is newer than the maximum version allowed by your organization (${max}).\n` +
+        `Your organization requires version ${max} or older. Install an approved version using your organization's approved method. \`claude install <version>\` may also work.`
+      )
+    }
+  }
+  return null
+}
+
 export function shouldSkipVersion(targetVersion: string): boolean {
   const settings = getInitialSettings()
   const minimumVersion = settings?.minimumVersion

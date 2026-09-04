@@ -12,6 +12,7 @@ import { logForDebugging } from '../../utils/debug.js'
 import { withOAuth401Retry } from '../../utils/http.js'
 import { lazySchema } from '../../utils/lazySchema.js'
 import { logError } from '../../utils/log.js'
+import { isEnvTruthy } from '../../utils/envUtils.js'
 import { getAPIProvider } from '../../utils/model/providers.js'
 import { isEssentialTrafficOnly } from '../../utils/privacyLevel.js'
 import { getClaudeCodeUserAgent } from '../../utils/userAgent.js'
@@ -45,6 +46,16 @@ async function fetchBootstrapAPI(): Promise<BootstrapResponse | null> {
   if (isEssentialTrafficOnly()) {
     logForDebugging('[Bootstrap] Skipped: Nonessential traffic disabled')
     return null
+  }
+
+  if (
+    (getAPIProvider() as string) === 'gateway' &&
+    !isEnvTruthy(process.env.CLAUDE_CODE_ENABLE_GATEWAY_MODEL_DISCOVERY)
+  ) {
+    logForDebugging(
+      '[Bootstrap] Skipped gateway /v1/models (CLAUDE_CODE_ENABLE_GATEWAY_MODEL_DISCOVERY not set)',
+    )
+    return { additional_model_options: [] }
   }
 
   if (getAPIProvider() !== 'firstParty') {

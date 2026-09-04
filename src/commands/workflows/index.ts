@@ -9,7 +9,7 @@ const workflows = {
   type: 'local-jsx',
   name: 'workflows',
   aliases: [],
-  description: 'Browse dynamic workflow history (running and completed)',
+  description: 'Browse running and completed workflows',
   isEnabled: () => isWorkflowsEnabled(),
   load: () => import('./WorkflowsDialog.js'),
 } satisfies Command

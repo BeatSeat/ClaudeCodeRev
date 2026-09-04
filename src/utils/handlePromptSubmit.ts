@@ -17,6 +17,7 @@ import {
   type PromptInputMode,
   type QueuedCommand,
 } from '../types/textInputTypes.js'
+import { getIsRemoteMode } from '../bootstrap/state.js'
 import { createAbortController } from './abortController.js'
 import type { PastedContent } from './config.js'
 import { logForDebugging } from './debug.js'
@@ -216,6 +217,15 @@ export async function handlePromptSubmit(
   // Parse references and replace with actual content early, before queueing
   // or immediate-command dispatch, so queued commands and immediate commands
   // both receive the expanded text from when it was submitted.
+  if (mode === 'bash' && getIsRemoteMode()) {
+    params.addNotification?.({
+      key: 'remote-bash-mode-unavailable',
+      text: "'!' commands aren't available in remote sessions yet",
+      priority: 'immediate',
+    })
+    return
+  }
+
   const finalInput = expandPastedTextRefs(input, pastedContents)
   const pastedTextRefs = parseReferences(input).filter(
     r => pastedContents[r.id]?.type === 'text',

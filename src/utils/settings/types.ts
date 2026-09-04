@@ -989,6 +989,18 @@ export const SettingsSchema = lazySchema(() =>
         .describe(
           'Minimum version to stay on - prevents downgrades when switching to stable channel',
         ),
+      requiredMinimumVersion: z
+        .string()
+        .optional()
+        .describe(
+          'Minimum Claude Code version required to start. If the running version is older, Claude Code exits at startup with instructions to update. Only enforced from managed (policy) settings.',
+        ),
+      requiredMaximumVersion: z
+        .string()
+        .optional()
+        .describe(
+          'Maximum Claude Code version allowed to start. If the running version is newer, Claude Code exits at startup with instructions to install an approved version. Only enforced from managed (policy) settings.',
+        ),
       plansDirectory: z
         .string()
         .optional()

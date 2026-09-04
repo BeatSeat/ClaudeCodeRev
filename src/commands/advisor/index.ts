@@ -8,7 +8,7 @@ const advisor = {
   type: 'local-jsx',
   name: 'advisor',
   description:
-    'Configure the Advisor Tool to consult a stronger model for guidance at key moments during a task',
+    'Let Claude consult a stronger model at key moments',
   argumentHint: `[${[...ADVISOR_MODELS, 'off'].join('|')}]`,
   isEnabled: () => canUserConfigureAdvisor(),
   get isHidden() {

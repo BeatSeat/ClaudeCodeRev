@@ -6299,6 +6299,8 @@ async function run(): Promise<CommanderCommand> {
     .command('list')
     .description('List installed plugins')
     .option('--json', 'Output as JSON')
+    .option('--enabled', 'Only show enabled plugins')
+    .option('--disabled', 'Only show disabled plugins')
     .option(
       '--available',
       'Include available plugins from marketplaces (requires --json)',

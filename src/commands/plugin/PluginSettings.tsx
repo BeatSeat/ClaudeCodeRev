@@ -890,6 +890,7 @@ export function PluginSettings({
         </Text>
         <Text> </Text>
         <Text dimColor>Management:</Text>
+        <Text> /plugin list [--enabled|--disabled] - List installed plugins</Text>
         <Text> /plugin manage - Manage installed plugins</Text>
         <Text> /plugin enable &lt;plugin&gt; - Enable a plugin</Text>
         <Text> /plugin disable &lt;plugin&gt; - Disable a plugin</Text>
