@@ -10,3 +10,9 @@ restore-work/ledgers/_*
 # Hop working artifacts: diffs stay on disk only, never tracked. Ledgers are tracked.
 restore-work/diffs/
 .cursor/skills/incremental-ts-restore/node_modules/
+.agent_context/
+.agents/
+.claude/
+.multica/
+undefined/
+restore-work/scratch/
