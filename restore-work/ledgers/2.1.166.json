@@ -484943,28 +484943,5 @@
       "evidence": "auto-classified draft — agent must locate or reclassify before hop is done"
     }
   ],
-  "notes": "Draft from classify.mjs. Resolve changelogCoverage (no deferred left). Set rewrittenByLlm on edited rows. Do not LLM-rewrite unchanged.",
-  "astdiff": {
-    "version": "2.1.166",
-    "from": "2.1.165",
-    "from_bundle": "/root/projects/ClaudeCodeRev/restore-work/artifacts/cometix/2.1.165/cli.js",
-    "to_bundle": "/root/projects/ClaudeCodeRev/restore-work/artifacts/cometix/2.1.166/cli.js",
-    "from_sha256": "b6ba4a5ebde36393ef24484c8fb3372fedb59f3c25ad0c3ac796f87532a3c875",
-    "to_sha256": "7f4c71ff300ca843d59895bc26e22ce54bfbde4e21df8d5490a8649fcd7aad46",
-    "method": "astdiff-v0.2.0+tree-sitter0.25",
-    "parser": "tree-sitter 0.25 / tree-sitter-javascript 0.25",
-    "similarity": 99.4,
-    "matched_declarations": 25242,
-    "total_declarations_from": 25277,
-    "total_declarations_to": 25383,
-    "change_total": 10738,
-    "added": 141,
-    "removed": 35,
-    "structural": 10521,
-    "string_only": 41,
-    "command": "astdiff /root/projects/ClaudeCodeRev/restore-work/artifacts/cometix/2.1.165/cli.js /root/projects/ClaudeCodeRev/restore-work/artifacts/cometix/2.1.166/cli.js --format json",
-    "full_json": "/root/projects/Zhiman/projects/ccr-swarm/integration/astdiff-full/using/2.1.166.json",
-    "elapsed_seconds": 16.6,
-    "generated_at": "2026-11-14T15:08:41Z"
-  }
+  "notes": "Draft from classify.mjs. Resolve changelogCoverage (no deferred left). Set rewrittenByLlm on edited rows. Do not LLM-rewrite unchanged."
 }

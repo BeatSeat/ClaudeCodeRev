@@ -2077,6 +2077,18 @@ export async function validateForceLoginOrg(): Promise<OrgValidationResult> {
     requiredOrgUuid !== undefined ||
     policySettings?.forceLoginMethod !== undefined
 
+  // Official 2.1.167 `W_H`: a provider-managed host controls login itself,
+  // so the org pin is satisfied by the host — nothing to validate locally.
+  if (process.env.CLAUDE_CODE_PROVIDER_MANAGED_BY_HOST) {
+    if (pinActive) {
+      logEvent('auth_force_login_org', {
+        outcome:
+          'managed_by_host_under_pin' as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
+      })
+    }
+    return { valid: true }
+  }
+
   // Official 161 `J_H`: a first-party org pin cannot be satisfied by an
   // Anthropic-issued API key / auth token / apiKeyHelper.
   if (!isAnthropicAuthEnabled()) {
