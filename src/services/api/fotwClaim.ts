@@ -60,7 +60,7 @@ const fotwCampaignSchema = z.object({
 type FotwCampaign = z.infer<typeof fotwCampaignSchema>
 
 export type FotwClaim = {
-  phase: 'pending' | 'granted' | 'failed'
+  phase: 'pending' | 'granted' | 'failed' | 'needs_payment_setup'
   command: string
   amountMinorUnits: number
   currency: string

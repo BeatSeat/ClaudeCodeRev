@@ -339,8 +339,14 @@ async function main(): Promise<void> {
   }
 
   // --bare: set SIMPLE early so gates fire during module eval / commander
-  // option building (not just inside the action handler).
-  if (args.includes('--bare')) {
+  // option building (not just inside the action handler). Official 2.1.169:
+  // stop at `--` so a bare flag in the prompt passthrough doesn't count.
+  const doubleDashIndex = args.indexOf('--')
+  if (
+    (doubleDashIndex === -1 ? args : args.slice(0, doubleDashIndex)).includes(
+      '--bare',
+    )
+  ) {
     process.env.CLAUDE_CODE_SIMPLE = '1'
   }
 

@@ -525,3 +525,35 @@ export function ManagedSettingsSchema(
       return obj
     })
 }
+
+/** Official 2.1.169 `WMH`: validate managed settings data and return salvaged settings + errors. */
+export function validateManagedSettings(
+  data: unknown,
+  path: string,
+): { settings: Record<string, unknown> | null; errors: ValidationError[] } {
+  const ruleWarnings = filterSettingsWarnings(data, path, {
+    skipMcpServerEntryFilter: true,
+  })
+  const fieldWarnings: ValidationError[] = []
+  const result = ManagedSettingsSchema(issue =>
+    fieldWarnings.push({
+      file: path,
+      path: issue.path,
+      message: issue.message,
+      severity: 'warning',
+    }),
+  ).safeParse(data)
+  if (!result.success) {
+    return {
+      settings: null,
+      errors: [...ruleWarnings, ...formatZodError(result.error, path)],
+    }
+  }
+  return {
+    settings:
+      Object.keys(result.data).length > 0
+        ? (result.data as Record<string, unknown>)
+        : null,
+    errors: [...ruleWarnings, ...fieldWarnings],
+  }
+}

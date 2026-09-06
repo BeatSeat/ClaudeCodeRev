@@ -64,13 +64,40 @@ export function getSharedSkillOverride(
   )
 }
 
+import type { SettingsJson } from './types.js'
+
+/** Official 2.1.169 `CQ`: check if bundled skills/workflows are disabled. */
+export function isBundledSkillsDisabled(settings?: SettingsJson): boolean {
+  return (
+    Boolean(process.env.CLAUDE_CODE_DISABLE_BUNDLED_SKILLS) ||
+    (settings ?? getInitialSettings()).disableBundledSkills === true
+  )
+}
+
+/** Official 2.1.169 `gv8`: check if command is a builtin prompt command and bundled skills are disabled. */
+export function isBuiltinPromptCommandAndBundledSkillsDisabled(
+  command: Command,
+  settings?: SettingsJson,
+): boolean {
+  return (
+    command.type === 'prompt' &&
+    command.source === 'builtin' &&
+    isBundledSkillsDisabled(settings)
+  )
+}
+
 /**
  * Official `na`: the effective override for a command. Plugin skills are
  * always on (managed via /plugin) and non-prompt commands have no override.
  */
 export function getSkillOverride(command: Command): SkillOverride {
   if (command.type !== 'prompt' || command.source === 'plugin') return 'on'
-  return getInitialSettings().skillOverrides?.[command.name] ?? 'on'
+  const settings = getInitialSettings()
+  const override = settings.skillOverrides?.[command.name] ?? 'on'
+  if (isBuiltinPromptCommandAndBundledSkillsDisabled(command, settings)) {
+    return override === 'off' ? 'off' : 'user-invocable-only'
+  }
+  return override
 }
 
 /** Official `yL5`: the model may not invoke this skill. */

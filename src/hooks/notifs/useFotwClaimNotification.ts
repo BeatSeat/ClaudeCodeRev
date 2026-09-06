@@ -75,6 +75,15 @@ export function useFotwClaimNotification(
           timeoutMs: FOTW_GRANTED_FAILED_TIMEOUT_MS,
         })
         return
+      case 'needs_payment_setup':
+        addNotification({
+          key: FOTW_CLAIM_NOTIFICATION_KEY,
+          text: `To claim ${amount} in usage credits, add a payment method at https://claude.ai/settings/billing, then run /${fotwClaim.command} again to claim (claiming turns on extra usage billing)`,
+          priority: 'immediate',
+          requeueOnPreempt: true,
+          timeoutMs: FOTW_GRANTED_FAILED_TIMEOUT_MS,
+        })
+        return
     }
   }, [fotwClaim, addNotification, removeNotification])
 }

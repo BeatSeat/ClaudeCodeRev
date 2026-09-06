@@ -3,13 +3,15 @@ import type { CommandResultDisplay } from '../../commands.js'
 import { CustomThemeEditor } from '../../components/CustomThemeEditor.js'
 import { Pane } from '../../components/design-system/Pane.js'
 import { ThemePicker } from '../../components/ThemePicker.js'
-import { useCustomThemes, useTheme } from '../../ink.js'
+import { useCustomThemes, useTheme, useThemeSetting } from '../../ink.js'
 import type { LocalJSXCommandCall } from '../../types/command.js'
 import {
   customThemeSlug,
   toCustomThemeSetting,
 } from '../../utils/customThemes.js'
 import type { CustomTheme } from '../../utils/customThemes.js'
+import { isSafeMode } from '../../utils/envUtils.js'
+import { getSafeModeOffHint } from '../../utils/safeModeHint.js'
 
 type Props = {
   onDone: (
@@ -26,6 +28,11 @@ function ThemePickerCommand({ onDone }: Props): React.ReactNode {
   const [currentTheme, setTheme] = useTheme()
   const { customThemes, reloadCustomThemes } = useCustomThemes()
   const [view, setView] = React.useState<View>({ kind: 'picker' })
+  // Official 2.1.169 safe mode: custom theme create/edit is disabled and the
+  // picker explains why (bundle pBf: `K1("themes")` ≡ safe mode for themes).
+  const customThemesDisabled = isSafeMode()
+  const themeSetting = useThemeSetting()
+  const savedCustomThemeSlug = customThemeSlug(themeSetting)
 
   if (view.kind === 'editor') {
     return (
@@ -55,7 +62,16 @@ function ThemePickerCommand({ onDone }: Props): React.ReactNode {
           }
           onDone(`Theme set to ${setting}`)
         }}
-        onCustomTheme={initial => setView({ kind: 'editor', initial })}
+        onCustomTheme={
+          customThemesDisabled
+            ? undefined
+            : initial => setView({ kind: 'editor', initial })
+        }
+        helpText={
+          customThemesDisabled
+            ? `Custom themes are disabled in safe mode — ${getSafeModeOffHint()} to create or edit them${savedCustomThemeSlug ? `. Your saved theme "${savedCustomThemeSlug}" is a custom theme; selecting a preset here replaces it` : ''}`
+            : ''
+        }
         onCancel={() => {
           onDone('Theme picker dismissed', { display: 'system' })
         }}

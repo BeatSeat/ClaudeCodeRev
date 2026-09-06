@@ -7,11 +7,14 @@ import type { Dirent } from 'fs'
 import { closeSync, fstatSync, openSync, readSync } from 'fs'
 import {
   appendFile as fsAppendFile,
+  copyFile,
   open as fsOpen,
   mkdir,
   readdir,
   readFile,
   realpath,
+  rename,
+  rm,
   stat,
   unlink,
   writeFile,
@@ -72,7 +75,7 @@ import { getCwd } from './cwd.js'
 import { logForDebugging } from './debug.js'
 import { logForDiagnosticsNoPII } from './diagLogs.js'
 import { getClaudeConfigHomeDir, isEnvTruthy } from './envUtils.js'
-import { isENOENT, isFsInaccessible } from './errors.js'
+import { getErrnoCode, isENOENT, isFsInaccessible } from './errors.js'
 import type { FileHistorySnapshot } from './fileHistory.js'
 import { formatFileSize } from './format.js'
 import { getFsImplementation } from './fsOperations.js'
@@ -598,6 +601,119 @@ export function setSessionFileForTesting(path: string): void {
   getProject().sessionFile = path
 }
 
+/**
+ * Official 2.1.169 /cd: move the current session's transcript to the project
+ * directory for the new working directory (the caller has already chdir'd
+ * and updated originalCwd). Also relocates the `<sessionId>` metadata
+ * sidecar. Entries appended mid-move are buffered by the relocation barrier
+ * and replayed into the new file. Always re-points the active session at the
+ * new project dir — even when there is nothing to move.
+ */
+export async function relocateSessionTranscript(): Promise<void> {
+  const sessionId = getSessionId()
+  const projectDir = getProjectDir(getOriginalCwd())
+  const project = getProject()
+  const currentSessionFile = project.sessionFile
+
+  if (currentSessionFile === null || project.shouldSkipPersistence()) {
+    switchSession(sessionId, 'cd', projectDir)
+    return
+  }
+
+  const newSessionFile = join(projectDir, `${sessionId}.jsonl`)
+  if (currentSessionFile === newSessionFile) {
+    switchSession(sessionId, 'cd', projectDir)
+    return
+  }
+
+  project.beginTranscriptRelocation()
+  try {
+    await project.flush()
+    await mkdir(projectDir, { recursive: true, mode: 0o700 })
+    try {
+      await movePathResilient(currentSessionFile, newSessionFile)
+    } catch (error) {
+      if (isENOENT(error)) {
+        logForDebugging(
+          `relocateSessionTranscript: old file missing: ${error}`,
+        )
+      } else {
+        throw error
+      }
+    }
+    try {
+      await movePathResilient(
+        join(dirname(currentSessionFile), sessionId),
+        join(projectDir, sessionId),
+      )
+    } catch (error) {
+      if (!isENOENT(error)) {
+        logError(error)
+      }
+    }
+    project.sessionFile = newSessionFile
+    switchSession(sessionId, 'cd', projectDir)
+  } finally {
+    await project.endTranscriptRelocation()
+  }
+}
+
+/**
+ * Rename with fallbacks (Official 2.1.169): clobber a stale destination on
+ * EEXIST/EPERM/EBUSY/ENOTEMPTY, and fall back to copy+delete across devices
+ * (EXDEV) — copyFile first, recursive directory copy when that's refused.
+ */
+async function movePathResilient(from: string, to: string): Promise<void> {
+  try {
+    await rename(from, to)
+    return
+  } catch (error) {
+    const code = getErrnoCode(error)
+    if (
+      code === 'EEXIST' ||
+      code === 'EPERM' ||
+      code === 'EBUSY' ||
+      code === 'ENOTEMPTY'
+    ) {
+      await rm(to, { recursive: true, force: true }).catch(() => {})
+      await rename(from, to)
+      return
+    }
+    if (code === 'EXDEV') {
+      try {
+        await copyFile(from, to)
+      } catch (copyError) {
+        const copyCode = getErrnoCode(copyError)
+        if (
+          copyCode === 'EISDIR' ||
+          copyCode === 'ENOTSUP' ||
+          copyCode === 'EPERM'
+        ) {
+          await copyDirectoryRecursive(from, to)
+        } else {
+          throw copyError
+        }
+      }
+      await rm(from, { recursive: true, force: true })
+      return
+    }
+    throw error
+  }
+}
+
+async function copyDirectoryRecursive(from: string, to: string): Promise<void> {
+  await mkdir(to, { recursive: true, mode: 0o700 })
+  for (const dirent of await readdir(from, { withFileTypes: true })) {
+    const srcPath = join(from, dirent.name)
+    const dstPath = join(to, dirent.name)
+    if (dirent.isDirectory()) {
+      await copyDirectoryRecursive(srcPath, dstPath)
+    } else {
+      await copyFile(srcPath, dstPath)
+    }
+  }
+}
+
 type InternalEventWriter = (
   eventType: string,
   payload: Record<string, unknown>,
@@ -682,6 +798,10 @@ class Project {
   // Entries buffered while sessionFile is null. Flushed by materializeSessionFile
   // on the first user/assistant message — prevents metadata-only session files.
   private pendingEntries: Entry[] = []
+  // Official 2.1.169 /cd transcript relocation: while a relocation is in
+  // flight, appendEntry buffers instead of writing to the file being moved.
+  private relocationBuffer: Array<{ entry: Entry; sessionId: UUID }> | null =
+    null
   private remoteIngressUrl: string | null = null
   private internalEventWriter: InternalEventWriter | null = null
   private internalEventReader: InternalEventReader | null = null
@@ -1161,7 +1281,7 @@ class Project {
    * consistently. The env var is set by tmuxSocket.ts so Tungsten-spawned
    * test sessions don't pollute the user's --resume list.
    */
-  private shouldSkipPersistence(): boolean {
+  shouldSkipPersistence(): boolean {
     const allowTestPersistence = isEnvTruthy(
       process.env.TEST_ENABLE_SESSION_PERSISTENCE,
     )
@@ -1351,8 +1471,33 @@ class Project {
     })
   }
 
+  /**
+   * Official 2.1.169 /cd transcript relocation. While active, appendEntry
+   * buffers entries instead of writing to the file being moved, so nothing
+   * is lost or torn between the old and new transcript files.
+   */
+  beginTranscriptRelocation(): void {
+    this.relocationBuffer ??= []
+  }
+
+  async endTranscriptRelocation(): Promise<void> {
+    const buffer = this.relocationBuffer
+    this.relocationBuffer = null
+    if (!buffer) return
+    for (const { entry, sessionId } of buffer) {
+      await this.appendEntry(entry, sessionId)
+    }
+  }
+
   async appendEntry(entry: Entry, sessionId: UUID = getSessionId() as UUID) {
     if (this.shouldSkipPersistence()) {
+      return
+    }
+
+    // Official 2.1.169: during a transcript relocation, buffer entries and
+    // replay them into the new file in endTranscriptRelocation().
+    if (this.relocationBuffer) {
+      this.relocationBuffer.push({ entry, sessionId })
       return
     }
 
@@ -1880,7 +2025,7 @@ export async function hydrateRemoteSession(
   sessionId: string,
   ingressUrl: string,
 ): Promise<boolean> {
-  switchSession(asSessionId(sessionId))
+  switchSession(asSessionId(sessionId), 'hydrate')
 
   const project = getProject()
 
@@ -1925,7 +2070,7 @@ export async function hydrateFromCCRv2InternalEvents(
   sessionId: string,
 ): Promise<boolean> {
   const startMs = Date.now()
-  switchSession(asSessionId(sessionId))
+  switchSession(asSessionId(sessionId), 'hydrate')
 
   const project = getProject()
   const reader = project.getInternalEventReader()

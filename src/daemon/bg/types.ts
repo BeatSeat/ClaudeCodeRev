@@ -1,4 +1,5 @@
 import { z } from 'zod/v4'
+import { logForDebugging } from '../../utils/debug.js'
 
 /** Official `P5` / `Ck$`. */
 export const DAEMON_PROTO = 1
@@ -104,9 +105,9 @@ export const JobStateSchema = z.object({
   linkScanPath: z.string().optional(),
   template: z.string(),
   routine: z.string().optional(),
-  respawnFlags: z.array(z.string()).default([]),
+  respawnFlags: z.array(z.string()).default([]).transform(sanitizeRespawnFlags),
   bgIsolation: z.enum(['none', 'worktree']).optional(),
-  providerEnv: z.record(z.string(), z.string()).optional(),
+  providerEnv: z.record(z.string(), z.string()).transform(sanitizeProviderEnv).optional(),
   sessionPermissionRules: z
     .object({ allow: z.array(z.string()), deny: z.array(z.string()) })
     .optional(),
@@ -131,13 +132,191 @@ export const JobStateSchema = z.object({
   bridgeSessionId: z.string().optional(),
   bridgeOutboundOnly: z.boolean().optional(),
   bridgeSessionSeq: z.number().optional(),
-  backend: z.enum(['daemon', 'peer']).catch('daemon').default('daemon'),
+  backend: z
+    .enum(['daemon', 'peer', 'remote'])
+    .catch('daemon')
+    .default('daemon')
+    .transform(val => {
+      if (val === 'daemon') return val
+      logForDebugging(
+        `[jobs] coerced persisted backend '${val}' to 'daemon' — peer/remote rows are never written to disk`,
+        { level: 'warn' },
+      )
+      return 'daemon'
+    }),
   sock: z.string().optional(),
   pid: z.number().optional(),
   pinned: z.boolean().optional(),
   sortOrder: z.number().optional(),
   stateSortOrder: z.number().optional(),
 })
+
+const ALLOWLISTED_PROVIDER_ENV_KEYS = new Set([
+  'CLAUDE_CONFIG_DIR',
+  'CLAUDE_INTERNAL_FC_OVERRIDES',
+  'ANTHROPIC_MODEL',
+  'AWS_REGION',
+  'AWS_DEFAULT_REGION',
+  'AWS_PROFILE',
+  'GOOGLE_APPLICATION_CREDENTIALS',
+  'GOOGLE_CLOUD_PROJECT',
+  'GCLOUD_PROJECT',
+  'CLAUDE_SECURESTORAGE_CONFIG_DIR',
+])
+
+function sanitizeProviderEnv(
+  env: Record<string, string>,
+): Record<string, string> | undefined {
+  const stripped = Object.keys(env).filter(k => !ALLOWLISTED_PROVIDER_ENV_KEYS.has(k))
+  if (stripped.length === 0) return env
+  logForDebugging(
+    `[jobs] stripped non-allowlisted providerEnv key(s) from persisted job state: ${stripped.join(', ')}`,
+    { level: 'warn' },
+  )
+  const result: Record<string, string> = {}
+  for (const [k, v] of Object.entries(env)) {
+    if (ALLOWLISTED_PROVIDER_ENV_KEYS.has(k)) result[k] = v
+  }
+  return Object.keys(result).length > 0 ? result : undefined
+}
+
+const ALLOWLISTED_PARAM_FLAGS = new Set([
+  '--exec',
+  '--model',
+  '-m',
+  '--permission-mode',
+  '--agent',
+  '--agents',
+  '--routine',
+  '--effort',
+  '--add-dir',
+  '--mcp-config',
+  '--settings',
+  '--setting-sources',
+  '--system-prompt',
+  '--system-prompt-file',
+  '--append-system-prompt',
+  '--append-system-prompt-file',
+  '--fallback-model',
+  '--advisor',
+  '--channels',
+  '--permission-prompt-tool',
+  '--allowed-tools',
+  '--allowedTools',
+  '--disallowed-tools',
+  '--disallowedTools',
+  '--tools',
+  '--session-id',
+  '--debug-file',
+  '-n',
+  '--name',
+  '--autocompact',
+  '--betas',
+  '--file',
+  '--max-budget-usd',
+  '--max-thinking-tokens',
+  '--max-turns',
+  '--task-budget',
+  '--plan-mode-instructions',
+  '--plugin-dir',
+  '--plugin-url',
+  '--resume-session-at',
+  '--rewind-files',
+  '--thinking',
+  '--thinking-display',
+  '--remote-control-session-name-prefix',
+])
+
+const MULTI_PARAM_FLAGS = new Set([
+  '--allowed-tools',
+  '--allowedTools',
+  '--disallowed-tools',
+  '--disallowedTools',
+  '--tools',
+  '--mcp-config',
+  '--betas',
+  '--add-dir',
+  '--file',
+  '--channels',
+])
+
+const ALLOWLISTED_BOOLEAN_FLAGS = new Set([
+  '--dangerously-skip-permissions',
+  '--allow-dangerously-skip-permissions',
+  '--strict-mcp-config',
+  '--dangerously-allow-browser-network-access',
+  '--disable-slash-commands',
+  '--verbose',
+  '--reply-on-resume',
+  '--ide',
+  '--chrome',
+  '--no-chrome',
+  '--bare',
+  '--mcp-debug',
+  '--brief',
+  '--remote-control',
+  '--rc',
+])
+
+function sanitizeRespawnFlags(flags: string[]): string[] {
+  const kept: string[] = []
+  const stripped: string[] = []
+  for (let i = 0; i < flags.length; i++) {
+    const flag = flags[i]!
+    if (!flag.startsWith('-')) {
+      stripped.push(flag)
+      continue
+    }
+    const eqIdx = flag.indexOf('=')
+    const flagName = eqIdx === -1 ? flag : flag.slice(0, eqIdx)
+    if (eqIdx !== -1 && !ALLOWLISTED_PARAM_FLAGS.has(flagName) && ALLOWLISTED_BOOLEAN_FLAGS.has(flagName)) {
+      kept.push(flagName)
+      stripped.push(flag)
+      continue
+    }
+    const isParam = eqIdx === -1 && ALLOWLISTED_PARAM_FLAGS.has(flagName)
+    const isAllowed = eqIdx === -1
+      ? ALLOWLISTED_BOOLEAN_FLAGS.has(flagName) || (isParam && flags[i + 1] !== undefined)
+      : ALLOWLISTED_PARAM_FLAGS.has(flagName)
+    const target = isAllowed ? kept : stripped
+    target.push(flag)
+    if (isParam && flags[i + 1] !== undefined) {
+      target.push(flags[++i]!)
+    }
+    if (!isAllowed || (isParam && MULTI_PARAM_FLAGS.has(flagName))) {
+      while (flags[i + 1] !== undefined && !flags[i + 1]!.startsWith('-')) {
+        target.push(flags[++i]!)
+      }
+    }
+  }
+  if (stripped.length > 0) {
+    logForDebugging(
+      `[jobs] stripped non-allowlisted respawnFlags token(s) from persisted job state: ${stripped.join(' ')}`,
+      { level: 'warn' },
+    )
+  }
+  return normalizeRespawnFlags(kept)
+}
+
+function normalizeRespawnFlags(flags: string[]): string[] {
+  const result: string[] = []
+  for (let i = 0; i < flags.length; i++) {
+    const flag = flags[i]!
+    const eqIdx = flag.indexOf('=')
+    const flagName = eqIdx === -1 ? flag : flag.slice(0, eqIdx)
+    const tokens = [flag]
+    if (eqIdx === -1 && ALLOWLISTED_PARAM_FLAGS.has(flagName) && flags[i + 1] !== undefined) {
+      tokens.push(flags[++i]!)
+    }
+    if (MULTI_PARAM_FLAGS.has(flagName)) {
+      while (flags[i + 1] !== undefined && !flags[i + 1]!.startsWith('-')) {
+        tokens.push(flags[++i]!)
+      }
+    }
+    result.push(...tokens)
+  }
+  return result
+}
 
 export type JobState = z.infer<typeof JobStateSchema>
 

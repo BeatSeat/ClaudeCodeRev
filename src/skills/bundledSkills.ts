@@ -6,6 +6,7 @@ import type { ToolUseContext } from '../Tool.js'
 import type { Command } from '../types/command.js'
 import { logForDebugging } from '../utils/debug.js'
 import { getBundledSkillsRoot } from '../utils/permissions/filesystem.js'
+import { isBundledSkillsDisabled } from '../utils/settings/skillOverrides.js'
 import type { EffortValue } from '../utils/effort.js'
 import type { HooksSettings } from '../utils/settings/types.js'
 
@@ -108,6 +109,7 @@ export function registerBundledSkill(definition: BundledSkillDefinition): void {
  * Returns a copy to prevent external mutation.
  */
 export function getBundledSkills(): Command[] {
+  if (isBundledSkillsDisabled()) return []
   return [...bundledSkills]
 }
 

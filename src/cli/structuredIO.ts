@@ -279,6 +279,12 @@ export class StructuredIO {
       .filter(pr => pr.request.subtype === 'can_use_tool')
   }
 
+  getPendingUserDialogRequests() {
+    return Array.from(this.pendingRequests.values())
+      .map(entry => entry.request)
+      .filter(pr => (pr.request as any).subtype === 'request_user_dialog')
+  }
+
   setUnexpectedResponseCallback(
     callback: (response: SDKControlResponse) => Promise<void>,
   ): void {
