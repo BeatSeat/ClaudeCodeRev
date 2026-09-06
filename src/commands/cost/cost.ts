@@ -6,7 +6,9 @@ import type { LocalCommandCall } from '../../types/command.js'
 import { isClaudeAISubscriber } from '../../utils/auth.js'
 import { getCanonicalName } from '../../utils/model/model.js'
 
+/** Official 2.1.170 `zt5`. */
 function shortModelFamily(name: string): string {
+  if (name.includes('fable')) return 'fable'
   if (name.includes('opus')) return 'opus'
   if (name.includes('sonnet')) return 'sonnet'
   if (name.includes('haiku')) return 'haiku'

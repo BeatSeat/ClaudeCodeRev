@@ -199,6 +199,9 @@ export const CCR_AUTH_ERROR_MESSAGE =
 export const REPEATED_529_ERROR_MESSAGE = 'Repeated 529 Overloaded errors'
 export const CUSTOM_OFF_SWITCH_MESSAGE =
   'Opus is experiencing high load, please use /model to switch to Sonnet'
+/** Official 2.1.170 `IxH`. */
+export const FABLE_OFF_SWITCH_MESSAGE =
+  'Fable is experiencing high load, please use /model to switch to Sonnet'
 export const API_TIMEOUT_ERROR_MESSAGE = 'Request timed out'
 export function getPdfTooLargeErrorMessage(): string {
   const limits = `max ${API_PDF_MAX_PAGES} pages, ${formatFileSize(PDF_TARGET_RAW_SIZE)}`
@@ -483,13 +486,22 @@ export function getAssistantMessageFromError(
     })
   }
 
-  // Check for emergency capacity off switch for Opus PAYG users
+  // Official 2.1.170: `RxH` then `IxH` capacity off-switch.
   if (
     error instanceof Error &&
     error.message.includes(CUSTOM_OFF_SWITCH_MESSAGE)
   ) {
     return createAssistantAPIErrorMessage({
       content: CUSTOM_OFF_SWITCH_MESSAGE,
+      error: 'rate_limit',
+    })
+  }
+  if (
+    error instanceof Error &&
+    error.message.includes(FABLE_OFF_SWITCH_MESSAGE)
+  ) {
+    return createAssistantAPIErrorMessage({
+      content: FABLE_OFF_SWITCH_MESSAGE,
       error: 'rate_limit',
     })
   }
@@ -1090,7 +1102,8 @@ export function classifyAPIError(error: unknown): string {
   // Check for emergency capacity off switch
   if (
     error instanceof Error &&
-    error.message.includes(CUSTOM_OFF_SWITCH_MESSAGE)
+    (error.message.includes(CUSTOM_OFF_SWITCH_MESSAGE) ||
+      error.message.includes(FABLE_OFF_SWITCH_MESSAGE))
   ) {
     return 'capacity_off_switch'
   }

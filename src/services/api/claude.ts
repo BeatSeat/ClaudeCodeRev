@@ -95,6 +95,8 @@ import {
   getDefaultOpusModel,
   getDefaultSonnetModel,
   getSmallFastModel,
+  isFableModel,
+  isMythosModel,
   isNonCustomOpusModel,
 } from '../../utils/model/model.js'
 import {
@@ -252,9 +254,15 @@ import {
 import {
   API_ERROR_MESSAGE_PREFIX,
   CUSTOM_OFF_SWITCH_MESSAGE,
+  FABLE_OFF_SWITCH_MESSAGE,
   getAssistantMessageFromError,
   getErrorMessageIfRefusal,
 } from './errors.js'
+import {
+  extractFallbackCreditToken,
+  isRefusalFallbackMintEligible,
+  logFallbackCreditMinted,
+} from '../../utils/model/fallbackCredit.js'
 import {
   EMPTY_USAGE,
   type GlobalCacheStrategy,
@@ -1077,12 +1085,12 @@ async function* queryModel(
   StreamEvent | AssistantMessage | SystemAPIErrorMessage,
   void
 > {
-  // Check cheap conditions first — the off-switch await blocks on GrowthBook
-  // init (~10ms). For non-Opus models (haiku, sonnet) this skips the await
-  // entirely. Subscribers don't hit this path at all.
+  // Official 2.1.170 `wL9`: `N8H || AlH || HD$`, message `AlH ? IxH : RxH`.
   if (
     !isClaudeAISubscriber() &&
-    isNonCustomOpusModel(options.model) &&
+    (isNonCustomOpusModel(options.model) ||
+      isFableModel(options.model) ||
+      isMythosModel(options.model)) &&
     (
       await getDynamicConfig_BLOCKS_ON_INIT<{ activated: boolean }>(
         'tengu-off-switch',
@@ -1094,7 +1102,11 @@ async function* queryModel(
   ) {
     logEvent('tengu_off_switch_query', {})
     yield getAssistantMessageFromError(
-      new Error(CUSTOM_OFF_SWITCH_MESSAGE),
+      new Error(
+        isFableModel(options.model)
+          ? FABLE_OFF_SWITCH_MESSAGE
+          : CUSTOM_OFF_SWITCH_MESSAGE,
+      ),
       options.model,
     )
     return
@@ -1911,6 +1923,10 @@ async function* queryModel(
   let stopReason: BetaStopReason | null = null
   let didFallBackToNonStreaming = false
   let fallbackMessage: AssistantMessage | undefined
+  // Official 2.1.170 refusal-fallback credit: the credit is minted at most once
+  // per streaming response (bundle `q$`). A fallback credit is only ever
+  // minted on a refusal that carries a `fallback_credit_token` in stop_details.
+  let fallbackCreditMinted = false
   let maxOutputTokens = 0
   let responseHeaders: globalThis.Headers | undefined = undefined
   let research: unknown = undefined
@@ -2458,6 +2474,50 @@ async function* queryModel(
             for (const msg of newMessages) {
               msg.message.usage = usage
               msg.message.stop_reason = stopReason
+            }
+
+            // Official 2.1.170: mint the fallback credit when a first-party
+            // refusal message_delta carries a `fallback_credit_token` in
+            // `delta.stop_details`. The token is extracted only when the
+            // session is first-party-eligible (bundle `P_H()`), then stripped
+            // from the delta stop_details so it never propagates to yielded
+            // messages / the transcript, and minted at most once per response
+            // (bundle `q$`). Verbatim bundle:
+            //   `dK = P_H() ? hx4(E6.delta.stop_details) : void 0`
+            //   `{ Lf=E6.delta.stop_details; if(Lf && "fallback_credit_token" in Lf) delete Lf.fallback_credit_token }`
+            //   `if(dK !== void 0 && !q$){ q$=!0; d("tengu_fallback_credit_minted", {...}) }`
+            // The `fallback_target_model` arm is 未覆盖: the tree has no
+            // `serverRefusalFallback` streaming flow to resolve the served
+            // fallback model from, so it is reported as undefined here.
+            {
+              const deltaStopDetails = (part.delta as unknown as {
+                stop_details?: unknown
+              }).stop_details
+              const fallbackCreditToken = isRefusalFallbackMintEligible()
+                ? extractFallbackCreditToken(deltaStopDetails)
+                : undefined
+              if (
+                deltaStopDetails !== null &&
+                typeof deltaStopDetails === 'object' &&
+                'fallback_credit_token' in deltaStopDetails
+              ) {
+                delete (deltaStopDetails as Record<string, unknown>)
+                  .fallback_credit_token
+              }
+              if (
+                fallbackCreditToken !== undefined && !fallbackCreditMinted
+              ) {
+                fallbackCreditMinted = true
+                logFallbackCreditMinted({
+                  requestId: streamRequestId ?? undefined,
+                  model: options.model,
+                  fallbackTargetModel: undefined,
+                  tokenLength: fallbackCreditToken.length,
+                  usage,
+                  querySource: options.querySource,
+                  queryTracking: options.queryTracking,
+                })
+              }
             }
 
             // Update cost

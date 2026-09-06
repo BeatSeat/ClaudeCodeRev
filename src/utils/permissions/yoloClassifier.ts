@@ -36,6 +36,7 @@ import {
   firstPartyNameToCanonical,
   getMainLoopModel,
 } from '../model/model.js'
+import { isFableFamilyThinkingModel } from '../thinking.js'
 import { getAutoModeConfig } from '../settings/settings.js'
 import { sideQuery } from '../sideQuery.js'
 import { jsonStringify } from '../slowOperations.js'
@@ -783,6 +784,10 @@ function replaceOutputFormatWithXml(systemPrompt: string): string {
 function getClassifierThinkingConfig(
   model: string,
 ): [false | undefined, number] {
+  // Official 2.1.170 `lr7` / `HnH`: Fable-family models reject `thinking: false`.
+  if (isFableFamilyThinkingModel(model)) {
+    return [undefined, 2048]
+  }
   if (
     process.env.USER_TYPE === 'ant' &&
     resolveAntModel(model)?.alwaysOnThinking
