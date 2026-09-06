@@ -175,7 +175,8 @@ export function BackgroundTasksDialog({
 }: Props): React.ReactNode {
   const tasks = useAppState(s => s.tasks)
   const foregroundedTaskId = useAppState(s => s.foregroundedTaskId)
-  const showSpinnerTree = useAppState(s => s.expandedView) === 'teammates'
+  const showSpinnerTree = false // Official 2.1.179: expandedView teammates DCE'd
+  // In spinner-tree mode, exclude teammates from the dialog (they appear in the tree)
   const setAppState = useSetAppState()
   const killAgentsShortcut = useShortcutDisplay(
     'chat:killAgents',

@@ -73,6 +73,7 @@ import {
   getErrnoPath,
   isENOENT,
   isFsInaccessible,
+  TelemetrySafeError_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
   toError,
 } from '../errors.js'
 import { execFileNoThrow, execFileNoThrowWithCwd } from '../execFileNoThrow.js'
@@ -778,6 +779,20 @@ export async function gitClone(
         `Failed to checkout commit ${sha}: ${checkoutResult.stderr}`,
       )
     }
+
+    // Official 2.1.179 `Ue4` — refuse if HEAD ≠ pin
+    try {
+      await verifyPluginShaPin(targetPath, sha, GIT_NO_PROMPT_ENV)
+    } catch (err) {
+      logPluginFetch(
+        'plugin_clone',
+        gitUrl,
+        'failure',
+        performance.now() - cloneStarted,
+        'sha_pin_mismatch',
+      )
+      throw err
+    }
   }
 
   // Fire success only after ALL network ops (clone + optional SHA fetch)
@@ -858,6 +873,32 @@ const GIT_NO_PROMPT_ENV = {
   ...process.env,
   GIT_TERMINAL_PROMPT: '0',
   GIT_ASKPASS: '',
+}
+
+/**
+ * Official 2.1.179 `Ue4` — after sha checkout, `rev-parse HEAD` must equal
+ * the pin (case-insensitive) or refuse install.
+ */
+async function verifyPluginShaPin(
+  cwd: string,
+  expectedSha: string,
+  env: NodeJS.ProcessEnv = GIT_NO_PROMPT_ENV,
+): Promise<void> {
+  const result = await execFileNoThrowWithCwd(
+    gitExe(),
+    ['rev-parse', 'HEAD'],
+    { cwd, env, stdin: 'ignore' },
+  )
+  const head = result.stdout.trim()
+  if (result.code !== 0 || head.toLowerCase() !== expectedSha.toLowerCase()) {
+    if (result.stderr) {
+      logForDebugging(`plugin SHA pin rev-parse stderr: ${result.stderr}`)
+    }
+    throw new TelemetrySafeError_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS(
+      `SHA pin verification failed: expected HEAD to be ${expectedSha}, got ${head || '(rev-parse failed)'}. The pinned commit may have been removed upstream, or a ref with the same name exists. Refusing to install.`,
+      'plugin SHA pin verification failed',
+    )
+  }
 }
 
 /**
@@ -971,6 +1012,8 @@ export async function installFromGitSubdir(
       if (checkout.code !== 0) {
         throw new Error(`Failed to checkout commit ${sha}: ${checkout.stderr}`)
       }
+      // Official 2.1.179 `Ue4` on git-subdir sha path
+      await verifyPluginShaPin(cloneDir, sha, GIT_NO_PROMPT_ENV)
       resolvedSha = sha
     } else {
       // checkout HEAD materializes the working tree (this is where blobs are

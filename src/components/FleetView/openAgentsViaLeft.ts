@@ -6,6 +6,7 @@ import {
 } from '../../services/analytics/index.js'
 import { logForDebugging } from '../../utils/debug.js'
 import { logError } from '../../utils/log.js'
+import { getAxScreenReaderSpawnEnv } from '../../utils/axScreenReaderEnv.js'
 import { getRelaunchSpec, severTtyInputForRelaunch } from '../../utils/relaunch.js'
 import { createRoot } from '../../ink.js'
 import { mountFleetView } from './mountFleetView.js'
@@ -47,7 +48,8 @@ async function spawnAgentsCli(): Promise<undefined> {
   const { cmd, prefixArgs } = getRelaunchSpec()
   const child = spawn(cmd, [...prefixArgs, 'agents'], {
     stdio: 'inherit',
-    env: { ...process.env },
+    // Official 2.1.179 `...ULH()` on agents respawn env (SELECT path is UI-owned)
+    env: { ...process.env, ...getAxScreenReaderSpawnEnv() },
   })
   severTtyInputForRelaunch()
   await new Promise<never>(() => {

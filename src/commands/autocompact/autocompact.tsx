@@ -30,7 +30,7 @@ function currentResolved(model: string) {
     : undefined
   return {
     modelWindow,
-    ...resolveAutoCompactWindow(modelWindow, settingsWindow),
+    ...resolveAutoCompactWindow(modelWindow, settingsWindow, model),
   }
 }
 
@@ -44,7 +44,7 @@ function AutoCompactDialog({
   const resolved = currentResolved(model)
   const envLocked = resolved.source === 'env'
   const initial =
-    resolved.source === 'auto'
+    resolved.source === 'auto' || resolved.source === 'clientdata'
       ? 0
       : Math.min(
           AUTO_COMPACT_WINDOW_MAX,
@@ -60,11 +60,17 @@ function AutoCompactDialog({
   const currentLabel =
     resolved.source === 'auto'
       ? 'auto'
-      : `${formatTokens(resolved.configured)} tokens (${sourceLabel(resolved.source)})${
-          resolved.configured > resolved.window
-            ? ` · capped to ${formatTokens(resolved.window)} by model`
-            : ''
-        }`
+      : resolved.source === 'clientdata'
+        ? `auto (${formatTokens(resolved.configured)} tokens)${
+            resolved.configured > resolved.window
+              ? ` · capped to ${formatTokens(resolved.window)} by model`
+              : ''
+          }`
+        : `${formatTokens(resolved.configured)} tokens (${sourceLabel(resolved.source)})${
+            resolved.configured > resolved.window
+              ? ` · capped to ${formatTokens(resolved.window)} by model`
+              : ''
+          }`
   const selectedLabel =
     selected === 0 ? 'auto' : `${formatTokens(selected)} tokens`
 
@@ -88,7 +94,7 @@ function AutoCompactDialog({
       return
     }
     const arg = selected === 0 ? 'auto' : String(selected)
-    const message = setAutoCompactWindowFromArg(arg, resolved.modelWindow)
+    const message = setAutoCompactWindowFromArg(arg, resolved.modelWindow, model)
     setAppState(prev => ({
       ...prev,
       autoCompactWindow: getInitialSettings().autoCompactWindow,
@@ -172,11 +178,9 @@ export async function call(
   const trimmed = args?.trim() || ''
   if (trimmed) {
     const { getMainLoopModel } = await import('../../utils/model/model.js')
-    const modelWindow = getContextWindowForModel(
-      getMainLoopModel(),
-      getSdkBetas(),
-    )
-    onDone(setAutoCompactWindowFromArg(trimmed, modelWindow))
+    const model = getMainLoopModel()
+    const modelWindow = getContextWindowForModel(model, getSdkBetas())
+    onDone(setAutoCompactWindowFromArg(trimmed, modelWindow, model))
     return null
   }
   return <AutoCompactDialog onDone={onDone} />

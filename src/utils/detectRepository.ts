@@ -77,6 +77,19 @@ export function getCachedRepositoryHost(): string | null {
 }
 
 /**
+ * Official 2.1.179 `llH` — owner/name segments must be alphanumeric (+._-)
+ * and must not look like options or `.` / `..`.
+ */
+function isValidGitRemoteSegment(segment: string): boolean {
+  return (
+    /^[A-Za-z0-9._-]+$/.test(segment) &&
+    !segment.startsWith('-') &&
+    segment !== '.' &&
+    segment !== '..'
+  )
+}
+
+/**
  * Parses a git remote URL into host, owner, and name components.
  * Accepts any host (github.com, GHE instances, etc.).
  *
@@ -96,6 +109,12 @@ export function parseGitRemote(input: string): ParsedRepository | null {
   const sshMatch = trimmed.match(/^git@([^:]+):([^/]+)\/([^/]+?)(?:\.git)?$/)
   if (sshMatch?.[1] && sshMatch[2] && sshMatch[3]) {
     if (!looksLikeRealHostname(sshMatch[1])) return null
+    if (
+      !isValidGitRemoteSegment(sshMatch[2]) ||
+      !isValidGitRemoteSegment(sshMatch[3])
+    ) {
+      return null
+    }
     return {
       host: sshMatch[1],
       owner: sshMatch[2],
@@ -118,6 +137,12 @@ export function parseGitRemote(input: string): ParsedRepository | null {
       protocol === 'https' || protocol === 'http'
         ? hostWithPort
         : hostWithoutPort
+    if (
+      !isValidGitRemoteSegment(urlMatch[3]) ||
+      !isValidGitRemoteSegment(urlMatch[4])
+    ) {
+      return null
+    }
     return {
       host,
       owner: urlMatch[3],
@@ -157,6 +182,12 @@ export function parseGitHubRepository(input: string): string | null {
     if (parts.length === 2 && parts[0] && parts[1]) {
       // Remove .git extension if present
       const repo = parts[1].replace(/\.git$/, '')
+      if (
+        !isValidGitRemoteSegment(parts[0]) ||
+        !isValidGitRemoteSegment(repo)
+      ) {
+        return null
+      }
       return `${parts[0]}/${repo}`
     }
   }
