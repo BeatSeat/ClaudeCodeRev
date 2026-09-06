@@ -201,7 +201,7 @@ export function isFoundationModel(modelId: string): boolean {
  * Cross-region inference profile prefixes for Bedrock.
  * These prefixes allow routing requests to models in specific regions.
  */
-const BEDROCK_REGION_PREFIXES = ['us', 'eu', 'apac', 'global'] as const
+const BEDROCK_REGION_PREFIXES = ['us', 'eu', 'apac', 'global', 'us-gov'] as const
 
 /**
  * Extract the model/inference profile ID from a Bedrock ARN.

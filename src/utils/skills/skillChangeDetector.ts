@@ -1,9 +1,10 @@
 import chokidar, { type FSWatcher } from 'chokidar'
 import * as platformPath from 'path'
-import { getAdditionalDirectoriesForClaudeMd } from '../../bootstrap/state.js'
+import { getAdditionalDirectoriesForClaudeMd, getOriginalCwd } from '../../bootstrap/state.js'
 import {
   clearCommandMemoizationCaches,
   clearCommandsCache,
+  getSkillToolCommands,
 } from '../../commands.js'
 import {
   type AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
@@ -14,7 +15,7 @@ import {
   getSkillsPath,
   onDynamicSkillsLoaded,
 } from '../../skills/loadSkillsDir.js'
-import { resetSentSkillNames } from '../attachments.js'
+import { resetSentSkillNames, unmarkSentSkillNames } from '../attachments.js'
 import { registerCleanup } from '../cleanupRegistry.js'
 import { logForDebugging } from '../debug.js'
 import { getFsImplementation } from '../fsOperations.js'
@@ -69,6 +70,24 @@ let disposed = false
 let dynamicSkillsCallbackRegistered = false
 let unregisterCleanup: (() => void) | null = null
 const skillsChanged = createSignal()
+/** Official 2.1.174 `KwA` snapshot — name → Bun.hash(description\\0whenToUse). */
+let lastSkillFingerprint: Map<string, string> | null = null
+
+async function fingerprintSkills(): Promise<Map<string, string> | null> {
+  try {
+    const skills = await getSkillToolCommands(getOriginalCwd())
+    const map = new Map<string, string>()
+    for (const q of skills) {
+      map.set(
+        q.name,
+        Bun.hash(`${q.description}\0${q.whenToUse ?? ''}`).toString(36),
+      )
+    }
+    return map
+  } catch {
+    return null
+  }
+}
 
 // Test overrides for timing constants
 let testOverrides: {
@@ -133,6 +152,7 @@ export async function initialize(): Promise<void> {
   watcher.on('add', handleChange)
   watcher.on('change', handleChange)
   watcher.on('unlink', handleChange)
+  lastSkillFingerprint = await fingerprintSkills()
 
   // Register cleanup to properly dispose of the file watcher during graceful shutdown
   unregisterCleanup = registerCleanup(async () => {
@@ -160,6 +180,7 @@ export function dispose(): Promise<void> {
   }
   pendingChangedPaths.clear()
   skillsChanged.clear()
+  lastSkillFingerprint = null
   return closePromise
 }
 
@@ -281,7 +302,25 @@ function scheduleReload(changedPath: string): void {
     }
     clearSkillCaches()
     clearCommandsCache()
-    resetSentSkillNames()
+    const next = await fingerprintSkills()
+    if (
+      next !== null &&
+      lastSkillFingerprint !== null &&
+      next.size === lastSkillFingerprint.size &&
+      [...lastSkillFingerprint].every(([name, hash]) => next.get(name) === hash)
+    ) {
+      logForDebugging(
+        `[skills] ${paths.length} fs event(s) but skill list unchanged — skipping re-announce`,
+      )
+    } else {
+      if (lastSkillFingerprint !== null) {
+        const changed = [...lastSkillFingerprint]
+          .filter(([name, hash]) => next?.get(name) !== hash)
+          .map(([name]) => name)
+        if (changed.length > 0) unmarkSentSkillNames(changed)
+      }
+      lastSkillFingerprint = next
+    }
     skillsChanged.emit()
   }, testOverrides?.reloadDebounce ?? RELOAD_DEBOUNCE_MS)
 }
@@ -306,6 +345,7 @@ export async function resetForTesting(overrides?: {
   }
   pendingChangedPaths.clear()
   skillsChanged.clear()
+  lastSkillFingerprint = null
   initialized = false
   disposed = false
   testOverrides = overrides ?? null
