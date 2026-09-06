@@ -1,0 +1,16 @@
+{
+  "version": "2.1.175",
+  "from": "2.1.174",
+  "astdiff": "0.99755",
+  "contract": "astdiff genuine-structural + added-product (changelog is classification only)",
+  "coverage": "restore-work/diffs/2.1.175-changelog-scout.md",
+  "scout": "restore-work/diffs/2.1.175-changelog-scout.md",
+  "items": [
+    {
+      "item": "Added `enforceAvailableModels` managed setting — when enabled, the `availableModels` allowlist also constrains the Default model (a Default that would resolve to a disallowed model now falls back to the first allowed model), and user or project settings can no longer widen a managed `availableModels` list",
+      "status": "located",
+      "evidence": "Official schema describe When true and availableModels is a non-empty array… 0→1; catch treat-as-true 1→2; cannot-widen after merge if(z.availableModels!==void 0)K.availableModels=[...z.availableModels]; if(z.enforceAvailableModels!==void 0)K.enforceAvailableModels=z.enforceAvailableModels. tK8/CD6/Y0/eK8 Default fallback; ANK refused/inactive+cascadeTrusted/active; eC/o9 allowlist; THH/d4$ restricted warning; H78 · Set by your organization; PBK/Sn9 startup; Aa9/za9/Ya9 print; egf model-restricted + g_9 filter. TS: types.ts, validation.ts, settings.ts snapshot overwrite, model.ts, modelAllowlist.ts, main.tsx, print.ts, StatusNotices.tsx, AgentTool onModelRestricted. footerLinksRegexes 0→0 (176)."
+    }
+  ],
+  "notes": "Typecheck delta vs /tmp/ccbase-174 empty. Build 2.1.175. Unique enforceAvailableModels 22 and schema describe 1 in dist/cli.js. Official 175 JO()=XK(Y0()). CD6/H78 trio is y6H|$JH|mnH (max / team premium / enterprise+seatTier enterprise_usage_based) — not isProSubscriber. CD6 else-if is qf (firstParty|anthropicAws|gateway); TS uses isFirstPartyApiFamily (this tree has no gateway provider). za9 is wired from apply_flag_settings (YK=za9). SDK/RC onSetModel refuse + stream-json post-init restricted warning flush landed. PAYG IZ_ suffix on Default row. Official Wj$ also treats policy-helper managedSettings as surviving admin; this tree maps remote+MDM+file only. Uiq remote path still SettingsSchema not IjH/ManagedSettingsSchema (pre-existing). nLH/IJ7 are 174 pLH/FD7 rename + Sn9 --model call-site, not 176 bg-session. Do not invent 176 footerLinksRegexes, /fast refuse, yb alias-redirect, Bedrock Expiration. Do not invent lZ_/KUK switchModelsOnFlag host (12→12, not in this tree)."
+}

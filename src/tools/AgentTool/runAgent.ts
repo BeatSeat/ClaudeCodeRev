@@ -323,6 +323,7 @@ export async function* runAgent({
   spawnedByWorkflowRunId,
   onQueryProgress,
   onMcpServersBlocked,
+  onModelRestricted,
 }: {
   agentDefinition: AgentDefinition
   promptMessages: Message[]
@@ -391,6 +392,7 @@ export async function* runAgent({
    * message is yielded for >60s. */
   onQueryProgress?: () => void
   onMcpServersBlocked?: (servers: string[], reason: string) => void
+  onModelRestricted?: (requested: string, effective: string) => void
 }): AsyncGenerator<Message, void> {
   // Track subagent usage for feature discovery
 
@@ -407,6 +409,7 @@ export async function* runAgent({
     toolUseContext.options.mainLoopModel,
     model,
     permissionMode,
+    onModelRestricted,
   )
 
   const agentId = override?.agentId ? override.agentId : createAgentId()

@@ -56,6 +56,51 @@ export function resetSettingsCache(): void {
   sessionSettingsCache = null
   perSourceCache.clear()
   parseFileCache.clear()
+  pluginSettingsBase = undefined
+  policySettingsLoadErrors = undefined
+  adminPolicyLoadErrors = undefined
+  survivingAdminPolicySource = undefined
+  policySettingsOrigin = undefined
+}
+
+let policySettingsLoadErrors: ValidationError[] | undefined
+
+export function getCachedPolicySettingsLoadErrors(): ValidationError[] | undefined {
+  return policySettingsLoadErrors
+}
+
+export function setCachedPolicySettingsLoadErrors(errors: ValidationError[]): void {
+  policySettingsLoadErrors = errors
+}
+
+let adminPolicyLoadErrors: ValidationError[] | undefined
+
+export function getCachedAdminPolicyLoadErrors(): ValidationError[] | undefined {
+  return adminPolicyLoadErrors
+}
+
+export function setCachedAdminPolicyLoadErrors(errors: ValidationError[]): void {
+  adminPolicyLoadErrors = errors
+}
+
+let survivingAdminPolicySource: boolean | undefined
+
+export function getCachedSurvivingAdminPolicySource(): boolean | undefined {
+  return survivingAdminPolicySource
+}
+
+export function setCachedSurvivingAdminPolicySource(survived: boolean): void {
+  survivingAdminPolicySource = survived
+}
+
+let policySettingsOrigin: { value: string | null } | undefined
+
+export function getCachedPolicySettingsOrigin(): { value: string | null } | undefined {
+  return policySettingsOrigin
+}
+
+export function setCachedPolicySettingsOrigin(origin: string | null): void {
+  policySettingsOrigin = { value: origin }
 }
 
 /**

@@ -1851,6 +1851,19 @@ export function isProSubscriber(): boolean {
   return getSubscriptionType() === 'pro'
 }
 
+/** Official 2.1.175 `LK7`. */
+export function getSeatTier(): string | null {
+  return getOauthAccountInfo()?.seatTier ?? null
+}
+
+/** Official 2.1.175 `mnH` — enterprise + seatTier enterprise_usage_based. */
+export function isEnterpriseUsageBasedSubscriber(): boolean {
+  return (
+    getSubscriptionType() === 'enterprise' &&
+    getSeatTier() === 'enterprise_usage_based'
+  )
+}
+
 export function getRateLimitTier(): string | null {
   if (!isAnthropicAuthEnabled()) {
     return null

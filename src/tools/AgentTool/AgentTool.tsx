@@ -70,6 +70,10 @@ import {
   normalizeMessages,
 } from '../../utils/messages.js'
 import { getAgentModel } from '../../utils/model/agent.js'
+import {
+  formatModelRestrictedWarning,
+  sanitizeModelNameForDisplay,
+} from '../../utils/model/model.js'
 import { permissionModeSchema } from '../../utils/permissions/PermissionMode.js'
 import type { PermissionResult } from '../../utils/permissions/PermissionResult.js'
 import {
@@ -954,6 +958,15 @@ export const AgentTool = buildTool({
         toolUseContext.addNotification?.({
           key: `agent-mcp-blocked-${toolUseContext.toolUseId ?? ''}`,
           text: `${selectedAgent.agentType} agent MCP ${servers.length === 1 ? 'server' : 'servers'} blocked by ${reason}: ${servers.join(', ')}`,
+          priority: 'medium',
+          color: 'warning',
+          timeoutMs: 10000,
+        })
+      },
+      onModelRestricted: (requested, effective) => {
+        toolUseContext.addNotification?.({
+          key: `agent-model-restricted-${selectedAgent.agentType}-${sanitizeModelNameForDisplay(requested)}`,
+          text: `${selectedAgent.agentType} agent: ${formatModelRestrictedWarning(requested, effective)}`,
           priority: 'medium',
           color: 'warning',
           timeoutMs: 10000,
