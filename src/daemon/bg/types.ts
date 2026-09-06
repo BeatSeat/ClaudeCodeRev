@@ -359,6 +359,24 @@ const ALLOWLISTED_BOOLEAN_FLAGS = new Set([
   '--rc',
 ])
 
+/**
+ * Official 2.1.178 `$zz` idle gate. Empty-intent when there is no agent
+ * initialPrompt, no exec, no leftover prompt, and `--reply-on-resume` is
+ * not among unconsumed argv. Spawn itself lives in `src/cli/bg.ts` (out of lock).
+ */
+export function isEmptyIdleIntent(
+  args: string[],
+  consumed: Set<number>,
+  opts?: { initialPrompt?: string; exec?: string; prompt?: string },
+): boolean {
+  return (
+    !opts?.initialPrompt &&
+    !opts?.exec &&
+    !opts?.prompt &&
+    !args.some((a, i) => !consumed.has(i) && a === '--reply-on-resume')
+  )
+}
+
 function sanitizeRespawnFlags(flags: string[]): string[] {
   const kept: string[] = []
   const stripped: string[] = []

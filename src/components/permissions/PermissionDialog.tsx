@@ -42,6 +42,7 @@ export function PermissionDialog({
             subtitle={subtitle}
             color={titleColor}
             workerBadge={workerBadge}
+            srPrefix="Permission Required:"
           />
           {titleRight}
         </Box>

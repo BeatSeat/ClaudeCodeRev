@@ -165,9 +165,14 @@ export const SDKControlSetMaxThinkingTokensRequestSchema = lazySchema(() =>
     .object({
       subtype: z.literal('set_max_thinking_tokens'),
       max_thinking_tokens: z.number().nullable(),
+      // Official 2.1.178 `bZ4`
+      thinking_display: z
+        .enum(['summarized', 'omitted'])
+        .nullable()
+        .optional(),
     })
     .describe(
-      'Sets the maximum number of thinking tokens for extended thinking.',
+      'Sets the maximum number of thinking tokens for extended thinking. thinking_display optionally sets the thinking display mode for the rest of the session: a value replaces the session display mode, null clears it back to the API default, and when omitted the display mode from session start (--thinking-display) is kept.',
     ),
 )
 

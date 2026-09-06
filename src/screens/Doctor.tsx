@@ -7,6 +7,8 @@ import React, {
   useMemo,
   useState,
 } from 'react'
+import { DoctorSectionTitle } from 'src/components/design-system/DoctorSectionTitle.js'
+import { List } from 'src/components/design-system/List.js'
 import { StatusIcon } from 'src/components/design-system/StatusIcon.js'
 import { KeybindingWarnings } from 'src/components/KeybindingWarnings.js'
 import { McpParsingWarnings } from 'src/components/mcp/McpParsingWarnings.js'
@@ -15,8 +17,11 @@ import { getClaudeConfigHomeDir } from 'src/utils/envUtils.js'
 import type { SettingSource } from 'src/utils/settings/constants.js'
 import type { LocalJSXCommandOnDone } from '../types/command.js'
 import { getOriginalCwd } from '../bootstrap/state.js'
+import { Byline } from '../components/design-system/Byline.js'
+import { KeyboardShortcutHint } from '../components/design-system/KeyboardShortcutHint.js'
 import { Pane } from '../components/design-system/Pane.js'
 import { SandboxDoctorSection } from '../components/sandbox/SandboxDoctorSection.js'
+import { SkillsDoctorSection } from '../components/skills/SkillsDoctorSection.js'
 import { ValidationErrorsList } from '../components/ValidationErrorsList.js'
 import { useSettingsErrors } from '../hooks/notifs/useSettingsErrors.js'
 import { useExitOnCtrlCDWithKeybindings } from '../hooks/useExitOnCtrlCDWithKeybindings.js'
@@ -24,6 +29,7 @@ import { Box, Text } from '../ink.js'
 import { useKeybindings } from '../keybindings/useKeybinding.js'
 import { useAppState } from '../state/AppState.js'
 import { getPluginErrorMessage } from '../types/plugin.js'
+import { plural } from '../utils/stringUtils.js'
 import { getAutoupdateHeldErrors } from '../utils/plugins/pluginAutoupdate.js'
 import {
   getGcsDistTags,
@@ -61,7 +67,6 @@ import {
   getCachedKeybindingWarnings,
   getKeybindingsPath,
 } from '../keybindings/loadUserBindings.js'
-import { useShortcutDisplay } from '../keybindings/useShortcutDisplay.js'
 
 type Props = {
   onDone: LocalJSXCommandOnDone
@@ -164,7 +169,13 @@ export function Doctor({ onDone }: Props): React.ReactNode {
   const agentDefinitions = useAppState(s => s.agentDefinitions)
   const mcpTools = useAppState(s => s.mcp.tools)
   const toolPermissionContext = useAppState(s => s.toolPermissionContext)
+  const mcpClients = useAppState(s => s.mcp.clients)
   const pluginsErrorsFromState = useAppState(s => s.plugins.errors)
+  // Official 2.1.178 `DMq`: drop `ineffective-disable` plugin notes.
+  const pluginWarnings = useAppState(s => {
+    const extra = s.plugins as { warnings?: Array<{ type: string }> }
+    return (extra.warnings ?? []).filter(w => w.type !== 'ineffective-disable')
+  })
   // Official 2.1.118: autoupdate-held errors may land after startup load.
   const pluginsErrors = [
     ...pluginsErrorsFromState,
@@ -176,7 +187,13 @@ export function Doctor({ onDone }: Props): React.ReactNode {
         ),
     ),
   ]
-  useExitOnCtrlCDWithKeybindings()
+  const mcpNotConnected = useMemo(
+    () =>
+      mcpClients.filter(
+        c => c.type === 'failed' || c.type === 'needs-auth',
+      ),
+    [mcpClients],
+  )
 
   const tools = useMemo(() => {
     return mcpTools || []
@@ -303,6 +320,9 @@ export function Doctor({ onDone }: Props): React.ReactNode {
     onDone('Claude Code diagnostics dismissed', { display: 'system' })
   }, [onDone])
 
+  // Official 2.1.178 `DMq`/`bY(z)` — double-press shows "again to close".
+  const exitState = useExitOnCtrlCDWithKeybindings(handleDismiss)
+
   const fixPrompt = useMemo(
     () =>
       buildDoctorFixPrompt(
@@ -322,8 +342,6 @@ export function Doctor({ onDone }: Props): React.ReactNode {
       envValidationErrors,
     ],
   )
-
-  const enterShortcut = useShortcutDisplay('confirm:yes', 'Confirmation', 'Enter')
 
   // Handle dismiss via keybindings (Enter, Escape, or Ctrl+C)
   useKeybindings(
@@ -459,6 +477,7 @@ export function Doctor({ onDone }: Props): React.ReactNode {
       </Box>
 
       <SandboxDoctorSection />
+      <SkillsDoctorSection />
 
       <McpParsingWarnings />
 
@@ -524,23 +543,83 @@ export function Doctor({ onDone }: Props): React.ReactNode {
         </Box>
       )}
 
-      {/* Plugin Errors */}
-      {pluginsErrors.length > 0 && (
-        <Box flexDirection="column">
-          <Text>
-            <StatusIcon status="error" withSpace />
-            <Text bold>Plugin errors</Text>
-          </Text>
-          <Text color="error">
-            └ {pluginsErrors.length} plugin error(s) detected:
-          </Text>
-          {pluginsErrors.map((error, i) => (
-            <Text key={i} dimColor>
-              {'  '}└ {error.source || 'unknown'}
-              {'plugin' in error && error.plugin ? ` [${error.plugin}]` : ''}:{' '}
-              {getPluginErrorMessage(error)}
-            </Text>
-          ))}
+      {/* Official 2.1.178 `o49` — TZ + XK + C8 */}
+      {(pluginsErrors.length > 0 || pluginWarnings.length > 0) && (
+        <>
+          {pluginsErrors.length > 0 && (
+            <Box flexDirection="column" marginTop={1}>
+              <DoctorSectionTitle title="Plugin errors" status="error" />
+              <List variant="tree">
+                <List.Node color="error">
+                  {`${pluginsErrors.length} plugin ${plural(pluginsErrors.length, 'error')} detected:`}
+                </List.Node>
+                {pluginsErrors.map((error, i) => (
+                  <List.Node key={i} dimColor>
+                    {error.source || 'unknown'}
+                    {'plugin' in error && error.plugin
+                      ? ` [${error.plugin}]`
+                      : ''}
+                    {': '}
+                    {getPluginErrorMessage(error)}
+                  </List.Node>
+                ))}
+              </List>
+            </Box>
+          )}
+          {pluginWarnings.length > 0 && (
+            <Box flexDirection="column" marginTop={1}>
+              <DoctorSectionTitle title="Plugin notes" status="warning" />
+              <List variant="tree">
+                <List.Node color="warning">
+                  {`${pluginWarnings.length} plugin ${plural(pluginWarnings.length, 'note')}:`}
+                </List.Node>
+                {pluginWarnings.map((warning, i) => (
+                  <List.Node key={i} dimColor>
+                    {'source' in warning && typeof warning.source === 'string'
+                      ? warning.source
+                      : warning.type}
+                  </List.Node>
+                ))}
+              </List>
+            </Box>
+          )}
+        </>
+      )}
+
+      {/* Official 2.1.178 `n49` */}
+      {mcpNotConnected.length > 0 && (
+        <Box flexDirection="column" marginTop={1}>
+          <DoctorSectionTitle
+            title="MCP servers"
+            status={mcpNotConnected.some(c => c.type === 'failed') ? 'error' : 'warning'}
+          />
+          <List variant="tree">
+            <List.Node
+              color={
+                mcpNotConnected.some(c => c.type === 'failed')
+                  ? 'error'
+                  : 'warning'
+              }
+            >
+              {`${mcpNotConnected.length} MCP ${plural(mcpNotConnected.length, 'server')} not connected — run /mcp to authenticate, retry, or see details:`}
+            </List.Node>
+            {mcpNotConnected.map((client, i) => (
+              <List.Node key={i} dimColor>
+                {client.name}
+                {': '}
+                {client.type === 'needs-auth'
+                  ? 'needs authentication'
+                  : 'errorCode' in client &&
+                      (client as { errorCode?: string }).errorCode ===
+                        'INVALID_CONFIG'
+                    ? 'config issue'
+                    : 'failed'}
+                {client.type === 'failed' && client.error
+                  ? ` — ${client.error}`
+                  : ''}
+              </List.Node>
+            ))}
+          </List>
         </Box>
       )}
 
@@ -565,79 +644,71 @@ export function Doctor({ onDone }: Props): React.ReactNode {
         </Box>
       )}
 
-      {/* Context Usage Warnings */}
+      {/* Official 2.1.178 `Q49` — context warnings as XK.Group */}
       {contextWarnings &&
         (contextWarnings.claudeMdWarning ||
           contextWarnings.agentWarning ||
           contextWarnings.mcpWarning) && (
-          <Box flexDirection="column">
-            <Text bold>Context Usage Warnings</Text>
-
-            {contextWarnings.claudeMdWarning && (
-              <>
-                <Text>
-                  └{' '}
-                  <Text color="warning">
-                    <StatusIcon status="warning" withSpace />
+          <Box flexDirection="column" marginTop={1}>
+            <DoctorSectionTitle
+              title="Context usage warnings"
+              status="warning"
+            />
+            <List variant="tree">
+              {contextWarnings.claudeMdWarning && (
+                <List.Group>
+                  <List.Node color="warning">
                     {contextWarnings.claudeMdWarning.message}
-                  </Text>
-                </Text>
-                <Text>{'  '}└ Files:</Text>
-                {contextWarnings.claudeMdWarning.details.map((detail, i) => (
-                  <Text key={i} dimColor>
-                    {'    '}└ {detail}
-                  </Text>
-                ))}
-              </>
-            )}
-
-            {contextWarnings.agentWarning && (
-              <>
-                <Text>
-                  └{' '}
-                  <Text color="warning">
-                    <StatusIcon status="warning" withSpace />
+                  </List.Node>
+                  {contextWarnings.claudeMdWarning.details.map((detail, i) => (
+                    <List.Node key={i} dimColor>
+                      {detail}
+                    </List.Node>
+                  ))}
+                </List.Group>
+              )}
+              {contextWarnings.agentWarning && (
+                <List.Group>
+                  <List.Node color="warning">
                     {contextWarnings.agentWarning.message}
-                  </Text>
-                </Text>
-                <Text>{'  '}└ Top contributors:</Text>
-                {contextWarnings.agentWarning.details.map((detail, i) => (
-                  <Text key={i} dimColor>
-                    {'    '}└ {detail}
-                  </Text>
-                ))}
-              </>
-            )}
-
-            {contextWarnings.mcpWarning && (
-              <>
-                <Text>
-                  └{' '}
-                  <Text color="warning">
-                    <StatusIcon status="warning" withSpace />
+                  </List.Node>
+                  {contextWarnings.agentWarning.details.map((detail, i) => (
+                    <List.Node key={i} dimColor>
+                      {detail}
+                    </List.Node>
+                  ))}
+                </List.Group>
+              )}
+              {contextWarnings.mcpWarning && (
+                <List.Group>
+                  <List.Node color="warning">
                     {contextWarnings.mcpWarning.message}
-                  </Text>
-                </Text>
-                <Text>{'  '}└ MCP servers:</Text>
-                {contextWarnings.mcpWarning.details.map((detail, i) => (
-                  <Text key={i} dimColor>
-                    {'    '}└ {detail}
-                  </Text>
-                ))}
-              </>
-            )}
+                  </List.Node>
+                  {contextWarnings.mcpWarning.details.map((detail, i) => (
+                    <List.Node key={i} dimColor>
+                      {detail}
+                    </List.Node>
+                  ))}
+                </List.Group>
+              )}
+            </List>
           </Box>
         )}
 
       <Box marginTop={1}>
-        <Text color="permission">
-          Press {enterShortcut} to continue
-          {fixPrompt ? (
+        <Text dimColor italic>
+          {exitState.pending ? (
             <>
-              {' · '}
-              <Text bold>f</Text> to fix with Claude
+              Press {exitState.keyName} again to close
             </>
-          ) : null}
+          ) : (
+            <Byline>
+              <KeyboardShortcutHint chord="enter" action="close" />
+              {fixPrompt ? (
+                <KeyboardShortcutHint shortcut="f" action="fix with Claude" />
+              ) : null}
+            </Byline>
+          )}
         </Text>
       </Box>
     </Pane>

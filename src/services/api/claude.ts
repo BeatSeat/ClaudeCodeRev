@@ -92,6 +92,7 @@ import {
   stripToolReferenceBlocksFromUserMessage,
 } from '../../utils/messages.js'
 import {
+  getCanonicalName,
   getDefaultOpusModel,
   getDefaultSonnetModel,
   getSmallFastModel,
@@ -99,6 +100,10 @@ import {
   isMythosModel,
   isNonCustomOpusModel,
 } from '../../utils/model/model.js'
+import {
+  getModelErrorOverrideBlock,
+  hasModelErrorOverrides,
+} from '../../utils/model/modelErrorOverrides.js'
 import {
   asSystemPrompt,
   type SystemPrompt,
@@ -247,6 +252,11 @@ import {
   getStreamIdleTimeoutMs,
   StreamIdleTimeoutError,
 } from './client.js'
+import {
+  FOUNDRY_PURPOSE_REQUEST_FAIL,
+  getFoundryCapabilityRetry,
+  stripFoundryUnsupportedToolFields,
+} from './foundryCapabilities.js'
 import {
   API_ERROR_MESSAGE_PREFIX,
   CUSTOM_OFF_SWITCH_MESSAGE,
@@ -947,6 +957,15 @@ export async function* executeNonStreamingRequest(
       initialConsecutive529Errors: retryOptions.initialConsecutive529Errors,
       querySource: retryOptions.querySource,
       isNonStreamingRequest: true,
+      onError: async error => {
+        const foundryRetry = getFoundryCapabilityRetry(
+          error,
+          retryOptions.model,
+          retryOptions.querySource,
+        )
+        if (foundryRetry === FOUNDRY_PURPOSE_REQUEST_FAIL) return
+        if (foundryRetry !== null) return foundryRetry
+      },
     },
   )
 
@@ -1094,6 +1113,31 @@ async function* queryModel(
       ),
       options.model,
     )
+    return
+  }
+
+  // Official 2.1.178 `nZ6` / `FcK` / `QcK`.
+  let modelErrorOverrideBlock: string | null = null
+  try {
+    if (hasModelErrorOverrides()) {
+      modelErrorOverrideBlock = await getModelErrorOverrideBlock(
+        getCanonicalName(options.model),
+      )
+    }
+  } catch (error) {
+    logForDebugging(
+      `tengu-model-error-overrides block check failed: ${error}`,
+      { level: 'error' },
+    )
+  }
+  if (modelErrorOverrideBlock !== null) {
+    logEvent('tengu_off_switch_query', {
+      tier: 'per_model_block' as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
+    })
+    yield createAssistantAPIErrorMessage({
+      content: modelErrorOverrideBlock,
+      error: 'rate_limit',
+    })
     return
   }
 
@@ -1801,7 +1845,7 @@ async function* queryModel(
         options.skipCacheWrite,
       ),
       system,
-      tools: allTools,
+      tools: stripFoundryUnsupportedToolFields(allTools, options.model),
       tool_choice: options.toolChoice,
       ...(useBetas && { betas: betasParams }),
       metadata: getAPIMetadata(),
@@ -1990,6 +2034,14 @@ async function* queryModel(
               return `retry:image-dimension:${loc.messageIdx}.${loc.contentIdx}`
             }
           }
+          // Official 2.1.178 `ff8`.
+          const foundryRetry = getFoundryCapabilityRetry(
+            error,
+            options.model,
+            options.querySource,
+          )
+          if (foundryRetry === FOUNDRY_PURPOSE_REQUEST_FAIL) return
+          if (foundryRetry !== null) return foundryRetry
         },
       },
     )

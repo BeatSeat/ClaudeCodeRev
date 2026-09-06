@@ -1,6 +1,6 @@
 import { feature } from 'bun:bundle'
 import { z } from 'zod/v4'
-import { isReplBridgeActive } from '../../bootstrap/state.js'
+import { getSessionId, isReplBridgeActive } from '../../bootstrap/state.js'
 import { getReplBridgeHandle } from '../../bridge/replBridgeHandle.js'
 import type { Tool, ToolUseContext } from '../../Tool.js'
 import { buildTool, type ToolDef } from '../../Tool.js'
@@ -10,11 +10,13 @@ import {
   queuePendingMessage,
 } from '../../tasks/LocalAgentTask/LocalAgentTask.js'
 import { isMainSessionTask } from '../../tasks/LocalMainSessionTask.js'
-import { toAgentId } from '../../types/ids.js'
+import { asAgentId, toAgentId } from '../../types/ids.js'
+import type { MessageOrigin } from '../../types/message.js'
 import { generateRequestId } from '../../utils/agentId.js'
 import { isAgentSwarmsEnabled } from '../../utils/agentSwarmsEnabled.js'
 import { logForDebugging } from '../../utils/debug.js'
 import { errorMessage } from '../../utils/errors.js'
+import { enqueue } from '../../utils/messageQueueManager.js'
 import { truncate } from '../../utils/format.js'
 import { gracefulShutdown } from '../../utils/gracefulShutdown.js'
 import { lazySchema } from '../../utils/lazySchema.js'
@@ -39,7 +41,7 @@ import {
   writeToMailbox,
 } from '../../utils/teammateMailbox.js'
 import { resumeAgentBackground } from '../AgentTool/resumeAgent.js'
-import { SEND_MESSAGE_TOOL_NAME } from './constants.js'
+import { MAIN_CONVERSATION_NAME, SEND_MESSAGE_TOOL_NAME } from './constants.js'
 import { DESCRIPTION, getPrompt } from './prompt.js'
 import { renderToolResultMessage, renderToolUseMessage } from './UI.js'
 
@@ -144,6 +146,30 @@ function findTeammateColor(
     }
   }
   return undefined
+}
+
+/** Official 2.1.178 `Mg4` — name for a sender agentId. */
+function senderNameForAgent(
+  context: ToolUseContext,
+  agentId: string,
+): string | undefined {
+  const state = context.getAppState()
+  for (const [name, id] of state.agentNameRegistry) {
+    if (id === agentId) return name
+  }
+  const task = state.tasks[agentId]
+  if (isLocalAgentTask(task)) return task.agentType
+  return getAgentName()
+}
+
+/** Official 2.1.178 SendMessage origin (`z`). */
+function sendMessageOrigin(context: ToolUseContext): MessageOrigin {
+  const agentId = context.agentId
+  const from = agentId ? senderNameForAgent(context, agentId) : undefined
+  if (agentId !== undefined && from !== undefined) {
+    return { kind: 'peer', from, senderTaskId: agentId } as MessageOrigin
+  }
+  return { kind: 'coordinator' }
 }
 
 async function handleMessage(
@@ -797,12 +823,44 @@ export const SendMessageTool: Tool<InputSchema, SendMessageToolOutput> =
         }
       }
 
+      // Official 2.1.178: `"main"` is reserved for the parent conversation.
+      if (
+        typeof input.message === 'string' &&
+        input.to === MAIN_CONVERSATION_NAME
+      ) {
+        if (context.agentId === undefined) {
+          return {
+            data: {
+              success: false,
+              message: `You are the main conversation — "${MAIN_CONVERSATION_NAME}" addresses you. Send to a named agent instead.`,
+            },
+          }
+        }
+        enqueue({
+          mode: 'prompt',
+          agentId: asAgentId(getSessionId()),
+          value: input.message,
+          priority: 'next',
+          origin: sendMessageOrigin(context),
+          skipSlashCommands: true,
+          isMeta: true,
+        })
+        return {
+          data: {
+            success: true,
+            message:
+              "Message queued for the main conversation's next turn.",
+          },
+        }
+      }
+
       // Route to in-process subagent by name or raw agentId before falling
       // through to ambient-team resolution. Stopped agents are auto-resumed.
       if (typeof input.message === 'string' && input.to !== '*') {
         const appState = context.getAppState()
         const registered = appState.agentNameRegistry.get(input.to)
         const agentId = registered ?? toAgentId(input.to)
+        const promptOrigin = sendMessageOrigin(context)
         if (agentId) {
           const task = appState.tasks[agentId]
           if (isLocalAgentTask(task) && !isMainSessionTask(task)) {
@@ -824,6 +882,7 @@ export const SendMessageTool: Tool<InputSchema, SendMessageToolOutput> =
               const result = await resumeAgentBackground({
                 agentId,
                 prompt: input.message,
+                promptOrigin,
                 toolUseContext: context,
                 canUseTool,
                 invokingRequestId: assistantMessage?.requestId,
@@ -851,6 +910,7 @@ export const SendMessageTool: Tool<InputSchema, SendMessageToolOutput> =
               const result = await resumeAgentBackground({
                 agentId,
                 prompt: input.message,
+                promptOrigin,
                 toolUseContext: context,
                 canUseTool,
                 invokingRequestId: assistantMessage?.requestId,

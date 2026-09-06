@@ -4,6 +4,7 @@ import { getSystemPrompt } from '../../constants/prompts.js'
 import { isCoordinatorMode } from '../../coordinator/coordinatorMode.js'
 import type { CanUseToolFn } from '../../hooks/useCanUseTool.js'
 import type { ToolUseContext } from '../../Tool.js'
+import type { MessageOrigin } from '../../types/message.js'
 import {
   isLocalAgentTask,
   registerAsyncAgent,
@@ -38,6 +39,7 @@ import { GENERAL_PURPOSE_AGENT } from './built-in/generalPurposeAgent.js'
 import { FORK_AGENT, isForkSubagentEnabled } from './forkSubagent.js'
 import type { AgentDefinition } from './loadAgentsDir.js'
 import { isBuiltInAgent } from './loadAgentsDir.js'
+import { resolveExploreAgentModel } from './built-in/exploreAgent.js'
 import { runAgent } from './runAgent.js'
 
 export type ResumeAgentResult = {
@@ -48,12 +50,16 @@ export type ResumeAgentResult = {
 export async function resumeAgentBackground({
   agentId,
   prompt,
+  promptOrigin,
+  promptIsMeta,
   toolUseContext,
   canUseTool,
   invokingRequestId,
 }: {
   agentId: string
   prompt: string
+  promptOrigin?: MessageOrigin
+  promptIsMeta?: boolean
   toolUseContext: ToolUseContext
   canUseTool: CanUseToolFn
   invokingRequestId?: string
@@ -155,7 +161,10 @@ export async function resumeAgentBackground({
 
   // Resolve model for analytics metadata (runAgent resolves its own internally)
   const resolvedAgentModel = getAgentModel(
-    selectedAgent.model,
+    resolveExploreAgentModel(
+      selectedAgent,
+      toolUseContext.options.mainLoopModel,
+    ),
     toolUseContext.options.mainLoopModel,
     undefined,
     permissionMode,
@@ -179,7 +188,16 @@ export async function resumeAgentBackground({
     agentDefinition: selectedAgent,
     promptMessages: [
       ...resumedMessages,
-      createUserMessage({ content: prompt }),
+      promptOrigin
+        ? createUserMessage({
+            content: prompt,
+            origin: promptOrigin,
+            isMeta: true,
+          })
+        : createUserMessage({
+            content: prompt,
+            ...(promptIsMeta ? { isMeta: true as const } : {}),
+          }),
     ],
     toolUseContext,
     canUseTool,

@@ -66,6 +66,7 @@ import { clearSessionHooks } from '../../utils/hooks/sessionHooks.js'
 import { executeSubagentStartHooks } from '../../utils/hooks.js'
 import { createUserMessage } from '../../utils/messages.js'
 import { getAgentModel } from '../../utils/model/agent.js'
+import { resolveExploreAgentModel } from './built-in/exploreAgent.js'
 import type { ModelAlias } from '../../utils/model/aliases.js'
 import { isBareMode } from '../../utils/envUtils.js'
 import {
@@ -405,7 +406,10 @@ export async function* runAgent({
     toolUseContext.setAppStateForTasks ?? toolUseContext.setAppState
 
   const resolvedAgentModel = getAgentModel(
-    agentDefinition.model,
+    resolveExploreAgentModel(
+      agentDefinition,
+      toolUseContext.options.mainLoopModel,
+    ),
     toolUseContext.options.mainLoopModel,
     model,
     permissionMode,

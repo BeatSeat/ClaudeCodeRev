@@ -23,6 +23,19 @@ export function isHookEvent(value: string): value is HookEvent {
   return HOOK_EVENTS.includes(value as HookEvent)
 }
 
+/**
+ * Official 2.1.178 `go` (176 `Xo`) — `requestUserDialog` refusal fallback.
+ * Dispatcher lives with MCP elicitation (print/structuredIO, out of this lock).
+ */
+export const USER_DIALOG_KIND_REFUSAL_FALLBACK = 'refusal_fallback_prompt' as const
+
+/**
+ * Official 2.1.178 `tOH` — second `requestUserDialog` kind
+ * (`B61` is `q.kind===go.kind||q.kind===tOH.kind`).
+ */
+export const USER_DIALOG_KIND_FABLE_OVERAGE_CONSENT =
+  'fable_overage_consent_prompt' as const
+
 // Prompt elicitation protocol types. The `prompt` key acts as discriminator
 // (mirroring the {async:true} pattern), with the id as its value.
 export const promptRequestSchema = lazySchema(() =>

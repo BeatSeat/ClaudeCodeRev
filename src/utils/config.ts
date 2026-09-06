@@ -615,6 +615,9 @@ export type GlobalConfig = {
   // undefined = no cache, null = extra usage enabled, string = disabled reason.
   cachedExtraUsageDisabledReason?: string | null
 
+  /** Official 2.1.178 `fableOverageConsent` — org/acct keys from `cEH`/`by_`. */
+  fableOverageConsent?: Record<string, boolean>
+
   // Auto permissions notification tracking (ant-only)
   autoPermissionsNotificationCount?: number // Number of times the auto permissions notification has been shown
 

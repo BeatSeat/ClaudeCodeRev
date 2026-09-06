@@ -25,15 +25,22 @@ import {
   NO_RESPONSE_REQUESTED,
 } from 'src/utils/messages.js'
 import { stripTrailing1mSuffix } from 'src/utils/model/modelAllowlist.js'
+import { getGlobalConfig } from 'src/utils/config.js'
+import { hasClaudeAiBillingAccess } from 'src/utils/billing.js'
 import {
   firstPartyNameToCanonical,
   getDefaultMainLoopModelSetting,
+  isFableClassifierMainModel,
   isFableModel,
   isMythosModel,
   isNonCustomOpusModel,
   modelIdStartsWithFableFamily,
   renderModelName,
 } from 'src/utils/model/model.js'
+import {
+  hasFableOverageConsent,
+  setFableCreditsRequired,
+} from 'src/utils/model/fableOverages.js'
 import { getModelStrings } from 'src/utils/model/modelStrings.js'
 import { getAPIProvider, isFirstPartyApiFamily } from 'src/utils/model/providers.js'
 import {
@@ -161,6 +168,36 @@ export function isMediaSizeErrorMessage(msg: AssistantMessage): boolean {
     msg.errorDetails !== undefined &&
     isMediaSizeError(msg.errorDetails)
   )
+}
+
+/**
+ * Official 2.1.178 `exf` — Fable 5 usage-credit 429 copy by overage reason.
+ */
+export function getFable5CreditsErrorMessage(
+  reason: string | null | undefined,
+): string {
+  switch (reason) {
+    case 'out_of_credits':
+      return "Fable 5 uses usage credits and you're out · run /usage-credits to add funds, or /model to switch models"
+    case 'org_spend_cap_reached':
+    case 'org_level_disabled_until':
+      return hasClaudeAiBillingAccess()
+        ? 'Fable 5 uses usage credits and your monthly limit is reached · run /usage-credits to adjust it, or /model to switch models'
+        : 'Fable 5 uses usage credits and your monthly limit is reached · ask your admin to raise it, or /model to switch models'
+    case 'org_level_disabled':
+    case 'org_service_level_disabled':
+      return "Fable 5 uses usage credits, which your organization has turned off · /model to switch models"
+    case 'seat_tier_level_disabled':
+    case 'seat_tier_zero_credit_limit':
+    case 'member_level_disabled':
+    case 'member_zero_credit_limit':
+    case 'group_zero_credit_limit':
+      return "Fable 5 uses usage credits, which aren't available for your account · /model to switch models"
+    default:
+      return hasFableOverageConsent()
+        ? 'Fable 5 now uses usage credits · run /usage-credits to turn them on, or /model to switch models'
+        : 'Fable 5 now uses usage credits · run /model to continue with Fable 5 or switch models'
+  }
 }
 
 /** Official 2.1.172 `f1q`. */
@@ -549,8 +586,20 @@ export function getAssistantMessageFromError(
       'anthropic-ratelimit-unified-overage-status',
     ) as 'allowed' | 'allowed_warning' | 'rejected' | null
 
+    // Official 2.1.178 `txf` `z` — Fable credits 429, not the 1M-context path.
+    const isFableCreditsRequired =
+      isSubscriberRateLimit &&
+      isFableClassifierMainModel(model) &&
+      error.message.toLowerCase().includes('usage credits are required') &&
+      !isLongContextCreditsError(error.message)
+
     // If we have the new headers, use the new message generation
-    if (isSubscriberRateLimit && (rateLimitType || overageStatus)) {
+    // Official 2.1.178: skip this branch when the Fable-credits path owns the 429.
+    if (
+      isSubscriberRateLimit &&
+      (rateLimitType || overageStatus) &&
+      !isFableCreditsRequired
+    ) {
       // Build limits object from error headers to determine the appropriate message
       const limits: ClaudeAILimits = {
         status: 'rejected',
@@ -616,13 +665,15 @@ export function getAssistantMessageFromError(
       setLongContext1mCreditsBlocked(true)
       logEvent('tengu_1m_credits_clamp_activated', {})
     }
-    if (
-      isSubscriberRateLimit &&
-      modelIdStartsWithFableFamily(model) &&
-      error.message.toLowerCase().includes('usage credits are required')
-    ) {
+    if (isFableCreditsRequired) {
+      // Official 2.1.178 `G3$` + `exf`.
+      setFableCreditsRequired(true)
+      const overageReason =
+        error.headers?.get?.(
+          'anthropic-ratelimit-unified-overage-disabled-reason',
+        ) ?? getGlobalConfig().cachedExtraUsageDisabledReason
       return createAssistantAPIErrorMessage({
-        content: `${API_ERROR_MESSAGE_PREFIX}: Fable 5 requires usage credits. Update Claude Code to the latest version to learn more`,
+        content: `${API_ERROR_MESSAGE_PREFIX}: ${getFable5CreditsErrorMessage(overageReason)}`,
         error: 'rate_limit',
         errorDetails: error.message,
       })
@@ -658,6 +709,16 @@ export function getAssistantMessageFromError(
       innerMessage = stripped.match(/"message"\s*:\s*"([^"]*)"/)?.[1]
     }
     const detail = innerMessage || stripped
+    // Official 176/178: subscriber + overage-disabled-reason → raw inner text.
+    if (
+      isSubscriberRateLimit &&
+      error.headers?.get?.('anthropic-ratelimit-unified-overage-disabled-reason')
+    ) {
+      return createAssistantAPIErrorMessage({
+        content: detail,
+        error: 'rate_limit',
+      })
+    }
     const fallback = isFirstPartyApiFamily()
       ? `this may be a temporary capacity issue — check ${STATUS_CLAUDE_COM}`
       : 'this may be a temporary capacity issue'

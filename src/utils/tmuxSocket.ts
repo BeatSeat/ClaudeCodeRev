@@ -23,9 +23,13 @@
  * user's TMUX in all child processes spawned by Shell.ts.
  */
 
+import { spawnSync } from 'child_process'
 import { posix } from 'path'
+import { getIsInteractive } from '../bootstrap/state.js'
+import { isTeammate } from './teammate.js'
 import { registerCleanup } from './cleanupRegistry.js'
 import { logForDebugging } from './debug.js'
+import { isEnvTruthy } from './envUtils.js'
 import { toError } from './errors.js'
 import { execFileNoThrow } from './execFileNoThrow.js'
 import { logError } from './log.js'
@@ -83,6 +87,81 @@ let tmuxAvailable = false
 // Track whether the Tmux tool has been used at least once
 // Used to defer socket initialization until actually needed
 let tmuxToolUsed = false
+
+/** Official 2.1.178 `oP6` / `D18` — test override + cache for `iG_`. */
+let childSessionOverride: (() => boolean) | null = null
+let childSessionCached: boolean | null = null
+
+/** Official 2.1.178 `lG_`. */
+export function setChildSessionOverride(
+  fn: (() => boolean) | null,
+): void {
+  childSessionOverride = fn
+  childSessionCached = null
+}
+
+/** Official 2.1.178 `nG_`. */
+export function isClaudeCodeChildSession(): boolean {
+  if (childSessionCached === null) {
+    childSessionCached = detectClaudeCodeChildSession()
+  }
+  return childSessionCached
+}
+
+/**
+ * Official 2.1.178 `wEH`. Skip persist when a parent inherited
+ * `CLAUDE_CODE_CHILD_SESSION` but this process is not a tmux child session.
+ * `Ez()` (`isTeammate`) keeps teammate sessions writing transcripts.
+ */
+export function shouldSkipPersistForStaleChildSession(): boolean {
+  if (isEnvTruthy(process.env.CLAUDE_CODE_FORCE_SESSION_PERSISTENCE)) {
+    return false
+  }
+  if (
+    !(
+      process.env.CLAUDE_CODE_CHILD_SESSION &&
+      getIsInteractive() &&
+      !isTeammate()
+    )
+  ) {
+    return false
+  }
+  return !isClaudeCodeChildSession()
+}
+
+/**
+ * Official 2.1.178 `iG_`. True when this process is a tmux child session
+ * (`show-environment -g CLAUDE_CODE_CHILD_SESSION`).
+ */
+function detectClaudeCodeChildSession(): boolean {
+  if (childSessionOverride) {
+    try {
+      return childSessionOverride()
+    } catch {
+      return false
+    }
+  }
+  if (!process.env.TMUX) return false
+  let result: ReturnType<typeof spawnSync>
+  try {
+    result = spawnSync(
+      'tmux',
+      ['show-environment', '-g', 'CLAUDE_CODE_CHILD_SESSION'],
+      { encoding: 'utf8', timeout: 250, stdio: ['ignore', 'pipe', 'ignore'] },
+    )
+  } catch {
+    return false
+  }
+  if (result.status !== 0) return false
+  return stdoutHasChildSession(String(result.stdout ?? ''))
+}
+
+/** Official 2.1.178 `jIK`. */
+export function stdoutHasChildSession(stdout: string): boolean {
+  return stdout
+    .split('\n')
+    .some(line => line.startsWith('CLAUDE_CODE_CHILD_SESSION='))
+}
 
 /**
  * Gets the socket name for Claude's isolated tmux session.
@@ -424,4 +503,6 @@ export function resetSocketState(): void {
   tmuxAvailabilityChecked = false
   tmuxAvailable = false
   tmuxToolUsed = false
+  childSessionOverride = null
+  childSessionCached = null
 }

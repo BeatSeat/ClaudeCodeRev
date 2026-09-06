@@ -42,6 +42,7 @@ import { CompactBoundaryMessage } from './messages/CompactBoundaryMessage.js'
 import { GroupedToolUseContent } from './messages/GroupedToolUseContent.js'
 import { SystemTextMessage } from './messages/SystemTextMessage.js'
 import { UserImageMessage } from './messages/UserImageMessage.js'
+import { UserPeerMessage } from './messages/UserPeerMessage.js'
 import { UserTextMessage } from './messages/UserTextMessage.js'
 import { UserToolResultMessage } from './messages/UserToolResultMessage/UserToolResultMessage.js'
 import { OffscreenFreeze } from './OffscreenFreeze.js'
@@ -314,7 +315,25 @@ function UserMessage({
 }): React.ReactNode {
   const { columns } = useTerminalSize()
   switch (param.type) {
-    case 'text':
+    case 'text': {
+      // Official 2.1.178 `xOf`: peer origin with senderTaskId renders `fk4`.
+      const origin = message.origin
+      if (
+        typeof origin === 'object' &&
+        origin !== null &&
+        origin.kind === 'peer' &&
+        'senderTaskId' in origin &&
+        origin.senderTaskId !== undefined
+      ) {
+        return (
+          <UserPeerMessage
+            addMargin={addMargin}
+            param={param}
+            fromName={origin.from}
+            isTranscriptMode={isTranscriptMode}
+          />
+        )
+      }
       return (
         <UserTextMessage
           addMargin={addMargin}
@@ -325,6 +344,7 @@ function UserMessage({
           timestamp={message.timestamp}
         />
       )
+    }
     case 'image':
       // If previous message is user (text or image), this is a continuation - use connector
       // Otherwise this image starts a new user turn - use margin

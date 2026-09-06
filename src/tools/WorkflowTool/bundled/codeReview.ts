@@ -148,11 +148,32 @@ lost an anchor. These are PLAUSIBLE.
 actual line); provably impossible (type/constant/invariant — show it); already
 handled in this diff (cite the guard); or pure style with no observable effect.`
 
-/** Official 2.1.160 `Hk$`. */
-const CLEANUP_PRECEDENCE = `Cleanup and altitude candidates use the same \`file\`/\`line\`/\`summary\` shape; in
-\`failure_scenario\`, state the concrete cost (what is duplicated, wasted, or
-harder to maintain) instead of a crash. Correctness bugs always outrank
-cleanup and altitude findings when the output cap forces a cut.
+/** Official 2.1.178 `P_$`. */
+const CONVENTIONS_ANGLES = [
+  {
+    label: 'conventions',
+    text: `### Conventions (CLAUDE.md)
+
+Find the CLAUDE.md files that govern the changed code: the user-level
+~/.claude/CLAUDE.md, the repo-root CLAUDE.md, plus any CLAUDE.md or
+CLAUDE.local.md in a directory that is an ancestor of a changed file (a
+directory's CLAUDE.md only applies to files at or below it). Read each one
+that exists, then check the diff for clear violations of the rules they state.
+
+Only flag a violation when you can quote the exact rule and the exact line
+that breaks it — no style preferences, no vague "spirit of the doc"
+inferences. In the finding, name the CLAUDE.md path and quote the rule so the
+report can cite it. If no CLAUDE.md applies, return nothing for this angle.
+`,
+  },
+]
+
+/** Official 2.1.178 `Ju$` (was 176 `_x$` / 160 `Hk$`). */
+const CLEANUP_PRECEDENCE = `Cleanup, altitude, and conventions candidates use the same
+\`file\`/\`line\`/\`summary\` shape; in \`failure_scenario\`, state the concrete
+cost (what is duplicated, wasted, harder to maintain, or which CLAUDE.md rule
+is broken) instead of a crash. Correctness bugs always outrank cleanup,
+altitude, and conventions findings when the output cap forces a cut.
 `
 
 /** Official 2.1.160 `Fc6`. */
@@ -169,6 +190,7 @@ function interpolateOfficialTemplate(template: string): string {
     GX4: PHASES,
     Nl5: CORRECTNESS_ANGLES,
     El5: CLEANUP_ANGLES,
+    P_$: CONVENTIONS_ANGLES,
     pc6: VERDICT_LADDER,
     Uc6: VERDICT_LADDER_RECALL,
     Hk$: CLEANUP_PRECEDENCE,

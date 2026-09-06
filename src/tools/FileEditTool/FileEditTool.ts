@@ -91,6 +91,32 @@ import {
 // that prevents OOM without being unnecessarily restrictive.
 const MAX_EDIT_FILE_SIZE = 1024 * 1024 * 1024 // 1 GiB (stat bytes)
 
+/** Official 2.1.178 `ffq`. */
+function classifyEditMatch(
+  fileContents: string,
+  oldString: string,
+  replaceAll: boolean,
+): 'no_match' | 'ambiguous' | 'applies' {
+  const actual = findActualString(fileContents, oldString)
+  if (!actual) {
+    return 'no_match'
+  }
+  if (fileContents.indexOf(actual, fileContents.indexOf(actual) + actual.length) !== -1 && !replaceAll) {
+    return 'ambiguous'
+  }
+  return 'applies'
+}
+
+/** Official 2.1.178 `Vl4`. */
+function recoverStaleReadViaCedarSundial(
+  match: ReturnType<typeof classifyEditMatch>,
+): boolean {
+  return (
+    match === 'applies' &&
+    getFeatureValue_CACHED_MAY_BE_STALE('tengu_cedar_sundial', false)
+  )
+}
+
 export const FileEditTool = buildTool({
   name: FILE_EDIT_TOOL_NAME,
   searchHint: 'modify file contents in place',
@@ -338,12 +364,20 @@ export const FileEditTool = buildTool({
         if (isFullRead && fileContent === readTimestamp.content) {
           // Content unchanged, safe to proceed
         } else {
-          return {
-            result: false,
-            behavior: 'ask',
-            message:
-              'File has been modified since read, either by the user or by a linter. Read it again before attempting to write it.',
-            errorCode: 7,
+          const match = classifyEditMatch(fileContent, old_string, replace_all)
+          const recovered = recoverStaleReadViaCedarSundial(match)
+          logEvent('tengu_edit_tool_stale_read', {
+            wouldHaveResult: match as unknown as number,
+            recovered,
+          })
+          if (!recovered) {
+            return {
+              result: false,
+              behavior: 'ask',
+              message:
+                'File has been modified since read, either by the user or by a linter. Read it again before attempting to write it.',
+              errorCode: 7,
+            }
           }
         }
       }
@@ -504,7 +538,14 @@ export const FileEditTool = buildTool({
         const contentUnchanged =
           isFullRead && originalFileContents === lastRead.content
         if (!contentUnchanged) {
-          throw new Error(FILE_UNEXPECTEDLY_MODIFIED_ERROR)
+          const match = classifyEditMatch(
+            originalFileContents,
+            old_string,
+            replace_all,
+          )
+          if (!recoverStaleReadViaCedarSundial(match)) {
+            throw new Error(FILE_UNEXPECTEDLY_MODIFIED_ERROR)
+          }
         }
       }
     }

@@ -206,6 +206,11 @@ type State = {
   mainThreadAgentHooks: HooksSettings | undefined
   // Official 2.1.172 `YFH`/`kr8` — 1M context credits 429 clamp
   longContext1mCreditsBlocked: boolean
+  // Official 2.1.178 `qH6` / `FgH` / `G3$` / `_H6`
+  fableBridgeDialogTimedOut: boolean
+  fableConsentDialogInteracted: boolean
+  fableConsentSessionFallback: boolean
+  fableCreditsRequired: boolean
   // Remote mode (--remote flag)
   isRemoteMode: boolean
   // Official 2.1.153 AxH/Xx8: --strict-mcp-config
@@ -410,6 +415,10 @@ function getInitialState(): State {
     // Main-thread --agent frontmatter hooks
     mainThreadAgentHooks: undefined,
     longContext1mCreditsBlocked: false,
+    fableBridgeDialogTimedOut: false,
+    fableConsentDialogInteracted: false,
+    fableConsentSessionFallback: false,
+    fableCreditsRequired: false,
     // Remote mode
     isRemoteMode: false,
     strictMcpConfig: false,
@@ -1734,6 +1743,46 @@ export function getLongContext1mCreditsBlocked(): boolean {
 /** Official 2.1.172 `kr8`. */
 export function setLongContext1mCreditsBlocked(value: boolean): void {
   STATE.longContext1mCreditsBlocked = value
+}
+
+/** Official 2.1.178 `$H6`. */
+export function getFableBridgeDialogTimedOut(): boolean {
+  return STATE.fableBridgeDialogTimedOut
+}
+
+/** Official 2.1.178 `qH6`. */
+export function setFableBridgeDialogTimedOut(value = true): void {
+  STATE.fableBridgeDialogTimedOut = value
+}
+
+/** Official 2.1.178 `KH6`. */
+export function getFableConsentDialogInteracted(): boolean {
+  return STATE.fableConsentDialogInteracted
+}
+
+/** Official 2.1.178 `FgH`. */
+export function setFableConsentDialogInteracted(value = true): void {
+  STATE.fableConsentDialogInteracted = value
+}
+
+/** Official 2.1.178 `ol$`. */
+export function getFableConsentSessionFallback(): boolean {
+  return STATE.fableConsentSessionFallback
+}
+
+/** Official 2.1.178 `_H6`. */
+export function setFableConsentSessionFallback(value: boolean): void {
+  STATE.fableConsentSessionFallback = value
+}
+
+/** Official 2.1.178 `HH6`. */
+export function getFableCreditsRequired(): boolean {
+  return STATE.fableCreditsRequired
+}
+
+/** Official 2.1.178 `G3$`. */
+export function setFableCreditsRequired(value: boolean): void {
+  STATE.fableCreditsRequired = value
 }
 
 export function getIsRemoteMode(): boolean {

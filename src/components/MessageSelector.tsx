@@ -926,7 +926,12 @@ export function selectableUserMessagesFilter(
     messageText.indexOf(`<${BASH_STDERR_TAG}>`) !== -1 ||
     messageText.indexOf(`<${TASK_NOTIFICATION_TAG}>`) !== -1 ||
     messageText.indexOf(`<${TICK_TAG}>`) !== -1 ||
-    messageText.indexOf(`<${TEAMMATE_MESSAGE_TAG}`) !== -1
+    messageText.startsWith(`<${TEAMMATE_MESSAGE_TAG} `) ||
+    (messageText.startsWith('Another Claude session sent a message') &&
+      messageText.startsWith(
+        `<${TEAMMATE_MESSAGE_TAG} `,
+        messageText.indexOf('\n') + 1,
+      ))
   ) {
     return false
   }

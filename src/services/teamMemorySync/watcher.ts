@@ -20,6 +20,7 @@ import { logForDebugging } from '../../utils/debug.js'
 import { errorMessage } from '../../utils/errors.js'
 import { parseClaudeMemoryStores } from './memoryStores.js'
 import { getGithubRepo } from '../../utils/git.js'
+import { getFeatureValue_CACHED_MAY_BE_STALE } from '../analytics/growthbook.js'
 import {
   type AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
   logEvent,
@@ -34,6 +35,12 @@ import {
 import type { TeamMemorySyncPushResult } from './types.js'
 
 const DEBOUNCE_MS = 2000 // Wait 2s after last change before pushing
+/** Official 2.1.178 `oyf` — GB default minutes. */
+const DEFAULT_RESYNC_INTERVAL_MINUTES = 60
+/** Official 2.1.178 `ayf` — floor minutes. */
+const MIN_RESYNC_INTERVAL_MINUTES = 1
+/** Official 2.1.178 `qhf`. */
+const MIN_RESYNC_TIMER_MS = 1000
 
 // ─── Watcher state ──────────────────────────────────────────
 let watcher: FSWatcher | null = null
@@ -50,6 +57,9 @@ let watcherStarted = false
 // is a recovery action for the too-many-entries case, and for no_oauth the
 // suppression persisting until session restart is correct.
 let pushSuppressedReason: string | null = null
+/** Official 2.1.178 — last successful pull/push, for `dn4`. */
+let lastSyncCompletedAt: number | null = null
+let resyncTimer: ReturnType<typeof setTimeout> | null = null
 
 /**
  * Permanent = retry without user action will fail the same way.
@@ -91,6 +101,7 @@ async function executePush(): Promise<void> {
     const result = await pushTeamMemory(syncState)
     if (result.success) {
       hasPendingChanges = false
+      lastSyncCompletedAt = Date.now()
     }
     if (result.success && result.filesUploaded > 0) {
       logForDebugging(
@@ -230,6 +241,84 @@ async function startFileWatcher(teamDir: string): Promise<void> {
 }
 
 /**
+ * Official 2.1.178 `pfq`.
+ * Env `CLAUDE_CODE_DISABLE_MEMORY_PERIODIC_RESYNC` (any set value) → 0.
+ * GB `tengu_memory_store_resync_interval_minutes` default 60, floor 1.
+ */
+export function getMemoryStoreResyncIntervalMs(): number {
+  if (process.env.CLAUDE_CODE_DISABLE_MEMORY_PERIODIC_RESYNC) return 0
+  const minutes = getFeatureValue_CACHED_MAY_BE_STALE(
+    'tengu_memory_store_resync_interval_minutes',
+    DEFAULT_RESYNC_INTERVAL_MINUTES,
+  )
+  if (!Number.isFinite(minutes) || minutes <= 0) return 0
+  return Math.max(minutes, MIN_RESYNC_INTERVAL_MINUTES) * 60_000
+}
+
+/**
+ * Official 2.1.178 `dn4` — stale-store check (team scope only on this tree).
+ */
+export function maybeResyncStaleStores(): void {
+  try {
+    if (!watcherStarted || !syncState) return
+    const intervalMs = getMemoryStoreResyncIntervalMs()
+    if (intervalMs <= 0) return
+    if (pushSuppressedReason !== null || pushInProgress) return
+    if (
+      lastSyncCompletedAt === null ||
+      Date.now() - lastSyncCompletedAt <= intervalMs
+    ) {
+      return
+    }
+    currentPushPromise = (async () => {
+      if (!syncState) return
+      try {
+        await pullTeamMemory(syncState)
+        lastSyncCompletedAt = Date.now()
+        await executePush()
+      } catch (e) {
+        logForDebugging(
+          `memory-watcher: stale-store check failed: ${errorMessage(e)}`,
+          { level: 'warn' },
+        )
+      }
+    })()
+  } catch (e) {
+    logForDebugging(
+      `memory-watcher: stale-store check failed: ${errorMessage(e)}`,
+      { level: 'warn' },
+    )
+  }
+}
+
+/** Official 2.1.178 `du$`. */
+function armResyncTimer(): void {
+  if (resyncTimer) {
+    clearTimeout(resyncTimer)
+    resyncTimer = null
+  }
+  if (!watcherStarted) return
+  const intervalMs = getMemoryStoreResyncIntervalMs()
+  if (intervalMs <= 0) return
+  if (
+    pushSuppressedReason !== null ||
+    pushInProgress ||
+    lastSyncCompletedAt === null
+  ) {
+    return
+  }
+  const due = lastSyncCompletedAt + intervalMs
+  const delay = Math.max(due - Date.now(), MIN_RESYNC_TIMER_MS)
+  const timer = setTimeout(() => {
+    resyncTimer = null
+    maybeResyncStaleStores()
+    armResyncTimer()
+  }, delay)
+  timer.unref?.()
+  resyncTimer = timer
+}
+
+/**
  * Start the team memory sync system.
  *
  * Returns early (before creating any state) if:
@@ -303,6 +392,9 @@ export async function startTeamMemoryWatcher(): Promise<void> {
     const pullResult = await pullTeamMemory(syncState)
     initialPullSuccess = pullResult.success
     serverHasContent = pullResult.entryCount > 0
+    if (pullResult.success) {
+      lastSyncCompletedAt = Date.now()
+    }
     if (pullResult.success && pullResult.filesWritten > 0) {
       initialFilesPulled = pullResult.filesWritten
       logForDebugging(
@@ -321,6 +413,7 @@ export async function startTeamMemoryWatcher(): Promise<void> {
   // and the alternative (lazy start on notifyTeamMemoryWrite) creates
   // a bootstrap dead zone for fresh repos.
   await startFileWatcher(getTeamMemPath())
+  armResyncTimer()
 
   logEvent('tengu_team_mem_sync_started', {
     initial_pull_success: initialPullSuccess,
@@ -352,6 +445,10 @@ export async function notifyTeamMemoryWrite(): Promise<void> {
  * process.exit() will kill it.
  */
 export async function stopTeamMemoryWatcher(): Promise<void> {
+  if (resyncTimer) {
+    clearTimeout(resyncTimer)
+    resyncTimer = null
+  }
   if (debounceTimer) {
     clearTimeout(debounceTimer)
     debounceTimer = null
@@ -396,9 +493,14 @@ export function _resetWatcherStateForTesting(opts?: {
 }): void {
   watcher = null
   debounceTimer = null
+  if (resyncTimer) {
+    clearTimeout(resyncTimer)
+    resyncTimer = null
+  }
   pushInProgress = false
   hasPendingChanges = false
   currentPushPromise = null
+  lastSyncCompletedAt = null
   watcherStarted = opts?.skipWatcher ?? false
   pushSuppressedReason = opts?.pushSuppressedReason ?? null
   syncState = opts?.syncState ?? null

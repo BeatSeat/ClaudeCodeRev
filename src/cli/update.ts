@@ -89,7 +89,7 @@ export async function update() {
 
       writeToStdout(chalk.yellow(`Warning: ${warning.issue}\n`))
 
-      writeToStdout(chalk.bold(`Fix: ${warning.fix}\n`))
+      writeToStdout(chalk.bold(`Fix: ${warning.fix.replaceAll('`', '')}\n`))
     }
   }
 

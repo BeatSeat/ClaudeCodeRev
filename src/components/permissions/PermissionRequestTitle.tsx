@@ -8,6 +8,8 @@ type Props = {
   subtitle?: React.ReactNode
   color?: keyof Theme
   workerBadge?: WorkerBadgeProps
+  /** Official 2.1.178 `fGH` — screen-reader prefix, e.g. "Permission Required:" */
+  srPrefix?: string
 }
 
 export function PermissionRequestTitle({
@@ -15,13 +17,17 @@ export function PermissionRequestTitle({
   subtitle,
   color = 'permission',
   workerBadge,
+  srPrefix,
 }: Props): React.ReactNode {
+  const ariaLabel = srPrefix !== undefined ? `${srPrefix} ${title}` : undefined
   return (
     <Box flexDirection="column">
       <Box flexDirection="row" gap={1}>
-        <Text bold color={color}>
-          {title}
-        </Text>
+        <Box aria-label={ariaLabel}>
+          <Text bold color={color}>
+            {title}
+          </Text>
+        </Box>
         {workerBadge && (
           <Text dimColor>
             {'· '}@{workerBadge.name}

@@ -9,6 +9,7 @@ import {
 import type {
   PermissionMode,
   SDKCompactBoundaryMessage,
+  SDKInformationalMessage,
   SDKMessage,
   SDKPermissionDenial,
   SDKStatus,
@@ -727,6 +728,22 @@ export class QueryEngine {
             compact_metadata: toSDKCompactMetadata(msg.compactMetadata),
           } as SDKCompactBoundaryMessage
         }
+
+        // Official 2.1.178 `d81`
+        if (msg.type === 'system' && msg.subtype === 'informational') {
+          yield {
+            type: 'system',
+            subtype: 'informational' as const,
+            content: stripAnsi(msg.content),
+            level: msg.level,
+            ...(msg.toolUseID && { tool_use_id: msg.toolUseID }),
+            ...(msg.preventContinuation && {
+              prevent_continuation: msg.preventContinuation,
+            }),
+            uuid: msg.uuid,
+            session_id: getSessionId(),
+          } as unknown as SDKMessage
+        }
       }
 
       if (persistSession) {
@@ -1090,6 +1107,21 @@ export class QueryEngine {
               uuid: message.uuid,
               compact_metadata: toSDKCompactMetadata(message.compactMetadata),
             }
+          }
+          // Official 2.1.178 `d81`
+          if (message.subtype === 'informational') {
+            yield {
+              type: 'system',
+              subtype: 'informational' as const,
+              content: stripAnsi(message.content),
+              level: message.level,
+              ...(message.toolUseID && { tool_use_id: message.toolUseID }),
+              ...(message.preventContinuation && {
+                prevent_continuation: message.preventContinuation,
+              }),
+              uuid: message.uuid,
+              session_id: getSessionId(),
+            } as unknown as SDKMessage
           }
           if (message.subtype === 'api_error') {
             yield {

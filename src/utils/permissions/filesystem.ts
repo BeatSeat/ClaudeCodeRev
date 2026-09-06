@@ -430,15 +430,9 @@ export function getScratchpadDir(): string {
 
 /**
  * Ensures the scratchpad directory exists for the current session.
- * Creates the directory with secure permissions (0o700) if it doesn't exist.
- * Returns the path to the scratchpad directory.
- * @throws If scratchpad feature is not enabled
+ * Official 2.1.178 dropped 176 `IV9`'s hard-throw when the feature is off.
  */
 export async function ensureScratchpadDir(): Promise<string> {
-  if (!isScratchpadEnabled()) {
-    throw new Error('Scratchpad directory feature is not enabled')
-  }
-
   const fs = getFsImplementation()
   const scratchpadDir = getScratchpadDir()
 

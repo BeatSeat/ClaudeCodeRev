@@ -6,9 +6,58 @@ import { FILE_WRITE_TOOL_NAME } from 'src/tools/FileWriteTool/prompt.js'
 import { GLOB_TOOL_NAME } from 'src/tools/GlobTool/prompt.js'
 import { GREP_TOOL_NAME } from 'src/tools/GrepTool/prompt.js'
 import { NOTEBOOK_EDIT_TOOL_NAME } from 'src/tools/NotebookEditTool/constants.js'
+import { getFeatureValue_CACHED_MAY_BE_STALE } from 'src/services/analytics/growthbook.js'
 import { hasEmbeddedSearchTools } from 'src/utils/embeddedTools.js'
+import { getAPIProvider } from 'src/utils/model/providers.js'
 import { AGENT_TOOL_NAME } from '../constants.js'
 import type { BuiltInAgentDefinition } from '../loadAgentsDir.js'
+
+/** Official 2.1.178 `_04` / `z04`. Do not confuse with 176 `$OH` (arrow-history). */
+const EXPLORE_QUARTZ_MODELS = ['haiku', 'sonnet', 'opus'] as const
+const EXPLORE_QUARTZ_PIN = 'opus'
+
+/** Official 2.1.178 `i38`. */
+function parentModelMatchesAliases(
+  parentModel: string,
+  aliases: readonly string[],
+): boolean {
+  const lower = parentModel.toLowerCase()
+  for (const alias of aliases) {
+    if (alias.length > 0 && lower.includes(alias.toLowerCase())) {
+      return true
+    }
+  }
+  return false
+}
+
+/** Official 2.1.178 `wAf`. */
+function shouldPinExploreToOpus(parentModel: string): boolean {
+  if (getAPIProvider() !== 'firstParty') {
+    return false
+  }
+  const slice = EXPLORE_QUARTZ_MODELS.slice(
+    0,
+    EXPLORE_QUARTZ_MODELS.indexOf(EXPLORE_QUARTZ_PIN) + 1,
+  )
+  return !parentModelMatchesAliases(parentModel, slice)
+}
+
+/**
+ * Official 2.1.178 `$OH` (was 176 `QYH`). 176 `$OH` is a different function.
+ * Runtime model for the built-in Explore agent.
+ */
+export function resolveExploreAgentModel(
+  agent: { agentType: string; source?: string; model?: string },
+  parentModel: string,
+): string | undefined {
+  if (agent.agentType !== 'Explore' || agent.source !== 'built-in') {
+    return agent.model
+  }
+  if (!getFeatureValue_CACHED_MAY_BE_STALE('tengu_quartz_heron', false)) {
+    return 'haiku'
+  }
+  return shouldPinExploreToOpus(parentModel) ? EXPLORE_QUARTZ_PIN : 'inherit'
+}
 
 function getExploreSystemPrompt(): string {
   // Ant-native builds alias find/grep to embedded bfs/ugrep and remove the
@@ -73,9 +122,8 @@ export const EXPLORE_AGENT: BuiltInAgentDefinition = {
   ],
   source: 'built-in',
   baseDir: 'built-in',
-  // Ants get inherit to use the main agent's model; external users get haiku for speed
-  // Note: For ants, getAgentModel() checks tengu_explore_agent GrowthBook flag at runtime
-  model: process.env.USER_TYPE === 'ant' ? 'inherit' : 'haiku',
+  // Official 2.1.178 `qOH`: stored model is always haiku; `$OH` overrides at spawn.
+  model: 'haiku',
   // Explore is a fast read-only search agent — it doesn't need commit/PR/lint
   // rules from CLAUDE.md. The main agent has full context and interprets results.
   omitClaudeMd: true,

@@ -29,6 +29,7 @@ const P = LEVEL_PARAMS[LEVEL]
 // Prompt fragments shared with the inline /code-review cells (one source of truth).
 const CORRECTNESS_ANGLES = ${JSON.stringify(Nl5)}
 const CLEANUP_ANGLES = ${JSON.stringify(El5)}
+const CONVENTIONS_ANGLES = ${JSON.stringify(P_$)}
 const VERDICT_LADDER = ${JSON.stringify(pc6)}
 const VERDICT_LADDER_RECALL = ${JSON.stringify(Uc6)}
 const CLEANUP_PRECEDENCE = ${JSON.stringify(Hk$)}
@@ -123,7 +124,7 @@ const FINDER_PROMPT = f =>
   "## Code-review finder — " + f.label + "\n\n" + SCOPE_BLOCK + "\n" +
   "Run the diff command above and review ONLY through the lens of your assigned angle:\n\n" +
   f.text + "\n" +
-  (f.kind === "cleanup" ? CLEANUP_PRECEDENCE + "\n" : "") +
+  (f.kind === "cleanup" || f.kind === "conventions" ? CLEANUP_PRECEDENCE + "\n" : "") +
   "Surface up to " + P.perAngle + " candidate findings, each with file, line, a one-line summary, and a concrete failure_scenario. " +
   "Pass every candidate with a nameable failure scenario through — do not silently drop half-believed candidates; an independent verifier judges them next. " +
   "If nothing qualifies, return an empty list.\n\nStructured output only."
@@ -155,6 +156,7 @@ function verifyCandidate(c) {
 const FINDERS = CORRECTNESS_ANGLES.slice(0, P.correctnessAngles)
   .map(a => ({ ...a, kind: "correctness" }))
   .concat(CLEANUP_ANGLES.map(a => ({ ...a, kind: "cleanup" })))
+  .concat(CONVENTIONS_ANGLES.map(a => ({ ...a, kind: "conventions" })))
 
 const finderResults = await pipeline(
   FINDERS,

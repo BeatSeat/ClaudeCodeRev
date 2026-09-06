@@ -438,9 +438,10 @@ function isCustomDefaultFableModel(model: string): boolean {
 }
 
 /**
- * Official 2.1.176 `GhH` — Fable 5 (canonical or custom default-Fable env).
+ * Official 2.1.176 `GhH` / 2.1.178 `cj` — Fable 5 (canonical or custom
+ * default-Fable env). 178 `KQ` is the env arm.
  */
-function isFableClassifierMainModel(model: string): boolean {
+export function isFableClassifierMainModel(model: string): boolean {
   return (
     stripTrailing1mSuffix(getCanonicalName(model)) === 'claude-fable-5' ||
     isCustomDefaultFableModel(model)

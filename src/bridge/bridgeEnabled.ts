@@ -12,6 +12,53 @@ import {
 import * as authModule from '../utils/auth.js'
 import { isEnvTruthy } from '../utils/envUtils.js'
 import { lt } from '../utils/semver.js'
+import { withTimeout } from '../utils/sleep.js'
+
+/** Official 2.1.178 `Cr6` / `POLICY_LIMITS_COLD_AWAIT_MS`. */
+const POLICY_LIMITS_COLD_AWAIT_MS = 5000
+
+/** Official 2.1.178 `Oq$` — one in-flight diagnostic await. */
+let policyLimitsDiagnosticAwait: Promise<void> | undefined
+
+/**
+ * Official 2.1.178 `AK4`. Dynamic import matches the bundle (avoids a
+ * bridgeEnabled → policyLimits → auth → config cycle).
+ */
+async function awaitPolicyLimitsForBridgeDiagnostic(): Promise<
+  typeof import('../services/policyLimits/index.js')
+> {
+  const policy = await import('../services/policyLimits/index.js')
+  policy.initializePolicyLimitsLoadingPromise()
+  if (policyLimitsDiagnosticAwait === undefined) {
+    const load = policy.loadPolicyLimits()
+    load.catch(() => {}).finally(() => {
+      policyLimitsDiagnosticAwait = undefined
+    })
+    policyLimitsDiagnosticAwait = withTimeout(
+      load,
+      POLICY_LIMITS_COLD_AWAIT_MS,
+      'bridge_diagnostic_policy_limits',
+    ).catch(() => {})
+  }
+  await policyLimitsDiagnosticAwait
+  return policy
+}
+
+/** Official 2.1.178 `YK4`. */
+function remoteControlPolicyStatus(
+  isPolicyAllowed: (policy: string) => boolean,
+): 'allowed' | 'denied' | 'unavailable' {
+  try {
+    return isPolicyAllowed('allow_remote_control') ? 'allowed' : 'denied'
+  } catch {
+    return 'unavailable'
+  }
+}
+
+/** Official 2.1.178 `dL$` — compliance-policy labels (empty until populated). */
+function remoteControlDeniedReasons(): string[] {
+  return []
+}
 
 /**
  * Runtime check for bridge mode entitlement.
@@ -78,8 +125,21 @@ export async function getBridgeDisabledReason(): Promise<string | null> {
     if (!getOauthAccountInfo()?.organizationUuid) {
       return 'Unable to determine your organization for Remote Control eligibility. Run `claude auth login` to refresh your account information.'
     }
+    // Official 2.1.178 `jV8` hop: org-policy check before the GB gate.
+    const policyLimits = await awaitPolicyLimitsForBridgeDiagnostic()
+    const policy = remoteControlPolicyStatus(policyLimits.isPolicyAllowed)
+    if (policy === 'unavailable') {
+      return "Couldn't verify your organization's Remote Control policy. Retry, or run `claude doctor` for details."
+    }
+    if (policy === 'denied') {
+      const reasons = remoteControlDeniedReasons()
+      if (reasons.length > 0) {
+        return `Remote Control isn't available for your organization due to its compliance policy (${reasons.join(', ')}).`
+      }
+      return "Remote Control is disabled by your organization's policy. Contact your organization admin for access."
+    }
     if (!(await checkGate_CACHED_OR_BLOCKING('tengu_ccr_bridge'))) {
-      return 'Remote Control is not yet enabled for your account.'
+      return 'Remote Control is not yet enabled for your account. If you recently changed plans, run `claude auth logout` then `claude auth login` to refresh your entitlements, or `claude doctor` for details.'
     }
     return null
   }

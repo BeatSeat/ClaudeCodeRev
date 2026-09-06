@@ -21,6 +21,18 @@ export * from './coreTypes.generated.js'
 // Re-export utility types that can't be expressed as Zod schemas
 export type { NonNullableUsage } from './sdkUtilityTypes.js'
 
+/** Official 2.1.178 `d81` — not yet in the published generated package. */
+export type SDKInformationalMessage = {
+  type: 'system'
+  subtype: 'informational'
+  content: string
+  level: 'info' | 'notice' | 'suggestion' | 'warning'
+  tool_use_id?: string
+  prevent_continuation?: boolean
+  uuid: string
+  session_id: string
+}
+
 // Const arrays for runtime usage
 export const HOOK_EVENTS = [
   'PreToolUse',

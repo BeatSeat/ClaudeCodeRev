@@ -188,9 +188,14 @@ export function completeMainSessionTask(
       ...task,
       status: success ? 'completed' : 'failed',
       endTime: Date.now(),
-      messages: task.messages?.length ? [task.messages.at(-1)!] : undefined,
     }
   })
+
+  // Official 2.1.178 `Hg4` — last message only, via a separate transcript write
+  updateTaskState<LocalMainSessionTaskState>(taskId, setAppState, task => ({
+    ...task,
+    messages: task.messages?.length ? [task.messages.at(-1)!] : undefined,
+  }))
 
   void evictTaskOutput(taskId)
 
@@ -436,36 +441,32 @@ export function startBackgroundSession({
           }
         }
 
-        setAppState(prev => {
-          const task = prev.tasks[taskId]
-          if (!task || task.type !== 'local_agent') return prev
+        // Official 2.1.178 `Kg4` — progress via update, messages via updateTranscript
+        updateTaskState<LocalMainSessionTaskState>(taskId, setAppState, task => {
           const prevProgress = task.progress
           if (
             prevProgress?.tokenCount === tokenCount &&
-            prevProgress.toolUseCount === toolCount &&
-            task.messages === bgMessages
+            prevProgress.toolUseCount === toolCount
           ) {
-            return prev
+            return task
           }
           return {
-            ...prev,
-            tasks: {
-              ...prev.tasks,
-              [taskId]: {
-                ...task,
-                progress: {
-                  tokenCount,
-                  toolUseCount: toolCount,
-                  recentActivities:
-                    prevProgress?.toolUseCount === toolCount
-                      ? prevProgress.recentActivities
-                      : [...recentActivities],
-                },
-                messages: bgMessages,
-              },
+            ...task,
+            progress: {
+              tokenCount,
+              toolUseCount: toolCount,
+              recentActivities:
+                prevProgress?.toolUseCount === toolCount
+                  ? prevProgress.recentActivities
+                  : [...recentActivities],
             },
           }
         })
+        updateTaskState<LocalMainSessionTaskState>(taskId, setAppState, task =>
+          task.messages === bgMessages
+            ? task
+            : { ...task, messages: bgMessages },
+        )
       }
 
       completeMainSessionTask(taskId, true, setAppState)

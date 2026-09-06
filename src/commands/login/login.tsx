@@ -43,9 +43,10 @@ async function hasExistingTrustedDeviceToken(): Promise<string | undefined> {
 }
 
 /**
- * Official 2.1.176 `R0H`. Shared post-login hooks. Disconnects Remote Control
- * when the signed-in account changes. Returns whether an interactive RC
- * session was torn down so the success line can say so.
+ * Official 2.1.178 `D0H`. Shared post-login hooks. Disconnects Remote Control
+ * when the signed-in account changes or a prior `replBridgeError` is latched.
+ * Always clears the error. Returns whether an interactive RC session was torn
+ * down so the success line can say so.
  */
 export async function applyLoginHooks(
   context: LocalJSXCommandContext,
@@ -71,24 +72,33 @@ export async function applyLoginHooks(
     previous?.accountUuid !== undefined &&
     previous.accountUuid === current?.accountUuid &&
     previous.organizationUuid === current?.organizationUuid
-  const { replBridgeEnabled, replBridgeOutboundOnly } = context.getAppState()
-  const accountChanged =
-    previous?.accountUuid !== undefined && !sameAccount && replBridgeEnabled
-  const bridgeDisconnected = accountChanged && !replBridgeOutboundOnly
-  if (accountChanged) {
+  const { replBridgeEnabled, replBridgeOutboundOnly, replBridgeError } =
+    context.getAppState()
+  // Official 2.1.178 `D0H`: disconnect when the account changed and RC is
+  // enabled *or* a prior `replBridgeError` is still latched. Always clear it.
+  const accountChanged = previous?.accountUuid !== undefined && !sameAccount
+  const shouldDisconnect =
+    accountChanged && (replBridgeEnabled || replBridgeError !== undefined)
+  const bridgeDisconnected =
+    accountChanged && replBridgeEnabled && !replBridgeOutboundOnly
+  if (shouldDisconnect) {
     logForDebugging(
       '[bridge:repl] Account changed via /login — disconnecting Remote Control session',
     )
-    context.setAppState(prev =>
-      prev.replBridgeEnabled
-        ? {
-            ...prev,
-            replBridgeEnabled: false,
-            replBridgeExplicit: false,
-            replBridgeOutboundOnly: false,
-          }
-        : prev,
-    )
+    context.setAppState(prev => ({
+      ...prev,
+      replBridgeEnabled: false,
+      replBridgeExplicit: false,
+      replBridgeOutboundOnly: false,
+      replBridgeError: undefined,
+      notifications: {
+        current:
+          prev.notifications.current?.key === 'bridge-failed'
+            ? null
+            : prev.notifications.current,
+        queue: prev.notifications.queue.filter(n => n.key !== 'bridge-failed'),
+      },
+    }))
   }
 
   if (sameAccount && (await hasExistingTrustedDeviceToken())) {

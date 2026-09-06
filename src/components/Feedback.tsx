@@ -35,6 +35,7 @@ import {
 } from '../utils/sessionStorage.js'
 import { jsonStringify } from '../utils/slowOperations.js'
 import { asSystemPrompt } from '../utils/systemPromptType.js'
+import { useAppState } from '../state/AppState.js'
 import { ConfigurableShortcutHint } from './ConfigurableShortcutHint.js'
 import { Byline } from './design-system/Byline.js'
 import { Dialog } from './design-system/Dialog.js'
@@ -202,6 +203,11 @@ export function Feedback({
   }>({ isGit: false, gitState: null })
   const [title, setTitle] = useState<string | null>(null)
   const textInputColumns = useTerminalSize().columns - 4
+  // Official 2.1.178 `A89`/`Zp$` — app-state transcripts forwarded into the payload.
+  const transcripts = useAppState(s => {
+    const extra = s as { transcripts?: Record<string, Message[]> }
+    return extra.transcripts ?? {}
+  })
 
   useEffect(() => {
     async function loadEnvInfo() {
@@ -233,7 +239,11 @@ export function Feedback({
     ])
     const teammateTranscripts =
       extractTeammateTranscriptsFromTasks(backgroundTasks)
-    const subagentTranscripts = { ...diskTranscripts, ...teammateTranscripts }
+    const subagentTranscripts = {
+      ...diskTranscripts,
+      ...teammateTranscripts,
+      ...transcripts,
+    }
 
     const reportData = {
       latestAssistantMessageId: lastAssistantMessageId,
@@ -301,7 +311,7 @@ export function Feedback({
       // Stay on userInput step so user can retry with their content preserved
       setStep('userInput')
     }
-  }, [description, envInfo.isGit, messages])
+  }, [description, envInfo.isGit, messages, transcripts])
 
   // Handle cancel - this will be called by Dialog's automatic Esc handling
   const handleCancel = useCallback(() => {
@@ -407,9 +417,13 @@ export function Feedback({
               }
             }}
             columns={textInputColumns}
-            onSubmit={() => {
-              // Official 2.1.108: clear the previous error so Enter retries
-              // without requiring the description to be edited first.
+            onSubmit={value => {
+              // Official 2.1.178 `A89`: empty description is refused (share
+              // path, which HEAD does not have, still allows empty).
+              if (value.trim() === '') {
+                setError('Please describe the issue before submitting.')
+                return
+              }
               setError(null)
               setStep('consent')
             }}

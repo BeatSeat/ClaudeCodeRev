@@ -49,6 +49,10 @@ import {
   getLastAssistantMessage,
 } from '../../utils/messages.js'
 import type { PermissionMode } from '../../utils/permissions/PermissionMode.js'
+import {
+  getToolNameForPermissionCheck,
+  mcpInfoFromString,
+} from '../../services/mcp/mcpStringUtils.js'
 import { permissionRuleValueFromString } from '../../utils/permissions/permissionRuleParser.js'
 import {
   buildTranscriptForClassifier,
@@ -67,8 +71,98 @@ export type ResolvedAgentTools = {
   hasWildcard: boolean
   validTools: string[]
   invalidTools: string[]
+  unavailableTools?: string[]
   resolvedTools: Tools
   allowedAgentTypes?: string[]
+}
+
+/** Official 2.1.178 `D6q`. */
+function buildDisallowedToolIndex(disallowedTools: string[] | undefined): {
+  disallowedToolSet: Set<string>
+  bareDisallowedToolSet: Set<string>
+  isServerLevelDisallowed: (toolName: string) => boolean
+  isToolDisallowed: (tool: {
+    name: string
+    mcpInfo?: { serverName: string; toolName?: string }
+  }) => boolean
+} {
+  const disallowedToolSet = new Set<string>()
+  const bareDisallowedToolSet = new Set<string>()
+  const serverNames = new Set<string>()
+  let denyAllServers = false
+  for (const spec of disallowedTools ?? []) {
+    const { toolName, ruleContent } = permissionRuleValueFromString(spec)
+    disallowedToolSet.add(toolName)
+    if (!ruleContent) {
+      bareDisallowedToolSet.add(toolName)
+    }
+    const mcp = mcpInfoFromString(toolName)
+    if (mcp !== null && (mcp.toolName === undefined || mcp.toolName === '*')) {
+      if (mcp.serverName === '*') {
+        denyAllServers = true
+      } else {
+        serverNames.add(mcp.serverName)
+      }
+    }
+  }
+  const isServerLevelDisallowed = (toolName: string): boolean => {
+    if (!denyAllServers && serverNames.size === 0) {
+      return false
+    }
+    const serverName = mcpInfoFromString(toolName)?.serverName
+    return serverName !== undefined && (denyAllServers || serverNames.has(serverName))
+  }
+  return {
+    disallowedToolSet,
+    bareDisallowedToolSet,
+    isServerLevelDisallowed,
+    isToolDisallowed: tool => {
+      const alias = getToolNameForPermissionCheck({
+        name: tool.name,
+        ...(tool.mcpInfo?.toolName !== undefined
+          ? {
+              mcpInfo: {
+                serverName: tool.mcpInfo.serverName,
+                toolName: tool.mcpInfo.toolName,
+              },
+            }
+          : {}),
+      })
+      return (
+        disallowedToolSet.has(tool.name) ||
+        disallowedToolSet.has(alias) ||
+        isServerLevelDisallowed(alias)
+      )
+    },
+  }
+}
+
+/** Official 2.1.178 `M6q`. */
+function parseWildcardAgentTools(
+  tools: string[] | undefined,
+): { allowedAgentTypes?: string[] } | null {
+  if (tools === undefined) {
+    return {}
+  }
+  if (!tools.includes('*')) {
+    return null
+  }
+  let allowedAgentTypes: string[] | undefined
+  for (const spec of tools) {
+    if (spec === '*') continue
+    const { toolName, ruleContent } = permissionRuleValueFromString(spec)
+    if (toolName !== AGENT_TOOL_NAME || !ruleContent) {
+      return null
+    }
+    allowedAgentTypes ??= []
+    allowedAgentTypes.push(
+      ...ruleContent
+        .split(',')
+        .map(s => s.trim())
+        .filter(Boolean),
+    )
+  }
+  return allowedAgentTypes ? { allowedAgentTypes } : {}
 }
 
 export function filterToolsForAgent({
@@ -157,29 +251,38 @@ export function resolveAgentTools(
         permissionMode,
       })
 
-  // Create a set of disallowed tool names for quick lookup
-  const disallowedToolSet = new Set(
-    disallowedTools?.map(toolSpec => {
-      const { toolName } = permissionRuleValueFromString(toolSpec)
-      return toolName
-    }) ?? [],
-  )
+  const {
+    bareDisallowedToolSet,
+    isToolDisallowed,
+    isServerLevelDisallowed,
+  } = buildDisallowedToolIndex(disallowedTools)
 
-  // Filter available tools based on disallowed list
   const allowedAvailableTools = filteredAvailableTools.filter(
-    tool => !disallowedToolSet.has(tool.name),
+    tool => !isToolDisallowed(tool),
   )
 
-  // If tools is undefined or ['*'], allow all tools (after filtering disallowed)
-  const hasWildcard =
-    agentTools === undefined ||
-    (agentTools.length === 1 && agentTools[0] === '*')
-  if (hasWildcard) {
+  // Official 2.1.178 `aHH`: undefined is wildcard here; `['*']` goes through M6q.
+  if (agentTools === undefined) {
     return {
       hasWildcard: true,
       validTools: [],
       invalidTools: [],
+      unavailableTools: [],
       resolvedTools: allowedAvailableTools,
+    }
+  }
+
+  const wildcardMeta = parseWildcardAgentTools(agentTools)
+  if (wildcardMeta) {
+    return {
+      hasWildcard: true,
+      validTools: [],
+      invalidTools: [],
+      unavailableTools: [],
+      resolvedTools: allowedAvailableTools,
+      ...wildcardMeta.allowedAgentTypes && {
+        allowedAgentTypes: wildcardMeta.allowedAgentTypes,
+      },
     }
   }
 
@@ -190,6 +293,8 @@ export function resolveAgentTools(
 
   const validTools: string[] = []
   const invalidTools: string[] = []
+  const unavailableTools: string[] = []
+  const unfilteredNames = new Set(availableTools.map(tool => tool.name))
   const resolved: Tool[] = []
   const resolvedToolsSet = new Set<Tool>()
   let allowedAgentTypes: string[] | undefined
@@ -197,6 +302,29 @@ export function resolveAgentTools(
   for (const toolSpec of agentTools) {
     // Parse the tool spec to extract the base tool name and any permission pattern
     const { toolName, ruleContent } = permissionRuleValueFromString(toolSpec)
+
+    if (bareDisallowedToolSet.has(toolName) || isServerLevelDisallowed(toolName)) {
+      continue
+    }
+
+    const mcpRule = mcpInfoFromString(toolName)
+    if (
+      mcpRule !== null &&
+      mcpRule.serverName !== '*' &&
+      (mcpRule.toolName === undefined || mcpRule.toolName === '*')
+    ) {
+      validTools.push(toolSpec)
+      for (const tool of allowedAvailableTools) {
+        const server = mcpInfoFromString(
+          getToolNameForPermissionCheck(tool),
+        )?.serverName
+        if (server === mcpRule.serverName && !resolvedToolsSet.has(tool)) {
+          resolved.push(tool)
+          resolvedToolsSet.add(tool)
+        }
+      }
+      continue
+    }
 
     // Special case: Agent tool carries allowedAgentTypes metadata in its spec
     if (toolName === AGENT_TOOL_NAME) {
@@ -221,6 +349,8 @@ export function resolveAgentTools(
         resolved.push(tool)
         resolvedToolsSet.add(tool)
       }
+    } else if (unfilteredNames.has(toolName)) {
+      unavailableTools.push(toolSpec)
     } else {
       invalidTools.push(toolSpec)
     }
@@ -230,6 +360,7 @@ export function resolveAgentTools(
     hasWildcard: false,
     validTools,
     invalidTools,
+    unavailableTools,
     resolvedTools: resolved,
     allowedAgentTypes,
   }
@@ -527,6 +658,8 @@ export async function runAsyncAgentLifecycle({
   agentIdForCleanup,
   enableSummarization,
   getWorktreeResult,
+  onMessage,
+  shouldNotifyOwner,
 }: {
   taskId: string
   abortController: AbortController
@@ -545,7 +678,10 @@ export async function runAsyncAgentLifecycle({
     worktreePath?: string
     worktreeBranch?: string
   }>
+  onMessage?: (message: MessageType) => void
+  shouldNotifyOwner?: () => boolean
 }): Promise<void> {
+  const notifyOwner = shouldNotifyOwner ?? (() => true)
   let stopSummarization: (() => void) | undefined
   const agentMessages: MessageType[] = []
   // Official 2.1.113: mid-stream stall watchdog. Resets on every yielded
@@ -585,15 +721,17 @@ export async function runAsyncAgentLifecycle({
       stopSummarization?.()
       const error = `Agent stalled: no progress for ${stallMs / 1000}s (stream watchdog did not recover)`
       failAsyncAgent(taskId, error, rootSetAppState)
-      enqueueAgentNotification({
-        taskId,
-        description,
-        status: 'failed',
-        error,
-        setAppState: rootSetAppState,
-        toolUseId: toolUseContext.toolUseId,
-        finalMessage: extractPartialResult(agentMessages),
-      })
+      if (notifyOwner()) {
+        enqueueAgentNotification({
+          taskId,
+          description,
+          status: 'failed',
+          error,
+          setAppState: rootSetAppState,
+          toolUseId: toolUseContext.toolUseId,
+          finalMessage: extractPartialResult(agentMessages),
+        })
+      }
     }, stallMs)
     stallTimer.unref?.()
   }
@@ -616,6 +754,22 @@ export async function runAsyncAgentLifecycle({
       : undefined
     armStallWatchdog()
     for await (const message of makeStream(onCacheSafeParams)) {
+      onMessage?.(message)
+      const rawType = (message as { type?: string }).type
+      if (rawType === 'set_in_progress_tool_use_ids') {
+        const ev = message as unknown as {
+          type: 'set_in_progress_tool_use_ids'
+          reason?: string
+          op?: { action?: string; ids?: string[] }
+        }
+        if (ev.reason === 'fallback_sweep') {
+          logEvent('tengu_async_agent_stranded_tools_cleared', {
+            is_built_in_agent: metadata.isBuiltInAgent,
+            cleared_count: ev.op?.ids?.length ?? 0,
+          })
+        }
+        continue
+      }
       lastMessageType = message.type
       armStallWatchdog()
       agentMessages.push(message)
@@ -690,20 +844,22 @@ export async function runAsyncAgentLifecycle({
 
     const worktreeResult = await getWorktreeResult()
 
-    enqueueAgentNotification({
-      taskId,
-      description,
-      status: 'completed',
-      setAppState: rootSetAppState,
-      finalMessage,
-      usage: {
-        totalTokens: getTokenCountFromTracker(tracker),
-        toolUses: agentResult.totalToolUseCount,
-        durationMs: agentResult.totalDurationMs,
-      },
-      toolUseId: toolUseContext.toolUseId,
-      ...worktreeResult,
-    })
+    if (notifyOwner()) {
+      enqueueAgentNotification({
+        taskId,
+        description,
+        status: 'completed',
+        setAppState: rootSetAppState,
+        finalMessage,
+        usage: {
+          totalTokens: getTokenCountFromTracker(tracker),
+          toolUses: agentResult.totalToolUseCount,
+          durationMs: agentResult.totalDurationMs,
+        },
+        toolUseId: toolUseContext.toolUseId,
+        ...worktreeResult,
+      })
+    }
   } catch (error) {
     clearStallWatchdog()
     if (stallOrSettled) return
@@ -728,29 +884,33 @@ export async function runAsyncAgentLifecycle({
       })
       const worktreeResult = await getWorktreeResult()
       const partialResult = extractPartialResult(agentMessages)
-      enqueueAgentNotification({
-        taskId,
-        description,
-        status: 'killed',
-        setAppState: rootSetAppState,
-        toolUseId: toolUseContext.toolUseId,
-        finalMessage: partialResult,
-        ...worktreeResult,
-      })
+      if (notifyOwner()) {
+        enqueueAgentNotification({
+          taskId,
+          description,
+          status: 'killed',
+          setAppState: rootSetAppState,
+          toolUseId: toolUseContext.toolUseId,
+          finalMessage: partialResult,
+          ...worktreeResult,
+        })
+      }
       return
     }
     const msg = errorMessage(error)
     failAsyncAgent(taskId, msg, rootSetAppState)
     const worktreeResult = await getWorktreeResult()
-    enqueueAgentNotification({
-      taskId,
-      description,
-      status: 'failed',
-      error: msg,
-      setAppState: rootSetAppState,
-      toolUseId: toolUseContext.toolUseId,
-      ...worktreeResult,
-    })
+    if (notifyOwner()) {
+      enqueueAgentNotification({
+        taskId,
+        description,
+        status: 'failed',
+        error: msg,
+        setAppState: rootSetAppState,
+        toolUseId: toolUseContext.toolUseId,
+        ...worktreeResult,
+      })
+    }
   } finally {
     clearInvokedSkillsForAgent(agentIdForCleanup)
     clearDumpState(agentIdForCleanup)
