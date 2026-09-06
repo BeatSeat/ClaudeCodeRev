@@ -329,7 +329,7 @@ export function getEffortLevelDescription(level: EffortLevel): string {
     case 'high':
       return 'Comprehensive implementation with extensive testing and documentation'
     case 'xhigh':
-      return 'Deeper reasoning than high, just below maximum (Fable 5, Opus 4.8/4.7 only)'
+      return 'Deeper reasoning than high, just below maximum (Fable 5, Opus 4.7+)'
     case 'max':
       return 'Maximum capability with deepest reasoning. May use excessive tokens resulting in long response times or overthinking. Use sparingly for the hardest tasks.'
   }

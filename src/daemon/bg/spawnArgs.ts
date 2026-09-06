@@ -1,5 +1,6 @@
 import { mkdir, writeFile } from 'fs/promises'
 import { logForDebugging } from '../../utils/debug.js'
+import { isEnvTruthy } from '../../utils/envUtils.js'
 import { errorMessage } from '../../utils/errors.js'
 import { getPlatform } from '../../utils/platform.js'
 import { jsonStringify } from '../../utils/slowOperations.js'
@@ -54,6 +55,89 @@ export const STRIP_ENV = [
   'FORCE_CODE_TERMINAL',
 ]
 
+/** Official 2.1.174 `cS6` + `RD7` + `LG$` + `gS6` + `dS6` extras — `FXq`. */
+export const STRIP_PROVIDER_ENV = [
+  'ANTHROPIC_MODEL',
+  'ANTHROPIC_DEFAULT_FABLE_MODEL',
+  'ANTHROPIC_DEFAULT_FABLE_MODEL_DESCRIPTION',
+  'ANTHROPIC_DEFAULT_FABLE_MODEL_NAME',
+  'ANTHROPIC_DEFAULT_FABLE_MODEL_SUPPORTED_CAPABILITIES',
+  'ANTHROPIC_DEFAULT_HAIKU_MODEL',
+  'ANTHROPIC_DEFAULT_HAIKU_MODEL_DESCRIPTION',
+  'ANTHROPIC_DEFAULT_HAIKU_MODEL_NAME',
+  'ANTHROPIC_DEFAULT_HAIKU_MODEL_SUPPORTED_CAPABILITIES',
+  'ANTHROPIC_DEFAULT_OPUS_MODEL',
+  'ANTHROPIC_DEFAULT_OPUS_MODEL_DESCRIPTION',
+  'ANTHROPIC_DEFAULT_OPUS_MODEL_NAME',
+  'ANTHROPIC_DEFAULT_OPUS_MODEL_SUPPORTED_CAPABILITIES',
+  'ANTHROPIC_DEFAULT_SONNET_MODEL',
+  'ANTHROPIC_DEFAULT_SONNET_MODEL_DESCRIPTION',
+  'ANTHROPIC_DEFAULT_SONNET_MODEL_NAME',
+  'ANTHROPIC_DEFAULT_SONNET_MODEL_SUPPORTED_CAPABILITIES',
+  'ANTHROPIC_SMALL_FAST_MODEL',
+  'ANTHROPIC_SMALL_FAST_MODEL_AWS_REGION',
+  'CLAUDE_CODE_SUBAGENT_MODEL',
+  'ANTHROPIC_CUSTOM_MODEL_OPTION',
+  'ANTHROPIC_CUSTOM_MODEL_OPTION_DESCRIPTION',
+  'ANTHROPIC_CUSTOM_MODEL_OPTION_NAME',
+  'ANTHROPIC_CUSTOM_MODEL_OPTION_SUPPORTED_CAPABILITIES',
+  'CLAUDE_CODE_USE_BEDROCK',
+  'CLAUDE_CODE_USE_VERTEX',
+  'CLAUDE_CODE_USE_FOUNDRY',
+  'CLAUDE_CODE_USE_ANTHROPIC_AWS',
+  'CLAUDE_CODE_USE_MANTLE',
+  'CLAUDE_CODE_USE_GATEWAY',
+  'ANTHROPIC_FOUNDRY_RESOURCE',
+  'ANTHROPIC_VERTEX_PROJECT_ID',
+  'ANTHROPIC_AWS_WORKSPACE_ID',
+  'CLOUD_ML_REGION',
+  'ANTHROPIC_BASE_URL',
+  '_CLAUDE_CODE_ASSUME_FIRST_PARTY_BASE_URL',
+  'ANTHROPIC_BEDROCK_BASE_URL',
+  'ANTHROPIC_VERTEX_BASE_URL',
+  'ANTHROPIC_FOUNDRY_BASE_URL',
+  'ANTHROPIC_AWS_BASE_URL',
+  'ANTHROPIC_BEDROCK_MANTLE_BASE_URL',
+  'CLAUDE_CODE_SKIP_BEDROCK_AUTH',
+  'CLAUDE_CODE_SKIP_VERTEX_AUTH',
+  'CLAUDE_CODE_SKIP_FOUNDRY_AUTH',
+  'CLAUDE_CODE_SKIP_ANTHROPIC_AWS_AUTH',
+  'CLAUDE_CODE_SKIP_MANTLE_AUTH',
+  'ANTHROPIC_CUSTOM_HEADERS',
+  'ANTHROPIC_UNIX_SOCKET',
+  'CLAUDE_CODE_PROVIDER_MANAGED_BY_HOST',
+  'CLAUDE_CODE_HOST_AUTH_ENV_VAR',
+]
+
+/** Official 2.1.174 `PG$`. */
+const STRIP_API_KEY_ENV = [
+  'ANTHROPIC_API_KEY',
+  'ANTHROPIC_AUTH_TOKEN',
+  'CLAUDE_CODE_OAUTH_TOKEN',
+  'AWS_BEARER_TOKEN_BEDROCK',
+  'ANTHROPIC_FOUNDRY_API_KEY',
+  'ANTHROPIC_AWS_API_KEY',
+  'ANTHROPIC_BEDROCK_MANTLE_API_KEY',
+]
+
+/** Official 2.1.174 `WG$`. */
+const VERTEX_REGION_ENV_PREFIXES = ['VERTEX_REGION_CLAUDE_']
+
+/** Official 2.1.174 `QXq`. */
+function isHostManagedProviderEnv(env: NodeJS.ProcessEnv): boolean {
+  return (
+    !!env.ANTHROPIC_UNIX_SOCKET ||
+    isEnvTruthy(env.CLAUDE_CODE_PROVIDER_MANAGED_BY_HOST) ||
+    !!env.CLAUDE_CODE_HOST_AUTH_ENV_VAR
+  )
+}
+
+function stripHostManagedApiKeys(env: NodeJS.ProcessEnv): void {
+  const hostVar = env.CLAUDE_CODE_HOST_AUTH_ENV_VAR
+  if (hostVar) delete env[hostVar]
+  for (const z of STRIP_API_KEY_ENV) delete env[z]
+}
+
 /** Official `c89`. */
 export function workerArgv(
   dispatch: Dispatch,
@@ -84,8 +168,9 @@ export function workerEnv(
   authSnapshot: string | undefined,
   rvSock: string,
 ): NodeJS.ProcessEnv {
+  const snapshot = { ...process.env }
   const env: NodeJS.ProcessEnv = {
-    ...process.env,
+    ...snapshot,
     ...(getPlatform() === 'windows' && {
       CLAUDE_CODE_ALT_SCREEN_FULL_REPAINT: '1',
     }),
@@ -109,6 +194,20 @@ export function workerEnv(
   for (const z of STRIP_ENV) {
     if (!dispatch.env?.[z]) delete env[z]
   }
+  for (const z of STRIP_PROVIDER_ENV) {
+    if (!dispatch.env?.[z]) delete env[z]
+  }
+  for (const z of Object.keys(env)) {
+    if (
+      VERTEX_REGION_ENV_PREFIXES.some(prefix => z.startsWith(prefix)) &&
+      !dispatch.env?.[z]
+    ) {
+      delete env[z]
+    }
+  }
+  if (isHostManagedProviderEnv(snapshot)) {
+    stripHostManagedApiKeys(env)
+  }
   if (authSnapshot) delete env.CLAUDE_CODE_OAUTH_TOKEN
   if (dispatch.launch.mode === 'exec') {
     for (const z of Object.keys(env)) {
@@ -125,6 +224,30 @@ export function workerEnv(
     env.CLAUDE_PTY_HOST_EXEC = '1'
   }
   return env
+}
+
+/** Official 2.1.174 `BVA` — spare-worker env isolated from the daemon shell. */
+export function spareWorkerEnv(): NodeJS.ProcessEnv {
+  const env: NodeJS.ProcessEnv = { ...process.env }
+  for (const z of STRIP_ENV) delete env[z]
+  if (isHostManagedProviderEnv(env)) {
+    stripHostManagedApiKeys(env)
+  }
+  for (const z of STRIP_PROVIDER_ENV) delete env[z]
+  for (const z of Object.keys(env)) {
+    if (VERTEX_REGION_ENV_PREFIXES.some(prefix => z.startsWith(prefix))) {
+      delete env[z]
+    }
+  }
+  if (getPlatform() === 'macos') delete env.CLAUDE_CODE_OAUTH_TOKEN
+  return Object.assign(env, {
+    CLAUDE_CODE_SESSION_KIND: 'bg',
+    CLAUDE_BG_BACKEND: 'daemon',
+    CLAUDE_ENABLE_STREAM_WATCHDOG: '1',
+    FORCE_COLOR: '3',
+    COLORTERM: 'truecolor',
+    BROWSER: 'true',
+  })
 }
 
 /** Official `rqq`. Auth snapshot is macOS-only. */

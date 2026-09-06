@@ -1763,6 +1763,11 @@ export function getOauthAccountInfo(): AccountInfo | undefined {
   return isAnthropicAuthEnabled() ? getGlobalConfig().oauthAccount : undefined
 }
 
+/** Official 2.1.174 `oa` — Fable usage-credit toast skip. */
+export function isUsageBasedBilling(): boolean {
+  return String(getOauthAccountInfo()?.billingType ?? '') === 'usage_based'
+}
+
 /**
  * Checks if overage/extra usage provisioning is allowed for this organization.
  * This mirrors the logic in apps/claude-ai `useIsOverageProvisioningAllowed` hook as closely as possible.

@@ -53,7 +53,7 @@ type EffortCommandResult = {
   effortUpdate?: { value: EffortValue | undefined; ultracode?: boolean }
 }
 
-const XHIGH_MODEL_HINT = 'Fable 5, Opus 4.8/4.7 only'
+const XHIGH_MODEL_HINT = 'Fable 5, Opus 4.7+'
 const MAX_MODEL_HINT = 'Fable 5, Opus 4.6+, Sonnet 4.6'
 
 function effortHelpText(): string {
