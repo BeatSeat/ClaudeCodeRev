@@ -1405,8 +1405,16 @@ export function categorizeRetryableAPIError(
 const REFUSAL_LEARN_MORE_URL =
   'https://support.claude.com/en/articles/15363606'
 const REFUSAL_FEEDBACK_HINT = `Send feedback with /feedback or learn more: ${REFUSAL_LEARN_MORE_URL}`
-const REFUSAL_MYTHOS_CAPABILITY_NOTE =
-  "They may flag safe, normal content as well. These measures let us bring you Mythos-level capability in other areas sooner, and we're working to refine them."
+/** Official 2.1.173 `rnH`. */
+const REFUSAL_MYTHOS_REFINE_NOTE =
+  "These measures let us bring you Mythos-level capability in other areas sooner, and we're working to refine them."
+/** Official 2.1.173 `XX$` (172 `DX$`). */
+const REFUSAL_MYTHOS_CAPABILITY_NOTE = `They may flag safe, normal content as well. ${REFUSAL_MYTHOS_REFINE_NOTE}`
+
+/** Official 2.1.173 `sDH`. */
+function isCyberOrBioRefusalCategory(category: unknown): boolean {
+  return category === 'cyber' || category === 'bio'
+}
 
 /**
  * Official 2.1.172 `E48` gate used by `j9$`: true when the current model
@@ -1464,8 +1472,10 @@ export function getErrorMessageIfRefusal(
     has_explanation: Boolean(explanation),
     ...(typeof category === 'string'
       ? {
-          category:
-            category as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
+          // Official 2.1.173 `J9$`: `sDH(category) ? category : "other"`.
+          category: (isCyberOrBioRefusalCategory(category)
+            ? category
+            : 'other') as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
         }
       : {}),
     request_id:
@@ -1494,7 +1504,12 @@ export function getErrorMessageIfRefusal(
     const learnMore = nonInteractive
       ? `Learn more: ${REFUSAL_LEARN_MORE_URL}`
       : REFUSAL_FEEDBACK_HINT
-    content = `${API_ERROR_MESSAGE_PREFIX}: ${display} has safety measures that flag messages on most cybersecurity or biology topics (https://www.anthropic.com/legal/aup). ${REFUSAL_MYTHOS_CAPABILITY_NOTE} Claude Code can't respond to this request with ${display}.\n\n${closer}\n\n${learnMore}`
+    // Official 2.1.173 `J9$`: cyber/bio keep the 172 sentence; other
+    // categories on a fallback-capable model use the generic session-flag copy.
+    const safetyLead = isCyberOrBioRefusalCategory(category)
+      ? `${display} has safety measures that flag messages on most cybersecurity or biology topics (https://www.anthropic.com/legal/aup). ${REFUSAL_MYTHOS_CAPABILITY_NOTE}`
+      : `${display} has measures that flagged something in this session (https://www.anthropic.com/legal/aup). This sometimes happens with safe, normal conversations. ${REFUSAL_MYTHOS_REFINE_NOTE}`
+    content = `${API_ERROR_MESSAGE_PREFIX}: ${safetyLead} Claude Code can't respond to this request with ${display}.\n\n${closer}\n\n${learnMore}`
   } else {
     const closer = nonInteractive
       ? newSessionCloser
