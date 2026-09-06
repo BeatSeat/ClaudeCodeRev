@@ -220,7 +220,6 @@ import TextInput from '../TextInput.js'
 import { ThinkingToggle } from '../ThinkingToggle.js'
 import { BackgroundTasksDialog } from '../tasks/BackgroundTasksDialog.js'
 import { shouldHideTasksFooter } from '../tasks/taskStatusUtils.js'
-import { TeamsDialog } from '../teams/TeamsDialog.js'
 import VimTextInput from '../VimTextInput.js'
 import { getModeFromInput, getValueFromInput } from './inputModes.js'
 import {
@@ -475,7 +474,6 @@ function PromptInput({
     [viewingAgentMessages],
   )
   const viewSelectionMode = useAppState(s => s.viewSelectionMode)
-  const showSpinnerTree = useAppState(s => s.expandedView) === 'teammates'
   const { companion: _companion, companionMuted } = feature('BUDDY')
     ? getGlobalConfig()
     : { companion: undefined, companionMuted: undefined }
@@ -558,9 +556,7 @@ function PromptInput({
   // (arrow, escape, backspace, paste, space) disarms without inserting.
   const pendingSpaceAfterPillRef = useRef(false)
 
-  const [showTeamsDialog, setShowTeamsDialog] = useState(false)
   const [showBridgeDialog, setShowBridgeDialog] = useState(false)
-  const [teammateFooterIndex, setTeammateFooterIndex] = useState(0)
   // -1 sentinel: tasks pill is selected but no specific agent row is selected yet.
   // First ↓ selects the pill, second ↓ moves to row 0. Prevents double-select
   // of pill + row when both bg tasks (pill) and forked agents (rows) are visible.
@@ -666,8 +662,9 @@ function PromptInput({
   const tasksFooterVisible =
     (runningTaskCount > 0 ||
       ("external" === 'ant' && coordinatorTaskCount > 0)) &&
-    !shouldHideTasksFooter(tasks, showSpinnerTree)
-  const teamsFooterVisible = cachedTeams.length > 0
+    !shouldHideTasksFooter(tasks, false)
+  // Official 2.1.179: TeamsDialog / teams footer pill DCE'd (`zTq` / `Yu9`).
+  const teamsFooterVisible = false
 
   const footerItems = useMemo(
     () =>
@@ -720,7 +717,6 @@ function PromptInput({
       prev.footerSelection === item ? prev : { ...prev, footerSelection: item },
     )
     if (item === 'tasks') {
-      setTeammateFooterIndex(0)
       setCoordinatorTaskIndex(minCoordinatorIndex)
     }
   }
@@ -1440,9 +1436,7 @@ function PromptInput({
       // Enter in selection modes confirms selection (useBackgroundTaskNavigation).
       // BaseTextInput's useInput registers before that hook (child effects fire first),
       // so without this guard Enter would double-fire and auto-submit the suggestion.
-      if (state.viewSelectionMode === 'selecting-agent') {
-        return
-      }
+      // Official 2.1.179: selecting-agent DCE'd — viewing-agent remains.
 
       // Check for images early - we need this for suggestion logic below
       const hasImages = Object.values(pastedContents).some(
@@ -2470,26 +2464,12 @@ function PromptInput({
         navigateFooter(1)
       },
       'footer:next': () => {
-        // Teammate mode: ←/→ cycles within the team member list
-        if (tasksSelected && isTeammateMode) {
-          const totalAgents = 1 + inProcessTeammates.length
-          setTeammateFooterIndex(prev => (prev + 1) % totalAgents)
-          return
-        }
         navigateFooter(1)
       },
       'footer:previous': () => {
-        if (tasksSelected && isTeammateMode) {
-          const totalAgents = 1 + inProcessTeammates.length
-          setTeammateFooterIndex(prev => (prev - 1 + totalAgents) % totalAgents)
-          return
-        }
         navigateFooter(-1)
       },
       'footer:openSelected': () => {
-        if (viewSelectionMode === 'selecting-agent') {
-          return
-        }
         switch (footerItemSelected) {
           case 'companion':
             if (feature('BUDDY')) {
@@ -2498,15 +2478,7 @@ function PromptInput({
             }
             break
           case 'tasks':
-            if (isTeammateMode) {
-              // Enter switches to the selected agent's view
-              if (teammateFooterIndex === 0) {
-                exitTeammateView(setAppState)
-              } else {
-                const teammate = inProcessTeammates[teammateFooterIndex - 1]
-                if (teammate) enterTeammateView(teammate.id, setAppState)
-              }
-            } else if (coordinatorTaskIndex === 0 && coordinatorTaskCount > 0) {
+            if (coordinatorTaskIndex === 0 && coordinatorTaskCount > 0) {
               exitTeammateView(setAppState)
             } else {
               const selectedTaskId =
@@ -2536,7 +2508,7 @@ function PromptInput({
           case 'bagel':
             break
           case 'teams':
-            setShowTeamsDialog(true)
+            // Official 2.1.179: TeamsDialog DCE'd (`Yu9` cluster).
             selectFooterItem(null)
             break
           case 'bridge':
@@ -2585,7 +2557,6 @@ function PromptInput({
     // render via early return, but hooks run unconditionally — so without this
     // guard, Escape inside a dialog leaks to the double-press message-selector.
     if (
-      showTeamsDialog ||
       showQuickOpen ||
       showGlobalSearch ||
       showHistoryPicker
@@ -2974,17 +2945,6 @@ function PromptInput({
     )
   }
 
-  if (isAgentSwarmsEnabled() && showTeamsDialog) {
-    return (
-      <TeamsDialog
-        initialTeams={cachedTeams}
-        onDone={() => {
-          setShowTeamsDialog(false)
-        }}
-      />
-    )
-  }
-
   if (feature('QUICK_SEARCH')) {
     const insertWithSpacing = (text: string) => {
       const cursorChar = input[cursorOffset - 1] ?? ' '
@@ -3261,7 +3221,6 @@ function PromptInput({
         teamsSelected={teamsSelected}
         bridgeSelected={bridgeSelected}
         tmuxSelected={tmuxSelected}
-        teammateFooterIndex={teammateFooterIndex}
         ideSelection={ideSelection}
         mcpClients={mcpClients}
         isPasting={isPasting}

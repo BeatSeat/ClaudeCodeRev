@@ -2,6 +2,7 @@ import { feature } from 'bun:bundle'
 import {
   getLastInteractionTime,
   getSdkBetas,
+  getIsInteractive,
   markPostCompaction,
 } from '../../bootstrap/state.js'
 import type { QuerySource } from '../../constants/querySource.js'
@@ -9,6 +10,7 @@ import type { ToolUseContext } from '../../Tool.js'
 import type { Message } from '../../types/message.js'
 import {
   resolveAutoCompactWindow,
+  isLockedAutoCompactWindowSource,
 } from '../../utils/autoCompactWindow.js'
 import { getContextWindowForModel } from '../../utils/context.js'
 import { getInitialSettings } from '../../utils/settings/settings.js'
@@ -51,6 +53,7 @@ export function getEffectiveContextWindowSize(model: string): number {
   const { window: contextWindow } = resolveAutoCompactWindow(
     modelWindow,
     settingsWindow,
+    model,
   )
 
   return contextWindow - reservedTokensForSummary
@@ -253,13 +256,31 @@ export async function shouldAutoCompact(
   }
 
   // Reactive-only mode: suppress proactive autocompact, let reactive compact
-  // catch the API's prompt-too-long. feature() wrapper keeps the flag string
-  // out of external builds (REACTIVE_COMPACT is ant-only).
+  // catch the API's prompt-too-long. Official 2.1.179 `MCf`:
+  // `h$H()&&!Io()&&!O5$(model,settingsWindow)` — reactive on, amber_redwood3
+  // unset, and window source not locked (env/settings/clientdata).
+  // feature() wrapper keeps the flag string out of external builds
+  // (REACTIVE_COMPACT is ant-only).
   // Note: returning false here also means autoCompactIfNeeded never reaches
   // trySessionMemoryCompaction in the query loop — the /compact call site
   // still tries session memory first. Revisit if reactive-only graduates.
   if (feature('REACTIVE_COMPACT')) {
-    if (getFeatureValue_CACHED_MAY_BE_STALE('tengu_cobalt_raccoon', false)) {
+    /* eslint-disable @typescript-eslint/no-require-imports */
+    const { isReactiveCompactEnabled } =
+      require('./reactiveCompact.js') as typeof import('./reactiveCompact.js')
+    /* eslint-enable @typescript-eslint/no-require-imports */
+    const settingsWindow = isAutoCompactEnabled()
+      ? getInitialSettings().autoCompactWindow
+      : undefined
+    const modelWindow = getContextWindowForModel(model, getSdkBetas())
+    const amberRedwood3 =
+      getIsInteractive() &&
+      !!getFeatureValue_CACHED_MAY_BE_STALE('tengu_amber_redwood3', '')
+    if (
+      isReactiveCompactEnabled() &&
+      !amberRedwood3 &&
+      !isLockedAutoCompactWindowSource(modelWindow, settingsWindow, model)
+    ) {
       return false
     }
   }

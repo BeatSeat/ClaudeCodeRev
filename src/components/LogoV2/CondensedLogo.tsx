@@ -19,7 +19,6 @@ import { AnimatedClawd } from './AnimatedClawd.js'
 import { Clawd } from './Clawd.js'
 import {
   GuestPassesUpsell,
-  incrementGuestPassesSeenCount,
   useShowGuestPassesUpsell,
 } from './GuestPassesUpsell.js'
 import {
@@ -48,12 +47,6 @@ export function CondensedLogo(): ReactNode {
   const showOverageCreditUpsell = useShowOverageCreditUpsell()
   const showFullscreenUpsell = useShowFullscreenUpsell()
   const justSwitchedTui = process.env.CLAUDE_CODE_TUI_JUST_SWITCHED !== undefined
-
-  useEffect(() => {
-    if (showGuestPassesUpsell) {
-      incrementGuestPassesSeenCount()
-    }
-  }, [showGuestPassesUpsell])
 
   useEffect(() => {
     if (showOverageCreditUpsell && !showGuestPassesUpsell) {

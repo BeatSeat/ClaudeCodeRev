@@ -1229,7 +1229,9 @@ export function Config({
             {
               id: 'teammateMode',
               label,
-              value: getUserIntentSetting('teammateMode', 'auto') ?? 'auto',
+              value:
+                getUserIntentSetting('teammateMode', 'in-process') ??
+                'in-process',
               options: ['auto', 'tmux', 'in-process'],
               type: 'enum' as const,
               onChange(mode: string) {

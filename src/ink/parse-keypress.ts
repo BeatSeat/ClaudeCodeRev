@@ -32,6 +32,80 @@ export function shouldTreatBsAsCtrlBackspace(
   )
 }
 
+export type AltGrAsTextPolicy = 'force' | 'off' | 'auto'
+
+/**
+ * Official 2.1.179 `t$5` — `CLAUDE_CODE_ALTGR_AS_TEXT` env / WT_SESSION auto.
+ */
+export function resolveAltGrAsTextPolicy(
+  env: NodeJS.ProcessEnv,
+  wtSession?: boolean | null,
+): AltGrAsTextPolicy {
+  const override = env.CLAUDE_CODE_ALTGR_AS_TEXT
+  if (isEnvTruthy(override)) return 'force'
+  if (isEnvDefinedFalsy(override)) return 'off'
+  return wtSession ?? !!env.WT_SESSION ? 'auto' : 'off'
+}
+
+/** Official 2.1.179 `e$5`. */
+function getAltGrAsTextPolicy(): AltGrAsTextPolicy {
+  return resolveAltGrAsTextPolicy(process.env)
+}
+
+/** Official 2.1.179 `H85` — printable (not C0 / surrogates). */
+function isPrintableCodePoint(codePoint: number): boolean {
+  return (
+    (codePoint > 32 && codePoint < 127) ||
+    (codePoint >= 160 && codePoint < 55296)
+  )
+}
+
+/** Official 2.1.179 `$85`. */
+function isAlphanumericCodePoint(codePoint: number): boolean {
+  return (
+    (codePoint >= 48 && codePoint <= 57) ||
+    (codePoint >= 65 && codePoint <= 90) ||
+    (codePoint >= 97 && codePoint <= 122)
+  )
+}
+
+/**
+ * Official 2.1.179 `Cj7` — bare key event (no ctrl/meta) for AltGr-as-text.
+ */
+function createAltGrTextKey(
+  sequence: string,
+  codePoint: number,
+  shift: boolean,
+): ParsedKey {
+  return {
+    kind: 'key',
+    name: String.fromCodePoint(codePoint),
+    fn: false,
+    ctrl: false,
+    meta: false,
+    shift,
+    option: false,
+    super: false,
+    sequence,
+    raw: sequence,
+    isPasted: false,
+  }
+}
+
+/**
+ * Official 2.1.179 `bj7` — ctrl+meta without super + printable → AltGr text.
+ */
+function shouldTreatAsAltGrText(
+  mods: { ctrl: boolean; meta: boolean; super: boolean },
+  codePoint: number,
+): boolean {
+  if (!(mods.ctrl && mods.meta) || mods.super) return false
+  if (!isPrintableCodePoint(codePoint)) return false
+  const policy = getAltGrAsTextPolicy()
+  if (policy === 'off') return false
+  return policy === 'force' || !isAlphanumericCodePoint(codePoint)
+}
+
 // eslint-disable-next-line no-control-regex
 const META_KEY_CODE_RE = /^(?:\x1b)([a-zA-Z0-9])$/
 
@@ -664,6 +738,10 @@ function parseKeypress(s: string = ''): ParsedKey {
     // Modifier defaults to 1 (no modifiers) when not present
     const modifier = match[2] ? parseInt(match[2], 10) : 1
     const mods = decodeModifier(modifier)
+    // Official 2.1.179 `bj7`/`Cj7` — AltGr (ctrl+meta) as plain text
+    if (shouldTreatAsAltGrText(mods, codepoint)) {
+      return createAltGrTextKey(s, codepoint, mods.shift)
+    }
     const name = keycodeToName(codepoint)
     return {
       kind: 'key',
@@ -685,7 +763,11 @@ function parseKeypress(s: string = ''): ParsedKey {
   // would leave the tail as garbage if it partially matched.
   if ((match = MODIFY_OTHER_KEYS_RE.exec(s))) {
     const mods = decodeModifier(parseInt(match[1]!, 10))
-    const name = keycodeToName(parseInt(match[2]!, 10))
+    const codepoint = parseInt(match[2]!, 10)
+    if (shouldTreatAsAltGrText(mods, codepoint)) {
+      return createAltGrTextKey(s, codepoint, mods.shift)
+    }
+    const name = keycodeToName(codepoint)
     return {
       kind: 'key',
       name,

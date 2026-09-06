@@ -2,7 +2,6 @@ import { spawnSync } from 'child_process'
 import { getIsInteractive } from '../bootstrap/state.js'
 import { getFeatureValue_CACHED_MAY_BE_STALE } from '../services/analytics/growthbook.js'
 import { logForDebugging } from './debug.js'
-import { env } from './env.js'
 import { isEnvDefinedFalsy, isEnvTruthy } from './envUtils.js'
 import { execFileNoThrow } from './execFileNoThrow.js'
 import { getInitialSettings } from './settings/settings.js'
@@ -224,13 +223,12 @@ export function isFullscreenEnvEnabled(): boolean {
  * Compare with CLAUDE_CODE_NO_FLICKER=0 which is all-or-nothing — it also
  * disables alt-screen and virtualized scrollback.
  */
-/** Official 2.1.172 `REH`. */
+/** Official 2.1.179 `_IH` (178 `sRH` dropped WSL-unrecognized-host gate). */
 export function isMouseTrackingEnabled(): boolean {
   if (process.env.CLAUDE_CODE_SESSION_KIND === 'bg') return true
   if (process.env.CLAUDE_CODE_DISABLE_MOUSE !== undefined) {
     return !process.env.CLAUDE_CODE_DISABLE_MOUSE
   }
-  if (env.isWslWithUnrecognizedWindowsHost()) return false
   return true
 }
 

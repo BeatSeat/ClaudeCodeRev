@@ -67,6 +67,32 @@ export function isOfficialMcpUrl(normalizedUrl: string): boolean {
   return officialUrls?.has(normalizedUrl) ?? false
 }
 
+/** Official 2.1.179 `qE_`. */
+const ANTHROPIC_DESIGN_MCP_PATHS = ['/v1/design/']
+
+/** Official 2.1.179 `eiH`. */
+function isAnthropicApiHost(url: string): boolean {
+  try {
+    return ['api.anthropic.com'].includes(new URL(url).host)
+  } catch {
+    return false
+  }
+}
+
+/** Official 2.1.179 `hn` (178 `u2H`). */
+export function isAnthropicDesignMcpUrl(url: string): boolean {
+  try {
+    const parsed = new URL(url)
+    return (
+      parsed.protocol === 'https:' &&
+      isAnthropicApiHost(parsed.href) &&
+      ANTHROPIC_DESIGN_MCP_PATHS.some(path => parsed.pathname.startsWith(path))
+    )
+  } catch {
+    return false
+  }
+}
+
 export function resetOfficialMcpUrlsForTesting(): void {
   officialUrls = undefined
 }

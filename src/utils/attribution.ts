@@ -22,6 +22,7 @@ import {
   sanitizeModelName,
 } from './commitAttribution.js'
 import { logForDebugging } from './debug.js'
+import { isEnvTruthy } from './envUtils.js'
 import { parseJSONL } from './json.js'
 import { logError } from './log.js'
 import {
@@ -42,31 +43,39 @@ export type AttributionTexts = {
 }
 
 /**
- * Returns attribution text for commits and PRs based on user settings.
- * Handles:
- * - Dynamic model name via getPublicModelName()
- * - Custom attribution settings (settings.attribution.commit/pr)
- * - Backward compatibility with deprecated includeCoAuthoredBy setting
- * - Remote mode: returns session URL for attribution
+ * Official 2.1.179 `Fi4` — remote session URL for attribution trailer, or null.
  */
-export function getAttributionTexts(): AttributionTexts {
-  if (process.env.USER_TYPE === 'ant' && isUndercover()) {
-    return { commit: '', pr: '' }
+function getRemoteSessionAttributionUrl(): string | null {
+  if (getClientType() !== 'remote') return null
+  if (isEnvTruthy(process.env.CLAUDE_CODE_SUPPRESS_SESSION_ATTRIBUTION)) {
+    return null
   }
+  const remoteSessionId = process.env.CLAUDE_CODE_REMOTE_SESSION_ID
+  if (!remoteSessionId) return null
+  const ingressUrl = process.env.SESSION_INGRESS_URL
+  if (isRemoteSessionLocal(remoteSessionId, ingressUrl)) return null
+  return getRemoteSessionUrl(remoteSessionId, ingressUrl)
+}
 
-  if (getClientType() === 'remote') {
-    const remoteSessionId = process.env.CLAUDE_CODE_REMOTE_SESSION_ID
-    if (remoteSessionId) {
-      const ingressUrl = process.env.SESSION_INGRESS_URL
-      // Skip for local dev - URLs won't persist
-      if (!isRemoteSessionLocal(remoteSessionId, ingressUrl)) {
-        const sessionUrl = getRemoteSessionUrl(remoteSessionId, ingressUrl)
-        return { commit: sessionUrl, pr: sessionUrl }
-      }
-    }
-    return { commit: '', pr: '' }
+/**
+ * Official 2.1.179 `ZEf` — append `Claude-Session:` trailer (commit) / URL (pr).
+ */
+function appendClaudeSessionTrailer(
+  texts: AttributionTexts,
+  sessionUrl: string,
+): AttributionTexts {
+  return {
+    commit: texts.commit
+      ? `${texts.commit}\nClaude-Session: ${sessionUrl}`
+      : `Claude-Session: ${sessionUrl}`,
+    pr: texts.pr ? `${texts.pr}\n\n${sessionUrl}` : sessionUrl,
   }
+}
 
+/**
+ * Local attribution builder (official 2.1.179 `GEf` — remote branch removed).
+ */
+function getLocalAttributionTexts(): AttributionTexts {
   // @[MODEL LAUNCH]: Update the hardcoded fallback model name below (guards against codename leaks).
   // For internal repos, use the real model name. For external repos,
   // fall back to "Claude" for unrecognized models (official 2.1.174 `umH` default).
@@ -95,6 +104,32 @@ export function getAttributionTexts(): AttributionTexts {
   }
 
   return { commit: defaultCommit, pr: defaultAttribution }
+}
+
+/**
+ * Returns attribution text for commits and PRs based on user settings.
+ * Handles:
+ * - Dynamic model name via getPublicModelName()
+ * - Custom attribution settings (settings.attribution.commit/pr)
+ * - Backward compatibility with deprecated includeCoAuthoredBy setting
+ * - Remote mode: appends Claude-Session trailer (official 2.1.179 `F_$`/`ZEf`)
+ */
+export function getAttributionTexts(): AttributionTexts {
+  if (process.env.USER_TYPE === 'ant' && isUndercover()) {
+    return { commit: '', pr: '' }
+  }
+
+  // Official 2.1.179 `F_$`: suppress → empty; else local texts + optional trailer.
+  if (
+    getClientType() === 'remote' &&
+    isEnvTruthy(process.env.CLAUDE_CODE_SUPPRESS_SESSION_ATTRIBUTION)
+  ) {
+    return { commit: '', pr: '' }
+  }
+
+  const sessionUrl = getRemoteSessionAttributionUrl()
+  const local = getLocalAttributionTexts()
+  return sessionUrl ? appendClaudeSessionTrailer(local, sessionUrl) : local
 }
 
 /**
@@ -306,28 +341,29 @@ export async function getEnhancedPRAttribution(
     return ''
   }
 
-  if (getClientType() === 'remote') {
-    const remoteSessionId = process.env.CLAUDE_CODE_REMOTE_SESSION_ID
-    if (remoteSessionId) {
-      const ingressUrl = process.env.SESSION_INGRESS_URL
-      // Skip for local dev - URLs won't persist
-      if (!isRemoteSessionLocal(remoteSessionId, ingressUrl)) {
-        return getRemoteSessionUrl(remoteSessionId, ingressUrl)
-      }
-    }
+  // Official 2.1.179 `gi4`: suppress → empty; else local enhanced + optional URL append.
+  if (
+    getClientType() === 'remote' &&
+    isEnvTruthy(process.env.CLAUDE_CODE_SUPPRESS_SESSION_ATTRIBUTION)
+  ) {
     return ''
   }
+
+  const sessionUrl = getRemoteSessionAttributionUrl()
 
   const settings = getInitialSettings()
 
   // If user has custom PR attribution, use that
   if (settings.attribution?.pr) {
-    return settings.attribution.pr
+    const custom = settings.attribution.pr
+    if (!sessionUrl || custom.includes(sessionUrl)) return custom
+    return `${custom}\n\n${sessionUrl}`
   }
 
   // Backward compatibility: deprecated includeCoAuthoredBy setting
   if (settings.includeCoAuthoredBy === false) {
-    return ''
+    if (!sessionUrl) return ''
+    return sessionUrl
   }
 
   const defaultAttribution = `🤖 Generated with [Claude Code](${PRODUCT_URL})`
@@ -366,17 +402,18 @@ export async function getEnhancedPRAttribution(
     : sanitizeModelName(rawModelName)
 
   // If no attribution data, return default
+  let summary: string
   if (claudePercent === 0 && promptCount === 0 && memoryAccessCount === 0) {
     logForDebugging('PR Attribution: returning default (no data)')
-    return defaultAttribution
+    summary = defaultAttribution
+  } else {
+    // Build the enhanced attribution: "🤖 Generated with Claude Code (93% 3-shotted by claude-opus-4-5, 2 memories recalled)"
+    const memSuffix =
+      memoryAccessCount > 0
+        ? `, ${memoryAccessCount} ${memoryAccessCount === 1 ? 'memory' : 'memories'} recalled`
+        : ''
+    summary = `🤖 Generated with [Claude Code](${PRODUCT_URL}) (${claudePercent}% ${promptCount}-shotted by ${shortModelName}${memSuffix})`
   }
-
-  // Build the enhanced attribution: "🤖 Generated with Claude Code (93% 3-shotted by claude-opus-4-5, 2 memories recalled)"
-  const memSuffix =
-    memoryAccessCount > 0
-      ? `, ${memoryAccessCount} ${memoryAccessCount === 1 ? 'memory' : 'memories'} recalled`
-      : ''
-  const summary = `🤖 Generated with [Claude Code](${PRODUCT_URL}) (${claudePercent}% ${promptCount}-shotted by ${shortModelName}${memSuffix})`
 
   // Append trailer lines for squash-merge survival. Only for allowlisted repos
   // (INTERNAL_MODEL_REPOS) and only in builds with COMMIT_ATTRIBUTION enabled —
@@ -388,11 +425,13 @@ export async function getEnhancedPRAttribution(
   if (feature('COMMIT_ATTRIBUTION') && isInternal && attributionData) {
     const { buildPRTrailers } = await import('./attributionTrailer.js')
     const trailers = buildPRTrailers(attributionData, appState.attribution)
-    const result = `${summary}\n\n${trailers.join('\n')}`
-    logForDebugging(`PR Attribution: returning with trailers: ${result}`)
-    return result
+    summary = `${summary}\n\n${trailers.join('\n')}`
+    logForDebugging(`PR Attribution: returning with trailers: ${summary}`)
+  } else {
+    logForDebugging(`PR Attribution: returning summary: ${summary}`)
   }
 
-  logForDebugging(`PR Attribution: returning summary: ${summary}`)
-  return summary
+  // Official 2.1.179 `gi4` — append remote session URL when not already present.
+  if (!sessionUrl || summary.includes(sessionUrl)) return summary
+  return `${summary}\n\n${sessionUrl}`
 }

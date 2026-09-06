@@ -20,7 +20,10 @@ import {
   getParentSessionId as getParentSessionIdFromState,
 } from '../../bootstrap/state.js'
 import { isEnvTruthy } from '../../utils/envUtils.js'
-import { isOfficialMcpUrl } from '../mcp/officialRegistry.js'
+import {
+  isAnthropicDesignMcpUrl,
+  isOfficialMcpUrl,
+} from '../mcp/officialRegistry.js'
 import { isClaudeAISubscriber, getSubscriptionType } from '../../utils/auth.js'
 import { getRepoRemoteHash } from '../../utils/git.js'
 import {
@@ -55,6 +58,18 @@ import { feature } from 'bun:bundle'
  * intentional as it's only used for type-casting to document developer intent.
  */
 export type AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS = never
+
+/**
+ * Official 2.1.179 `a6` (178 `LE`) — message/id analytics field.
+ */
+export function sanitizeAnalyticsId(
+  id: string | null | undefined,
+): AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS | undefined {
+  if (id == null) return undefined
+  return (
+    /^[A-Za-z0-9_-]{1,128}$/.test(id) ? id : 'nonconforming'
+  ) as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS
+}
 
 /**
  * Sanitizes tool names for analytics logging to avoid PII exposure.
@@ -179,6 +194,9 @@ export function isAnalyticsToolDetailsLoggingEnabled(
     return true
   }
   if (mcpServerBaseUrl && isOfficialMcpUrl(mcpServerBaseUrl)) {
+    return true
+  }
+  if (mcpServerBaseUrl && isAnthropicDesignMcpUrl(mcpServerBaseUrl)) {
     return true
   }
   return false

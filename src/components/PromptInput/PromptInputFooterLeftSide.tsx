@@ -33,7 +33,6 @@ import { getVisibleAgentTasks } from '../CoordinatorAgentStatus.js'
 import { count } from '../../utils/array.js'
 import { shouldHideTasksFooter } from '../tasks/taskStatusUtils.js'
 import { isAgentSwarmsEnabled } from '../../utils/agentSwarmsEnabled.js'
-import { TeamStatus } from '../teams/TeamStatus.js'
 import { isInProcessEnabled } from '../../utils/swarm/backends/registry.js'
 import { useAppState, useAppStateStore } from 'src/state/AppState.js'
 import { getIsRemoteMode } from '../../bootstrap/state.js'
@@ -242,7 +241,8 @@ function ModeIndicator({
   const viewSelectionMode = useAppState(s => s.viewSelectionMode)
   const viewingAgentTaskId = useAppState(s => s.viewingAgentTaskId)
   const expandedView = useAppState(s => s.expandedView)
-  const showSpinnerTree = expandedView === 'teammates'
+  const showSpinnerTree = false
+  void expandedView
   const prStatus = usePrStatus(isLoading, isPrStatusEnabled())
   const copperThistle = getFeatureValue_CACHED_MAY_BE_STALE(
     'tengu_copper_thistle',
@@ -339,14 +339,11 @@ function ModeIndicator({
     s => s.notifications.current?.key === 'kill-agents-confirm',
   )
 
-  // Derive team info from teamContext (no filesystem I/O needed)
-  // Match the same logic as TeamStatus to avoid trailing separator
-  // In-process mode uses Shift+Down/Up navigation, not footer teams menu
-  const hasTeams =
-    isAgentSwarmsEnabled() &&
-    !isInProcessEnabled() &&
-    teamContext !== undefined &&
-    count(Object.values(teamContext.teammates), t => t.name !== 'team-lead') > 0
+  // Official 2.1.179: TeamsDialog / TeamStatus footer pill DCE'd (`zTq` / `Yu9`).
+  const hasTeams = false
+  void teamContext
+  void isAgentSwarmsEnabled
+  void isInProcessEnabled
 
   if (mode === 'bash') {
     return <Text color="bashBorder">! for bash mode</Text>
@@ -434,15 +431,7 @@ function ModeIndicator({
     ...("external" === 'ant' && hasTmuxSession
       ? [<TungstenPill key="tmux" selected={tmuxSelected} />]
       : []),
-    ...(isAgentSwarmsEnabled() && hasTeams
-      ? [
-          <TeamStatus
-            key="teams"
-            teamsSelected={teamsSelected}
-            showHint={showHint && !hasBackgroundTasks}
-          />,
-        ]
-      : []),
+    // Official 2.1.179: TeamStatus footer pill DCE'd (`zTq`).
     ...(shouldShowPrStatus
       ? [
           <PrBadge
@@ -681,33 +670,18 @@ function getSpinnerHintParts(
   todosShortcut: string,
   killAgentsShortcut: string,
   hasTaskItems: boolean,
-  expandedView: 'none' | 'tasks' | 'teammates',
+  expandedView: 'none' | 'tasks',
   hasTeammates: boolean,
   hasRunningAgentTasks: boolean,
   isKillAgentsConfirmShowing: boolean,
   hasSelection: boolean,
 ): React.ReactElement[] {
-  let toggleAction: string
-  if (hasTeammates) {
-    // Cycling: none → tasks → teammates → none
-    switch (expandedView) {
-      case 'none':
-        toggleAction = 'show tasks'
-        break
-      case 'tasks':
-        toggleAction = 'show teammates'
-        break
-      case 'teammates':
-        toggleAction = 'hide'
-        break
-    }
-  } else {
-    toggleAction = expandedView === 'tasks' ? 'hide tasks' : 'show tasks'
-  }
+  // Official 2.1.179 `lZz`: none ↔ tasks only (teammates cycle DCE'd).
+  void hasTeammates
+  const toggleAction = expandedView === 'tasks' ? 'hide tasks' : 'show tasks'
 
-  // Show the toggle hint only when there are task items to display or
-  // teammates to cycle to
-  const showToggleHint = hasTaskItems || hasTeammates
+  // Show the toggle hint only when there are task items to display
+  const showToggleHint = hasTaskItems
 
   return [
     ...(isLoading && !hasSelection

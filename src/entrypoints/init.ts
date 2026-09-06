@@ -20,7 +20,11 @@ import {
 import { preconnectAnthropicApi } from '../utils/apiPreconnect.js'
 import { applyExtraCACertsFromConfig } from '../utils/caCertsConfig.js'
 import { registerCleanup } from '../utils/cleanupRegistry.js'
-import { enableConfigs, recordFirstStartTime } from '../utils/config.js'
+import {
+  enableConfigs,
+  getOrCreateMachineID,
+  recordFirstStartTime,
+} from '../utils/config.js'
 import { logForDebugging } from '../utils/debug.js'
 import { detectCurrentRepository } from '../utils/detectRepository.js'
 import { logForDiagnosticsNoPII } from '../utils/diagLogs.js'
@@ -138,8 +142,9 @@ export const init = memoize(async (): Promise<void> => {
     }
     profileCheckpoint('init_after_remote_settings_check')
 
-    // Record the first start time
+    // Record the first start time; ensure machineID exists (official 2.1.179 `iE6(),aO8()`)
     recordFirstStartTime()
+    getOrCreateMachineID()
 
     // Configure global mTLS settings
     const mtlsStart = Date.now()

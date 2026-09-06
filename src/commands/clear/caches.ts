@@ -56,6 +56,14 @@ export function clearSessionCaches(
   getSessionStartDate.cache.clear?.()
   // Clear file suggestion caches (for @ mentions)
   clearFileSuggestionCaches()
+  // Official 2.1.179 `d74`/`Uo6.clear` — once-fire notice keys
+  void import('../../hooks/useOnceFire.js').then(({ clearOnceFireKeys }) =>
+    clearOnceFireKeys(),
+  )
+  // Official 2.1.179 `ctf` / `AGH(ctf)` — clear company-announcement cache
+  void import('../../components/LogoV2/LogoV2.js').then(
+    ({ clearCompanyAnnouncementCache }) => clearCompanyAnnouncementCache(),
+  )
 
   // Clear commands/skills cache
   clearCommandsCache()

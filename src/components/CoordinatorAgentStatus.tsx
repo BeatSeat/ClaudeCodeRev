@@ -25,6 +25,7 @@ import {
   isPanelAgentTask,
   type LocalAgentTaskState,
 } from '../tasks/LocalAgentTask/LocalAgentTask.js'
+import { getTaskPendingMessageCount } from '../tasks/InProcessTeammateTask/types.js'
 import { formatDuration, formatNumber } from '../utils/format.js'
 import { evictTerminalTask } from '../utils/task/framework.js'
 import { isTerminalStatus } from './tasks/taskStatusUtils.js'
@@ -194,7 +195,7 @@ function AgentLine({
       ? ` · ${arrow} ${formatNumber(tokenCount)} tokens`
       : ''
 
-  const queuedCount = task.pendingMessages.length
+  const queuedCount = getTaskPendingMessageCount(task)
   const queuedText = queuedCount > 0 ? ` · ${queuedCount} queued` : ''
 
   // Precedence: AI summary > static description (no tool-call activity noise)

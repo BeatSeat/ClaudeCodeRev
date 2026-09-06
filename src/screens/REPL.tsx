@@ -6512,7 +6512,14 @@ export function REPL({
                 showAllInTranscript={showAllInTranscript}
                 agentDefinitions={agentDefinitions}
                 onOpenRateLimitOptions={handleOpenRateLimitOptions}
-                isLoading={isLoading}
+                isLoading={
+                  viewedTeammateTask
+                    ? viewedTeammateTask.status === 'running' &&
+                      !viewedTeammateTask.isIdle
+                    : viewedAgentTask
+                      ? viewedAgentTask.status === 'running'
+                      : isLoading
+                }
                 streamingText={
                   isLoading && !viewedAgentTask ? visibleStreamingText : null
                 }
@@ -6556,7 +6563,6 @@ export function REPL({
                   mode={streamMode}
                   spinnerTip={spinnerTip}
                   responseLengthRef={responseLengthRef}
-                  apiMetricsRef={apiMetricsRef}
                   overrideMessage={spinnerMessage}
                   spinnerSuffix={stopHookSpinnerSuffix}
                   verbose={verbose}
@@ -6566,7 +6572,7 @@ export function REPL({
                   overrideColor={spinnerColor}
                   overrideShimmerColor={spinnerShimmerColor}
                   hasActiveTools={inProgressToolUseIDs.size > 0}
-                  leaderIsIdle={!isLoading}
+                  agentId={viewedAgentTask?.id}
                 />
               )}
               {!showSpinner &&

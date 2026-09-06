@@ -3,10 +3,8 @@ import * as React from 'react'
 import { useMemo, useRef } from 'react'
 import { stringWidth } from '../../ink/stringWidth.js'
 import { Box, Text, useAnimationFrame } from '../../ink.js'
-import type { InProcessTeammateTaskState } from '../../tasks/InProcessTeammateTask/types.js'
 import { logEvent } from '../../services/analytics/index.js'
 import { formatDuration, formatNumber } from '../../utils/format.js'
-import { toInkColor } from '../../utils/ink.js'
 import type { Theme } from '../../utils/theme.js'
 import { Byline } from '../design-system/Byline.js'
 import { GlimmerMessage } from './GlimmerMessage.js'
@@ -68,13 +66,6 @@ export type SpinnerAnimationRowProps = {
   verbose: boolean
   columns: number
 
-  // Teammate-derived (computed by parent from tasks)
-  hasRunningTeammates: boolean
-  teammateTokens: number
-  foregroundedTeammate: InProcessTeammateTaskState | undefined
-  /** Leader's turn has completed. Suppresses stall-red since responseLengthRef/hasActiveTools track leader state only. */
-  leaderIsIdle?: boolean
-
   // Thinking (state owned by parent, mode-dependent)
   thinkingStatus: 'thinking' | number | null
   effortSuffix: string
@@ -106,10 +97,6 @@ export function SpinnerAnimationRow({
   spinnerSuffix,
   verbose,
   columns,
-  hasRunningTeammates,
-  teammateTokens,
-  foregroundedTeammate,
-  leaderIsIdle = false,
   thinkingStatus,
   effortSuffix,
 }: SpinnerAnimationRowProps): React.ReactNode {
@@ -124,29 +111,14 @@ export function SpinnerAnimationRow({
         totalPausedMsRef.current
       : now - loadingStartTimeRef.current - totalPausedMsRef.current
 
-  // Track wall-clock turn start for teammates. While a swarm is running the
-  // leader's elapsedTimeMs may jump around (new API calls reset
-  // loadingStartTimeRef; pauses freeze it), so we anchor to the earliest
-  // derived start seen so far. When no teammates are running this just tracks
-  // derivedStart every frame, effectively resetting for the next swarm.
-  const derivedStart = now - elapsedTimeMs
-  const turnStartRef = useRef(derivedStart)
-  if (!hasRunningTeammates || derivedStart < turnStartRef.current) {
-    turnStartRef.current = derivedStart
-  }
-
   // === Animation derivations from `time` ===
   const currentResponseLength = responseLengthRef.current
 
-  // Suppress stall detection when leader is idle — responseLengthRef and
-  // hasActiveTools both track leader state. When viewing an active teammate
-  // while leader is idle, they'd otherwise flag a false stall after 3s.
-  // Treating leaderIsIdle like hasActiveTools resets the stall timer.
   const { isStalled, stalledIntensity, timeSinceLastToken } =
     useStalledAnimation(
       time,
       currentResponseLength,
-      hasActiveTools || leaderIsIdle,
+      hasActiveTools,
       reducedMotion,
     )
 
@@ -230,29 +202,19 @@ export function SpinnerAnimationRow({
     }
   }
   const displayedResponseLength = tokenCounterRef.current
-  const leaderTokens = Math.round(displayedResponseLength / 4)
+  const totalTokens = Math.round(displayedResponseLength / 4)
 
-  const effectiveElapsedMs = hasRunningTeammates
-    ? Math.max(elapsedTimeMs, now - turnStartRef.current)
-    : elapsedTimeMs
-  const timerText = formatDuration(effectiveElapsedMs)
+  const timerText = formatDuration(elapsedTimeMs)
   const timerWidth = stringWidth(timerText)
 
-  // === Token count (leader + teammates, or foregrounded teammate) ===
-  const totalTokens =
-    foregroundedTeammate && !foregroundedTeammate.isIdle
-      ? (foregroundedTeammate.progress?.tokenCount ?? 0)
-      : leaderTokens + teammateTokens
   const tokenCount = formatNumber(totalTokens)
-  const tokensText = hasRunningTeammates
-    ? `${tokenCount} tokens`
-    : `${figures.arrowDown} ${tokenCount} tokens`
+  const tokensText = `${figures.arrowDown} ${tokenCount} tokens`
   const tokensWidth = stringWidth(tokensText)
 
   // === Thinking text (may shrink to fit) ===
   const thinkingProgress =
     thinkingStatus === 'thinking'
-      ? thinkingProgressLabel(effectiveElapsedMs)
+      ? thinkingProgressLabel(elapsedTimeMs)
       : null
   let thinkingText =
     thinkingStatus === 'thinking'
@@ -268,7 +230,7 @@ export function SpinnerAnimationRow({
 
   const wantsThinking = thinkingStatus !== null
   const wantsTimerAndTokens =
-    verbose || hasRunningTeammates || effectiveElapsedMs > SHOW_TOKENS_AFTER_MS
+    verbose || elapsedTimeMs > SHOW_TOKENS_AFTER_MS
 
   const availableSpace = columns - messageWidth - 5
 
@@ -342,7 +304,7 @@ export function SpinnerAnimationRow({
     ...(showTokens
       ? [
           <Box flexDirection="row" key="tokens">
-            {!hasRunningTeammates && <SpinnerModeGlyph mode={mode} />}
+            <SpinnerModeGlyph mode={mode} />
             <Text dimColor>{tokenCount} tokens</Text>
           </Box>,
         ]
@@ -363,15 +325,7 @@ export function SpinnerAnimationRow({
   ]
 
   const status =
-    foregroundedTeammate && !foregroundedTeammate.isIdle ? (
-      <>
-        <Text dimColor>(esc to interrupt </Text>
-        <Text color={toInkColor(foregroundedTeammate.identity.color)}>
-          {foregroundedTeammate.identity.agentName}
-        </Text>
-        <Text dimColor>)</Text>
-      </>
-    ) : !foregroundedTeammate && parts.length > 0 ? (
+    parts.length > 0 ? (
       thinkingOnly ? (
         <Byline>{parts}</Byline>
       ) : (

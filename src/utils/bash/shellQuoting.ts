@@ -121,8 +121,18 @@ export function shouldAddStdinRedirect(command: string): boolean {
  * will also be rewritten. This is acceptable collateral — it's extremely
  * rare and rewriting to `/dev/null` inside a string is harmless.
  */
-const NUL_REDIRECT_REGEX = /(\d?&?>+\s*)[Nn][Uu][Ll](?=\s|$|[|&;)\n])/g
+// Official 2.1.179 `X64`/`L64` (`qp5`): `[ \t]*` not `\s*` so a newline after
+// `>` is not treated as NUL-redirect space; skip when cmd has `<`/`$`/backtick.
+const NUL_REDIRECT_REGEX = /(\d?&?>+[ \t]*)[Nn][Uu][Ll](?=\s|$|[|&;)\n])/g
 
+/** Official 2.1.179 `X64` (178 `v84`). */
 export function rewriteWindowsNullRedirect(command: string): string {
+  if (
+    command.includes('<') ||
+    command.includes('$') ||
+    command.includes('`')
+  ) {
+    return command
+  }
   return command.replace(NUL_REDIRECT_REGEX, '$1/dev/null')
 }

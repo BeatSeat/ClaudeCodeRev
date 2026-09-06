@@ -1,17 +1,23 @@
 import { z } from 'zod/v4'
+import { realpath } from 'fs/promises'
+import { homedir, tmpdir } from 'os'
 import {
   getOriginalCwd,
   getProjectRoot,
   setOriginalCwd,
   setProjectRoot,
 } from '../../bootstrap/state.js'
+import { getReplBridgeHandle } from '../../bridge/replBridgeHandle.js'
 import { clearSystemPromptSections } from '../../constants/systemPromptSections.js'
 import { logEvent } from '../../services/analytics/index.js'
 import type { Tool } from '../../Tool.js'
 import { buildTool, type ToolDef } from '../../Tool.js'
 import { count } from '../../utils/array.js'
 import { clearMemoryFileCaches } from '../../utils/claudemd.js'
+import { logForDebugging } from '../../utils/debug.js'
+import { isENOENT } from '../../utils/errors.js'
 import { execFileNoThrow } from '../../utils/execFileNoThrow.js'
+import { reanchorGitFileWatcher } from '../../utils/git/gitFilesystem.js'
 import { updateHooksConfigSnapshot } from '../../utils/hooks/hooksConfigSnapshot.js'
 import { lazySchema } from '../../utils/lazySchema.js'
 import { getPlansDirectory } from '../../utils/plans.js'
@@ -112,37 +118,93 @@ async function countWorktreeChanges(
   return { changedFiles, commits }
 }
 
+type ExitWorktreeRestoreResult = {
+  restoredCwd: string
+  originalCwdMissing: boolean
+  fellBackToWorktree: boolean
+}
+
 /**
- * Restore session state to reflect the original directory.
- * This is the inverse of the session-level mutations in EnterWorktreeTool.call().
+ * Official 2.1.179 `g_q` — session-location sentence after ExitWorktree.
+ */
+function formatExitWorktreeSessionMessage(
+  originalCwd: string,
+  restore: ExitWorktreeRestoreResult,
+): string {
+  if (!restore.originalCwdMissing) {
+    return `Session is now back in ${originalCwd}.`
+  }
+  const missing = `The original directory ${originalCwd} no longer exists, so the session is now in ${restore.restoredCwd}.`
+  return restore.fellBackToWorktree
+    ? missing
+    : `${missing} Consider restarting Claude from an existing directory.`
+}
+
+/**
+ * Official 2.1.179 `FF4` — restore session cwd after ExitWorktree, recovering
+ * when the original directory was deleted.
  *
  * keepWorktree()/cleanupWorktree() handle process.chdir and currentWorktreeSession;
  * this handles everything above the worktree utility layer.
  */
-function restoreSessionToOriginalCwd(
+async function restoreSessionToOriginalCwd(
   originalCwd: string,
   projectRootIsWorktree: boolean,
-): void {
-  setCwd(originalCwd)
-  // EnterWorktree sets originalCwd to the *worktree* path (intentional — see
-  // state.ts getProjectRoot comment). Reset to the real original.
-  setOriginalCwd(originalCwd)
-  // --worktree startup sets projectRoot to the worktree; mid-session
-  // EnterWorktreeTool does not. Only restore when it was actually changed —
-  // otherwise we'd move projectRoot to wherever the user had cd'd before
-  // entering the worktree (session.originalCwd), breaking the "stable project
-  // identity" contract.
-  if (projectRootIsWorktree) {
-    setProjectRoot(originalCwd)
-    // setup.ts's --worktree block called updateHooksConfigSnapshot() to re-read
-    // hooks from the worktree. Restore symmetrically. (Mid-session
-    // EnterWorktreeTool never touched the snapshot, so no-op there.)
-    updateHooksConfigSnapshot()
+  worktreePath: string,
+): Promise<ExitWorktreeRestoreResult> {
+  let restoredCwd = originalCwd
+  let originalCwdMissing = false
+  try {
+    setCwd(originalCwd)
+  } catch (setCwdError) {
+    let missing = false
+    try {
+      await realpath(originalCwd)
+    } catch (realpathError) {
+      missing = isENOENT(realpathError)
+    }
+    if (!missing) throw setCwdError
+    originalCwdMissing = true
+    restoredCwd = ''
+    const candidates = [
+      worktreePath,
+      homedir(),
+      process.env.CLAUDE_CODE_TMPDIR || tmpdir(),
+    ]
+    for (const candidate of candidates) {
+      try {
+        setCwd(candidate)
+        restoredCwd = candidate
+        break
+      } catch {
+        // try next fallback
+      }
+    }
+    if (!restoredCwd) throw setCwdError
+    logForDebugging(
+      `ExitWorktree: original directory "${originalCwd}" no longer exists; session cwd recovered to "${restoredCwd}"`,
+    )
+  }
+
+  const fellBackToWorktree =
+    originalCwdMissing && restoredCwd === worktreePath
+  // When original is missing and we did not fall back to the worktree,
+  // leave originalCwd/projectRoot alone (still point at the deleted path /
+  // prior project identity).
+  if (!originalCwdMissing || fellBackToWorktree) {
+    setOriginalCwd(restoredCwd)
+    if (projectRootIsWorktree) {
+      setProjectRoot(restoredCwd)
+      updateHooksConfigSnapshot()
+    }
   }
   saveWorktreeState(null)
   clearSystemPromptSections()
   clearMemoryFileCaches()
   getPlansDirectory.cache.clear?.()
+  reanchorGitFileWatcher()
+  getReplBridgeHandle()?.refreshGitBranch?.()
+  return { restoredCwd, originalCwdMissing, fellBackToWorktree }
 }
 
 export const ExitWorktreeTool: Tool<InputSchema, Output> = buildTool({
@@ -260,7 +322,11 @@ export const ExitWorktreeTool: Tool<InputSchema, Output> = buildTool({
 
     if (input.action === 'keep') {
       await keepWorktree()
-      restoreSessionToOriginalCwd(originalCwd, projectRootIsWorktree)
+      const restore = await restoreSessionToOriginalCwd(
+        originalCwd,
+        projectRootIsWorktree,
+        worktreePath,
+      )
 
       logEvent('tengu_worktree_kept', {
         mid_session: true,
@@ -278,7 +344,7 @@ export const ExitWorktreeTool: Tool<InputSchema, Output> = buildTool({
           worktreePath,
           worktreeBranch,
           tmuxSessionName,
-          message: `Exited worktree. Your work is preserved at ${worktreePath}${worktreeBranch ? ` on branch ${worktreeBranch}` : ''}. Session is now back in ${originalCwd}.${tmuxNote}`,
+          message: `Exited worktree. Your work is preserved at ${worktreePath}${worktreeBranch ? ` on branch ${worktreeBranch}` : ''}. ${formatExitWorktreeSessionMessage(originalCwd, restore)}${tmuxNote}`,
         },
       }
     }
@@ -288,7 +354,11 @@ export const ExitWorktreeTool: Tool<InputSchema, Output> = buildTool({
       await killTmuxSession(tmuxSessionName)
     }
     await cleanupWorktree()
-    restoreSessionToOriginalCwd(originalCwd, projectRootIsWorktree)
+    const restore = await restoreSessionToOriginalCwd(
+      originalCwd,
+      projectRootIsWorktree,
+      worktreePath,
+    )
 
     logEvent('tengu_worktree_removed', {
       mid_session: true,
@@ -315,7 +385,7 @@ export const ExitWorktreeTool: Tool<InputSchema, Output> = buildTool({
         worktreeBranch,
         discardedFiles: changedFiles,
         discardedCommits: commits,
-        message: `Exited and removed worktree at ${worktreePath}.${discardNote} Session is now back in ${originalCwd}.`,
+        message: `Exited and removed worktree at ${worktreePath}.${discardNote} ${formatExitWorktreeSessionMessage(originalCwd, restore)}`,
       },
     }
   },

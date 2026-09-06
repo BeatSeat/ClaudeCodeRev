@@ -5,10 +5,15 @@ import { z } from 'zod/v4'
 import { getSessionCreatedTeams } from '../../bootstrap/state.js'
 import { logForDebugging } from '../debug.js'
 import { getTeamsDir } from '../envUtils.js'
-import { errorMessage, getErrnoCode } from '../errors.js'
+import {
+  errorMessage,
+  getErrnoCode,
+  isErrnoException,
+} from '../errors.js'
 import { execFileNoThrowWithCwd } from '../execFileNoThrow.js'
 import { gitExe } from '../git.js'
 import { lazySchema } from '../lazySchema.js'
+import { logError } from '../log.js'
 import type { PermissionMode } from '../permissions/PermissionMode.js'
 import { jsonParse, jsonStringify } from '../slowOperations.js'
 import { getTasksDir, notifyTasksUpdated } from '../tasks.js'
@@ -184,10 +189,27 @@ export async function readTeamFileAsync(
  * Writes a team file (sync — for sync contexts)
  */
 // sync IO: called from sync context
+/** Official 2.1.179 `oS8` — log errno errors; else logError. Sync write swallows (gI$). */
+function logTeamFileWriteError(teamName: string, error: unknown): void {
+  if (isErrnoException(error)) {
+    logForDebugging(
+      `[TeammateTool] Failed to write team file for ${teamName} (${getErrnoCode(error)}): ${errorMessage(error)}`,
+      { level: 'error' },
+    )
+  } else {
+    logError(error)
+  }
+}
+
+// sync IO: called from sync context
 function writeTeamFile(teamName: string, teamFile: TeamFile): void {
-  const teamDir = getTeamDir(teamName)
-  mkdirSync(teamDir, { recursive: true })
-  writeFileSync(getTeamFilePath(teamName), jsonStringify(teamFile, null, 2))
+  try {
+    const teamDir = getTeamDir(teamName)
+    mkdirSync(teamDir, { recursive: true })
+    writeFileSync(getTeamFilePath(teamName), jsonStringify(teamFile, null, 2))
+  } catch (error) {
+    logTeamFileWriteError(teamName, error)
+  }
 }
 
 /**
@@ -198,11 +220,20 @@ export async function writeTeamFileAsync(
   teamFile: TeamFile,
   options?: { exclusive?: boolean },
 ): Promise<void> {
-  const teamDir = getTeamDir(teamName)
-  await mkdir(teamDir, { recursive: true })
-  await writeFile(getTeamFilePath(teamName), jsonStringify(teamFile, null, 2), {
-    flag: options?.exclusive ? 'wx' : 'w',
-  })
+  try {
+    const teamDir = getTeamDir(teamName)
+    await mkdir(teamDir, { recursive: true })
+    await writeFile(
+      getTeamFilePath(teamName),
+      jsonStringify(teamFile, null, 2),
+      {
+        flag: options?.exclusive ? 'wx' : 'w',
+      },
+    )
+  } catch (error) {
+    logTeamFileWriteError(teamName, error)
+    throw error
+  }
 }
 
 /**

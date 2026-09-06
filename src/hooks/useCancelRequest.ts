@@ -24,8 +24,14 @@ import type { Screen } from '../screens/REPL.js'
 import { exitTeammateView } from '../state/teammateViewHelpers.js'
 import {
   killAllRunningAgentTasks,
+  killAsyncAgent,
   markAgentsNotified,
+  isLocalAgentTask,
 } from '../tasks/LocalAgentTask/LocalAgentTask.js'
+import {
+  getTaskDisplayName,
+  isInProcessTeammateTask,
+} from '../tasks/InProcessTeammateTask/types.js'
 import type { PromptInputMode, VimMode } from '../types/textInputTypes.js'
 import { cancelAllPendingLoopSessionCrons } from '../utils/cronTasks.js'
 import {
@@ -34,6 +40,8 @@ import {
   hasCommandsInQueue,
 } from '../utils/messageQueueManager.js'
 import { emitTaskTerminatedSdk } from '../utils/sdkEventQueue.js'
+import { killInProcessTeammate } from '../utils/swarm/spawnInProcess.js'
+import { evictTerminalTask } from '../utils/task/framework.js'
 
 /** Time window in ms during which a second press kills all background agents. */
 const KILL_AGENTS_CONFIRM_WINDOW_MS = 3000
@@ -168,23 +176,40 @@ export function CancelRequestHandler(props: CancelRequestHandlerProps): null {
     isActive: isEscapeActive,
   })
 
-  // Shared kill path: stop all agents, suppress per-agent notifications,
-  // emit SDK events, enqueue a single aggregate model-facing notification.
-  // Returns true if anything was killed.
+  // Shared kill path: stop all agents + in-process teammates, suppress
+  // per-agent notifications, emit SDK events, enqueue a single aggregate
+  // model-facing notification. Returns true if anything was killed.
+  // Official 2.1.179 `vvq` / kill-all cluster (`L0H` for teammates).
   const killAllAgentsAndNotify = useCallback((): boolean => {
     const tasks = store.getState().tasks
-    const running = Object.entries(tasks).filter(
-      ([, t]) => t.type === 'local_agent' && t.status === 'running',
-    )
+    const running = Object.entries(tasks).filter(([, t]) => {
+      if (t.status !== 'running') return false
+      return isLocalAgentTask(t) || isInProcessTeammateTask(t)
+    })
     if (running.length === 0) return false
     killAllRunningAgentTasks(tasks, setAppState)
+    for (const [taskId, task] of running) {
+      if (isInProcessTeammateTask(task)) {
+        killInProcessTeammate(taskId, setAppState)
+      }
+    }
     const descriptions: string[] = []
     for (const [taskId, task] of running) {
+      const name =
+        isInProcessTeammateTask(task) || isLocalAgentTask(task)
+          ? getTaskDisplayName(task)
+          : undefined
+      const description =
+        'description' in task && typeof task.description === 'string'
+          ? task.description
+          : undefined
+      descriptions.push(name ?? description ?? taskId)
+      // Teammates emit SDK stopped inside killInProcessTeammate (`L0H`).
+      if (isInProcessTeammateTask(task)) continue
       markAgentsNotified(taskId, setAppState)
-      descriptions.push(task.description)
       emitTaskTerminatedSdk(taskId, 'stopped', {
-        toolUseId: task.toolUseId,
-        summary: task.description,
+        toolUseId: isLocalAgentTask(task) ? task.toolUseId : undefined,
+        summary: description,
       })
     }
     const summary =
@@ -196,12 +221,31 @@ export function CancelRequestHandler(props: CancelRequestHandlerProps): null {
     return true
   }, [store, setAppState, onAgentsKilled])
 
-  // Ctrl+C (app:interrupt). Scoped to teammate-view: killing agents from the
-  // main prompt stays a deliberate gesture (chat:killAgents), not a
-  // side-effect of cancelling a turn.
+  // Official 2.1.179 `yr8` — interrupt the viewed task only (not kill-all).
+  const interruptViewedTask = useCallback((): void => {
+    const { viewingAgentTaskId, tasks } = store.getState()
+    const viewed = viewingAgentTaskId ? tasks[viewingAgentTaskId] : undefined
+    if (!viewed) return
+    if (isInProcessTeammateTask(viewed)) {
+      if (viewed.status === 'running') {
+        killInProcessTeammate(viewed.id, setAppState)
+      } else {
+        evictTerminalTask(viewed.id, setAppState)
+      }
+      return
+    }
+    if (isLocalAgentTask(viewed)) {
+      if (viewed.status === 'running') {
+        killAsyncAgent(viewed.id, setAppState)
+      }
+    }
+  }, [store, setAppState])
+
+  // Ctrl+C (app:interrupt). Scoped to teammate-view: kill the *viewed* task
+  // (official 2.1.179 `yr8`), then exit view — not kill-all.
   const handleInterrupt = useCallback(() => {
     if (isViewingTeammate) {
-      killAllAgentsAndNotify()
+      interruptViewedTask()
       exitTeammateView(setAppState)
     }
     if (canCancelRunningTask || hasQueuedCommands) {
@@ -209,7 +253,7 @@ export function CancelRequestHandler(props: CancelRequestHandlerProps): null {
     }
   }, [
     isViewingTeammate,
-    killAllAgentsAndNotify,
+    interruptViewedTask,
     setAppState,
     canCancelRunningTask,
     hasQueuedCommands,
@@ -227,7 +271,9 @@ export function CancelRequestHandler(props: CancelRequestHandlerProps): null {
   const handleKillAgents = useCallback(() => {
     const tasks = store.getState().tasks
     const hasRunningAgents = Object.values(tasks).some(
-      t => t.type === 'local_agent' && t.status === 'running',
+      t =>
+        t.status === 'running' &&
+        (isLocalAgentTask(t) || isInProcessTeammateTask(t)),
     )
     if (!hasRunningAgents) {
       addNotification({
