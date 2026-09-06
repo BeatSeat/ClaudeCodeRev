@@ -48,10 +48,7 @@ import { generateFileSuggestions } from './fileSuggestions.js'
 import { cancelAllPendingLoopSessionCrons } from '../utils/cronTasks.js'
 import { enqueue } from '../utils/messageQueueManager.js'
 import { buildSystemInitMessage } from '../utils/messages/systemInit.js'
-import {
-  createBridgeStatusMessage,
-  createSystemMessage,
-} from '../utils/messages.js'
+import { createBridgeStatusMessage } from '../utils/messages.js'
 import {
   getAutoModeUnavailableNotification,
   getAutoModeUnavailableReason,
@@ -59,6 +56,7 @@ import {
   isBypassPermissionsModeDisabled,
   transitionPermissionMode,
 } from '../utils/permissions/permissionSetup.js'
+import { toExternalPermissionMode } from '../utils/permissions/PermissionMode.js'
 import { getLeaderToolUseConfirmQueue } from '../utils/swarm/leaderPermissionBridge.js'
 import {
   AGENT_COLORS,
@@ -157,14 +155,23 @@ export function useReplBridge(
       if (!replBridgeEnabled) return
 
       const outboundOnly = replBridgeOutboundOnly
-      function notifyBridgeFailed(detail?: string): void {
+      function notifyBridgeFailed(
+        detail?: string,
+        wasConnected = false,
+      ): void {
+        logForDebugging(
+          `[bridge:repl] notifyBridgeFailed detail="${detail}" outboundOnly=${outboundOnly} wasConnected=${wasConnected}`,
+        )
         if (outboundOnly) return
         addNotification({
           key: 'bridge-failed',
+          kind: 'warning',
           jsx: (
             <>
-              <Text color="error">Remote Control failed</Text>
-              {detail && <Text dimColor> · {detail}</Text>}
+              <Text color="error">
+                Remote Control {wasConnected ? 'disconnected' : 'failed'}
+              </Text>
+              <Text dimColor> · {detail || '/remote-control'}</Text>
             </>
           ),
           priority: 'immediate',
@@ -436,7 +443,8 @@ export function useReplBridge(
               case 'failed':
                 // Clear any previous failure dismiss timer
                 clearTimeout(failureTimeoutRef.current)
-                notifyBridgeFailed(detail)
+                // Official 2.1.176: notification only — no transcript line.
+                notifyBridgeFailed(detail, handleRef.current !== null)
                 setAppState(prev => ({
                   ...prev,
                   replBridgeError: detail,
@@ -496,6 +504,14 @@ export function useReplBridge(
             tags: outboundOnly ? ['ccr-mirror'] : undefined,
             onInboundMessage: handleInboundMessage,
             onPermissionResponse: handlePermissionResponse,
+            getInitializeState() {
+              return {
+                current_model: mainLoopModelRef.current,
+                current_permission_mode: toExternalPermissionMode(
+                  store.getState().toolPermissionContext.mode,
+                ),
+              }
+            },
             onInterrupt() {
               cancelAllPendingLoopSessionCrons()
               abortControllerRef.current?.abort()
@@ -865,15 +881,6 @@ export function useReplBridge(
               }
             })
           }, BRIDGE_FAILURE_DISMISS_MS)
-          if (!outboundOnly) {
-            setMessages(prev => [
-              ...prev,
-              createSystemMessage(
-                `Remote Control failed to connect: ${errMsg}`,
-                'warning',
-              ),
-            ])
-          }
         }
       })()
 

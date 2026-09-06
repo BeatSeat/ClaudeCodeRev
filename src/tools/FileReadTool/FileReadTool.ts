@@ -66,10 +66,10 @@ import {
 } from '../../utils/pdfUtils.js'
 import {
   checkReadPermissionForTool,
+  matchHookIfFilePathPattern,
   matchingRuleForInput,
 } from '../../utils/permissions/filesystem.js'
 import type { PermissionDecision } from '../../utils/permissions/PermissionResult.js'
-import { matchWildcardPattern } from '../../utils/permissions/shellRuleMatching.js'
 import { readFileInRange } from '../../utils/readFileInRange.js'
 import { semanticNumber } from '../../utils/semanticNumber.js'
 import { jsonStringify } from '../../utils/slowOperations.js'
@@ -400,7 +400,8 @@ export const FileReadTool = buildTool({
     }
   },
   async preparePermissionMatcher({ file_path }) {
-    return pattern => matchWildcardPattern(pattern, file_path)
+    // Official 2.1.176 `rGH` (was 175 `TE` / matchWildcardPattern)
+    return pattern => matchHookIfFilePathPattern(pattern, file_path)
   },
   async checkPermissions(input, context): Promise<PermissionDecision> {
     const appState = context.getAppState()

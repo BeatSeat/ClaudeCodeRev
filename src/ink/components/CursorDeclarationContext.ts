@@ -8,6 +8,12 @@ export type CursorDeclaration = {
   readonly relativeY: number
   /** The ink-box DOMElement whose yoga layout provides the absolute origin */
   readonly node: DOMElement
+  /**
+   * Official 176 `SKH` `visible`. When false, ink must not show the native
+   * terminal cursor at this park (Windows agents view / alt-screen full
+   * repaint). Optional so older callers stay valid.
+   */
+  readonly visible?: boolean
 }
 
 /**

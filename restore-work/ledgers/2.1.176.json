@@ -1,0 +1,121 @@
+{
+  "version": "2.1.176",
+  "from": "2.1.175",
+  "astdiff": "0.99099",
+  "contract": "astdiff genuine-structural + added-product (changelog is classification only)",
+  "coverage": "restore-work/diffs/2.1.176-changelog-scout.md",
+  "scout": "restore-work/diffs/2.1.176-changelog-scout.md",
+  "items": [
+    {
+      "item": "Session titles are now generated in the language of your conversation (set the `language` setting to pin a specific language)",
+      "status": "located",
+      "evidence": "Official P1H: language pin or fallback Write the title in the language the user wrote in… on userPrompt; systemPrompt is tcf only. tcf 176-new Good (Korean session) / Bad (English title for a Korean session) 0→1 landed. 175-already session Treat-it-as-data + Bad (refusal) not backfilled. TS generateSessionTitle in sessionTitle.ts."
+    },
+    {
+      "item": "Added `footerLinksRegexes` setting for regex-matched link badges in the footer row, configurable via user or managed settings",
+      "status": "located",
+      "evidence": "footerLinksRegexes 0→2; Extra clickable footer badges 0→1 verbatim describe. Eg1/aoq schema; Jf6 policy+flag+user; kN9/$2q/yN9/vC9 scan+render cap 5. TS types.ts, settings.ts, footerLinks.ts, FooterLinkBadge.tsx, PromptInputFooter*."
+    },
+    {
+      "item": "Improved Bedrock credential caching: credentials from `awsCredentialExport` are now cached until their `Expiration` instead of a fixed 1 hour",
+      "status": "located",
+      "evidence": "Credentials.Expiration 0→1. LF_ parse; gl=_yH TTL wF_=3600000 MF_=300000 jF_=60000. TS auth.ts + memoize.ts _yH. Vendor xF1→Lc1 not landed."
+    },
+    {
+      "item": "Fixed `availableModels` enforcement: alias model picks can no longer be redirected to a blocked model via `ANTHROPIC_DEFAULT_*_MODEL` environment variables, and `/fast` now refuses to toggle when it would switch to a model outside the allowlist",
+      "status": "located",
+      "evidence": "yb (was eC) after N9 plus !LN||w48; nhK toLowerCase. g6H N9(DhH()) refuse `${hm()} is not in your organization's allowed models` 0→1. /fast uses N9 not yb. NJ/controlChannel absent. TS modelAllowlist.ts, fastMode.ts."
+    },
+    {
+      "item": "Fixed auto mode failing on Fable 5 for organizations without Opus 4.8 enabled — the classifier now falls back to the best available Opus model",
+      "status": "located",
+      "evidence": "z64 tail if(GhH||lX$)return nX$; nX$ firstParty xZK=[opus48,opus47,opus46,opus45] find N9. 175 MH4 hardcoded opus48. TS model.ts + yoloClassifier.ts. modelByMainModel is 175-already, not backfilled."
+    },
+    {
+      "item": "Fixed hook `if` conditions for Read/Edit/Write tool paths: documented patterns like `Edit(src/**)`, `Read(~/.ssh/**)`, and `Read(.env)` now match correctly",
+      "status": "located",
+      "evidence": "rGH added-product via Jp8(H,session)+ignore+aQ fallback. preparePermissionMatcher 9→10 includes NotebookEdit. Changelog examples 0→0 docs-only. TS filesystem.ts + FileRead/Edit/Write + NotebookEditTool."
+    },
+    {
+      "item": "Fixed Linux sandbox failing to start when `.claude/settings.json` is a symlink with an absolute target",
+      "status": "located",
+      "evidence": "FV$ readlink/realpath or 8-hop resolve. gV$ wraps settings paths only (not 178 skills/hooks). TS sandbox-adapter.ts."
+    },
+    {
+      "item": "Fixed `/copy` and mouse-selection copy not reaching the system clipboard inside tmux over SSH, and tmux paste buffer not loading on versions older than 3.2",
+      "status": "located",
+      "evidence": "Dc_ load-buffer -w then retry - ; clipboard: retry 0→1. y0 emit not gated on load-buffer. TS ink/termio/osc.ts."
+    },
+    {
+      "item": "Fixed Remote Control connecting from web/mobile silently switching the session's model",
+      "status": "located",
+      "evidence": "getInitializeState 0→6; current_model 0→3; CC-2659 0→1. PX9 initialize spreads getInitializeState; no inbound set_model. TS bridgeMessaging/initReplBridge/replBridge/remoteBridgeCore, useReplBridge, controlSchemas.ts."
+    },
+    {
+      "item": "Fixed Remote Control disconnect notifications showing a bare numeric code instead of a human-readable reason, and connection failures adding a duplicate line to the conversation transcript",
+      "status": "located",
+      "evidence": "GE9 0→1 (no close code received / code 4090…); Transport closed: 0→1. Remote Control failed to connect: 1→0 no transcript. TS formatWsCloseReason + useReplBridge notifyBridgeFailed."
+    },
+    {
+      "item": "Fixed Remote Control sessions not disconnecting when you sign in to a different account",
+      "status": "located",
+      "evidence": "[bridge:repl] Account changed via /login 0→1. R0H/SZH. TS login.tsx applyLoginHooks; extra-usage + upgrade previousAccount."
+    },
+    {
+      "item": "Fixed `/cd` and worktree moves leaving the session reporting the previous directory's git branch",
+      "status": "partial",
+      "evidence": "Ll reanchor 0→3; OM.cache.clear getIsGit; zX refreshGitBranch. TS gitFilesystem.ts + cd.tsx. Worktree enter/exit Ll sites (refreshGitBranch 4→8) not landed. current_branches/mH 175 gap — handle refreshGitBranch is no-op until that module."
+    },
+    {
+      "item": "Fixed `claude agents`: pressing back in one window no longer detaches other windows attached to the same session",
+      "status": "partial",
+      "evidence": "lastInputAttacher 0→4; 176 detach-request routing in worker.ts. Client IOH/jd and supervisor attachers absent in this tree (pre-existing). REPL still tmux detach-client."
+    },
+    {
+      "item": "Fixed backgrounded sessions showing \"Working\" forever when `/bg` mid-turn had nothing left to continue",
+      "status": "partial",
+      "evidence": "Working forever 0→0. uy$/bb8/xb8 mainLoopRefcount 0→10; waitingOnUser; underflow session_activity_main_loop_underflow. TS sessionActivity.ts + sessionState.ts; api_call/tool_exec pass agentId. qNf classifier tempo idle is src/jobs/classifier.ts stub — not invented. v9q CCR class wiring not in this tree."
+    },
+    {
+      "item": "Fixed background agent search by PR URL: PRs opened during scheduled wakeups or while a job was blocked now appear in `claude agents` search",
+      "status": "absent-in-bundle",
+      "evidence": "shared/logic-only. ql4/s_q pr-link children writer is classifier stub. scheduled wakeup 0→0. Did not invent search index."
+    },
+    {
+      "item": "Fixed the agents view input showing no text cursor on Windows",
+      "status": "located",
+      "evidence": "Scout shared/logic-only then UI extracted hk h-gate: visible: cursorChar===undefined && !h. CLAUDE_CODE_ALT_SCREEN_FULL_REPAINT 5→6. TS SearchBox.tsx + SKH visible. No invented win32 glyph."
+    },
+    {
+      "item": "Fixed `claude --bg -cn ` not seeding the session name",
+      "status": "absent-in-bundle",
+      "evidence": "aTH/Wd8 0→1 live in official spawn d4A. src/cli/bg.ts is @generated-stub. Did not invent d4A."
+    },
+    {
+      "item": "Fixed background sessions to neutralize Windows network paths in persisted state before respawn",
+      "status": "partial",
+      "evidence": "FP/SkH/$e8/g0$ on job-state sessionId/cwd/worktreePath/originCwd/linkScanPath. Unique d4A UNC warning 0→1 is in bg.ts stub — not invented."
+    },
+    {
+      "item": "Fixed background-session respawn rejecting malformed resume IDs from corrupted state files",
+      "status": "located",
+      "evidence": "uN/EK5 UUID; d0$ drop malformed on resumeSessionId/daemonShort/bridgeSessionId/bridgeSessionSeq/linkScanPath (g0$ then absolute .jsonl UUID basename). TS daemon/bg/types.ts. Attach-path randomUUID fallback helper not in this tree."
+    },
+    {
+      "item": "Fixed the Windows background-service daemon not starting when `~/.claude/daemon` has the ReadOnly attribute set",
+      "status": "located",
+      "evidence": "M69 (175 ee4): windows mkdir + chmod(H,448).catch. Not Win32 FILE_ATTRIBUTE API. TS daemon/bg/paths.ts."
+    },
+    {
+      "item": "Fixed cloud sessions failing with \"Could not resolve authentication method\" when idle for too long before being claimed",
+      "status": "shared-logic",
+      "evidence": "Token 1→1 SDK vendor _authState throw. No 176-unique claim/idle writer. Did not invent OAuth-refresh-on-claim."
+    },
+    {
+      "item": "Background sessions now show clearer guidance when a window left open across an auto-update can't submit a reply, and `claude daemon status` explains version-skew behavior",
+      "status": "partial",
+      "evidence": "FhA case reply EAUTH left open across an update 0→1 is real. This tree ingestControl has ping/nudge/yield/lease/shutdown only — no reply op. Did not invent FhA reply. version_skew 1→1 already on ping."
+    }
+  ],
+  "notes": "astdiff --summary/--format json fails JS syntax ~line 344 (same as 174/175). Used prebuilt 2.1.176.astdump + 2.1.176-index (similarity 0.99099; added-product 235; genuine-structural 194). Typecheck delta vs /tmp/base_counts.txt empty. Build 2.1.176. dist tokens: footerLinksRegexes 2, schema describe 1, conversation-language title 1, /fast allowlist refuse 1, Credentials.Expiration 1, tmux retry 1, getInitializeState 9, CC-2659 1, GE9 no-close-code 1, Account changed via /login 1, mainLoop underflow 1. UNC warning and FhA EAUTH 0 in dist (bg.ts stub / no reply op). Do not invent classifier qNf, bg.ts d4A/aTH, FhA reply op, chrome_auto_enable_prompt ast-only, 178 skills/hooks sandbox symlink, 177+. Name collisions: 176 yb/rGH/FV$/nX$/SG9/g0$ are not the 175 functions of the same spelling. subagentStatusLine 12→12 still absent in this tree."
+}

@@ -24,7 +24,10 @@ import { normalizeControlMessageKeys } from '../utils/controlMessageCompat.js'
 import { logForDebugging } from '../utils/debug.js'
 import { stripDisplayTagsAllowEmpty } from '../utils/displayTags.js'
 import { errorMessage } from '../utils/errors.js'
-import type { PermissionMode } from '../utils/permissions/PermissionMode.js'
+import type {
+  ExternalPermissionMode,
+  PermissionMode,
+} from '../utils/permissions/PermissionMode.js'
 import { jsonParse } from '../utils/slowOperations.js'
 import type { ReplBridgeTransport } from './replBridgeTransport.js'
 
@@ -220,6 +223,16 @@ export type ServerControlRequestHandlers = {
    * proper error instead of "action succeeded but nothing happened locally".
    */
   outboundOnly?: boolean
+  /**
+   * Official 2.1.176 `getInitializeState` / `current_model` (CC-2659).
+   * Spread into the initialize success payload so Remote Control clients
+   * sync their model dropdown TO the CLI instead of sending set_model.
+   * Initialize itself must not apply an inbound model.
+   */
+  getInitializeState?: () => {
+    current_model?: string
+    current_permission_mode?: ExternalPermissionMode
+  }
   onInterrupt?: () => void
   onSetModel?: (model: string | undefined) => void
   onSetMaxThinkingTokens?: (maxTokens: number | null) => void
@@ -263,6 +276,7 @@ export function handleServerControlRequest(
     transport,
     sessionId,
     outboundOnly,
+    getInitializeState,
     onInterrupt,
     onSetModel,
     onSetMaxThinkingTokens,
@@ -302,8 +316,8 @@ export function handleServerControlRequest(
 
   switch (request.request.subtype) {
     case 'initialize':
-      // Respond with minimal capabilities — the REPL handles
-      // commands, models, and account info itself.
+      // Official 2.1.176: report current_model / current_permission_mode
+      // via getInitializeState. Do not apply inbound model here.
       response = {
         type: 'control_response',
         response: {
@@ -311,11 +325,13 @@ export function handleServerControlRequest(
           request_id: request.request_id,
           response: {
             commands: [],
+            agents: [],
             output_style: 'normal',
             available_output_styles: ['normal'],
             models: [],
             account: {},
             pid: process.pid,
+            ...getInitializeState?.(),
           },
         },
       }
