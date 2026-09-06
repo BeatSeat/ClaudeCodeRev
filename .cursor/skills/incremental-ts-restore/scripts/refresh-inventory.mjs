@@ -136,7 +136,7 @@ const cometixWalk = walk.filter((x) => x.phase.startsWith('cometix')).map((x) =>
 const changelogOnly = Object.keys(parsed.byVersion).filter((v) => {
   if (!is21(v)) return false
   const n = patch(v)
-  return n >= 88 && n <= 220 && !walk.some((w) => w.version === v)
+  return n >= 88 && !walk.some((w) => w.version === v)
 })
 
 const versionPath = {
