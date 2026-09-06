@@ -39,7 +39,6 @@ import {
 } from '../../utils/teammate.js'
 import { writeToMailbox } from '../../utils/teammateMailbox.js'
 import { AGENT_TOOL_NAME } from '../AgentTool/constants.js'
-import { TEAM_CREATE_TOOL_NAME } from '../TeamCreateTool/constants.js'
 import { EXIT_PLAN_MODE_V2_TOOL_NAME } from './constants.js'
 import { EXIT_PLAN_MODE_V2_TOOL_PROMPT } from './prompt.js'
 import {
@@ -468,7 +467,7 @@ Request ID: ${requestId}`,
     }
 
     const teamHint = hasTaskTool
-      ? `\n\nIf this plan can be broken down into multiple independent tasks, consider using the ${TEAM_CREATE_TOOL_NAME} tool to create a team and parallelize the work.`
+      ? `\n\nIf this plan can be broken down into multiple independent tasks, consider spawning named teammates with the ${AGENT_TOOL_NAME} tool (pass a \`name\`) to parallelize the work.`
       : ''
 
     // Always include the plan — extractApprovedPlan() in the Ultraplan CCR

@@ -10,6 +10,28 @@ import { JobStateSchema, type JobState } from './types.js'
 const STATE_JSON = 'state.json'
 const cache = new Map<string, { mtimeKey: string; state: JobState | null }>()
 
+/** Official 2.1.178 `bp`. */
+export const SEND_PROMPT_NEEDS = 'send a prompt to start'
+/** Official 2.1.178 `veH`. */
+export const IDLE_DETAIL = `(idle \u2014 ${SEND_PROMPT_NEEDS})`
+
+/**
+ * Official 2.1.178 `m2q` hop: empty-intent jobs always persist
+ * `tempo:"blocked"` + `needs:bp` (the empty-intent gate was removed).
+ * Full job-dir create lives in `src/cli/bg.ts` (out of lock).
+ */
+export function blockedIdleFields(detail?: string): {
+  detail: string
+  tempo: 'blocked'
+  needs: string
+} {
+  return {
+    detail: detail ?? IDLE_DETAIL,
+    tempo: 'blocked',
+    needs: SEND_PROMPT_NEEDS,
+  }
+}
+
 /** Official `HJ`. */
 export function isSettled(state: JobState): boolean {
   return isTerminalState(state.state) && state.tempo !== 'active'

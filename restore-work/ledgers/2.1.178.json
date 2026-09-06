@@ -1,0 +1,131 @@
+{
+  "version": "2.1.178",
+  "from": "2.1.176",
+  "astdiff": "0.98832",
+  "contract": "astdiff genuine-structural + added-product (explore reports; changelog is classification only)",
+  "coverage": "restore-work/diffs/2.1.178-landing-brief.md",
+  "scout": "restore-work/diffs/2.1.178-explore-added-a.md",
+  "items": [
+    {
+      "item": "Agent teams: TeamCreate/TeamDelete removed; implicit session team; Agent name; team_name ignored",
+      "status": "located",
+      "evidence": "TeamCreate 6→0 registry (tools.ts). Fqq reserved main + Deprecated; ignored. The session has a single implicit team. Pp4/SZf teamContext only + Internal error: session team not initialized. xRz sessionTeam.ts. TeamCreateTool dirs kept for leftover imports."
+    },
+    {
+      "item": "Tool(param:value) permission syntax",
+      "status": "absent-in-bundle",
+      "evidence": "Explore did not produce a unique 176→178 token or official helper for Tool(param:value). Not invented."
+    },
+    {
+      "item": "Nested .claude/skills load + name-clash : qualifier",
+      "status": "partial",
+      "evidence": "EzH→YYH skillOverrides unqualifiedName 0→6 landed in explore; Tools did not land a nested-dir walker. Pre-existing gap."
+    },
+    {
+      "item": "Nested .claude/ closest agent/workflow/output-style",
+      "status": "absent-in-bundle",
+      "evidence": "No unique token / land-candidate in explore shards. Not invented."
+    },
+    {
+      "item": "Auto mode classifier evaluates subagent spawns",
+      "status": "partial",
+      "evidence": "Gtq decideLocation pre-ask 0→8; ask-path on deny. Full classifier-before-launch host not in this tree."
+    },
+    {
+      "item": "/doctor flat tree + section icons + highlighted commands",
+      "status": "located",
+      "evidence": "TZ/XK/C8 DoctorSectionTitle+List. DMq ineffective-disable. E49 sandbox /sandbox highlight. v49 skill listing the per-entry cap and will be shortened. Z49/N49 Background/Remote 4-slot skipped (no HEAD host)."
+    },
+    {
+      "item": "Skill listing truncation warning shows how many descriptions",
+      "status": "partial",
+      "evidence": "v49 cap-arm copy landed. Official sgf budget store / description will be shortened to ~N not on HEAD."
+    },
+    {
+      "item": "Workflow prompt keyword purple shimmer / explicit phrases",
+      "status": "absent-in-bundle",
+      "evidence": "run a workflow 3→3. No 178-unique shimmer helper in explore. Not invented."
+    },
+    {
+      "item": "Remote Control /rc failed + not-yet-enabled reasons",
+      "status": "partial",
+      "evidence": "jV8 org-policy / logout+login copy. /rc failed 1→1 pre-existing footer. GB-miss / disableRemoteControl not backfilled."
+    },
+    {
+      "item": "/bug requires a description",
+      "status": "located",
+      "evidence": "A89 Please describe the issue before submitting. 0→1 Feedback.tsx."
+    },
+    {
+      "item": "Stale websocket/OAuth FD env OOM",
+      "status": "absent-in-bundle",
+      "evidence": "No unique FD-clear helper in explore. Not invented."
+    },
+    {
+      "item": "Claude in Chrome OAuth account mismatch",
+      "status": "absent-in-bundle",
+      "evidence": "No unique chrome-oauth-mismatch string 0→N in explore. Not invented."
+    },
+    {
+      "item": "Nested directory-qualified skill names permission",
+      "status": "partial",
+      "evidence": "unqualifiedName on skillOverrides (YYH) is the hop; permission-prompt host not fully landed."
+    },
+    {
+      "item": "Subagent transcript/progress + ctrl+b no restart",
+      "status": "partial",
+      "evidence": "EmH onMessage/shouldNotifyOwner/set_in_progress_tool_use_ids; yVH promptOrigin/promptIsMeta. Core getTranscript stubs not landed. updateTranscript only LocalMainSessionTask split."
+    },
+    {
+      "item": "claude agents 401 bearer when daemon has ANTHROPIC_AUTH_TOKEN",
+      "status": "absent-in-bundle",
+      "evidence": "ANTHROPIC_AUTH_TOKEN 38→40 only. No unique 401 helper. Not invented."
+    },
+    {
+      "item": "compaction honors --fallback-model",
+      "status": "partial",
+      "evidence": "Strings explore noted neighbor of ja4. tm8 reactive-compact still stub. Dzq hasPrecomputedSwap landed."
+    },
+    {
+      "item": "stale cached request config after credential refresh",
+      "status": "absent-in-bundle",
+      "evidence": "No unique stale-request-config token. Not invented."
+    },
+    {
+      "item": "background /bg after turn shows Working forever",
+      "status": "partial",
+      "evidence": "$zz idle --reply-on-resume helper + m2q tempo blocked. Spawn writer src/cli/bg.ts stub — not invented."
+    },
+    {
+      "item": "Linux sandbox .claude/skills or hooks symlink",
+      "status": "absent-in-bundle",
+      "evidence": "176 landed settings-only FV$. 178 skills/hooks wrap not in this land (explore did not assign a unique sandbox id in the Tools lock). Not invented."
+    },
+    {
+      "item": "CLAUDE_CODE_PLUGIN_KEEP_MARKETPLACE_ON_FAILURE fresh clone",
+      "status": "absent-in-bundle",
+      "evidence": "Token 3→3. No unique 178 body in explore. Not invented."
+    },
+    {
+      "item": "MCP server-level specs in subagent disallowedTools",
+      "status": "located",
+      "evidence": "D6q/aHH isServerLevelDisallowed 0→2. agentToolUtils.ts."
+    },
+    {
+      "item": "vim mode undo u steps one command",
+      "status": "absent-in-bundle",
+      "evidence": "No unique vim-undo token. Not invented."
+    },
+    {
+      "item": "statusline custom URI schemes vscode:// in claude agents",
+      "status": "located",
+      "evidence": "xW8 [hyperlink] refusing to dispatch clicked link 0→1; allowlist includes vscode:."
+    },
+    {
+      "item": "[VSCode] Esc IME candidate cancels task",
+      "status": "do-not-land",
+      "evidence": "VSCode-only. Not in CLI bundle as a land-candidate."
+    }
+  ],
+  "notes": "astdiff --summary/--format json fails JS syntax ~line 344. Used prebuilt 2.1.178-index (similarity 0.98832; added-product 309; genuine-structural 321; string-product 74). Explore 13-way then 4-domain land. Typecheck delta vs /tmp/base_counts.txt decreases only (query.ts, LocalMainSessionTask, hooks). Build 2.1.178. Name collisions: 178 $OH Explore ≠ 176 $OH arrow-history. TeamCreateTool dirs kept. /commit DCE (isEnabled false). Strings bucket 0 lands. Ast-only landed: Fable LQ/exf/txf, Foundry capability strip, thinking_display, d81 informational, [agent-proxy], HwH hook titles, design-login, cedar_sundial, juniper/IL8 ToolSearch, SendMessage main row."
+}

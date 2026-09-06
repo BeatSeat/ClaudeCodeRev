@@ -2,56 +2,45 @@ import * as React from 'react'
 import { useEffect, useState } from 'react'
 import { Box, Text } from '../../ink.js'
 import { useMainLoopModel } from '../../hooks/useMainLoopModel.js'
-import { getFeatureValue_CACHED_MAY_BE_STALE } from '../../services/analytics/growthbook.js'
 import { logEvent } from '../../services/analytics/index.js'
-import { getCanonicalName, isFableAvailable } from '../../utils/model/model.js'
+import {
+  formatPlanLimitsEndDate,
+  getFable5LaunchConfig,
+  isFableOverageRequired,
+  isFablePermanentAccess,
+} from '../../utils/model/fableOverages.js'
+import {
+  getDefaultFableModel,
+  isFableAvailable,
+  isFableClassifierMainModel,
+} from '../../utils/model/model.js'
+import { isModelAllowed } from '../../utils/model/modelAllowlist.js'
 import { getAPIProvider } from '../../utils/model/providers.js'
-
-type Fable5LaunchConfig = {
-  enabled?: boolean
-  planLimitsEndDate?: string
-  hideRateLimitsDescription?: boolean
-}
-
-/** Official 2.1.170 `oy$` / `ci5` — GrowthBook `tengu_saffron_lattice`. */
-function getFable5LaunchConfig(): Fable5LaunchConfig {
-  const raw = getFeatureValue_CACHED_MAY_BE_STALE('tengu_saffron_lattice', {})
-  if (!raw || typeof raw !== 'object') return {}
-  return raw as Fable5LaunchConfig
-}
-
-/** Official 2.1.170 `ni5`. */
-function formatPlanLimitsEndDate(iso: string | undefined): string | undefined {
-  if (!iso) return
-  const parsed = Date.parse(iso)
-  if (Number.isNaN(parsed)) return
-  return new Date(parsed).toLocaleDateString('en-US', {
-    month: 'short',
-    day: 'numeric',
-  })
-}
 
 /** Official 2.1.170 `ii5`. */
 function incrementFable5LaunchShown(): void {
   logEvent('tengu_fable5_launch_shown', {})
 }
 
-/** Official 2.1.170 `jV8` / `li5`. */
+/**
+ * Official 2.1.178 `xg8` — first-party + Fable available + default Fable
+ * allowlisted + launch not disabled.
+ */
 export function shouldShowFable5Notice(): boolean {
+  if (getAPIProvider() !== 'firstParty') return false
   if (!isFableAvailable()) return false
+  if (!isModelAllowed(getDefaultFableModel())) return false
   return getFable5LaunchConfig().enabled !== false
 }
 
-/** Official 2.1.170 `NA4`. */
+/** Official 2.1.170 `NA4` / 2.1.178 `u39`. */
 export function Fable5Notice(): React.ReactNode {
   const [show] = useState(shouldShowFable5Notice)
   const model = useMainLoopModel()
-  const isOnFable5 = getCanonicalName(model) === 'claude-fable-5'
+  // Official 2.1.178 `cj` — canonical Fable 5 or ANTHROPIC_DEFAULT_FABLE_MODEL.
+  const isOnFable5 = isFableClassifierMainModel(model)
   const isFirstParty = getAPIProvider() === 'firstParty'
   const launch = getFable5LaunchConfig()
-  const planLimitsExpired =
-    launch.planLimitsEndDate !== undefined &&
-    Date.now() >= Date.parse(launch.planLimitsEndDate)
   const planLimitsUntil = formatPlanLimitsEndDate(launch.planLimitsEndDate)
 
   useEffect(() => {
@@ -60,8 +49,9 @@ export function Fable5Notice(): React.ReactNode {
 
   if (!show) return null
 
+  // Official 2.1.178 `u39`: firstParty && !LQ() && !GE()
   const planLimits =
-    isFirstParty && !planLimitsExpired ? (
+    isFirstParty && !isFableOverageRequired() && !isFablePermanentAccess() ? (
       <Text dimColor>
         Included in your plan limits{' '}
         {planLimitsUntil ? `until ${planLimitsUntil}` : 'for a limited time'}

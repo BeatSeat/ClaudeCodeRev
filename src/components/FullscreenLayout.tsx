@@ -11,7 +11,6 @@ import React, {
   useState,
   useSyncExternalStore,
 } from 'react'
-import { fileURLToPath } from 'url'
 import { ModalContext } from '../context/modalContext.js'
 import {
   PromptOverlayProvider,
@@ -25,7 +24,7 @@ import { Box, Text } from '../ink.js'
 import { Badge } from './design-system/Badge.js'
 import { useShortcutDisplay } from '../keybindings/useShortcutDisplay.js'
 import type { Message } from '../types/message.js'
-import { openBrowser, openPath } from '../utils/browser.js'
+import { dispatchClickedHyperlink } from '../utils/hyperlink.js'
 import { isFullscreenEnvEnabled } from '../utils/fullscreen.js'
 import { plural } from '../utils/stringUtils.js'
 import { isNullRenderingAttachment } from './messages/nullRenderingAttachments.js'
@@ -345,19 +344,8 @@ export function FullscreenLayout({
     const ink = instances.get(process.stdout)
     if (!ink) return
     ink.onHyperlinkClick = url => {
-      // Most OSC 8 links emitted by Claude Code are file:// URLs from
-      // FilePathLink (FileEdit/FileWrite/FileRead tool output). openBrowser
-      // rejects non-http(s) protocols — route file: to openPath instead.
-      if (url.startsWith('file:')) {
-        try {
-          void openPath(fileURLToPath(url))
-        } catch {
-          // Malformed file: URLs (e.g. file://host/path from plain-text
-          // detection) cause fileURLToPath to throw — ignore silently.
-        }
-      } else {
-        void openBrowser(url)
-      }
+      // Official 2.1.178 `xW8` — allowlisted schemes + refuse-and-log.
+      void dispatchClickedHyperlink(url)
     }
     return () => {
       ink.onHyperlinkClick = undefined

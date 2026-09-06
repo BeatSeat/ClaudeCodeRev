@@ -274,7 +274,7 @@ function canonicalizeAgentOpts(opts: AgentHookOpts | undefined): string {
     return '{}'
   }
   const picked: Record<string, unknown> = {}
-  for (const key of ['schema', 'model', 'isolation', 'agentType'] as const) {
+  for (const key of ['schema', 'model', 'effort', 'isolation', 'agentType'] as const) {
     const value = opts[key]
     if (value === undefined || typeof value === 'function') {
       continue
@@ -698,6 +698,7 @@ export type AgentHookOpts = {
   phase?: unknown
   schema?: unknown
   model?: unknown
+  effort?: unknown
   isolation?: unknown
   agentType?: unknown
   stallMs?: unknown

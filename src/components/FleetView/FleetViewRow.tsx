@@ -103,6 +103,19 @@ export function FleetViewRow({
   deleteArmed,
 }: Props): React.ReactNode {
   const label = jobLabel(job.state, isOrigin)
+  const SEND_A_PROMPT = 'send a prompt to start'
+  const STARTING = 'starting…'
+  const idleSentinel = `(idle — ${SEND_A_PROMPT})`
+  // Official 2.1.178 `nNz`: blocked + needs===send-a-prompt prefers a real
+  // `detail` over the cwd/`starting…`/`(idle — …)` placeholders.
+  const blockedIdleDetail =
+    job.state.tempo === 'blocked' &&
+    job.state.needs === SEND_A_PROMPT &&
+    job.state.detail &&
+    job.state.detail !== idleSentinel &&
+    job.state.detail !== STARTING
+      ? job.state.detail
+      : undefined
   const status = attaching
     ? 'opening…'
     : deleteArmed
@@ -110,7 +123,7 @@ export function FleetViewRow({
         ? 'stopped · ctrl+x again to delete'
         : 'ctrl+x again to delete'
       : job.state.tempo === 'blocked'
-        ? job.state.needs ?? job.state.detail ?? ''
+        ? blockedIdleDetail ?? job.state.needs ?? job.state.detail ?? ''
         : job.state.detail ?? ''
 
   return (

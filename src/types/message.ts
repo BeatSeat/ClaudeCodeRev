@@ -21,7 +21,7 @@ export type MessageOrigin =
   | 'agent'
   | string
 
-export type SystemMessageLevel = 'info' | 'warning' | 'suggestion'
+export type SystemMessageLevel = 'info' | 'notice' | 'warning' | 'suggestion'
 
 export type CompactMetadata = {
   messagesSummarized?: number

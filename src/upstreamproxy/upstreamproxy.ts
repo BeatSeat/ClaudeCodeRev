@@ -30,6 +30,8 @@ import { startUpstreamProxyRelay } from './relay.js'
 
 export const SESSION_TOKEN_PATH = '/run/ccr/session_token'
 const SYSTEM_CA_BUNDLE = '/etc/ssl/certs/ca-certificates.crt'
+/** Official 2.1.178 `oR9`. */
+const AGENT_PROXY_PATH = '/v1/code/agent-proxy'
 
 // Hosts the proxy must NOT intercept. Covers loopback, RFC1918, the IMDS
 // range, and the package registries + GitHub that CCR containers already
@@ -97,7 +99,7 @@ export async function initUpstreamProxy(opts?: {
   const sessionId = process.env.CLAUDE_CODE_REMOTE_SESSION_ID
   if (!sessionId) {
     logForDebugging(
-      '[upstreamproxy] CLAUDE_CODE_REMOTE_SESSION_ID unset; proxy disabled',
+      '[agent-proxy] CLAUDE_CODE_REMOTE_SESSION_ID unset; proxy disabled',
       { level: 'warn' },
     )
     return state
@@ -106,7 +108,7 @@ export async function initUpstreamProxy(opts?: {
   const tokenPath = opts?.tokenPath ?? SESSION_TOKEN_PATH
   const token = await readToken(tokenPath)
   if (!token) {
-    logForDebugging('[upstreamproxy] no session token file; proxy disabled')
+    logForDebugging('[agent-proxy] no session token; proxy disabled')
     return state
   }
 
@@ -137,21 +139,21 @@ export async function initUpstreamProxy(opts?: {
   )
 
   try {
-    const wsUrl = baseUrl.replace(/^http/, 'ws') + '/v1/code/upstreamproxy/ws'
+    const wsUrl = baseUrl.replace(/^http/, 'ws') + AGENT_PROXY_PATH + '/ws'
     const relay = await startUpstreamProxyRelay({ wsUrl, sessionId, token })
     registerCleanup(async () => relay.stop())
     state = { enabled: true, port: relay.port, caBundlePath }
-    logForDebugging(`[upstreamproxy] enabled on 127.0.0.1:${relay.port}`)
+    logForDebugging(`[agent-proxy] enabled on 127.0.0.1:${relay.port}`)
     // Only unlink after the listener is up: if CA download or listen()
     // fails, a supervisor restart can retry with the token still on disk.
     await unlink(tokenPath).catch(() => {
-      logForDebugging('[upstreamproxy] token file unlink failed', {
+      logForDebugging('[agent-proxy] token file unlink failed', {
         level: 'warn',
       })
     })
   } catch (err) {
     logForDebugging(
-      `[upstreamproxy] relay start failed: ${err instanceof Error ? err.message : String(err)}; proxy disabled`,
+      `[agent-proxy] relay start failed: ${err instanceof Error ? err.message : String(err)}; proxy disabled`,
       { level: 'warn' },
     )
   }
@@ -217,7 +219,7 @@ async function readToken(path: string): Promise<string | null> {
   } catch (err) {
     if (isENOENT(err)) return null
     logForDebugging(
-      `[upstreamproxy] token read failed: ${err instanceof Error ? err.message : String(err)}`,
+      `[agent-proxy] token read failed: ${err instanceof Error ? err.message : String(err)}`,
       { level: 'warn' },
     )
     return null
@@ -244,7 +246,7 @@ function setNonDumpable(): void {
     const rc = lib.symbols.prctl(PR_SET_DUMPABLE, 0n, 0n, 0n, 0n)
     if (rc !== 0) {
       logForDebugging(
-        '[upstreamproxy] prctl(PR_SET_DUMPABLE,0) returned nonzero',
+        '[agent-proxy] prctl(PR_SET_DUMPABLE,0) returned nonzero',
         {
           level: 'warn',
         },
@@ -252,7 +254,7 @@ function setNonDumpable(): void {
     }
   } catch (err) {
     logForDebugging(
-      `[upstreamproxy] prctl unavailable: ${err instanceof Error ? err.message : String(err)}`,
+      `[agent-proxy] prctl unavailable: ${err instanceof Error ? err.message : String(err)}`,
       { level: 'warn' },
     )
   }
@@ -270,7 +272,7 @@ async function writeAwsS3PayloadSigningDisabled(configPath: string): Promise<voi
   } catch (err) {
     if (getErrnoCode(err) === 'EEXIST') return
     logForDebugging(
-      `[upstreamproxy] aws config write failed: ${err instanceof Error ? err.message : String(err)}`,
+      `[agent-proxy] aws config write failed: ${err instanceof Error ? err.message : String(err)}`,
       { level: 'warn' },
     )
   }
@@ -283,14 +285,14 @@ async function downloadCaBundle(
 ): Promise<boolean> {
   try {
     // eslint-disable-next-line eslint-plugin-n/no-unsupported-features/node-builtins
-    const resp = await fetch(`${baseUrl}/v1/code/upstreamproxy/ca-cert`, {
+    const resp = await fetch(`${baseUrl}${AGENT_PROXY_PATH}/ca-cert`, {
       // Bun has no default fetch timeout — a hung endpoint would block CLI
       // startup forever. 5s is generous for a small PEM.
       signal: AbortSignal.timeout(5000),
     })
     if (!resp.ok) {
       logForDebugging(
-        `[upstreamproxy] ca-cert fetch ${resp.status}; proxy disabled`,
+        `[agent-proxy] ca-cert fetch ${resp.status}; proxy disabled`,
         { level: 'warn' },
       )
       return false
@@ -302,7 +304,7 @@ async function downloadCaBundle(
     return true
   } catch (err) {
     logForDebugging(
-      `[upstreamproxy] ca-cert download failed: ${err instanceof Error ? err.message : String(err)}; proxy disabled`,
+      `[agent-proxy] ca-cert download failed: ${err instanceof Error ? err.message : String(err)}; proxy disabled`,
       { level: 'warn' },
     )
     return false

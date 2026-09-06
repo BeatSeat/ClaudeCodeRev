@@ -68,7 +68,7 @@ export function SystemAPIErrorMessage({
       ? getRateLimitDisplayName(rateLimit.rateLimitType)
       : 'usage limit'
     return (
-      <MessageResponse>
+      <MessageResponse screenReaderLabel="Error:">
         <Box flexDirection="column">
           <Text>
             <Text color="error">
@@ -86,7 +86,7 @@ export function SystemAPIErrorMessage({
   const truncated = !verbose && formatted.length > MAX_API_ERROR_CHARS
 
   return (
-    <MessageResponse>
+    <MessageResponse screenReaderLabel="Error:">
       <Box flexDirection="column">
         <Text color="error">
           {truncated

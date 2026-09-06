@@ -97,6 +97,7 @@ import {
 } from './sessionStoragePortable.js'
 import { getSettings_DEPRECATED } from './settings/settings.js'
 import { emitSessionTitleChanged } from './sessionTitleStore.js'
+import { shouldSkipPersistForStaleChildSession } from './tmuxSocket.js'
 import { jsonParse, jsonStringify } from './slowOperations.js'
 import type { ContentReplacementRecord } from './toolResultStorage.js'
 import { validateUuid } from './uuid.js'
@@ -494,8 +495,26 @@ const SESSION_ALIASES_FILENAME = '.session-aliases'
  * 118 `Cl8` — write the current session project dir into the added
  * directory's `.session-aliases` so `--continue`/`--resume` can find it.
  */
+/**
+ * Official 2.1.178 `Ud` — test / `--no-session-persistence` / skip-history /
+ * stale `CLAUDE_CODE_CHILD_SESSION` (`wEH`). `cleanupPeriodDays===0` is the
+ * pre-existing tree extra that official `Ud` does not spell.
+ */
+export function shouldSkipSessionPersistence(): boolean {
+  const allowTestPersistence = isEnvTruthy(
+    process.env.TEST_ENABLE_SESSION_PERSISTENCE,
+  )
+  return (
+    (getNodeEnv() === 'test' && !allowTestPersistence) ||
+    getSettings_DEPRECATED()?.cleanupPeriodDays === 0 ||
+    isSessionPersistenceDisabled() ||
+    isEnvTruthy(process.env.CLAUDE_CODE_SKIP_PROMPT_HISTORY) ||
+    shouldSkipPersistForStaleChildSession()
+  )
+}
+
 export async function recordSessionAlias(addedDir: string): Promise<void> {
-  if (isSessionPersistenceDisabled()) {
+  if (shouldSkipSessionPersistence()) {
     return
   }
   let resolved = addedDir
@@ -503,7 +522,11 @@ export async function recordSessionAlias(addedDir: string): Promise<void> {
     resolved = (await realpath(addedDir)).normalize('NFC')
   } catch (e) {
     if (!isENOENT(e)) {
-      logError(e)
+      // Official 2.1.178 `g3q`
+      logForDebugging(
+        `recordSessionAlias: realpath failed for ${addedDir}: ${e}`,
+        { level: 'error' },
+      )
     }
   }
   const currentProjectDir =
@@ -520,12 +543,25 @@ export async function recordSessionAlias(addedDir: string): Promise<void> {
     }
   } catch (e) {
     if (!isENOENT(e)) {
+      // Official 2.1.178 `g3q`
+      if (isFsInaccessible(e)) {
+        logForDebugging(
+          `recordSessionAlias: read failed for ${aliasFile}: ${e}`,
+        )
+        return
+      }
       logError(e)
       return
     }
     try {
       await mkdir(dirname(aliasFile), { recursive: true, mode: 0o700 })
     } catch (err) {
+      if (isFsInaccessible(err)) {
+        logForDebugging(
+          `recordSessionAlias: mkdir failed for ${aliasFile}: ${err}`,
+        )
+        return
+      }
       logError(err)
       return
     }
@@ -533,6 +569,12 @@ export async function recordSessionAlias(addedDir: string): Promise<void> {
   try {
     await fsAppendFile(aliasFile, currentProjectDir + '\n', { mode: 0o600 })
   } catch (e) {
+    if (isFsInaccessible(e)) {
+      logForDebugging(
+        `recordSessionAlias: append failed for ${aliasFile}: ${e}`,
+      )
+      return
+    }
     logError(e)
   }
 }
@@ -545,7 +587,14 @@ export async function readSessionAliases(cwd: string): Promise<string[]> {
     return uniq(text.split('\n').filter(line => line.length > 0))
   } catch (e) {
     if (!isENOENT(e)) {
-      logError(e)
+      // Official 2.1.178 `JN9`
+      if (isFsInaccessible(e)) {
+        logForDebugging(
+          `readSessionAliases: read failed for ${aliasFile}: ${e}`,
+        )
+      } else {
+        logError(e)
+      }
     }
     return []
   }
@@ -1282,15 +1331,7 @@ class Project {
    * test sessions don't pollute the user's --resume list.
    */
   shouldSkipPersistence(): boolean {
-    const allowTestPersistence = isEnvTruthy(
-      process.env.TEST_ENABLE_SESSION_PERSISTENCE,
-    )
-    return (
-      (getNodeEnv() === 'test' && !allowTestPersistence) ||
-      getSettings_DEPRECATED()?.cleanupPeriodDays === 0 ||
-      isSessionPersistenceDisabled() ||
-      isEnvTruthy(process.env.CLAUDE_CODE_SKIP_PROMPT_HISTORY)
-    )
+    return shouldSkipSessionPersistence()
   }
 
   /**
@@ -3106,6 +3147,24 @@ export async function saveCustomTitle(
     source:
       source as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
   })
+}
+
+/**
+ * Official 2.1.178 `HwH`. Persist custom title when source is `user` or
+ * `hook`; otherwise cache only (`B$H` / `cacheSessionTitle`).
+ */
+export async function applySessionTitle(
+  title: string,
+  source: 'user' | 'auto' | 'hook' = 'user',
+): Promise<void> {
+  const sessionId = getSessionId() as UUID
+  const fullPath = getTranscriptPath() ?? getTranscriptPathForSession(sessionId)
+  if (source === 'user' || source === 'hook') {
+    await saveCustomTitle(sessionId, title, fullPath, source)
+  } else {
+    cacheSessionTitle(title)
+  }
+  await saveAgentName(sessionId, title, fullPath, source)
 }
 
 /**

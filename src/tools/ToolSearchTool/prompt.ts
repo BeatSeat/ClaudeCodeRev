@@ -41,7 +41,11 @@ function getToolLocationHint(): string {
     : 'Deferred tools appear by name in <available-deferred-tools> messages.'
 }
 
-const PROMPT_TAIL = ` Until fetched, only the name is known — there is no parameter schema, so the tool cannot be invoked. This tool takes a query, matches it against the deferred tool list, and returns the matched tools' complete JSONSchema definitions inside a <functions> block. Once a tool's schema appears in that result, it is callable exactly like any tool defined at the top of the prompt.
+const PROMPT_TAIL_CANNOT_INVOKE =
+  ' Until fetched, only the name is known — there is no parameter schema, so the tool cannot be invoked.'
+const PROMPT_TAIL_VALIDATION_ERROR =
+  ' Until fetched, only the name is known — there is no parameter schema, so calling the tool fails with InputValidationError. When any instruction, system reminder, or other tool\'s description names a deferred tool, fetch it with query "select:<name>" before calling it.'
+const PROMPT_TAIL_REST = ` This tool takes a query, matches it against the deferred tool list, and returns the matched tools' complete JSONSchema definitions inside a <functions> block. Once a tool's schema appears in that result, it is callable exactly like any tool defined at the top of the prompt.
 
 Result format: each matched tool appears as one <function>{"description": "...", "name": "...", "parameters": {...}}</function> line inside the <functions> block — the same encoding as the tool list at the top of this prompt.
 
@@ -116,6 +120,26 @@ export function formatDeferredToolLine(tool: Tool): string {
   return tool.name
 }
 
+/** Official 2.1.178 `zf7` — `e38().toolSearchFetchRule` (`gorse_hollow`). */
+function isToolSearchFetchRule(): boolean {
+  try {
+    const cfg = getFeatureValue_CACHED_MAY_BE_STALE('juniper_shoal', {}) as {
+      gorse_hollow?: boolean
+    }
+    return cfg?.gorse_hollow === true
+  } catch {
+    return false
+  }
+}
+
+/** Official 2.1.178 `IL8`. */
 export function getPrompt(): string {
-  return PROMPT_HEAD + getToolLocationHint() + PROMPT_TAIL
+  return (
+    PROMPT_HEAD +
+    getToolLocationHint() +
+    (isToolSearchFetchRule()
+      ? PROMPT_TAIL_VALIDATION_ERROR
+      : PROMPT_TAIL_CANNOT_INVOKE) +
+    PROMPT_TAIL_REST
+  )
 }

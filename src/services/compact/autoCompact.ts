@@ -99,6 +99,23 @@ const RAPID_REFILL_STREAK = 3
 
 export const AUTOCOMPACT_THRASH_MESSAGE = `Autocompact is thrashing: the context refilled to the limit within ${RAPID_REFILL_TURNS} turns of the previous compact, ${RAPID_REFILL_STREAK} times in a row. A file being read or a tool output is likely too large for the context window. Try reading in smaller chunks, or use /clear to start fresh.`
 
+/** Official 2.1.178 `eRf` / `Wu` / `g_$`. */
+const EPHEMERAL_AUTOCOMPACT_SKIP_SOURCES = new Set([
+  'prompt_suggestion',
+  'away_summary',
+  'agent_summary',
+])
+
+/** Official 2.1.178 `g_$`. */
+export function isEphemeralAutocompactSkipSource(
+  querySource: string | undefined,
+): boolean {
+  return (
+    querySource !== undefined &&
+    EPHEMERAL_AUTOCOMPACT_SKIP_SOURCES.has(querySource)
+  )
+}
+
 export function getAutoCompactThreshold(model: string): number {
   const effectiveContextWindow = getEffectiveContextWindowSize(model)
 
@@ -214,6 +231,10 @@ export async function shouldAutoCompact(
   // Recursion guards. session_memory and compact are forked agents that
   // would deadlock.
   if (querySource === 'session_memory' || querySource === 'compact') {
+    return false
+  }
+  // Official 2.1.178 `HIf` / `g_$` — ephemeral forks must not autocompact.
+  if (isEphemeralAutocompactSkipSource(querySource)) {
     return false
   }
   // marble_origami is the ctx-agent — if ITS context blows up and

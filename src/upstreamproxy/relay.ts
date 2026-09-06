@@ -169,7 +169,7 @@ export async function startUpstreamProxyRelay(opts: {
       ? startBunRelay(opts.wsUrl, authHeader, wsAuthHeader)
       : await startNodeRelay(opts.wsUrl, authHeader, wsAuthHeader)
 
-  logForDebugging(`[upstreamproxy] relay listening on 127.0.0.1:${relay.port}`)
+  logForDebugging(`[agent-proxy] relay listening on 127.0.0.1:${relay.port}`)
   return relay
 }
 
@@ -228,7 +228,7 @@ function startBunRelay(
         cleanupConn(sock.data)
       },
       error(sock, err) {
-        logForDebugging(`[upstreamproxy] client socket error: ${err.message}`)
+        logForDebugging(`[agent-proxy] client socket error: ${err.message}`)
         cleanupConn(sock.data)
       },
     },
@@ -267,7 +267,7 @@ export async function startNodeRelay(
     )
     sock.on('close', () => cleanupConn(states.get(sock)))
     sock.on('error', err => {
-      logForDebugging(`[upstreamproxy] client socket error: ${err.message}`)
+      logForDebugging(`[agent-proxy] client socket error: ${err.message}`)
       cleanupConn(states.get(sock))
     })
   })
@@ -409,7 +409,7 @@ function openTunnel(
 
   ws.onerror = ev => {
     const msg = 'message' in ev ? String(ev.message) : 'websocket error'
-    logForDebugging(`[upstreamproxy] ws error: ${msg}`)
+    logForDebugging(`[agent-proxy] ws error: ${msg}`)
     if (st.closed) return
     st.closed = true
     if (!st.established) {

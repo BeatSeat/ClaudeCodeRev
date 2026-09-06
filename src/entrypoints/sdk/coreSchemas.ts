@@ -710,12 +710,16 @@ export const PostCompactHookInputSchema = lazySchema(() =>
   ),
 )
 
+/** Official 2.1.178 `v8q` — `team_name` on teammate hooks. */
+const IMPLICIT_TEAM_NAME_DEPRECATED =
+  '@deprecated Sessions have a single implicit team; this carries the session-derived team name and will be removed in a future release.'
+
 export const TeammateIdleHookInputSchema = lazySchema(() =>
   BaseHookInputSchema().and(
     z.object({
       hook_event_name: z.literal('TeammateIdle'),
       teammate_name: z.string(),
-      team_name: z.string(),
+      team_name: z.string().describe(IMPLICIT_TEAM_NAME_DEPRECATED),
     }),
   ),
 )
@@ -728,7 +732,7 @@ export const TaskCreatedHookInputSchema = lazySchema(() =>
       task_subject: z.string(),
       task_description: z.string().optional(),
       teammate_name: z.string().optional(),
-      team_name: z.string().optional(),
+      team_name: z.string().optional().describe(IMPLICIT_TEAM_NAME_DEPRECATED),
     }),
   ),
 )
@@ -741,7 +745,7 @@ export const TaskCompletedHookInputSchema = lazySchema(() =>
       task_subject: z.string(),
       task_description: z.string().optional(),
       teammate_name: z.string().optional(),
-      team_name: z.string().optional(),
+      team_name: z.string().optional().describe(IMPLICIT_TEAM_NAME_DEPRECATED),
     }),
   ),
 )
@@ -1746,6 +1750,36 @@ export const SDKPartialAssistantMessageSchema = lazySchema(() =>
   }),
 )
 
+/** Official 2.1.178 `d81` / `t5f` SDK yield. */
+export const SDKInformationalMessageSchema = lazySchema(() =>
+  z
+    .object({
+      type: z.literal('system'),
+      subtype: z.literal('informational'),
+      content: z.string(),
+      level: z
+        .enum(['info', 'notice', 'suggestion', 'warning'])
+        .describe(
+          "Render level. 'info' shows only in transcript mode; 'notice' renders in inactive gray; 'suggestion' and 'warning' are more prominent.",
+        ),
+      tool_use_id: z
+        .string()
+        .optional()
+        .describe('Dedupes progress messages for the same tool use.'),
+      prevent_continuation: z
+        .boolean()
+        .optional()
+        .describe(
+          'When true, execution stops after this message (e.g. a Stop hook denied continuation).',
+        ),
+      uuid: UUIDPlaceholder(),
+      session_id: z.string(),
+    })
+    .describe(
+      'Generic text banner emitted by the loop — non-error status lines, hook feedback (e.g. a UserPromptSubmit hook\'s block reason), slash-command output. Hosts render `content` as plaintext at the given level.',
+    ),
+)
+
 export const SDKCompactBoundaryMessageSchema = lazySchema(() =>
   z.object({
     type: z.literal('system'),
@@ -2116,6 +2150,7 @@ export const SDKMessageSchema = lazySchema(() =>
     SDKResultMessageSchema(),
     SDKSystemMessageSchema(),
     SDKPartialAssistantMessageSchema(),
+    SDKInformationalMessageSchema(),
     SDKCompactBoundaryMessageSchema(),
     SDKStatusMessageSchema(),
     SDKAPIRetryMessageSchema(),

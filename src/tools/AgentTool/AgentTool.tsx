@@ -22,7 +22,6 @@ import {
 } from '../../constants/prompts.js'
 import { isCoordinatorMode } from '../../coordinator/coordinatorMode.js'
 import { startAgentSummarization } from '../../services/AgentSummary/agentSummary.js'
-import { getFeatureValue_CACHED_MAY_BE_STALE } from '../../services/analytics/growthbook.js'
 import {
   type AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
   logEvent,
@@ -99,7 +98,9 @@ import {
 import { BASH_TOOL_NAME } from '../BashTool/toolName.js'
 import { BackgroundHint } from '../BashTool/UI.js'
 import { FILE_READ_TOOL_NAME } from '../FileReadTool/prompt.js'
+import { MAIN_CONVERSATION_NAME } from '../SendMessageTool/constants.js'
 import { spawnTeammate } from '../shared/spawnMultiAgent.js'
+import { resolveExploreAgentModel } from './built-in/exploreAgent.js'
 import { setAgentColor } from './agentColorManager.js'
 import {
   agentToolResultSchema,
@@ -125,7 +126,6 @@ import {
 } from './forkSubagent.js'
 import type { AgentDefinition } from './loadAgentsDir.js'
 import {
-  filterAgentsByMcpRequirements,
   hasRequiredMcpServers,
   isBuiltInAgent,
 } from './loadAgentsDir.js'
@@ -169,10 +169,8 @@ const isBackgroundTasksDisabled =
 // Auto-background agent tasks after this many ms (0 = disabled)
 // Enabled by env var OR GrowthBook gate (checked lazily since GB may not be ready at module load)
 function getAutoBackgroundMs(): number {
-  if (
-    isEnvTruthy(process.env.CLAUDE_AUTO_BACKGROUND_TASKS) ||
-    getFeatureValue_CACHED_MAY_BE_STALE('tengu_auto_background_agents', false)
-  ) {
+  // Official 2.1.178 `xZf`: env only (176 `tengu_auto_background_agents` dropped).
+  if (isEnvTruthy(process.env.CLAUDE_AUTO_BACKGROUND_TASKS)) {
     return 120_000
   }
   return 0
@@ -212,6 +210,13 @@ const fullInputSchema = lazySchema(() => {
   const multiAgentInputSchema = z.object({
     name: z
       .string()
+      .regex(/^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$/, {
+        message:
+          'name must start with a letter or digit and contain only letters, digits, underscores, or hyphens (max 64 chars)',
+      })
+      .refine(value => value !== MAIN_CONVERSATION_NAME, {
+        message: `"${MAIN_CONVERSATION_NAME}" is reserved — SendMessage routes it to the main conversation`,
+      })
       .optional()
       .describe(
         'Name for the spawned agent. Makes it addressable via SendMessage({to: name}) while running.',
@@ -220,7 +225,7 @@ const fullInputSchema = lazySchema(() => {
       .string()
       .optional()
       .describe(
-        'Team name for spawning. Uses current team context if omitted.',
+        'Deprecated; ignored. The session has a single implicit team.',
       ),
     mode: permissionModeSchema()
       .optional()
@@ -232,15 +237,11 @@ const fullInputSchema = lazySchema(() => {
   return baseInputSchema()
     .merge(multiAgentInputSchema)
     .extend({
-      isolation: ("external" === 'ant'
-        ? z.enum(['worktree', 'remote'])
-        : z.enum(['worktree'])
-      )
+      isolation: z
+        .enum(['worktree', 'remote'])
         .optional()
         .describe(
-          "external" === 'ant'
-            ? 'Isolation mode. "worktree" creates a temporary git worktree so the agent works on an isolated copy of the repo. "remote" launches the agent in a remote CCR environment (always runs in background).'
-            : 'Isolation mode. "worktree" creates a temporary git worktree so the agent works on an isolated copy of the repo.',
+          'Isolation mode. "worktree" creates a temporary git worktree so the agent works on an isolated copy of the repo. "remote" launches the agent in a remote cloud environment (always runs in background; availability is gated).',
         ),
       cwd: z
         .string()
@@ -310,7 +311,18 @@ export const outputSchema = lazySchema(() => {
       ),
   })
 
-  return z.union([syncOutputSchema, asyncOutputSchema])
+  const remoteLaunchedSchema = z.object({
+    status: z.literal('remote_launched'),
+    taskId: z.string().describe('The ID of the remote agent task'),
+    sessionUrl: z.string().describe('The URL of the cloud session'),
+    description: z.string().describe('The description of the task'),
+    prompt: z.string().describe('The prompt for the agent'),
+    outputFile: z
+      .string()
+      .describe('Path to the output file for checking agent progress'),
+  })
+
+  return z.union([syncOutputSchema, asyncOutputSchema, remoteLaunchedSchema])
 })
 type OutputSchema = ReturnType<typeof outputSchema>
 type Output = z.input<OutputSchema>
@@ -356,38 +368,20 @@ import type { AgentToolProgress, ShellProgress } from '../../types/tools.js'
 export type Progress = AgentToolProgress | ShellProgress
 
 export const AgentTool = buildTool({
-  async prompt({ agents, tools, getToolPermissionContext, allowedAgentTypes }) {
+  async prompt({ agents, getToolPermissionContext, allowedAgentTypes, model }) {
     const toolPermissionContext = await getToolPermissionContext()
-
-    // Get MCP servers that have tools available
-    const mcpServersWithTools: string[] = []
-    for (const tool of tools) {
-      if (tool.name?.startsWith('mcp__')) {
-        const parts = tool.name.split('__')
-        const serverName = parts[1]
-        if (serverName && !mcpServersWithTools.includes(serverName)) {
-          mcpServersWithTools.push(serverName)
-        }
-      }
-    }
-
-    // Filter agents: first by MCP requirements, then by permission rules
-    const agentsWithMcpRequirementsMet = filterAgentsByMcpRequirements(
-      agents,
-      mcpServersWithTools,
-    )
     const filteredAgents = filterDeniedAgents(
-      agentsWithMcpRequirementsMet,
+      agents,
       toolPermissionContext,
       AGENT_TOOL_NAME,
     )
-
-    // Use inline env check instead of coordinatorModule to avoid circular
-    // dependency issues during test module loading.
+    const available = allowedAgentTypes
+      ? filteredAgents.filter(a => allowedAgentTypes.includes(a.agentType))
+      : filteredAgents
     const isCoordinator = feature('COORDINATOR_MODE')
       ? isEnvTruthy(process.env.CLAUDE_CODE_COORDINATOR_MODE)
       : false
-    return await getPrompt(filteredAgents, isCoordinator, allowedAgentTypes)
+    return await getPrompt(available, isCoordinator, model)
   },
   name: AGENT_TOOL_NAME,
   searchHint: 'delegate work to a subagent',
@@ -668,7 +662,10 @@ export const AgentTool = buildTool({
 
     // Resolve agent params for logging (these are already resolved in runAgent)
     const resolvedAgentModel = getAgentModel(
-      selectedAgent.model,
+      resolveExploreAgentModel(
+        selectedAgent,
+        toolUseContext.options.mainLoopModel,
+      ),
       toolUseContext.options.mainLoopModel,
       isForkPath ? undefined : model,
       permissionMode,
@@ -1033,12 +1030,19 @@ export const AgentTool = buildTool({
       // Register name → agentId for SendMessage routing. Post-registerAsyncAgent
       // so we don't leave a stale entry if spawn fails. Sync agents skipped —
       // coordinator is blocked, so SendMessage routing doesn't apply.
-      if (name) {
+      if (name && name !== MAIN_CONVERSATION_NAME) {
         rootSetAppState(prev => {
+          if (name === MAIN_CONVERSATION_NAME) {
+            return prev
+          }
           const next = new Map(prev.agentNameRegistry)
           next.set(name, asAgentId(asyncAgentId))
           return { ...prev, agentNameRegistry: next }
         })
+      } else if (name === MAIN_CONVERSATION_NAME) {
+        logForDebugging(
+          `[registerName] refused reserved name "${name}" for ${asyncAgentId} — SendMessage routes it to the main conversation`,
+        )
       }
 
       // Wrap async agent execution in agent context for analytics attribution
@@ -1896,9 +1900,10 @@ duration_ms: ${data.totalDurationMs}</usage>`,
 } satisfies ToolDef<InputSchema, Output, Progress>)
 
 function resolveTeamName(
-  input: { team_name?: string },
+  _input: { team_name?: string },
   appState: { teamContext?: { teamName: string } },
 ): string | undefined {
   if (!isAgentSwarmsEnabled()) return undefined
-  return input.team_name || appState.teamContext?.teamName
+  // Official 2.1.178: team_name input is ignored; session has one implicit team.
+  return appState.teamContext?.teamName
 }

@@ -54,8 +54,7 @@ import {
   getTranscriptPathForSession,
   getAgentTranscriptPath,
   getCurrentSessionTitle,
-  saveCustomTitle,
-  saveAgentName,
+  applySessionTitle,
 } from './sessionStorage.js'
 import { isTeammate } from './teammate.js'
 import type { AgentId } from '../types/ids.js'
@@ -4494,8 +4493,8 @@ export async function applyHookSessionTitle(title: string): Promise<void> {
   logForDebugging(
     `Hook sessionTitle applied (${[...sanitized].length} chars)`,
   )
-  await saveCustomTitle(sessionId, sanitized, undefined, 'hook')
-  await saveAgentName(sessionId, sanitized, undefined, 'hook')
+  // Official 2.1.178 `HwH` — persist when source is user or hook
+  await applySessionTitle(sanitized, 'hook')
 }
 
 /**

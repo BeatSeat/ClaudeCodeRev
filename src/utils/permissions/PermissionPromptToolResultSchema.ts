@@ -123,5 +123,7 @@ export function permissionPromptToolResultToPermissionDecision(
   return {
     ...result,
     decisionReason,
-  }
+    // Official 2.1.178 `v4$`
+    decideLocation: 'ask-path',
+  } as PermissionDecision
 }

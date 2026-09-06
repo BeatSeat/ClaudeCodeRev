@@ -92,6 +92,7 @@ import { recordSkillUsage } from '../suggestions/skillUsageTracking.js'
 import { logOTelEvent, redactIfDisabled } from '../telemetry/events.js'
 import { logOTelSkillActivated } from '../telemetry/skillActivatedEvent.js'
 import { buildPluginCommandTelemetryFields } from '../telemetry/pluginTelemetry.js'
+import { getSkillAnalyticsName } from '../telemetry/skillNameHash.js'
 import { getAssistantMessageContentLength } from '../tokens.js'
 import { createAgentId } from '../uuid.js'
 import { getWorkload } from '../workloadContext.js'
@@ -126,9 +127,26 @@ async function executeForkedSlashCommand(
   const pluginMarketplace = command.pluginInfo
     ? parsePluginIdentifier(command.pluginInfo.repository).marketplace
     : undefined
+  const { sanitizedName, skillNameHash } = getSkillAnalyticsName({
+    rawName: command.name,
+    canonicalName: command.name,
+    isMcp: command.loadedFrom === 'mcp',
+    isBuiltIn: builtInCommandNames().has(command.name),
+    isBundled: command.source === 'bundled',
+    isOfficial:
+      command.source === 'plugin' &&
+      !!command.pluginInfo?.repository &&
+      isOfficialMarketplaceName(pluginMarketplace),
+  })
   logEvent('tengu_slash_command_forked', {
     command_name:
-      command.name as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
+      sanitizedName as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
+    ...(skillNameHash.skill_name_hash && {
+      skill_name_hash:
+        skillNameHash.skill_name_hash as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
+    }),
+    _PROTO_skill_name:
+      command.name as AnalyticsMetadata_I_VERIFIED_THIS_IS_PII_TAGGED,
     invocation_trigger:
       'user-slash' as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
     ...(command.pluginInfo && {
