@@ -26,10 +26,13 @@ export function useDeclaredCursor({
   line,
   column,
   active,
+  visible = true,
 }: {
   line: number
   column: number
   active: boolean
+  /** Official 176 `SKH` — default true so existing callers keep parking. */
+  visible?: boolean
 }): (element: DOMElement | null) => void {
   const setCursorDeclaration = useContext(CursorDeclarationContext)
   const nodeRef = useRef<DOMElement | null>(null)
@@ -54,7 +57,12 @@ export function useDeclaredCursor({
   useLayoutEffect(() => {
     const node = nodeRef.current
     if (active && node) {
-      setCursorDeclaration({ relativeX: column, relativeY: line, node })
+      setCursorDeclaration({
+        relativeX: column,
+        relativeY: line,
+        node,
+        visible,
+      })
     } else {
       setCursorDeclaration(null, node)
     }

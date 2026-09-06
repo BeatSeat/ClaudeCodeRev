@@ -42,7 +42,10 @@ import {
   getMessagesAfterCompactBoundary,
   isSyntheticMessage,
 } from '../utils/messages.js'
-import type { PermissionMode } from '../utils/permissions/PermissionMode.js'
+import type {
+  ExternalPermissionMode,
+  PermissionMode,
+} from '../utils/permissions/PermissionMode.js'
 import {
   getCurrentSessionTitle,
   saveCustomTitle,
@@ -81,6 +84,11 @@ export type InitBridgeOptions = {
   onInboundMessage?: (msg: SDKMessage) => void | Promise<void>
   onPermissionResponse?: (response: SDKControlResponse) => void
   onInterrupt?: () => void
+  /** Official 2.1.176 `getInitializeState` / `current_model` (CC-2659). */
+  getInitializeState?: () => {
+    current_model?: string
+    current_permission_mode?: ExternalPermissionMode
+  }
   onSetModel?: (model: string | undefined) => void
   onSetMaxThinkingTokens?: (maxTokens: number | null) => void
   onSetPermissionMode?: (
@@ -126,6 +134,7 @@ export async function initReplBridge(
     onInboundMessage,
     onPermissionResponse,
     onInterrupt,
+    getInitializeState,
     onSetModel,
     onSetMaxThinkingTokens,
     onSetPermissionMode,
@@ -492,6 +501,7 @@ export async function initReplBridge(
       onUserMessage,
       onPermissionResponse,
       onInterrupt,
+      getInitializeState,
       onSetModel,
       onSetMaxThinkingTokens,
       onSetPermissionMode,
@@ -589,6 +599,7 @@ export async function initReplBridge(
     onInboundMessage,
     onPermissionResponse,
     onInterrupt,
+    getInitializeState,
     onSetModel,
     onSetMaxThinkingTokens,
     onSetPermissionMode,

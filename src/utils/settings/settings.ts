@@ -462,6 +462,29 @@ export function getSettingsForSource(
 }
 
 /**
+ * Official 2.1.176 `Jf6`. Collect a setting from policy, flag, and user
+ * sources only — project `.claude/settings.json` and local
+ * `.claude/settings.local.json` are skipped. Used for `footerLinksRegexes`
+ * (schema describe: user, flag, and managed only).
+ */
+export function getSettingsFromUserFlagAndPolicy<K extends keyof SettingsJson>(
+  key: K,
+): Array<NonNullable<SettingsJson[K]>> {
+  const values: Array<NonNullable<SettingsJson[K]>> = []
+  for (const source of [
+    'policySettings',
+    'flagSettings',
+    'userSettings',
+  ] as const) {
+    const value = getSettingsForSource(source)?.[key]
+    if (value !== undefined) {
+      values.push(value as NonNullable<SettingsJson[K]>)
+    }
+  }
+  return values
+}
+
+/**
  * Official 2.1.126 `CD9` / `OH$`: every managed-settings source that actually
  * loaded, not first-wins `policySettings`. Used so `allowManagedDomainsOnly`
  * / `allowManagedReadPathsOnly` still apply when a higher-priority source

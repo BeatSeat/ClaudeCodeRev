@@ -1,6 +1,6 @@
 import { feature } from 'bun:bundle'
 import * as React from 'react'
-import { memo, type ReactNode, useMemo, useRef } from 'react'
+import { memo, type ReactNode, useEffect, useMemo, useRef } from 'react'
 import { isBridgeEnabled } from '../../bridge/bridgeEnabled.js'
 import { getBridgeStatus } from '../../bridge/bridgeStatusUtil.js'
 import { useSetPromptOverlay } from '../../context/promptOverlayContext.js'
@@ -38,6 +38,10 @@ import {
   type SuggestionItem,
 } from './PromptInputFooterSuggestions.js'
 import { PromptInputHelpMenu } from './PromptInputHelpMenu.js'
+import {
+  rehydrateFooterLinks,
+  retainKeyedFooterLinks,
+} from '../../utils/footerLinks.js'
 
 type Props = {
   apiKeyStatus: VerificationStatus
@@ -131,6 +135,19 @@ function PromptInputFooter({
     prStatus.reviewState !== null
   const messagesRef = useRef(messages)
   messagesRef.current = messages
+  // Official 176 `NN9` is a session rehydrator (`XN9`). This tree has no
+  // rehydrator API — scan once when the transcript first appears. `/clear`
+  // keeps keyed badges (`retainKeyedFooterLinks`).
+  const footerLinksRehydratedRef = useRef(false)
+  useEffect(() => {
+    if (footerLinksRehydratedRef.current) {
+      if (messages.length === 0) retainKeyedFooterLinks()
+      return
+    }
+    if (messages.length === 0) return
+    footerLinksRehydratedRef.current = true
+    rehydrateFooterLinks(messages)
+  }, [messages])
   const lastAssistantMessageId = useMemo(
     () => getLastAssistantMessageId(messages),
     [messages],

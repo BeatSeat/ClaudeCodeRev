@@ -89,6 +89,17 @@ export const SDKControlInitializeResponseSchema = lazySchema(() =>
       available_output_styles: z.array(z.string()),
       models: z.array(ModelInfoSchema()),
       account: AccountInfoSchema(),
+      current_model: z
+        .string()
+        .optional()
+        .describe(
+          "@internal The CLI's active model at connect time. Remote Control clients (web/mobile) sync their model dropdown TO this value on connect instead of sending set_model with their own default — without it, connecting from a phone silently switches the terminal's model (CC-2659).",
+        ),
+      current_permission_mode: PermissionModeSchema()
+        .optional()
+        .describe(
+          "@internal The CLI's active permission mode at connect time, for the same connect-time sync as current_model.",
+        ),
       pid: z
         .number()
         .optional()

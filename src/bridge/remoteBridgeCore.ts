@@ -69,9 +69,40 @@ import type {
   SDKControlRequest,
   SDKControlResponse,
 } from '../entrypoints/sdk/controlTypes.js'
-import type { PermissionMode } from '../utils/permissions/PermissionMode.js'
+import type {
+  ExternalPermissionMode,
+  PermissionMode,
+} from '../utils/permissions/PermissionMode.js'
 
 const ANTHROPIC_VERSION = '2023-06-01'
+
+/** Official 2.1.176 `GE9` — human-readable Remote Control close reason. */
+export function formatWsCloseReason(code: number | undefined): string {
+  switch (code) {
+    case undefined:
+      return 'no close code received'
+    case 4090:
+      return 'this connection is no longer the active worker for the session (code 4090)'
+    case 4091:
+      return 'transport init failed (code 4091)'
+    case 4092:
+      return 'connection dropped — no close reason from server (code 4092)'
+    case 401:
+      return 'auth token expired (code 401)'
+    case 403:
+      return 'server rejected connection (code 403)'
+    case 404:
+      return 'session not found on server (code 404)'
+    case 1002:
+      return 'server rejected the connection handshake (code 1002)'
+    case 4001:
+      return 'session expired or not found on server (code 4001)'
+    case 4003:
+      return 'server rejected credentials (code 4003)'
+    default:
+      return `code ${code}`
+  }
+}
 
 // Telemetry discriminator for ws_connected. 'initial' is the default and
 // never passed to rebuildTransport (which can only be called post-init);
@@ -122,6 +153,11 @@ export type EnvLessBridgeParams = {
   onUserMessage?: (text: string, sessionId: string) => boolean
   onPermissionResponse?: (response: SDKControlResponse) => void
   onInterrupt?: () => void
+  /** Official 2.1.176 `getInitializeState` — see bridgeMessaging.ts. */
+  getInitializeState?: () => {
+    current_model?: string
+    current_permission_mode?: ExternalPermissionMode
+  }
   onSetModel?: (model: string | undefined) => void
   onSetMaxThinkingTokens?: (maxTokens: number | null) => void
   onSetPermissionMode?: (
@@ -173,6 +209,7 @@ export async function initEnvLessBridgeCore(
     onUserMessage,
     onPermissionResponse,
     onInterrupt,
+    getInitializeState,
     onSetModel,
     onSetMaxThinkingTokens,
     onSetPermissionMode,
@@ -490,6 +527,7 @@ export async function initEnvLessBridgeCore(
           handleServerControlRequest(req, {
             transport,
             sessionId,
+            getInitializeState,
             onInterrupt,
             onSetModel,
             onSetMaxThinkingTokens,
@@ -516,7 +554,7 @@ export async function initEnvLessBridgeCore(
         void recoverFromAuthFailure()
         return
       }
-      onStateChange?.('failed', `Transport closed (code ${code})`)
+      onStateChange?.('failed', `Transport closed: ${formatWsCloseReason(code)}`)
     })
   }
 
@@ -940,6 +978,7 @@ export async function initEnvLessBridgeCore(
       void transport.write(makeResultMessage(sessionId))
       logForDebugging(`[remote-bridge] Sent result`)
     },
+    refreshGitBranch() {},
     async teardown() {
       unregister()
       await teardown()

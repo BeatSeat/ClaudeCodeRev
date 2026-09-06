@@ -420,6 +420,80 @@ export function getDefaultOpusModel(): ModelName {
   return getDefaultOpusModelEnvFree()
 }
 
+/** Official 2.1.176 `xZK` — newest-first Opus keys for the classifier fallback. */
+const CLASSIFIER_OPUS_FALLBACK_KEYS = [
+  'opus48',
+  'opus47',
+  'opus46',
+  'opus45',
+] as const
+
+/**
+ * Official 2.1.176 `ys` — main-loop model equals `ANTHROPIC_DEFAULT_FABLE_MODEL`.
+ */
+function isCustomDefaultFableModel(model: string): boolean {
+  const env = process.env.ANTHROPIC_DEFAULT_FABLE_MODEL
+  if (!env) return false
+  return stripTrailing1mSuffix(model) === stripTrailing1mSuffix(env)
+}
+
+/**
+ * Official 2.1.176 `GhH` — Fable 5 (canonical or custom default-Fable env).
+ */
+function isFableClassifierMainModel(model: string): boolean {
+  return (
+    stripTrailing1mSuffix(getCanonicalName(model)) === 'claude-fable-5' ||
+    isCustomDefaultFableModel(model)
+  )
+}
+
+/** Official 2.1.176 `lX$`. */
+function isMythosClassifierMainModel(model: string): boolean {
+  return stripTrailing1mSuffix(getCanonicalName(model)) === 'claude-mythos-5'
+}
+
+/**
+ * Official 2.1.176 `GhH`/`lX$` — z64 uses nX$ when the main loop is Fable or
+ * Mythos (auto mode otherwise pins the classifier to a missing Opus 4.8).
+ */
+export function classifierFallsBackToBestAvailableOpus(
+  mainModel: string,
+): boolean {
+  return (
+    isFableClassifierMainModel(mainModel) ||
+    isMythosClassifierMainModel(mainModel)
+  )
+}
+
+/**
+ * Official 2.1.176 `nX$`. Prefer `ANTHROPIC_DEFAULT_OPUS_MODEL`; else on
+ * firstParty walk `xZK` for the first allowlisted Opus, else `opus48`. If the
+ * main model has 1M context and the pick is 1M-eligible, append `[1m]`.
+ */
+export function getBestAvailableOpusForClassifier(
+  mainModel: string,
+): ModelName {
+  let pick = process.env.ANTHROPIC_DEFAULT_OPUS_MODEL
+  if (pick === undefined) {
+    const strings = getModelStrings()
+    pick = strings.opus48
+    if (getAPIProvider() === 'firstParty') {
+      pick =
+        CLASSIFIER_OPUS_FALLBACK_KEYS.map(key => strings[key]).find(model =>
+          isModelAllowed(model),
+        ) ?? strings.opus48
+    }
+  }
+  if (
+    (has1mContext(mainModel) || modelHasNative1mContext(mainModel)) &&
+    !has1mContext(pick) &&
+    !isModelIneligibleFor1mContext(getCanonicalName(pick))
+  ) {
+    return pick + '[1m]'
+  }
+  return pick
+}
+
 export function getDefaultSonnetModelEnvFree(
   strings = getModelStrings(),
 ): ModelName {

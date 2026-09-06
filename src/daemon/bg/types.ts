@@ -1,3 +1,4 @@
+import { basename, isAbsolute } from 'path'
 import { z } from 'zod/v4'
 import { logForDebugging } from '../../utils/debug.js'
 
@@ -5,8 +6,79 @@ import { logForDebugging } from '../../utils/debug.js'
 export const DAEMON_PROTO = 1
 export const DAEMON_PROTO_MIN = 1
 
-/** Official `vzH`. */
+/** Official `vzH` / `ZP7`. */
 export const SHORT_RE = /^[a-f0-9]{8}$/
+
+/** Official 2.1.176 `EK5` / `uN` — session resume UUID. */
+const SESSION_UUID_RE =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+
+/** Official 2.1.176 `xK5`. */
+const BRIDGE_SESSION_RE = /^(cse_|session_)[A-Za-z0-9_-]{1,128}$/
+
+/** Official 2.1.176 `uN`. */
+function parseSessionUuid(H: unknown): string | null {
+  if (typeof H !== 'string') return null
+  return SESSION_UUID_RE.test(H) ? H : null
+}
+
+/** Official 2.1.176 `d0$` (175 `pG$`). */
+function dropMalformed<T>(
+  field: string,
+  ok: (v: T) => boolean,
+): (q: T) => T | undefined {
+  return q => {
+    if (ok(q)) return q
+    logForDebugging(
+      `[jobs] dropped malformed ${field} from persisted job state`,
+      { level: 'warn' },
+    )
+    return undefined
+  }
+}
+
+/** Official 2.1.176 `$e8`. */
+function stripWindowsLongPathPrefix(H: string): string {
+  if (H.startsWith('\\\\?\\UNC\\')) return '\\\\' + H.slice(8)
+  if (H.startsWith('\\\\?\\') && H.length >= 7 && H[5] === ':') return H.slice(4)
+  return H
+}
+
+/** Official 2.1.176 `Yhq`. */
+function isDotOrForwardSlashUnc(H: string): boolean {
+  return /(^|[\\/])\.{1,2}([\\/]|$)/.test(H) || H.includes('/')
+}
+
+/** Official 2.1.176 `cA`. */
+function isUncPrefix(H: string): boolean {
+  return /^[\\/]{2}/.test(H)
+}
+
+/** Official 2.1.176 `PD`. */
+function isWslUnc(H: string): boolean {
+  return /^[\\/]{2}wsl(\$|\.localhost)[\\/]/i.test(H)
+}
+
+/** Official 2.1.176 `SkH`. */
+export function isWindowsNetworkPath(H: string): boolean {
+  if (/^\\\\\?\\volume\{/i.test(H)) return isDotOrForwardSlashUnc(H)
+  const n = stripWindowsLongPathPrefix(H)
+  if (n !== H && isDotOrForwardSlashUnc(n)) return true
+  return isUncPrefix(n) && !isWslUnc(n)
+}
+
+/** Official 2.1.176 `FP` — neutralize UNC before persist/respawn. */
+export function neutralizeWindowsNetworkPath(H: string): string {
+  if (isWindowsNetworkPath(H)) {
+    return stripWindowsLongPathPrefix(H).replace(/^([\\/])[\\/]+/, '$1')
+  }
+  return H
+}
+
+/** Official 2.1.176 `g0$`. */
+function persistedPathString() {
+  return z.string().transform(neutralizeWindowsNetworkPath)
+}
 
 /** Official `MqH`. */
 export const MAX_PTY_DIM = 10000
@@ -102,7 +174,17 @@ export const JobStateSchema = z.object({
     .nullable()
     .default(null),
   linkScanOffset: z.number().default(0),
-  linkScanPath: z.string().optional(),
+  linkScanPath: persistedPathString()
+    .transform(
+      dropMalformed<string>(
+        'linkScanPath',
+        H =>
+          isAbsolute(H) &&
+          H.endsWith('.jsonl') &&
+          parseSessionUuid(basename(H, '.jsonl')) !== null,
+      ),
+    )
+    .optional(),
   template: z.string(),
   routine: z.string().optional(),
   respawnFlags: z.array(z.string()).default([]).transform(sanitizeRespawnFlags),
@@ -117,21 +199,38 @@ export const JobStateSchema = z.object({
   name: z.string().optional(),
   nameSource: z.enum(['user', 'auto']).optional(),
   color: z.string().optional(),
-  sessionId: z.string(),
-  resumeSessionId: z.string().optional(),
-  daemonShort: z.string().optional(),
+  sessionId: persistedPathString(),
+  resumeSessionId: z
+    .string()
+    .transform(dropMalformed<string>('resumeSessionId', H => parseSessionUuid(H) !== null))
+    .optional(),
+  daemonShort: z
+    .string()
+    .transform(dropMalformed<string>('daemonShort', H => SHORT_RE.test(H)))
+    .optional(),
   cliVersion: z.string().optional(),
-  cwd: z.string(),
+  cwd: persistedPathString(),
   createdAt: z.string(),
   updatedAt: z.string(),
   firstTerminalAt: z.string().nullable().default(null),
-  worktreePath: z.string().optional(),
+  worktreePath: persistedPathString().optional(),
   worktreeBranch: z.string().optional(),
   worktreeHookBased: z.boolean().optional(),
-  originCwd: z.string().optional(),
-  bridgeSessionId: z.string().optional(),
+  originCwd: persistedPathString().optional(),
+  bridgeSessionId: z
+    .string()
+    .transform(dropMalformed<string>('bridgeSessionId', H => BRIDGE_SESSION_RE.test(H)))
+    .optional(),
   bridgeOutboundOnly: z.boolean().optional(),
-  bridgeSessionSeq: z.number().optional(),
+  bridgeSessionSeq: z
+    .number()
+    .transform(
+      dropMalformed<number>(
+        'bridgeSessionSeq',
+        H => Number.isInteger(H) && H >= 0,
+      ),
+    )
+    .optional(),
   backend: z
     .enum(['daemon', 'peer', 'remote'])
     .catch('daemon')
@@ -175,7 +274,9 @@ function sanitizeProviderEnv(
   )
   const result: Record<string, string> = {}
   for (const [k, v] of Object.entries(env)) {
-    if (ALLOWLISTED_PROVIDER_ENV_KEYS.has(k)) result[k] = v
+    if (ALLOWLISTED_PROVIDER_ENV_KEYS.has(k)) {
+      result[k] = neutralizeWindowsNetworkPath(v)
+    }
   }
   return Object.keys(result).length > 0 ? result : undefined
 }

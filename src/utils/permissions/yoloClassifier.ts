@@ -33,7 +33,9 @@ import { lazySchema } from '../lazySchema.js'
 import { extractTextContent } from '../messages.js'
 import { resolveAntModel } from '../model/antModels.js'
 import {
+  classifierFallsBackToBestAvailableOpus,
   firstPartyNameToCanonical,
+  getBestAvailableOpusForClassifier,
   getMainLoopModel,
 } from '../model/model.js'
 import { isFableFamilyThinkingModel } from '../thinking.js'
@@ -1514,6 +1516,10 @@ function getClassifierModel(): string {
   )
   if (config?.model) {
     return config.model
+  }
+  // Official 2.1.176 `z64` tail: `if(GhH(H)||lX$(H))return nX$(H)`
+  if (classifierFallsBackToBestAvailableOpus(mainLoopModel)) {
+    return getBestAvailableOpusForClassifier(mainLoopModel)
   }
   return mainLoopModel
 }

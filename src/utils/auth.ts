@@ -666,8 +666,36 @@ export function prefetchApiKeyFromApiKeyHelperIfSafe(
   void getApiKeyFromApiKeyHelper(isNonInteractiveSession)
 }
 
-/** Default STS credentials are one hour. We manually manage invalidation, so not too worried about this being accurate. */
+/** Official 2.1.176 `wF_` — fallback when STS Expiration is missing or already past. */
 const DEFAULT_AWS_STS_TTL = 60 * 60 * 1000
+/** Official 2.1.176 `MF_` — refresh this far before Expiration. */
+const AWS_CREDENTIAL_EXPIRY_SKEW_MS = 300000
+/** Official 2.1.176 `jF_` — floor so a nearly-expired token is not cached as 0. */
+const AWS_CREDENTIAL_MIN_TTL_MS = 60000
+
+/** Official 2.1.176 export/cache payload (`gl` / credential-export return). */
+type AwsCredentialExportResult = {
+  accessKeyId: string
+  secretAccessKey: string
+  sessionToken: string
+  expiration?: number
+} | null
+
+/**
+ * Official 2.1.176 `gl` TTL: `(H)=>{let $=H?.expiration;if($===void 0||$<=Date.now())return wF_;return Math.max($-Date.now()-MF_,jF_)}`
+ */
+function awsCredentialExportCacheLifetimeMs(
+  result: AwsCredentialExportResult,
+): number {
+  const expiration = result?.expiration
+  if (expiration === undefined || expiration <= Date.now()) {
+    return DEFAULT_AWS_STS_TTL
+  }
+  return Math.max(
+    expiration - Date.now() - AWS_CREDENTIAL_EXPIRY_SKEW_MS,
+    AWS_CREDENTIAL_MIN_TTL_MS,
+  )
+}
 
 /**
  * Run awsAuthRefresh to perform interactive authentication (e.g., aws sso login)
@@ -770,6 +798,7 @@ async function getAwsCredsFromCredentialExport(): Promise<{
   accessKeyId: string
   secretAccessKey: string
   sessionToken: string
+  expiration?: number
 } | null> {
   const awsCredentialExport = getConfiguredAwsCredentialExport()
 
@@ -822,10 +851,15 @@ async function getAwsCredsFromCredentialExport(): Promise<{
       }
 
       logForDebugging('AWS credentials retrieved from awsCredentialExport')
+      // Official 2.1.176: parse STS Expiration so `gl` can cache until then.
+      const expirationRaw = awsOutput.Credentials.Expiration
+      const expirationMs =
+        typeof expirationRaw === 'string' ? Date.parse(expirationRaw) : NaN
       return {
         accessKeyId: awsOutput.Credentials.AccessKeyId,
         secretAccessKey: awsOutput.Credentials.SecretAccessKey,
         sessionToken: awsOutput.Credentials.SessionToken,
+        expiration: Number.isFinite(expirationMs) ? expirationMs : undefined,
       }
     } catch (e) {
       const message = chalk.red(
@@ -848,12 +882,11 @@ async function getAwsCredsFromCredentialExport(): Promise<{
  * This combines runAwsAuthRefresh, getAwsCredsFromCredentialExport, and clearAwsIniCache
  * to ensure fresh credentials are always used
  */
-export const refreshAndGetAwsCredentials = memoizeWithTTLAsync(
-  async (): Promise<{
-    accessKeyId: string
-    secretAccessKey: string
-    sessionToken: string
-  } | null> => {
+export const refreshAndGetAwsCredentials = memoizeWithTTLAsync<
+  [],
+  AwsCredentialExportResult
+>(
+  async () => {
     // First run auth refresh if needed
     const refreshed = await runAwsAuthRefresh()
 
@@ -867,7 +900,7 @@ export const refreshAndGetAwsCredentials = memoizeWithTTLAsync(
 
     return credentials
   },
-  DEFAULT_AWS_STS_TTL,
+  awsCredentialExportCacheLifetimeMs,
 )
 
 export function clearAwsCredentialsCache(): void {
