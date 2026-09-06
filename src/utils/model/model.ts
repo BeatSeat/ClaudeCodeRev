@@ -28,7 +28,11 @@ import {
   getSourceForSetting,
 } from '../settings/settings.js'
 import type { PermissionMode } from '../permissions/PermissionMode.js'
-import { getAPIProvider } from './providers.js'
+import {
+  getAPIProvider,
+  getAPIProviderForModel,
+  isFirstPartyAnthropicBaseUrl,
+} from './providers.js'
 import { LIGHTNING_BOLT } from '../../constants/figures.js'
 import { isModelAllowed } from './modelAllowlist.js'
 import { type ModelAlias, isModelAlias } from './aliases.js'
@@ -147,13 +151,43 @@ export function getBestModel(): ModelName {
   return getDefaultOpusModel()
 }
 
-// @[MODEL LAUNCH]: Update the default Opus model (3P providers may lag so keep defaults unchanged).
-/** Official 2.1.170 `_D$`. */
-export function getDefaultFableModel(): ModelName {
-  if (process.env.ANTHROPIC_DEFAULT_FABLE_MODEL) {
-    return process.env.ANTHROPIC_DEFAULT_FABLE_MODEL
+/** Official 2.1.173 `Ra` (172 `xNH`; 172 fable paths used stub `dVK` = false). */
+function isFirstPartyAnthropicApi(): boolean {
+  return getAPIProvider() === 'firstParty' && isFirstPartyAnthropicBaseUrl()
+}
+
+/** Official 2.1.173 `yh` (172 `tS`). Native 1M — no `[1m]` suffix needed. */
+function modelHasNative1mContext(model: string): boolean {
+  if (is1mContextDisabled()) {
+    return false
   }
-  return getModelStrings().fable5
+  const canonical = getCanonicalName(model)
+  if (
+    canonical !== 'claude-fable-5' &&
+    canonical !== 'claude-mythos-5' &&
+    canonical !== 'claude-opus-4-7' &&
+    canonical !== 'claude-opus-4-8'
+  ) {
+    return false
+  }
+  const provider = getAPIProviderForModel(model)
+  return (
+    (provider === 'firstParty' && isFirstPartyAnthropicBaseUrl()) ||
+    provider === 'anthropicAws' ||
+    provider === 'mantle'
+  )
+}
+
+/** Official 2.1.173 `lq8` (172 `dq8`). */
+function stripAll1mSuffixes(model: string): string {
+  return model.replace(/\[1m\]/gi, '')
+}
+
+/** Official 2.1.173 `f5H` (172 `_5H` / `_D$`). */
+export function getDefaultFableModel(): ModelName {
+  const model =
+    process.env.ANTHROPIC_DEFAULT_FABLE_MODEL || getModelStrings().fable5
+  return isFirstPartyAnthropicApi() ? stripAll1mSuffixes(model) : model
 }
 
 /** Official 2.1.170 `AlH`. */
@@ -188,6 +222,7 @@ export function isFableAvailable(): boolean {
   return provider === 'firstParty' || provider === 'anthropicAws'
 }
 
+// @[MODEL LAUNCH]: Update the default Opus model (3P providers may lag so keep defaults unchanged).
 export function getDefaultOpusModel(): ModelName {
   if (process.env.ANTHROPIC_DEFAULT_OPUS_MODEL) {
     return process.env.ANTHROPIC_DEFAULT_OPUS_MODEL
@@ -606,8 +641,19 @@ export function parseUserSpecifiedModel(
 
   if (isModelAlias(modelString)) {
     switch (modelString) {
-      case 'fable':
-        return getDefaultFableModel() + (has1mTag ? '[1m]' : '')
+      case 'fable': {
+        // Official 2.1.173 `g7`: append `[1m]` only when the user asked and
+        // first-party Anthropic is not already natively 1M (`!Ra() && !Nj(f)`).
+        const defaultFable = getDefaultFableModel()
+        return (
+          defaultFable +
+          (has1mTag &&
+          !isFirstPartyAnthropicApi() &&
+          !has1mContext(defaultFable)
+            ? '[1m]'
+            : '')
+        )
+      }
       case 'opusplan':
         return getDefaultSonnetModel() + (has1mTag ? '[1m]' : '') // Sonnet is default, Opus in plan mode
       case 'sonnet':
@@ -652,6 +698,17 @@ export function parseUserSpecifiedModel(
     // Fall through to the alias string if we cannot load the config. The API calls
     // will fail with this string, but we should hear about it through feedback and
     // can tell the user to restart/wait for flag cache refresh to get the latest values.
+  }
+
+  // Official 2.1.173 `g7`: first-party Fable already has 1M context, so a
+  // trailing `[1m]` is stripped and not re-added (`K&&Ra()&&_w_(_)&&yh(_)`).
+  if (
+    has1mTag &&
+    isFirstPartyAnthropicApi() &&
+    modelString.includes('fable') &&
+    modelHasNative1mContext(modelString)
+  ) {
+    return modelInputTrimmed.replace(/(\[1m\])+$/i, '').trim()
   }
 
   // Preserve original case for custom model names (e.g., Azure Foundry deployment IDs)

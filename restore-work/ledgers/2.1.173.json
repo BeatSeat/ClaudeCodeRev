@@ -1,0 +1,31 @@
+{
+  "version": "2.1.173",
+  "from": "2.1.172",
+  "astdiff": "0.99954",
+  "contract": "astdiff genuine-structural + added-product (changelog is classification only)",
+  "coverage": "restore-work/diffs/2.1.173-astdiff-coverage.md",
+  "scout": "restore-work/diffs/2.1.173-changelog-scout.md",
+  "items": [
+    {
+      "item": "Fixed Fable 5 model names with a `[1m]` suffix not being normalized — Fable 5 includes 1M context by default, so the suffix is now stripped automatically",
+      "status": "located",
+      "evidence": "Official g7: case fable uses !Ra() (172 stub dVK=false); new K&&Ra()&&_w_(_)&&yh(_) strip-no-readd; f5H Ra()?lq8(H):H. _w_ includes(\"fable\"); yh is 172 tS; Ra is 172 xNH. TS: parseUserSpecifiedModel, getDefaultFableModel, modelHasNative1mContext, isFirstPartyAnthropicApi, stripAll1mSuffixes in src/utils/model/model.ts."
+    },
+    {
+      "item": "Fixed a spurious \"sandbox dependencies missing\" startup warning on Windows when sandbox was enabled in settings",
+      "status": "located",
+      "evidence": "Official MM8 (172 OM8): if(s$()===\"windows\")return!1 before ND.isSupportedPlatform(). Sq5/yq5 formatter unchanged (1→1). TS: isSupportedPlatform in src/utils/sandbox/sandbox-adapter.ts."
+    },
+    {
+      "item": "astdiff: J9$ generic refusal session-flag copy (CHANGELOG omitted)",
+      "status": "located",
+      "evidence": "Official J9$ (172 j9$) + sDH. Unique has measures that flagged something in this session 0→2. Cyber/bio keep 172 sentence+XX$; other categories on R48-capable models use generic AUP+rnH. tengu_refusal_api_response category sDH?category:other. TS: errors.ts getErrorMessageIfRefusal."
+    },
+    {
+      "item": "astdiff: C48/QmK/emK/PX6 model_refusal_fallback banners",
+      "status": "partial",
+      "evidence": "Official C48/QmK take apiRefusalCategory; PX6 This model has measures… 0→1. TS has no model_refusal_fallback parent. Not invented."
+    }
+  ],
+  "notes": "Typecheck delta vs fresh 2.1.172 HEAD worktree /tmp/ccbase-172: empty. Changelog sentences 0→0. J9$ session-flag copy is ast-only product (unique 0→N) landed after UI review flagged it out-of-domain. C48/QmK/emK banners not invented. added-product TSV HelpV2/auK and genuine-structural 25 are minify/collisions. Other 173 Ra() sites are 172 xNH renames. Do not rewrite getSandboxUnavailableReason copy or enabledPlatforms order. No 2.1.174+ product. Inventory refresh under .cursor/skills is unrelated and must stay out of the hop commit."
+}

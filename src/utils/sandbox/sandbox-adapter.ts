@@ -599,6 +599,12 @@ function isSandboxRequired(): boolean {
  * Supports: macOS, Linux, and WSL2+ (WSL1 is not supported)
  */
 const isSupportedPlatform = memoize((): boolean => {
+  // Official 2.1.173 `MM8`: Windows is unsupported. 172 `OM8` called
+  // `ND.isSupportedPlatform()` directly, which could return true and then
+  // surface a spurious "dependencies are missing" warning.
+  if (getPlatform() === 'windows') {
+    return false
+  }
   return BaseSandboxManager.isSupportedPlatform()
 })
 
