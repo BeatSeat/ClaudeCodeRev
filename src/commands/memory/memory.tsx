@@ -1,16 +1,19 @@
 import { mkdir, writeFile } from 'fs/promises'
 import * as React from 'react'
+import figures from 'figures'
 import type { CommandResultDisplay } from '../../commands.js'
 import { Dialog } from '../../components/design-system/Dialog.js'
 import { MemoryFileSelector } from '../../components/memory/MemoryFileSelector.js'
 import { getRelativeMemoryPath } from '../../components/memory/MemoryUpdateNotification.js'
 import { Box, Link, Text } from '../../ink.js'
 import type { LocalJSXCommandCall } from '../../types/command.js'
+import { isSafeMode } from '../../utils/envUtils.js'
 import { clearMemoryFileCaches, getMemoryFiles } from '../../utils/claudemd.js'
 import { getClaudeConfigHomeDir } from '../../utils/envUtils.js'
 import { getErrnoCode } from '../../utils/errors.js'
 import { logError } from '../../utils/log.js'
 import { editFileInEditor } from '../../utils/promptEditor.js'
+import { getSafeModeOffHint } from '../../utils/safeModeHint.js'
 
 function MemoryCommand({
   onDone,
@@ -59,8 +62,13 @@ function MemoryCommand({
         ? `> ${editorInfo} To change editor, set $EDITOR or $VISUAL environment variable.`
         : `> To use a different editor, set the $EDITOR or $VISUAL environment variable.`
 
+      // Official 2.1.169 safe mode: memory files stay unloaded this session.
+      const safeModeNote = isSafeMode()
+        ? `\n\n> Safe mode: this session doesn't load memory files, so changes take effect after you ${getSafeModeOffHint()}.`
+        : ''
+
       onDone(
-        `Opened memory file at ${getRelativeMemoryPath(memoryPath)}\n\n${editorHint}`,
+        `Opened memory file at ${getRelativeMemoryPath(memoryPath)}${safeModeNote}\n\n${editorHint}`,
         { display: 'system' },
       )
     } catch (error) {
@@ -76,6 +84,17 @@ function MemoryCommand({
   return (
     <Dialog title="Memory" onCancel={handleCancel} color="remember">
       <Box flexDirection="column">
+        {/* Official 2.1.169 safe mode notice (bundle `fkf`). */}
+        {isSafeMode() && (
+          <Box flexDirection="column">
+            <Text color="suggestion">{figures.info} Safe mode</Text>
+            <Text dimColor>
+              Memory files aren&apos;t loaded into this session. You can still
+              edit them — changes take effect after you{' '}
+              {getSafeModeOffHint()}.
+            </Text>
+          </Box>
+        )}
         <React.Suspense fallback={null}>
           <MemoryFileSelector
             onSelect={handleSelectMemoryFile}

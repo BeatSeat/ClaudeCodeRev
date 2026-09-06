@@ -520,6 +520,40 @@ export function isOverlyBroadPowerShellAllowRule(
 }
 
 /**
+ * Config shape for the auto-approve "yolo"-equivalent allow-strip entrypoint
+ * gate (Official 2.1.169 `tengu_ant_yolo_equiv_strip_config`).
+ */
+type YoloEquivStripConfig = {
+  enabled?: boolean
+  includeEntrypoints?: string[]
+  excludeEntrypoints?: string[]
+}
+
+/**
+ * Official 2.1.169 `hWf` — isYoloEquivStripEnabledForEntrypoint.
+ *
+ * Auto-approve "yolo"-equivalence entrypoint gate for the allow-rule
+ * classifier. Reads a `{enabled, includeEntrypoints, excludeEntrypoints}`
+ * config and decides whether the current entrypoint (CLAUDE_CODE_ENTRYPOINT,
+ * default "cli") is eligible for the yolo-equivalent allow-strip:
+ * - disabled config            -> false
+ * - includeEntrypoints present -> entrypoint must be in the include list
+ * - otherwise                  -> entrypoint must NOT be in the exclude list
+ */
+export function isYoloEquivStripEnabledForEntrypoint(): boolean {
+  const config = getFeatureValue_CACHED_MAY_BE_STALE<YoloEquivStripConfig>(
+    'tengu_ant_yolo_equiv_strip_config',
+    {},
+  )
+  if (!config.enabled) return false
+  const entrypoint = process.env.CLAUDE_CODE_ENTRYPOINT ?? 'cli'
+  if (config.includeEntrypoints) {
+    return config.includeEntrypoints.includes(entrypoint)
+  }
+  return !(config.excludeEntrypoints ?? []).includes(entrypoint)
+}
+
+/**
  * Finds all overly broad Bash allow rules from settings and CLI arguments.
  * An overly broad rule allows ALL bash commands (e.g., Bash or Bash(*)),
  * which is effectively equivalent to YOLO/bypass-permissions mode.

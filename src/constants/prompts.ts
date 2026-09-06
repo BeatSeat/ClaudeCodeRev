@@ -285,6 +285,71 @@ function getInvestigateFirstSection(model: string): string | null {
   return 'Asking the user a clarifying question has a cost: it interrupts them, and often they could have answered it themselves with a grep. Before asking, spend up to a minute on read-only investigation (grep the codebase, check docs, search memory) so your question is specific. "I found tunnels X and Y in the config — which one?" beats "what tunnel?"'
 }
 
+/**
+ * Official 2.1.169 `kz_` — velvet-falcon model id.
+ *
+ * Client-data cache `velvet_falcon_model` (string, non-empty) wins, else
+ * GrowthBook `tengu_velvet_falcon_model` (default "").
+ */
+function getVelvetFalconModel(): string {
+  const cached = getGlobalConfig().clientDataCache?.velvet_falcon_model
+  if (typeof cached === 'string' && cached !== '') return cached
+  return getFeatureValue_CACHED_MAY_BE_STALE('tengu_velvet_falcon_model', '')
+}
+
+/**
+ * Official 2.1.169 `r0K` — velvet-falcon predicate against a canonical model id.
+ *
+ * - `CLAUDE_CODE_VELVET_FALCON` env override present -> its raw value decides
+ *   (any non-empty value forces true, empty string forces false); no model
+ *   containment check.
+ * - otherwise the configured velvet-falcon model id must be non-empty AND be a
+ *   substring of the given canonical model id.
+ */
+function isVelvetFalconModel(canonicalModel: string): boolean {
+  const envOverride = process.env.CLAUDE_CODE_VELVET_FALCON
+  if (envOverride !== undefined) return envOverride !== ''
+  const falconModel = getVelvetFalconModel()
+  return falconModel !== '' && canonicalModel.includes(falconModel)
+}
+
+/**
+ * Official 2.1.169 `_lH` — is the given (full) model an autonomous
+ * velvet-falcon model? Resolves the canonical model id, then applies the
+ * velvet-falcon predicate. (Bundle also ORs a `KlH` arm that is a dead `!1`.)
+ */
+function isAutonomousVelvetFalconModel(model: string): boolean {
+  return isVelvetFalconModel(getCanonicalName(model))
+}
+
+/**
+ * Official 2.1.169 `jsf` — autonomous-mode system-prompt generator.
+ *
+ * When the `tengu_amber_sextant` gate is on (default true) and the session is
+ * an autonomous/velvet-falcon context, injects a system-prompt section telling
+ * the model the user is not watching in real time: proceed on reversible
+ * actions without asking, stop only for destructive/scope changes, report
+ * findings instead of fixing when the user is only describing a problem, and
+ * self-verify before ending the turn.
+ *
+ * Returns null when the gate is off or the model is not an autonomous context.
+ */
+function getAutonomousModeAppendSection(model: string): string | null {
+  if (!getFeatureValue_CACHED_MAY_BE_STALE('tengu_amber_sextant', true)) {
+    return null
+  }
+  if (isAutonomousVelvetFalconModel(model)) {
+    return `You are operating autonomously. The user is not watching in real time and cannot answer questions mid-task, so asking 'Want me to\u2026?' or 'Shall I\u2026?' will block the work. For reversible actions that follow from the original request, proceed without asking. Stop only for destructive actions or genuine scope changes the user must decide. Offering follow-ups after the task is done is fine; asking permission before doing the work is not.
+
+Exception: when the user is describing a problem, asking a question, or thinking out loud rather than requesting a change, the deliverable is your assessment. Report your findings and stop. Don't apply a fix until they ask for one.
+
+Before ending your turn, check your last paragraph. If it is a plan, an analysis, a question, a list of next steps, or a promise about work you have not done ('I'll\u2026', 'let me know when\u2026'), do that work now with tool calls. That includes retrying after errors and gathering missing information yourself. Do not stop because the context or session is long. End your turn only when the task is complete or you are blocked on input only the user can provide.
+
+Before running a command that changes system state \u2014 restarts, deletes, config edits \u2014 check that the evidence actually supports that specific action. A signal that pattern-matches to a known failure may have a different cause.`
+  }
+  return null
+}
+
 function getActionsSection(model: string): string {
   // 122 `UD5` compact arm when investigate-first is compact.
   if (getInvestigateFirstMode(model) === 'compact') {
@@ -588,6 +653,17 @@ ${CYBER_RISK_INSTRUCTION}`,
     systemPromptSection('act_dont_rederive', () =>
       isActDontRederiveArmed() ? ACT_DONT_REDERIVE_SECTION : null,
     ),
+    // Official 2.1.169 `rT("autonomy_append", () => jsf($))` — appended (not
+    // DCE-stripped) only when the session model is an autonomous
+    // velvet-falcon context; the generator re-checks its own gate internally.
+    ...(isAutonomousVelvetFalconModel(model)
+      ? [
+          systemPromptSection(
+            'autonomy_append',
+            () => getAutonomousModeAppendSection(model),
+          ),
+        ]
+      : []),
   ]
 
   const resolvedDynamicSections =

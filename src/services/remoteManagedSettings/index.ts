@@ -24,13 +24,17 @@ import {
 import { registerCleanup } from '../../utils/cleanupRegistry.js'
 import { logForDebugging } from '../../utils/debug.js'
 import { logError } from '../../utils/log.js'
+import { logEvent } from '../analytics/index.js'
 import { classifyAxiosError, getErrnoCode } from '../../utils/errors.js'
 import { settingsChangeDetector } from '../../utils/settings/changeDetector.js'
 import {
   type SettingsJson,
   SettingsSchema,
 } from '../../utils/settings/types.js'
-import { filterSettingsWarnings } from '../../utils/settings/validation.js'
+import {
+  filterSettingsWarnings,
+  validateManagedSettings,
+} from '../../utils/settings/validation.js'
 import { sleep } from '../../utils/sleep.js'
 import { clone, jsonStringify } from '../../utils/slowOperations.js'
 import { getClaudeCodeUserAgent } from '../../utils/userAgent.js'
@@ -38,6 +42,7 @@ import { getRetryDelay } from '../api/withRetry.js'
 import {
   checkManagedSettingsSecurity,
   handleSecurityCheckResult,
+  isConsentDialogPending,
 } from './securityCheck.jsx'
 import { isRemoteManagedSettingsEligible, resetSyncCache } from './syncCache.js'
 import {
@@ -95,6 +100,12 @@ export function initializeRemoteManagedSettingsLoadingPromise(): void {
       // This prevents deadlocks in Agent SDK tests and other non-CLI contexts
       setTimeout(() => {
         if (loadingCompleteResolve) {
+          if (isConsentDialogPending()) {
+            logForDebugging(
+              'Remote settings: Loading promise timeout deferred — consent dialog pending',
+            )
+            return
+          }
           logForDebugging(
             'Remote settings: Loading promise timed out, resolving anyway',
           )
@@ -327,13 +338,16 @@ async function fetchRemoteManagedSettings(
       }
     }
 
-    // Warning-level problems are removed from a clone for validation. Preserve
-    // and return the raw object so the cache/checksum remains server-authored.
-    const filteredSettings = cloneAndFilterRemoteSettings(parsed.data.settings)
-    const settingsValidation = SettingsSchema().safeParse(filteredSettings)
-    if (!settingsValidation.success) {
+    const validationResult = validateManagedSettings(
+      parsed.data.settings,
+      'remote managed settings',
+    )
+    if (
+      !validationResult.settings &&
+      Object.keys(parsed.data.settings).length > 0
+    ) {
       logForDebugging(
-        `Remote settings: Settings validation failed - ${settingsValidation.error.message}`,
+        'Remote settings: Settings validation failed - no fields could be salvaged',
       )
       return {
         success: false,
@@ -341,11 +355,20 @@ async function fetchRemoteManagedSettings(
         skipRetry: true,
       }
     }
+    if (validationResult.errors.length > 0) {
+      logForDebugging(
+        `Remote settings: Payload contains ${validationResult.errors.length} invalid entries; applying the salvaged subset`,
+      )
+    }
 
     logForDebugging('Remote settings: Fetched successfully')
     return {
       success: true,
       settings: parsed.data.settings,
+      salvagedSettings:
+        validationResult.errors.length > 0
+          ? (validationResult.settings as SettingsJson) ?? {}
+          : undefined,
       checksum: parsed.data.checksum,
     }
   } catch (error) {
@@ -493,21 +516,11 @@ async function fetchAndLoadRemoteManagedSettings(): Promise<RemoteSettingsFetchL
       return { settings: newSettings, fetchSucceeded: true }
     }
 
-    // Empty settings (404 response) - delete cached file if it exists
-    // This ensures stale settings don't persist when a user's remote settings are removed
+    // Empty settings (404 response) - save empty sentinel
     setSessionCache(newSettings)
-    try {
-      const path = getSettingsPath()
-      await unlink(path)
-      logForDebugging('Remote settings: Deleted cached file (404 response)')
-    } catch (e) {
-      const code = getErrnoCode(e)
-      if (code !== 'ENOENT') {
-        logForDebugging(
-          `Remote settings: Failed to delete cached file - ${e instanceof Error ? e.message : 'unknown error'}`,
-        )
-      }
-    }
+    await saveSettings({})
+    logForDebugging('Remote settings: Saved empty sentinel (404 response)')
+    logEvent('remote_managed_settings_pull', {})
     return { settings: newSettings, fetchSucceeded: true }
   } catch {
     // On any error, use stale file if available (graceful degradation)

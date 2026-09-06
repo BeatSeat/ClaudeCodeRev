@@ -275,6 +275,7 @@ export function ResumeConversation({
       if (result.sessionId && !forkSession) {
         switchSession(
           asSessionId(result.sessionId),
+          'resume',
           log.fullPath ? dirname(log.fullPath) : null,
         )
         await renameRecordingForSession()
