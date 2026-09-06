@@ -9,6 +9,7 @@ import { getMainLoopModelOverride } from '../../bootstrap/state.js'
 import {
   getSubscriptionType,
   isClaudeAISubscriber,
+  isEnterpriseUsageBasedSubscriber,
   isMaxSubscriber,
   isProSubscriber,
   isTeamPremiumSubscriber,
@@ -31,12 +32,23 @@ import type { PermissionMode } from '../permissions/PermissionMode.js'
 import {
   getAPIProvider,
   getAPIProviderForModel,
+  isFirstPartyApiFamily,
   isFirstPartyAnthropicBaseUrl,
 } from './providers.js'
 import { LIGHTNING_BOLT } from '../../constants/figures.js'
-import { isModelAllowed } from './modelAllowlist.js'
+import {
+  getPolicyEnforcementState,
+  isModelAliasOrVariant,
+  isModelAllowed,
+  isModelAllowedUnderActiveEnforcement,
+  isModelFamily,
+  stripTrailing1mSuffix,
+} from './modelAllowlist.js'
 import { type ModelAlias, isModelAlias } from './aliases.js'
 import { capitalize } from '../stringUtils.js'
+import { logForDebugging } from '../debug.js'
+import { getGlobalConfig } from '../config.js'
+import { isFastModeEnabled } from '../fastMode.js'
 
 export type ModelShortName = string
 export type ModelName = string
@@ -183,11 +195,79 @@ function stripAll1mSuffixes(model: string): string {
   return model.replace(/\[1m\]/gi, '')
 }
 
+/** Official 2.1.175 `nJ$`. */
+export const strip1mTag = stripAll1mSuffixes
+
+const GEO_PREFIXES = ['us', 'eu', 'apac', 'jp', 'au', 'us-gov', 'global'] as const
+const MODEL_PREFIX_REGEX = new RegExp(
+  `^((${GEO_PREFIXES.join('|')})\\.)?(anthropic\\.|claude-)`,
+)
+const SHORT_VERSION_REGEX = /^[a-z]+-\d/
+
+/** Official 2.1.175 `_NK`. */
+export function isRecognizedModelIdentifier(model: string): boolean {
+  const lower = model.toLowerCase()
+  if (MODEL_PREFIX_REGEX.test(lower)) return true
+  if (lower.startsWith('arn:aws:bedrock:')) return true
+  if (getAPIProvider() === 'foundry') return true
+  return false
+}
+
+/** Official 2.1.175 `uD6`. */
+export function isModelIneligibleFor1mContext(model: string): boolean {
+  return (
+    model.includes('claude-3-') ||
+    model === 'claude-opus-4-0' ||
+    model === 'claude-opus-4-1' ||
+    model === 'claude-opus-4-5' ||
+    model === 'claude-haiku-4-5'
+  )
+}
+
+/** Official 2.1.175 `sDH`. */
+export function isModel1mEligible(model: string): boolean {
+  const stripped = stripTrailing1mSuffix(model).trim().toLowerCase()
+  if (!stripped.startsWith('claude-')) return true
+  return (
+    !isModelIneligibleFor1mContext(firstPartyNameToCanonical(stripped)) &&
+    (stripped.includes('opus') ? isOpus1mMergeEnabled() : true)
+  )
+}
+
 /** Official 2.1.173 `f5H` (172 `_5H` / `_D$`). */
 export function getDefaultFableModel(): ModelName {
   const model =
     process.env.ANTHROPIC_DEFAULT_FABLE_MODEL || getModelStrings().fable5
   return isFirstPartyAnthropicApi() ? stripAll1mSuffixes(model) : model
+}
+
+const LEGACY_OPUS_FIRSTPARTY = [
+  'claude-opus-4-20250514',
+  'claude-opus-4-1-20250805',
+  'claude-opus-4-0',
+  'claude-opus-4-1',
+]
+
+export function isLegacyOpusFirstParty(model: string): boolean {
+  return LEGACY_OPUS_FIRSTPARTY.includes(model)
+}
+
+/** Official 2.1.175 `eDH`. */
+export function getDisabledModelOptions(): Array<{
+  value: string | null
+  label: string
+  description: string
+  disabled?: boolean
+}> {
+  const cache = getGlobalConfig().additionalModelOptionsCache
+  return (Array.isArray(cache) ? cache : []).filter(
+    (item: any) =>
+      item != null &&
+      typeof item === 'object' &&
+      (typeof item.value === 'string' || item.value === null) &&
+      typeof item.label === 'string' &&
+      typeof item.description === 'string',
+  )
 }
 
 /** Official 2.1.170 `AlH`. */
@@ -200,6 +280,24 @@ export function isMythosModel(model: ModelName): boolean {
   return firstPartyNameToCanonical(model) === 'claude-mythos-5'
 }
 
+/** Official 2.1.175 `CnH`. */
+export function isNonCustomMythosModel(model: ModelName): boolean {
+  return firstPartyNameToCanonical(model) === 'claude-mythos-5'
+}
+
+/** Official 2.1.175 `sK8`. */
+export function isMythosAvailable(): boolean {
+  if (getAPIProvider() !== 'firstParty' || !isFirstPartyAnthropicBaseUrl()) {
+    return false
+  }
+  return (getDisabledModelOptions() ?? []).some(
+    opt =>
+      opt.disabled !== true &&
+      typeof opt.value === 'string' &&
+      isMythosModel(opt.value),
+  )
+}
+
 /** Official 2.1.170 `MkH`. */
 export function modelIdIncludesFable(model: string): boolean {
   return model.includes('claude-fable-5')
@@ -210,16 +308,108 @@ export function modelIdStartsWithFableFamily(model: string): boolean {
   return firstPartyNameToCanonical(model).startsWith('claude-fable-')
 }
 
-/** Official 2.1.170 `N_H`. */
+/** Official 2.1.175 `k6H` (was `N_H` in 2.1.170). */
 export function isFableAvailable(): boolean {
+  if (
+    getAPIProvider() === 'firstParty' &&
+    isFirstPartyAnthropicBaseUrl() &&
+    (getDisabledModelOptions() ?? []).some(
+      opt =>
+        opt.disabled === true &&
+        typeof opt.value === 'string' &&
+        modelIdIncludesFable(opt.value),
+    )
+  ) {
+    return false
+  }
   if (process.env.ANTHROPIC_DEFAULT_FABLE_MODEL) {
     return true
   }
   const provider = getAPIProvider()
-  // Official `N_H` also treats a custom-gateway provider as available.
-  // This tree's `APIProvider` union has no `'gateway'` member (pre-existing
-  // gap vs official `bcH` / `N_H`); firstParty + anthropicAws match 170.
-  return provider === 'firstParty' || provider === 'anthropicAws'
+  if (provider !== 'firstParty' && provider !== 'gateway') {
+    return false
+  }
+  if (provider === 'firstParty' && !isFirstPartyAnthropicBaseUrl()) {
+    return false
+  }
+  return (getDisabledModelOptions() ?? []).some(
+    opt =>
+      opt.disabled !== true &&
+      typeof opt.value === 'string' &&
+      modelIdIncludesFable(opt.value),
+  )
+}
+
+/** Official 2.1.175 `tDH`. */
+export function getModelUnavailabilityReason(
+  model: string,
+  options?: { ignoreModelOverrides?: boolean },
+):
+  | { reason: 'disabled'; description: string }
+  | { reason: 'absent'; displayName: string }
+  | null {
+  if (getAPIProvider() !== 'firstParty' || !isFirstPartyAnthropicBaseUrl()) {
+    return null
+  }
+  const trimmedLower = model.toLowerCase().trim()
+  const resolved = isModelAliasOrVariant(trimmedLower)
+    ? parseUserSpecifiedModel(model)
+    : model
+  const canonicalizer = options?.ignoreModelOverrides
+    ? (target: string) =>
+        normalizeModelStringForAPI(
+          stripTrailing1mSuffix(target.toLowerCase()).trim(),
+        )
+    : (target: string) =>
+        getCanonicalName(stripTrailing1mSuffix(target.toLowerCase()).trim())
+  const canonicalModel = canonicalizer(model)
+  const canonicalResolved = canonicalizer(resolved)
+  const disabledOption = getDisabledModelOptions().find(
+    opt =>
+      opt.disabled === true &&
+      typeof opt.value === 'string' &&
+      (canonicalizer(opt.value) === canonicalModel ||
+        canonicalizer(opt.value) === canonicalResolved),
+  )
+  if (disabledOption) {
+    return { reason: 'disabled', description: disabledOption.description }
+  }
+  const resolvedForCheck = options?.ignoreModelOverrides
+    ? normalizeModelStringForAPI(resolved)
+    : getCanonicalName(resolved)
+  if (!isFableAvailable() && resolvedForCheck === 'claude-fable-5') {
+    return {
+      reason: 'absent',
+      displayName: getPublicModelDisplayName(resolved) ?? 'That model',
+    }
+  }
+  if (
+    !isMythosAvailable() &&
+    (options?.ignoreModelOverrides
+      ? resolvedForCheck === 'claude-mythos-5'
+      : isNonCustomMythosModel(resolved))
+  ) {
+    return {
+      reason: 'absent',
+      displayName: getPublicModelDisplayName(resolved) ?? 'That model',
+    }
+  }
+  return null
+}
+
+export function getDefaultOpusModelEnvFree(
+  strings = getModelStrings(),
+): ModelName {
+  if (getAPIProvider() === 'mantle') {
+    return strings.opus47
+  }
+  if (!isFirstPartyApiFamily()) {
+    return strings.opus47
+  }
+  if (getAPIProvider() !== 'firstParty') {
+    return strings.opus47
+  }
+  return strings.opus48
 }
 
 // @[MODEL LAUNCH]: Update the default Opus model (3P providers may lag so keep defaults unchanged).
@@ -227,13 +417,16 @@ export function getDefaultOpusModel(): ModelName {
   if (process.env.ANTHROPIC_DEFAULT_OPUS_MODEL) {
     return process.env.ANTHROPIC_DEFAULT_OPUS_MODEL
   }
-  // 3P providers (Bedrock, Vertex, Foundry) — kept as a separate branch
-  // even when values match, since 3P availability lags firstParty and
-  // these will diverge again at the next model launch.
-  if (getAPIProvider() !== 'firstParty') {
-    return getModelStrings().opus47
+  return getDefaultOpusModelEnvFree()
+}
+
+export function getDefaultSonnetModelEnvFree(
+  strings = getModelStrings(),
+): ModelName {
+  if (!isFirstPartyApiFamily()) {
+    return strings.sonnet45
   }
-  return getModelStrings().opus48
+  return strings.sonnet46
 }
 
 // @[MODEL LAUNCH]: Update the default Sonnet model (3P providers may lag so keep defaults unchanged).
@@ -241,11 +434,13 @@ export function getDefaultSonnetModel(): ModelName {
   if (process.env.ANTHROPIC_DEFAULT_SONNET_MODEL) {
     return process.env.ANTHROPIC_DEFAULT_SONNET_MODEL
   }
-  // Default to Sonnet 4.5 for 3P since they may not have 4.6 yet
-  if (getAPIProvider() !== 'firstParty') {
-    return getModelStrings().sonnet45
-  }
-  return getModelStrings().sonnet46
+  return getDefaultSonnetModelEnvFree()
+}
+
+export function getDefaultHaikuModelEnvFree(
+  strings = getModelStrings(),
+): ModelName {
+  return strings.haiku45
 }
 
 // @[MODEL LAUNCH]: Update the default Haiku model (3P providers may lag so keep defaults unchanged).
@@ -253,9 +448,482 @@ export function getDefaultHaikuModel(): ModelName {
   if (process.env.ANTHROPIC_DEFAULT_HAIKU_MODEL) {
     return process.env.ANTHROPIC_DEFAULT_HAIKU_MODEL
   }
+  return getDefaultHaikuModelEnvFree()
+}
 
-  // Haiku 4.5 is available on all platforms (first-party, Foundry, Bedrock, Vertex)
-  return getModelStrings().haiku45
+export function getDefaultFableModelEnvFree(
+  strings = getModelStrings(),
+): ModelName {
+  const model = strings.fable5
+  return is1mContextDisabled() ? strip1mTag(model) : model
+}
+
+/** Official 2.1.175 `oK8` / `UJ$`. Resolves alias using pure getModelStrings() without env var overrides. */
+export function resolveModelAliasEnvFree(alias: string): string | null {
+  const strings = getModelStrings()
+  switch (alias) {
+    case 'opus':
+      return getDefaultOpusModelEnvFree(strings)
+    case 'sonnet':
+      return getDefaultSonnetModelEnvFree(strings)
+    case 'haiku':
+      return getDefaultHaikuModelEnvFree(strings)
+    case 'fable':
+      return getDefaultFableModelEnvFree(strings)
+    case 'opusplan':
+      return getDefaultSonnetModelEnvFree(strings)
+    case 'best':
+      return isFableAvailable()
+        ? getDefaultFableModelEnvFree(strings)
+        : getDefaultOpusModelEnvFree(strings)
+    default:
+      return null
+  }
+}
+
+/** Official 2.1.175 `xD_`. */
+export function getSteeringVarTable(strings = getModelStrings()): readonly [
+  readonly ['haiku', string | undefined, 0, () => ModelName],
+  readonly ['sonnet', string | undefined, 1, () => ModelName],
+  readonly ['opus', string | undefined, 2, () => ModelName],
+] {
+  return [
+    [
+      'haiku',
+      process.env.ANTHROPIC_DEFAULT_HAIKU_MODEL,
+      0,
+      () => getDefaultHaikuModelEnvFree(strings),
+    ],
+    [
+      'sonnet',
+      process.env.ANTHROPIC_DEFAULT_SONNET_MODEL,
+      1,
+      () => getDefaultSonnetModelEnvFree(strings),
+    ],
+    [
+      'opus',
+      process.env.ANTHROPIC_DEFAULT_OPUS_MODEL,
+      2,
+      () => getDefaultOpusModelEnvFree(strings),
+    ],
+  ] as const
+}
+
+/** Official 2.1.175 `xnH`. */
+export function isModeDependentModelSetting(model: string): boolean {
+  return model === 'opusplan' || model === 'haiku'
+}
+
+/** Official 2.1.175 `zNK`. */
+export function resolvesToDefaultModel(model: string): boolean {
+  return (
+    stripTrailing1mSuffix(parseUserSpecifiedModel(model)).toLowerCase() ===
+    stripTrailing1mSuffix(getDefaultMainLoopModel()).toLowerCase()
+  )
+}
+
+/** Official 2.1.175 `Ij`. */
+export function isExemptDefaultResolvingPick(model: string): boolean {
+  const stripped = stripTrailing1mSuffix(model.trim().toLowerCase())
+  if (isModeDependentModelSetting(stripped)) return false
+  if (stripped === 'best') return false
+  return resolvesToDefaultModel(model)
+}
+
+/** Official 2.1.175 `bD6`. */
+export function isWindowSilentDefaultPick(model: string): boolean {
+  if (!isExemptDefaultResolvingPick(model)) return false
+  const trimmed = model.trim().toLowerCase()
+  return (
+    parseUserSpecifiedModel(model).toLowerCase() ===
+      getDefaultMainLoopModel().toLowerCase() ||
+    (isModelAliasOrVariant(trimmed) &&
+      trimmed === stripTrailing1mSuffix(trimmed))
+  )
+}
+
+/** Official 2.1.175 `CD6`. Computes baseline default model setting and tier family. */
+export function getBaselineDefaultModel(): {
+  setting: ModelName | ModelAlias
+  envFamily: 'opus' | 'sonnet' | null
+  concreteBaseline?: string
+} {
+  if (isClaudeAISubscriber()) {
+    if (
+      isMaxSubscriber() ||
+      isTeamPremiumSubscriber() ||
+      isEnterpriseUsageBasedSubscriber()
+    ) {
+      return {
+        setting: isOpus1mMergeEnabled()
+          ? ensureSingle1mSuffix(getDefaultOpusModel())
+          : getDefaultOpusModel(),
+        envFamily: 'opus',
+      }
+    }
+  } else if (isFirstPartyApiFamily()) {
+    return {
+      setting: isOpus1mMergeEnabled()
+        ? ensureSingle1mSuffix(getDefaultOpusModel())
+        : getDefaultOpusModel(),
+      envFamily: 'opus',
+    }
+  }
+  if (getAPIProvider() === 'mantle') {
+    return {
+      setting: getModelStrings().opus47,
+      envFamily: null,
+      concreteBaseline: String(getModelStrings().opus47),
+    }
+  }
+  return {
+    setting: getDefaultSonnetModel(),
+    envFamily: 'sonnet',
+  }
+}
+
+const enforcedDefaultDedup = new Set<string>()
+
+/**
+ * Official 2.1.175 `tK8` — resolves fallback model when enforceAvailableModels
+ * is active/trusted and default model is disallowed.
+ */
+export function getEnforcedDefaultModel(
+  setting: ModelName | ModelAlias,
+  envFamily?: 'opus' | 'sonnet' | null,
+  concreteBaseline?: string,
+): string | null {
+  const settings = getSettings_DEPRECATED() || {}
+  let availableModels = settings.availableModels
+  let enforce = settings.enforceAvailableModels
+  let overridesMap: Record<string, string> = {}
+  const enforcement = getPolicyEnforcementState()
+  if (enforcement.state === 'refused') return null
+  const isCascadeTrustedInactive =
+    enforcement.state === 'inactive' && enforcement.cascadeTrusted
+  if (enforcement.state === 'active') {
+    availableModels = enforcement.allowlist
+    enforce = true
+    overridesMap = enforcement.overridesMap
+  } else if (!enforcement.cascadeTrusted) {
+    return null
+  }
+  if (!enforce) return null
+  if (
+    isCascadeTrustedInactive &&
+    Object.keys(overridesMap).length === 0 &&
+    settings.modelOverrides
+  ) {
+    overridesMap = settings.modelOverrides
+  }
+  if (!availableModels || availableModels.length === 0) return null
+
+  const allowlistOptions = {
+    overridesMap,
+    envFreeAliasResolution: true,
+    allowlist: availableModels,
+  }
+
+  const lookupOverride = (model: string): string | undefined => {
+    const stripped = firstPartyNameToCanonical(stripTrailing1mSuffix(model))
+    for (const [key, value] of Object.entries(overridesMap)) {
+      if (
+        firstPartyNameToCanonical(stripTrailing1mSuffix(key)) === stripped
+      ) {
+        return value
+      }
+    }
+    return undefined
+  }
+
+  const applyMapping = (
+    candidate: string,
+    opts?: { isConcreteEntry?: boolean },
+  ): string => {
+    const strippedCandidate = stripTrailing1mSuffix(candidate)
+    if (opts?.isConcreteEntry) return candidate
+    let mapped = lookupOverride(strippedCandidate)
+    if (!mapped?.trim()) return candidate
+    mapped = mapped.trim()
+    {
+      const normalizedMapped = stripTrailing1mSuffix(mapped)
+        .trim()
+        .toLowerCase()
+      const has1m = has1mContext(mapped)
+      const aliasResolved = isModelAliasOrVariant(normalizedMapped)
+        ? resolveModelAliasEnvFree(normalizedMapped)
+        : null
+      if (aliasResolved !== null) {
+        mapped = has1m ? ensureSingle1mSuffix(aliasResolved) : aliasResolved
+      } else {
+        const withPrefix = normalizedMapped.startsWith('claude-')
+          ? normalizedMapped
+          : `claude-${normalizedMapped}`
+        if (isLegacyOpusFirstParty(withPrefix) && isFirstPartyApiFamily()) {
+          const defaultOpus = getDefaultOpusModelEnvFree(getModelStrings())
+          mapped = has1m ? ensureSingle1mSuffix(defaultOpus) : defaultOpus
+        }
+      }
+    }
+    if (
+      getModelUnavailabilityReason(stripTrailing1mSuffix(mapped), {
+        ignoreModelOverrides: true,
+      }) !== null
+    ) {
+      const warnMsg = `enforceAvailableModels: the managed modelOverrides target "${mapped}" is server-unavailable; using the unmapped candidate`
+      if (!enforcedDefaultDedup.has(warnMsg)) {
+        enforcedDefaultDedup.add(warnMsg)
+        logForDebugging(warnMsg, { level: 'warn' })
+      }
+      return candidate
+    }
+    if (strippedCandidate !== candidate) {
+      return isModel1mEligible(mapped)
+        ? ensureSingle1mSuffix(mapped)
+        : stripTrailing1mSuffix(mapped)
+    }
+    if (has1mContext(mapped) && !isModel1mEligible(mapped)) {
+      return stripTrailing1mSuffix(mapped)
+    }
+    return mapped
+  }
+
+  let userSteeringCandidate: string | null = null
+  const settingStr = String(setting)
+  const normalizedSetting = stripTrailing1mSuffix(
+    settingStr.trim().toLowerCase(),
+  )
+  const settingHas1m = has1mContext(settingStr)
+  const settingPrefixed = normalizedSetting.startsWith('claude-')
+    ? normalizedSetting
+    : `claude-${normalizedSetting}`
+  const settingAliasResolved = isLegacyOpusFirstParty(settingPrefixed)
+    ? getDefaultOpusModelEnvFree(getModelStrings())
+    : resolveModelAliasEnvFree(normalizedSetting)
+
+  if (settingAliasResolved !== null) {
+    const candidate =
+      normalizedSetting !== settingStr.trim().toLowerCase() &&
+      isModel1mEligible(settingAliasResolved)
+        ? ensureSingle1mSuffix(settingAliasResolved)
+        : stripTrailing1mSuffix(settingAliasResolved)
+    const userSpecified = parseUserSpecifiedModel(settingStr)
+    if (
+      stripTrailing1mSuffix(userSpecified) !==
+      stripTrailing1mSuffix(settingAliasResolved)
+    ) {
+      userSteeringCandidate = candidate
+    }
+    if (isModelAllowed(candidate, allowlistOptions)) {
+      if (
+        stripTrailing1mSuffix(userSpecified) !==
+        stripTrailing1mSuffix(settingAliasResolved)
+      ) {
+        if (
+          getModelUnavailabilityReason(candidate, {
+            ignoreModelOverrides: true,
+          }) === null
+        ) {
+          return applyMapping(candidate)
+        }
+      } else {
+        return null
+      }
+    }
+  } else {
+    const strings = getModelStrings()
+    const steeringTable = getSteeringVarTable(strings)
+    if (envFamily !== undefined) {
+      if (envFamily !== null) {
+        const row = steeringTable.find(([fam]) => fam === envFamily)
+        if (row === undefined) {
+          throw new Error(
+            `steeringVarTable has no row for tier family "${envFamily}"`,
+          )
+        }
+        const resolver = row[3]
+        const resolved = resolver()
+        if (
+          typeof resolved === 'string' &&
+          stripTrailing1mSuffix(resolved).toLowerCase() !== normalizedSetting
+        ) {
+          const val = resolver()
+          userSteeringCandidate =
+            settingHas1m && isModel1mEligible(val)
+              ? ensureSingle1mSuffix(val)
+              : val
+        }
+      }
+      if (
+        envFamily === null &&
+        concreteBaseline !== undefined &&
+        stripTrailing1mSuffix(concreteBaseline).toLowerCase() !==
+          normalizedSetting
+      ) {
+        userSteeringCandidate = concreteBaseline
+      }
+    } else {
+      const matchIndex = (() => {
+        for (const [, , index, resolver] of steeringTable) {
+          const val = resolver()
+          if (
+            typeof val === 'string' &&
+            stripTrailing1mSuffix(val).toLowerCase() === normalizedSetting
+          ) {
+            return index
+          }
+        }
+        return null
+      })()
+      for (const [, envVar, index, resolver] of steeringTable) {
+        if (
+          envVar === undefined ||
+          stripTrailing1mSuffix(envVar.trim().toLowerCase()) !==
+            normalizedSetting
+        ) {
+          continue
+        }
+        if (matchIndex !== null && matchIndex <= index) continue
+        const val = resolver()
+        userSteeringCandidate =
+          settingHas1m && isModel1mEligible(val)
+            ? ensureSingle1mSuffix(val)
+            : val
+        break
+      }
+    }
+    if (isModelAllowed(settingStr, allowlistOptions)) {
+      return null
+    }
+  }
+
+  const skippedUnavailable: string[] = []
+  for (const entry of availableModels) {
+    const trimmed = entry.trim()
+    if (!trimmed) continue
+    const lower = trimmed.toLowerCase()
+    const stripped = stripTrailing1mSuffix(lower)
+    const aliasResolved = resolveModelAliasEnvFree(stripped)
+    if (aliasResolved !== null) {
+      const candidate =
+        lower !== stripped && isModel1mEligible(aliasResolved)
+          ? ensureSingle1mSuffix(aliasResolved)
+          : aliasResolved
+      if (
+        isRecognizedModelIdentifier(candidate) &&
+        isModelAllowed(candidate, allowlistOptions)
+      ) {
+        if (
+          getModelUnavailabilityReason(candidate, {
+            ignoreModelOverrides: true,
+          }) === null
+        ) {
+          return applyMapping(candidate)
+        }
+        skippedUnavailable.push(trimmed)
+      }
+      continue
+    }
+
+    const prefixed = stripped.startsWith('claude-')
+      ? stripped
+      : `claude-${stripped}`
+    if (isLegacyOpusFirstParty(prefixed) && isFirstPartyApiFamily()) {
+      const defaultOpus = getDefaultOpusModelEnvFree(getModelStrings())
+      const candidate =
+        lower !== stripped && isModel1mEligible(defaultOpus)
+          ? ensureSingle1mSuffix(defaultOpus)
+          : defaultOpus
+      if (
+        getModelUnavailabilityReason(candidate, {
+          ignoreModelOverrides: true,
+        }) === null
+      ) {
+        return applyMapping(candidate)
+      }
+      skippedUnavailable.push(trimmed)
+      continue
+    }
+
+    const isShortVersion =
+      getAPIProvider() !== 'foundry' &&
+      !lower.startsWith('claude-') &&
+      SHORT_VERSION_REGEX.test(lower)
+    const isClaudePrefixed =
+      isShortVersion ||
+      (getAPIProvider() !== 'foundry' && lower.startsWith('claude-'))
+    const parsed = parseUserSpecifiedModel(
+      isShortVersion ? `claude-${lower}` : isClaudePrefixed ? lower : trimmed,
+    )
+    const normalizedParsed = stripTrailing1mSuffix(parsed).toLowerCase()
+    if (
+      isClaudePrefixed &&
+      !/[-@]\d{8}$/.test(normalizedParsed) &&
+      firstPartyNameToCanonical(normalizedParsed) !== normalizedParsed
+    ) {
+      continue
+    }
+    if (!isRecognizedModelIdentifier(parsed)) continue
+    const isConcrete =
+      !isClaudePrefixed || /[-@]\d{8}$/.test(normalizedParsed)
+    if (isModelAllowed(parsed, allowlistOptions)) {
+      if (
+        getModelUnavailabilityReason(parsed, {
+          ignoreModelOverrides: true,
+        }) === null
+      ) {
+        const strippedParsed = stripTrailing1mSuffix(parsed)
+        if (strippedParsed !== parsed) {
+          return applyMapping(
+            isModel1mEligible(parsed) ? parsed : strippedParsed,
+            { isConcreteEntry: isConcrete },
+          )
+        }
+        return applyMapping(parsed, { isConcreteEntry: isConcrete })
+      }
+      skippedUnavailable.push(trimmed)
+    }
+  }
+
+  const mappedSteering =
+    userSteeringCandidate !== null
+      ? lookupOverride(userSteeringCandidate)
+      : undefined
+  const steeringIsAdminMapped =
+    mappedSteering !== undefined &&
+    stripTrailing1mSuffix(mappedSteering).trim().toLowerCase() ===
+      stripTrailing1mSuffix(settingStr).trim().toLowerCase()
+  const reasonText =
+    userSteeringCandidate !== null
+      ? steeringIsAdminMapped
+        ? 'tier default is the admin-mapped value — pinning its canonical builtin (the policy mapping re-applies at the exit)'
+        : 'user steering detected — pinning the env-free tier builtin (policy-mapped if applicable)'
+      : 'keeping the tier default'
+
+  const warnMsg =
+    skippedUnavailable.length > 0
+      ? `enforceAvailableModels: no availableModels entry survived; ${skippedUnavailable.length} entr${skippedUnavailable.length === 1 ? 'y was' : 'ies were'} allowed but skipped as server-unavailable (${skippedUnavailable.join(', ')}); ${reasonText}`
+      : `enforceAvailableModels: no availableModels entry expands to an allowed model; ${reasonText}`
+
+  if (!enforcedDefaultDedup.has(warnMsg)) {
+    enforcedDefaultDedup.add(warnMsg)
+    logForDebugging(warnMsg, { level: 'warn' })
+  }
+  return userSteeringCandidate !== null
+    ? applyMapping(userSteeringCandidate)
+    : null
+}
+
+/** Official 2.1.175 `eK8`. Check if default model selection is enforced by policy. */
+export function isDefaultModelEnforced(): boolean {
+  const baseline = getBaselineDefaultModel()
+  return (
+    getEnforcedDefaultModel(
+      baseline.setting,
+      baseline.envFamily,
+      baseline.concreteBaseline,
+    ) !== null
+  )
 }
 
 /**
@@ -270,21 +938,50 @@ export function getRuntimeMainLoopModel(params: {
 }): ModelName {
   const { permissionMode, mainLoopModel, exceeds200kTokens = false } = params
 
-  // Official 2.1.172 `Jv`: opusplan and opusplan[1m]; 1M via `iD$` when tagged or merge-on.
   const setting = getUserSpecifiedModelSetting()
   if (
     (setting === 'opusplan' || setting === 'opusplan[1m]') &&
     permissionMode === 'plan' &&
     !exceeds200kTokens
   ) {
-    return setting === 'opusplan[1m]' || isOpus1mMergeEnabled()
-      ? ensureSingle1mSuffix(getDefaultOpusModel())
-      : getDefaultOpusModel()
+    const upgrade =
+      setting === 'opusplan[1m]' || isOpus1mMergeEnabled()
+        ? ensureSingle1mSuffix(getDefaultOpusModel())
+        : getDefaultOpusModel()
+    if (
+      !(
+        isModelAllowedUnderActiveEnforcement(upgrade) ??
+        isModelAllowed(upgrade)
+      )
+    ) {
+      const warnMsg =
+        'Plan mode: the opusplan upgrade model is not in the availableModels allowlist; planning uses the resting model instead'
+      if (!enforcedDefaultDedup.has(warnMsg)) {
+        enforcedDefaultDedup.add(warnMsg)
+        logForDebugging(warnMsg, { level: 'warn' })
+      }
+      return parseUserSpecifiedModel(setting)
+    }
+    return upgrade
   }
 
-  // sonnetplan by default
   if (getUserSpecifiedModelSetting() === 'haiku' && permissionMode === 'plan') {
-    return getDefaultSonnetModel()
+    const upgrade = getDefaultSonnetModel()
+    if (
+      !(
+        isModelAllowedUnderActiveEnforcement(upgrade) ??
+        isModelAllowed(upgrade)
+      )
+    ) {
+      const warnMsg =
+        'Plan mode: the haiku plan upgrade model is not in the availableModels allowlist; planning uses the resting model instead'
+      if (!enforcedDefaultDedup.has(warnMsg)) {
+        enforcedDefaultDedup.add(warnMsg)
+        logForDebugging(warnMsg, { level: 'warn' })
+      }
+      return parseUserSpecifiedModel(getUserSpecifiedModelSetting()!)
+    }
+    return upgrade
   }
 
   return mainLoopModel
@@ -293,38 +990,17 @@ export function getRuntimeMainLoopModel(params: {
 /**
  * Get the default main loop model setting.
  *
- * This handles the built-in default:
- * - Opus for Max and Team Premium users
- * - Sonnet 4.6 for all other users (including Team Standard, Pro, Enterprise)
- *
- * @returns The default model setting to use
+ * Official 2.1.175 `Y0`: delegates to getEnforcedDefaultModel() ?? baseline.setting.
  */
 export function getDefaultMainLoopModelSetting(): ModelName | ModelAlias {
-  // Ants default to defaultModel from flag config, or Opus 1M if not configured
-  if (process.env.USER_TYPE === 'ant') {
-    return (
-      getAntModelOverrideConfig()?.defaultModel ??
-      getDefaultOpusModel() + '[1m]'
-    )
-  }
-
-  // Official 2.1.172 `tG`: entitled default uses `iD$` so a default Opus that
-  // already carries `[1m]` does not become `[1m][1m]`.
-  if (isMaxSubscriber()) {
-    return isOpus1mMergeEnabled()
-      ? ensureSingle1mSuffix(getDefaultOpusModel())
-      : getDefaultOpusModel()
-  }
-
-  if (isTeamPremiumSubscriber()) {
-    return isOpus1mMergeEnabled()
-      ? ensureSingle1mSuffix(getDefaultOpusModel())
-      : getDefaultOpusModel()
-  }
-
-  // PAYG (1P and 3P), Enterprise, Team Standard, and Pro get Sonnet as default
-  // Note that PAYG (3P) may default to an older Sonnet model
-  return getDefaultSonnetModel()
+  const baseline = getBaselineDefaultModel()
+  return (
+    getEnforcedDefaultModel(
+      baseline.setting,
+      baseline.envFamily,
+      baseline.concreteBaseline,
+    ) ?? baseline.setting
+  )
 }
 
 /**
@@ -435,17 +1111,47 @@ export function getCanonicalName(fullModelName: ModelName): ModelShortName {
   return firstPartyNameToCanonical(resolved)
 }
 
+/** Official 2.1.175 `WY`. */
+export function isOpusFastModeModel(model?: string): boolean {
+  if (!isFastModeEnabled()) return false
+  const target = model ?? getDefaultMainLoopModelSetting()
+  const lower = parseUserSpecifiedModel(target).toLowerCase()
+  return (
+    lower.includes('opus-4-6') ||
+    lower.includes('opus-4-7') ||
+    lower.includes('opus-4-8')
+  )
+}
+
 // @[MODEL LAUNCH]: Update the default model description strings shown to users.
+/** Official 2.1.175 `H78`. */
 export function getClaudeAiUserDefaultModelDescription(
   fastMode = false,
 ): string {
-  if (isMaxSubscriber() || isTeamPremiumSubscriber()) {
-    if (isOpus1mMergeEnabled()) {
-      return `Opus 4.7 with 1M context · Best for everyday, complex tasks`
-    }
-    return `Opus 4.7 · Best for everyday, complex tasks`
+  const baseline = getBaselineDefaultModel()
+  const enforced = getEnforcedDefaultModel(
+    baseline.setting,
+    baseline.envFamily,
+    baseline.concreteBaseline,
+  )
+  if (enforced !== null) {
+    return `${getPublicModelDisplayName(normalizeModelStringForAPI(enforced)) ?? renderModelName(enforced)} · Set by your organization`
   }
-  return 'Sonnet 4.6 · Efficient for routine tasks'
+  if (
+    isMaxSubscriber() ||
+    isTeamPremiumSubscriber() ||
+    isEnterpriseUsageBasedSubscriber()
+  ) {
+    const opus = getDefaultOpusModel()
+    const name =
+      getPublicModelDisplayName(normalizeModelStringForAPI(opus)) ?? 'Opus'
+    const showPricing = fastMode && isOpusFastModeModel(opus)
+    if (isOpus1mMergeEnabled()) {
+      return `${name} with 1M context · Best for everyday, complex tasks${showPricing ? getOpus46PricingSuffix(true, opus) : ''}`
+    }
+    return `${name} · Best for everyday, complex tasks${showPricing ? getOpus46PricingSuffix(true, opus) : ''}`
+  }
+  return `${getPublicModelDisplayName(normalizeModelStringForAPI(getDefaultSonnetModel())) ?? 'Sonnet'} · Efficient for routine tasks`
 }
 
 export function renderDefaultModelSetting(
@@ -457,11 +1163,27 @@ export function renderDefaultModelSetting(
   return renderModelName(parseUserSpecifiedModel(setting))
 }
 
-export function getOpus46PricingSuffix(fastMode: boolean): string {
+export function getOpus46PricingSuffix(fastMode: boolean, model?: string): string {
   if (getAPIProvider() !== 'firstParty') return ''
   const pricing = formatModelPricing(getOpus46CostTier(fastMode))
   const fastModeIndicator = fastMode ? ` (${LIGHTNING_BOLT})` : ''
   return ` ·${fastModeIndicator} ${pricing}`
+}
+export const getOpusPricingSuffix = getOpus46PricingSuffix
+
+/** Official 2.1.175 `d4$`. */
+export function sanitizeModelNameForDisplay(name: string): string {
+  const sanitized = name.replace(/[^A-Za-z0-9._:/@[\]-]/g, '')
+  if (sanitized.length === 0) return '(unrecognized model name)'
+  return sanitized.length > 128 ? `${sanitized.slice(0, 128)}…` : sanitized
+}
+
+/** Official 2.1.175 `THH`. */
+export function formatModelRestrictedWarning(
+  requested: string,
+  effective: string,
+): string {
+  return `Model "${sanitizeModelNameForDisplay(requested)}" is restricted by your organization's settings. Using ${sanitizeModelNameForDisplay(effective)} instead.`
 }
 
 export function isOpus1mMergeEnabled(): boolean {
@@ -749,16 +1471,6 @@ export function resolveSkillModelOverride(
   return skillModel
 }
 
-const LEGACY_OPUS_FIRSTPARTY = [
-  'claude-opus-4-20250514',
-  'claude-opus-4-1-20250805',
-  'claude-opus-4-0',
-  'claude-opus-4-1',
-]
-
-function isLegacyOpusFirstParty(model: string): boolean {
-  return LEGACY_OPUS_FIRSTPARTY.includes(model)
-}
 
 /**
  * Opt-out for the legacy Opus 4.0/4.1 → current Opus remap.

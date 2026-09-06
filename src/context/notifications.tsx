@@ -8,6 +8,11 @@ type Priority = 'low' | 'medium' | 'high' | 'immediate'
 type BaseNotification = {
   key: string
   /**
+   * Official 2.1.175 bridge `onSetModel` refusal uses `kind:"warning"`.
+   * Consumers that do not read it still render `text`.
+   */
+  kind?: string
+  /**
    * Keys of notifications that this notification invalidates.
    * If a notification is invalidated, it will be removed from the queue
    * and, if currently displayed, cleared immediately.

@@ -25,6 +25,7 @@ import {
   getAgentDescriptionsTotalTokens,
   AGENT_DESCRIPTIONS_THRESHOLD,
 } from './statusNoticeHelpers.js'
+import { formatModelRestrictedWarning } from './model/model.js'
 // Types
 export type StatusNoticeType = 'warning' | 'info'
 
@@ -32,6 +33,7 @@ export type StatusNoticeContext = {
   config: ReturnType<typeof getGlobalConfig>
   agentDefinitions?: AgentDefinitionsResult
   memoryFiles: MemoryFileInfo[]
+  modelRestrictedWarning?: { requested: string; effective: string } | null
 }
 
 export type StatusNoticeDefinition = {
@@ -209,6 +211,27 @@ const largeAgentDescriptionsNotice: StatusNoticeDefinition = {
   },
 }
 
+/** Official 2.1.175 `egf`. */
+const modelRestrictedNotice: StatusNoticeDefinition = {
+  id: 'model-restricted',
+  type: 'warning',
+  isActive: context => context.modelRestrictedWarning != null,
+  render: context => {
+    if (!context.modelRestrictedWarning) return null
+    return (
+      <Box flexDirection="row">
+        <Text color="warning">{figures.warning} </Text>
+        <Text color="warning">
+          {formatModelRestrictedWarning(
+            context.modelRestrictedWarning.requested,
+            context.modelRestrictedWarning.effective,
+          )}
+        </Text>
+      </Box>
+    )
+  },
+}
+
 // All notice definitions
 export const statusNoticeDefinitions: StatusNoticeDefinition[] = [
   largeMemoryFilesNotice,
@@ -216,6 +239,7 @@ export const statusNoticeDefinitions: StatusNoticeDefinition[] = [
   claudeAiSubscriberExternalTokenNotice,
   apiKeyConflictNotice,
   bothAuthMethodsNotice,
+  modelRestrictedNotice,
 ]
 
 // Helper functions for external use

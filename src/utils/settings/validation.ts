@@ -506,6 +506,41 @@ export function ManagedSettingsSchema(
       return true
     },
   )
+  shape.enforceAvailableModels = settingsSchema.shape.enforceAvailableModels.catch(
+    () => {
+      report({
+        path: 'enforceAvailableModels',
+        message:
+          '"enforceAvailableModels" was present but invalid; treating it as true until it is fixed.',
+      })
+      return true
+    },
+  )
+  shape.availableModels = z
+    .array(z.unknown())
+    .transform((arr, _ctx) => {
+      const valid: string[] = []
+      for (const item of arr) {
+        if (typeof item === 'string') {
+          valid.push(item)
+        } else {
+          report({
+            path: 'availableModels',
+            message: `"availableModels" contained a non-string entry (${JSON.stringify(item)}); the entry was ignored.`,
+          })
+        }
+      }
+      return valid
+    })
+    .optional()
+    .catch(() => {
+      report({
+        path: 'availableModels',
+        message:
+          '"availableModels" was present but invalid; enforcing an empty allowlist (only the default model is available) until it is fixed.',
+      })
+      return []
+    })
   shape.forceLoginOrgUUID = settingsSchema.shape.forceLoginOrgUUID.catch(() => {
     report({
       path: 'forceLoginOrgUUID',

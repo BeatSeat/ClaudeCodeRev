@@ -172,6 +172,8 @@ export type AccountInfo = {
   billingType?: BillingType | null
   accountCreatedAt?: string
   subscriptionCreatedAt?: string
+  /** Official 2.1.175 `LK7` — organization.seat_tier from /api/oauth/profile. */
+  seatTier?: string | null
 }
 
 // TODO: 'emacs' is kept for backward compatibility - remove after a few releases
