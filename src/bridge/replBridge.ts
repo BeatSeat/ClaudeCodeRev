@@ -21,6 +21,7 @@ import {
   isEligibleBridgeMessage,
   extractTitleText,
   BoundedUUIDSet,
+  type ServerControlRequestHandlers,
 } from './bridgeMessaging.js'
 import {
   decodeWorkSecret,
@@ -77,6 +78,8 @@ export type ReplBridgeHandle = {
   sendControlResponse(response: SDKControlResponse): void
   sendControlCancelRequest(requestId: string): void
   sendResult(): void
+  /** Official 2.1.176 handle method `refreshGitBranch(){mH?.()}`. */
+  refreshGitBranch(): void
   teardown(): Promise<void>
 }
 
@@ -176,6 +179,8 @@ export type BridgeCoreParams = {
   onInboundMessage?: (msg: SDKMessage) => void
   onPermissionResponse?: (response: SDKControlResponse) => void
   onInterrupt?: () => void
+  /** Official 2.1.176 `getInitializeState` — see bridgeMessaging.ts. */
+  getInitializeState?: ServerControlRequestHandlers['getInitializeState']
   onSetModel?: (model: string | undefined) => void
   onSetMaxThinkingTokens?: (maxTokens: number | null) => void
   /**
@@ -295,6 +300,7 @@ export async function initBridgeCore(
     onInboundMessage,
     onPermissionResponse,
     onInterrupt,
+    getInitializeState,
     onSetModel,
     onSetMaxThinkingTokens,
     onSetPermissionMode,
@@ -1206,6 +1212,7 @@ export async function initBridgeCore(
         handleServerControlRequest(request, {
           transport,
           sessionId: currentSessionId,
+          getInitializeState,
           onInterrupt,
           onSetModel,
           onSetMaxThinkingTokens,
@@ -1844,6 +1851,7 @@ export async function initBridgeCore(
         `[bridge:repl] Sent result for session=${currentSessionId}`,
       )
     },
+    refreshGitBranch() {},
     async teardown() {
       unregister()
       await doTeardownImpl?.()

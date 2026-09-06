@@ -20,7 +20,10 @@ import { readFileSyncWithMetadata } from '../../utils/fileRead.js'
 import { safeParseJSON } from '../../utils/json.js'
 import { lazySchema } from '../../utils/lazySchema.js'
 import { parseCellId } from '../../utils/notebook.js'
-import { checkWritePermissionForTool } from '../../utils/permissions/filesystem.js'
+import {
+  checkWritePermissionForTool,
+  matchHookIfFilePathPattern,
+} from '../../utils/permissions/filesystem.js'
 import type { PermissionDecision } from '../../utils/permissions/PermissionResult.js'
 import { jsonParse, jsonStringify } from '../../utils/slowOperations.js'
 import { NOTEBOOK_EDIT_TOOL_NAME } from './constants.js'
@@ -127,6 +130,10 @@ export const NotebookEditTool = buildTool({
   },
   getPath(input): string {
     return input.notebook_path
+  },
+  async preparePermissionMatcher({ notebook_path }) {
+    // Official 2.1.176 `rGH` — added this hop (preparePermissionMatcher 9→10)
+    return pattern => matchHookIfFilePathPattern(pattern, notebook_path)
   },
   async checkPermissions(input, context): Promise<PermissionDecision> {
     const appState = context.getAppState()

@@ -51,6 +51,10 @@ import type { PermissionRule, PermissionRuleSource } from './PermissionRule.js'
 import { createReadRuleSuggestion } from './PermissionUpdate.js'
 import type { PermissionUpdate } from './PermissionUpdateSchema.js'
 import { getRuleByContentsForToolName } from './permissions.js'
+import {
+  hasWildcards,
+  matchWildcardPattern,
+} from './shellRuleMatching.js'
 
 declare const MACRO: { VERSION: string }
 
@@ -975,6 +979,49 @@ function patternWithRoot(
     relativePattern: normalizedPattern,
     root: null,
   }
+}
+
+/**
+ * Official 2.1.176 `rGH` — hook `if` matcher for Read/Edit/Write file paths.
+ * Uses the same ignore-root rules as `matchingRuleForInput` (so `Edit(src/**)`,
+ * `Read(~/.ssh/**)`, `Read(.env)` match), then falls back to shell wildcards
+ * for leading-`*` patterns and non-wildcard exact strings.
+ */
+export function matchHookIfFilePathPattern(
+  pattern: string,
+  filePath: string,
+): boolean {
+  let expanded = expandPath(filePath)
+  if (getPlatform() === 'windows' && expanded.includes('\\')) {
+    expanded = windowsPathToPosixPath(expanded)
+  }
+  let { relativePattern, root } = patternWithRoot(pattern, 'session')
+  relativePattern = relativePattern.replace(/\/{2,}/g, '/')
+  if (relativePattern.endsWith('/**')) {
+    const stripped = relativePattern.slice(0, -3)
+    relativePattern = /[^/]/.test(stripped) ? stripped : '/**'
+  }
+  const onWindows = getPlatform() === 'windows'
+  const from = root ?? getCwd()
+  const rel = relativePath(
+    onWindows ? from.toLowerCase() : from,
+    onWindows ? expanded.toLowerCase() : expanded,
+  )
+  if (
+    rel &&
+    rel !== '..' &&
+    !rel.startsWith('../') &&
+    ignore().add(relativePattern).test(rel).ignored
+  ) {
+    return true
+  }
+  const trimmed = pattern.trim()
+  const exactOrNonWildcard =
+    !hasWildcards(trimmed) && !trimmed.endsWith(':*')
+  if (trimmed.startsWith('*') || exactOrNonWildcard) {
+    return matchWildcardPattern(pattern, filePath)
+  }
+  return false
 }
 
 function getPatternsByRoot(

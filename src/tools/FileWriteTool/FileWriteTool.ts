@@ -44,10 +44,10 @@ import { expandPath } from '../../utils/path.js'
 import { getBgFileIsolationMessage } from '../../utils/worktree.js'
 import {
   checkWritePermissionForTool,
+  matchHookIfFilePathPattern,
   matchingRuleForInput,
 } from '../../utils/permissions/filesystem.js'
 import type { PermissionDecision } from '../../utils/permissions/PermissionResult.js'
-import { matchWildcardPattern } from '../../utils/permissions/shellRuleMatching.js'
 import { FILE_UNEXPECTEDLY_MODIFIED_ERROR } from '../FileEditTool/constants.js'
 import { gitDiffSchema, hunkSchema } from '../FileEditTool/types.js'
 import {
@@ -156,7 +156,8 @@ export const FileWriteTool = buildTool({
     }
   },
   async preparePermissionMatcher({ file_path }) {
-    return pattern => matchWildcardPattern(pattern, file_path)
+    // Official 2.1.176 `rGH` (was 175 `TE` / matchWildcardPattern)
+    return pattern => matchHookIfFilePathPattern(pattern, file_path)
   },
   async checkPermissions(input, context): Promise<PermissionDecision> {
     const appState = context.getAppState()

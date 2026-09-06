@@ -32,7 +32,11 @@ import { errorMessage } from '../errors.js'
 import { lazySchema } from '../lazySchema.js'
 import { extractTextContent } from '../messages.js'
 import { resolveAntModel } from '../model/antModels.js'
-import { getMainLoopModel } from '../model/model.js'
+import {
+  classifierFallsBackToBestAvailableOpus,
+  getBestAvailableOpusForClassifier,
+  getMainLoopModel,
+} from '../model/model.js'
 import { isFableFamilyThinkingModel } from '../thinking.js'
 import { getAutoModeConfig } from '../settings/settings.js'
 import { sideQuery } from '../sideQuery.js'
@@ -1499,7 +1503,12 @@ function getClassifierModel(): string {
   if (config?.model) {
     return config.model
   }
-  return getMainLoopModel()
+  const main = getMainLoopModel()
+  // Official 2.1.176 `z64` tail: `if(GhH(H)||lX$(H))return nX$(H)`
+  if (classifierFallsBackToBestAvailableOpus(main)) {
+    return getBestAvailableOpusForClassifier(main)
+  }
+  return main
 }
 
 /**

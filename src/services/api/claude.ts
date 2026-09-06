@@ -2077,7 +2077,7 @@ async function* queryModel(
     }
     resetStreamIdleTimer()
 
-    startSessionActivity('api_call')
+    startSessionActivity('api_call', options.agentId)
     // Official 2.1.143: retry streaming on stale TCP close before first event.
     const STALE_STREAM_RETRY_MAX = 2
     let staleStreamRetries = 0
@@ -3094,7 +3094,7 @@ async function* queryModel(
       return
     }
   } finally {
-    stopSessionActivity('api_call')
+    stopSessionActivity('api_call', options.agentId)
     // Must be in the finally block: if the generator is terminated early
     // via .return() (e.g. consumer breaks out of for-await-of, or query.ts
     // encounters an abort), code after the try/finally never executes.

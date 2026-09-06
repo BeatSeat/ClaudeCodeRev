@@ -56,6 +56,8 @@ import { isBgSession } from '../../utils/concurrentSessions.js'
 import { isFgLeftArrowAgentsAvailable } from '../FleetView/fleetGate.js'
 import { getPlatform } from '../../utils/platform.js'
 import { PrBadge } from '../PrBadge.js'
+import { FooterLinkBadge } from '../FooterLinkBadge.js'
+import { useFooterLinks } from '../../utils/footerLinks.js'
 
 // Dead code elimination: conditional import for proactive mode
 /* eslint-disable @typescript-eslint/no-require-imports */
@@ -242,6 +244,13 @@ function ModeIndicator({
   const expandedView = useAppState(s => s.expandedView)
   const showSpinnerTree = expandedView === 'teammates'
   const prStatus = usePrStatus(isLoading, isPrStatusEnabled())
+  const copperThistle = getFeatureValue_CACHED_MAY_BE_STALE(
+    'tengu_copper_thistle',
+    false,
+  )
+  // Official 176 `ZC9({excludeKeyed: tengu_copper_thistle})` — keyed PR
+  // lives on the right footer when copper thistle is on.
+  const footerLinks = useFooterLinks({ excludeKeyed: copperThistle })
   const hasTmuxSession = useAppState(
     s =>
       "external" === 'ant' && s.tungstenActiveSession !== undefined,
@@ -364,10 +373,6 @@ function ModeIndicator({
   // baseline, primaryItemCount is ≥1 for most sessions; keep the threshold
   // low enough to show PR status on standard 80-col terminals.
   // Official 161 `tengu_copper_thistle`: PR badge moves to the right footer.
-  const copperThistle = getFeatureValue_CACHED_MAY_BE_STALE(
-    'tengu_copper_thistle',
-    false,
-  )
   const shouldShowPrStatus =
     !copperThistle &&
     isPrStatusEnabled() &&
@@ -448,6 +453,10 @@ function ModeIndicator({
           />,
         ]
       : []),
+    // Official 176 `NH` / `vC9` — regex footer-link badges.
+    ...footerLinks.map(link => (
+      <FooterLinkBadge key={link.key ?? link.url} link={link} />
+    )),
   ]
 
   // Check if any in-process teammates exist (for hint text cycling)

@@ -294,6 +294,7 @@ import {
   pruneDisplayedMessageContent,
 } from '../utils/hooks/messageDisplayFlush.js'
 import { generateSessionTitle } from '../utils/sessionTitle.js'
+import { scanFooterLinksAfterTurn } from '../utils/footerLinks.js'
 import {
   BASH_INPUT_TAG,
   COMMAND_MESSAGE_TAG,
@@ -4213,6 +4214,9 @@ export function REPL({
           effort,
         )
       } finally {
+        // Official 176 `yN9` runs before `queryGuard.end` (even if a newer
+        // query owns the guard).
+        scanFooterLinksAfterTurn(messagesRef.current)
         // queryGuard.end() atomically checks generation and transitions
         // running→idle. Returns false if a newer query owns the guard
         // (cancel+resubmit race where the stale finally fires as a microtask).

@@ -259,6 +259,57 @@ export const CUSTOMIZATION_SURFACES = [
   'mcp',
 ] as const
 
+/**
+ * Official 2.1.176 `aoq` — sentinel a footerLinksRegexes entry catch returns
+ * so the array transform can drop the entry after it failed Eg1.
+ */
+export const INVALID_FOOTER_LINK_ENTRY = Object.freeze({
+  type: 'invalid-entry-stripped',
+})
+
+/**
+ * Official 2.1.176 `Eg1`. Regex variant plus an unknown-type passthrough so
+ * future variants are preserved but skipped at runtime.
+ */
+export const FooterLinkRegexSchema = lazySchema(() =>
+  z.union([
+    z
+      .object({
+        type: z
+          .literal('regex')
+          .describe(
+            'Config variant. This client understands "regex": matches turn output and builds a URL from named capture groups. Entries with other variants are preserved but skipped at runtime.',
+          ),
+        pattern: z
+          .string()
+          .describe(
+            'Regex matched against turn output (tool results and assistant text)',
+          ),
+        url: z
+          .string()
+          .describe(
+            'Link target. {name} placeholders are filled from named regex capture groups, e.g. (?<id>...) -> {id}. Values are URL-encoded; the origin must be literal in the template. The scheme must be https, http, or a recognized editor or workspace deep-link scheme: vscode, vscode-insiders, cursor, windsurf, zed, jetbrains, idea, slack, linear, notion, figma.',
+          ),
+        label: z
+          .string()
+          .optional()
+          .describe(
+            'Badge text. {name} placeholders filled from named capture groups; defaults to the full match.',
+          ),
+      })
+      .passthrough(),
+    z
+      .object({
+        type: z
+          .string()
+          .describe(
+            'Config variant discriminator for entries this client does not understand; the entry is preserved as-is and skipped at runtime.',
+          ),
+      })
+      .passthrough(),
+  ]),
+)
+
 export const SettingsSchema = lazySchema(() =>
   z
     .object({
@@ -681,7 +732,20 @@ export const SettingsSchema = lazySchema(() =>
         .string()
         .optional()
         .describe(
-          'URL template for PR links in the footer badge and inline messages. Placeholders: {host} {owner} {repo} {number} {url}. Example: "https://reviews.example.com/{owner}/{repo}/pull/{number}"',
+          'URL template for PR links in the footer link badges and inline messages. The detected git PR is rendered as the first footer-link badge. Placeholders: {host} {owner} {repo} {number} {url}. Example: "https://reviews.example.com/{owner}/{repo}/pull/{number}"',
+        ),
+      // Official 2.1.176 `footerLinksRegexes` — immediately before
+      // `subagentStatusLine` in the official schema (that key is not in this
+      // tree; UI agent owns footer rendering).
+      footerLinksRegexes: z
+        .array(FooterLinkRegexSchema().catch(INVALID_FOOTER_LINK_ENTRY))
+        .transform(entries =>
+          entries.filter(entry => entry !== INVALID_FOOTER_LINK_ENTRY),
+        )
+        .optional()
+        .catch(undefined)
+        .describe(
+          'Extra clickable footer badges that appear when a regex matches turn output (tool results and assistant responses). Read from user, flag, and managed settings only; ignored in project .claude/settings.json and local .claude/settings.local.json. At most 5 badges render; the oldest is displaced by newer matches and /clear removes them. Use to surface IDs printed by project CLIs as session links.',
         ),
       // Enabled plugins using marketplace-first format
       enabledPlugins: z
@@ -1437,6 +1501,7 @@ export type DeniedMcpServerEntry = z.infer<
   ReturnType<typeof DeniedMcpServerEntrySchema>
 >
 export type SettingsJson = z.infer<ReturnType<typeof SettingsSchema>>
+export type FooterLinkRegex = z.infer<ReturnType<typeof FooterLinkRegexSchema>>
 
 /**
  * Type guard for MCP server entry with serverName

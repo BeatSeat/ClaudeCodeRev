@@ -117,14 +117,14 @@ function familyHasSpecificEntries(
   return false
 }
 
-/** Official 2.1.175 `qNK`. Reverse lookup in modelOverrides map. */
+/** Official 2.1.176 `nhK`. Reverse lookup in modelOverrides map (case-insensitive). */
 function reverseModelOverridesLookup(
   model: string,
   overridesMap: Record<string, string>,
 ): string {
-  const stripped = stripTrailing1mSuffix(model)
+  const stripped = stripTrailing1mSuffix(model).toLowerCase()
   for (const [key, val] of Object.entries(overridesMap)) {
-    if (stripTrailing1mSuffix(val) === stripped) {
+    if (stripTrailing1mSuffix(val).toLowerCase() === stripped) {
       return key
     }
   }
@@ -263,8 +263,9 @@ export function getPolicyEnforcementState(): PolicyEnforcementState {
 }
 
 /**
- * Official 2.1.175 `eC` — check allowlist under active policy enforcement.
- * Returns `false` if refused, `null` if inactive, or boolean check if active.
+ * Official 2.1.176 `yb` (was 175 `eC`) — allowlist under active enforcement.
+ * After `N9`/`isModelAllowed`, alias picks must also pass env-free `w48`
+ * so `ANTHROPIC_DEFAULT_*_MODEL` cannot redirect onto a blocked model.
  */
 export function isModelAllowedUnderActiveEnforcement(
   model: string,
@@ -272,11 +273,17 @@ export function isModelAllowedUnderActiveEnforcement(
   const enforcement = getPolicyEnforcementState()
   if (enforcement.state === 'refused') return false
   if (enforcement.state === 'inactive') return null
-  return isModelAllowed(model, {
+  const options = {
     allowlist: enforcement.allowlist,
     overridesMap: enforcement.overridesMap,
     envFreeAliasResolution: true,
-  })
+  }
+  if (!isModelAllowed(model, options)) return false
+  const lowered = model.trim().toLowerCase()
+  const aliasKey = /\[1m\]/i.test(lowered)
+    ? stripTrailing1mSuffix(lowered).trim()
+    : lowered
+  return !isModelAliasOrVariant(aliasKey) || isEnvFreeAliasMatch(aliasKey, options)
 }
 
 /**

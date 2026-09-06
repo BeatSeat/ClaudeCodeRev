@@ -4,11 +4,16 @@ import { getOauthProfileFromOauthToken } from '../../services/oauth/getOauthProf
 import type { LocalJSXCommandOnDone } from '../../types/command.js'
 import {
   getClaudeAIOAuthTokens,
+  getOauthAccountInfo,
   isClaudeAISubscriber,
 } from '../../utils/auth.js'
 import { openBrowser } from '../../utils/browser.js'
 import { logError } from '../../utils/log.js'
-import { Login } from '../login/login.js'
+import {
+  applyLoginHooks,
+  Login,
+  loginSuccessMessage,
+} from '../login/login.js'
 
 export async function call(
   onDone: LocalJSXCommandOnDone,
@@ -44,14 +49,27 @@ export async function call(
     const url = 'https://claude.ai/upgrade/max'
     await openBrowser(url)
 
+    const currentAccount = getOauthAccountInfo()
+    const previousAccount = currentAccount && {
+      accountUuid: currentAccount.accountUuid,
+      organizationUuid: currentAccount.organizationUuid,
+    }
     return (
       <Login
         startingMessage={
           'Starting new login following /upgrade. Exit with Ctrl-C to use existing account.'
         }
-        onDone={success => {
-          context.onChangeAPIKey()
-          onDone(success ? 'Login successful' : 'Login interrupted')
+        onDone={async success => {
+          const { bridgeDisconnected } = await applyLoginHooks(
+            context,
+            success,
+            { previousAccount },
+          )
+          onDone(
+            success
+              ? loginSuccessMessage(bridgeDisconnected)
+              : 'Login interrupted',
+          )
         }}
       />
     )

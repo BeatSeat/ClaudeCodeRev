@@ -3,6 +3,7 @@
  */
 
 import { Buffer } from 'buffer'
+import { logForDebugging } from '../../utils/debug.js'
 import { env } from '../../utils/env.js'
 import { execFileNoThrow } from '../../utils/execFileNoThrow.js'
 import { getPlatform } from '../../utils/platform.js'
@@ -22,24 +23,29 @@ export function osc(...parts: (string | number)[]): string {
 }
 
 /**
- * Wrap an escape sequence for terminal multiplexer passthrough.
- * tmux and GNU screen intercept escape sequences; DCS passthrough
- * tunnels them to the outer terminal unmodified.
- *
- * tmux 3.3+ gates this behind `allow-passthrough` (default off). When off,
- * tmux silently drops the whole DCS — no junk, no worse than unwrapped OSC.
- * Users who want passthrough set it in their .tmux.conf; we don't mutate it.
- *
- * Do NOT wrap BEL: raw \x07 triggers tmux's bell-action (window flag);
- * wrapped \x07 is opaque DCS payload and tmux never sees the bell.
+ * Official 176 `my6` — mux from env (this tree has no `Nj()` terminal probe).
+ * tmux 3.3+ gates DCS behind `allow-passthrough` (default off).
+ */
+function detectMux(): 'tmux' | 'screen' | null {
+  if (process.env['TMUX']) return 'tmux'
+  if (process.env['STY']) return 'screen'
+  return null
+}
+
+/**
+ * Official 176 `lZ`. tmux and GNU screen intercept escape sequences; DCS
+ * passthrough tunnels them to the outer terminal. Inner ESCs are doubled
+ * for both muxes.
  */
 export function wrapForMultiplexer(sequence: string): string {
-  if (process.env['TMUX']) {
+  const mux = detectMux()
+  if (mux === 'tmux') {
     const escaped = sequence.replaceAll('\x1b', '\x1b\x1b')
     return `\x1bPtmux;${escaped}\x1b\\`
   }
-  if (process.env['STY']) {
-    return `\x1bP${sequence}\x1b\\`
+  if (mux === 'screen') {
+    const escaped = sequence.replaceAll('\x1b', '\x1b\x1b')
+    return `\x1bP${escaped}\x1b\\`
   }
   return sequence
 }
@@ -125,91 +131,52 @@ export function getClipboardPath(): ClipboardPath {
 }
 
 /**
- * Wrap a payload in tmux's DCS passthrough: ESC P tmux ; <payload> ESC \
- * tmux forwards the payload to the outer terminal, bypassing its own parser.
- * Inner ESCs must be doubled. Requires `set -g allow-passthrough on` in
- * ~/.tmux.conf; without it, tmux silently drops the whole DCS (no regression).
- */
-function tmuxPassthrough(payload: string): string {
-  return `${ESC}Ptmux;${payload.replaceAll(ESC, ESC + ESC)}${ST}`
-}
-
-/**
- * Load text into tmux's paste buffer via `tmux load-buffer`.
- * -w (tmux 3.2+) propagates to the outer terminal's clipboard via tmux's
- * own OSC 52 emission. -w is dropped for iTerm2: tmux's OSC 52 emission
- * crashes the iTerm2 session over SSH.
- *
- * Returns true if the buffer was loaded successfully.
+ * Official 176 `Dc_`. Always try `load-buffer -w` first (tmux 3.2+). If that
+ * fails (unknown option on tmux <3.2, or iTerm2/SSH), retry without `-w`.
+ * 175 special-cased iTerm2 to skip `-w` and never retried — older tmux then
+ * failed to load the paste buffer at all.
  */
 export async function tmuxLoadBuffer(text: string): Promise<boolean> {
   if (!process.env['TMUX']) return false
-  const args =
-    process.env['LC_TERMINAL'] === 'iTerm2'
-      ? ['load-buffer', '-']
-      : ['load-buffer', '-w', '-']
-  const { code } = await execFileNoThrow('tmux', args, {
-    input: text,
-    useCwd: false,
-    timeout: 2000,
-  })
-  return code === 0
+  const opts = { input: text, useCwd: false, timeout: 2000 }
+  const lc = process.env['LC_TERMINAL'] ?? 'unset'
+  const { code } = await execFileNoThrow(
+    'tmux',
+    ['load-buffer', '-w', '-'],
+    opts,
+  )
+  logForDebugging(
+    `clipboard: tmux load-buffer -w - \u2192 exit ${code} (LC_TERMINAL=${lc})`,
+  )
+  if (code === 0) return true
+  const retry = await execFileNoThrow('tmux', ['load-buffer', '-'], opts)
+  logForDebugging(
+    `clipboard: retry tmux load-buffer - \u2192 exit ${retry.code} (LC_TERMINAL=${lc})`,
+  )
+  return retry.code === 0
 }
 
 /**
- * OSC 52 clipboard write: ESC ] 52 ; c ; <base64> BEL/ST
- * 'c' selects the clipboard (vs 'p' for primary selection on X11).
- *
- * When inside tmux ($TMUX set), `tmux load-buffer -w -` is the primary
- * path. tmux's buffer is always reachable — works over SSH, survives
- * detach/reattach, immune to stale env vars. The -w flag (tmux 3.2+) tells
- * tmux to also propagate to the outer terminal via its own OSC 52 path,
- * which tmux wraps correctly for the attached client. On older tmux, -w is
- * ignored and the buffer is still loaded. -w is dropped for iTerm2 (#22432)
- * because tmux's own OSC 52 emission (empty selection param: ESC]52;;b64)
- * crashes iTerm2 over SSH.
- *
- * After load-buffer succeeds, we ALSO return a DCS-passthrough-wrapped
- * OSC 52 for the caller to write to stdout. Our sequence uses explicit `c`
- * (not tmux's crashy empty-param variant), so it sidesteps the #22432 path.
- * With `allow-passthrough on` + an OSC-52-capable outer terminal, selection
- * reaches the system clipboard; with either off, tmux silently drops the
- * DCS and prefix+] still works. See Greg Smith's "free pony" in
- * https://anthropic.slack.com/archives/C07VBSHV7EV/p1773177228548119.
- *
- * If load-buffer fails entirely, fall through to raw OSC 52.
- *
- * Outside tmux, write raw OSC 52 to stdout (caller handles the write).
- *
- * Local (no SSH_CONNECTION): also shell out to a native clipboard utility.
- * OSC 52 and tmux -w both depend on terminal settings — iTerm2 disables
- * OSC 52 by default, VS Code shows a permission prompt on first use. Native
- * utilities (pbcopy/wl-copy/xclip/xsel/clip.exe) always work locally. Over
- * SSH these would write to the remote clipboard — OSC 52 is the right path there.
- *
- * Returns the sequence for the caller to write to stdout (raw OSC 52
- * outside tmux, DCS-wrapped inside).
+ * Official 176 `y0`. Native copy (not SSH) + tmux load-buffer, then emit OSC 52
+ * by mux: tmux always gets raw+DCS (so SSH/tmux still reaches the outer
+ * clipboard even when `-w` failed), screen gets DCS only, else raw OSC 52.
+ * Load-buffer success does not gate the emit path.
  */
 export async function setClipboard(text: string): Promise<string> {
   const b64 = Buffer.from(text, 'utf8').toString('base64')
-  const raw = osc(OSC.CLIPBOARD, 'c', b64)
+  const ssh = isClipboardSshSession()
+  if (!ssh) copyNative(text)
+  await tmuxLoadBuffer(text)
 
-  // Native safety net — fire FIRST, before the tmux await, so a quick
-  // focus-switch after selecting doesn't race pbcopy. Previously this ran
-  // AFTER awaiting tmux load-buffer, adding ~50-100ms of subprocess latency
-  // before pbcopy even started — fast cmd+tab → paste would beat it
-  // (https://anthropic.slack.com/archives/C07VBSHV7EV/p1773943921788829).
-  // Gated on SSH_CONNECTION (not SSH_TTY) since tmux panes inherit SSH_TTY
-  // forever but SSH_CONNECTION is in tmux's default update-environment and
-  // clears on local attach. Fire-and-forget.
-  if (!isClipboardSshSession()) copyNative(text)
-
-  const tmuxBufferLoaded = await tmuxLoadBuffer(text)
-
-  // Inner OSC uses BEL directly (not osc()) — ST's ESC would need doubling
-  // too, and BEL works everywhere for OSC 52.
-  if (tmuxBufferLoaded) return tmuxPassthrough(`${ESC}]52;c;${b64}${BEL}`)
-  return raw
+  const mux = detectMux()
+  const rawOsc52 = `${ESC}]52;c;${b64}${BEL}`
+  const emit = mux === 'tmux' ? 'raw+dcs' : mux === 'screen' ? 'dcs' : 'raw'
+  logForDebugging(
+    `clipboard: setClipboard mux=${mux ?? 'none'} ssh=${ssh} native=${!ssh} predicted=${getClipboardPath()} emit=${emit} bytes=${text.length}`,
+  )
+  if (mux === 'tmux') return rawOsc52 + wrapForMultiplexer(rawOsc52)
+  if (mux === 'screen') return wrapForMultiplexer(rawOsc52)
+  return osc(OSC.CLIPBOARD, 'c', b64)
 }
 
 // Linux clipboard tool: undefined = not yet probed, null = none available.
@@ -235,31 +202,39 @@ function copyNative(text: string): void {
       if (linuxCopy === null) return
       if (linuxCopy === 'wl-copy') {
         void execFileNoThrow('wl-copy', [], opts)
+        void execFileNoThrow('wl-copy', ['--primary'], opts)
         return
       }
       if (linuxCopy === 'xclip') {
         void execFileNoThrow('xclip', ['-selection', 'clipboard'], opts)
+        void execFileNoThrow('xclip', ['-selection', 'primary'], opts)
         return
       }
       if (linuxCopy === 'xsel') {
         void execFileNoThrow('xsel', ['--clipboard', '--input'], opts)
+        void execFileNoThrow('xsel', ['--primary', '--input'], opts)
         return
       }
       // First call: probe wl-copy (Wayland) then xclip/xsel (X11), cache winner.
       void execFileNoThrow('wl-copy', [], opts).then(r => {
         if (r.code === 0) {
           linuxCopy = 'wl-copy'
+          void execFileNoThrow('wl-copy', ['--primary'], opts)
           return
         }
         void execFileNoThrow('xclip', ['-selection', 'clipboard'], opts).then(
           r2 => {
             if (r2.code === 0) {
               linuxCopy = 'xclip'
+              void execFileNoThrow('xclip', ['-selection', 'primary'], opts)
               return
             }
             void execFileNoThrow('xsel', ['--clipboard', '--input'], opts).then(
               r3 => {
                 linuxCopy = r3.code === 0 ? 'xsel' : null
+                if (r3.code === 0) {
+                  void execFileNoThrow('xsel', ['--primary', '--input'], opts)
+                }
               },
             )
           },

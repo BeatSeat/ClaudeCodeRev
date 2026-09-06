@@ -20,10 +20,18 @@ import {
   SandboxRuntimeConfigSchema,
   SandboxViolationStore,
 } from '@anthropic-ai/sandbox-runtime'
-import { accessSync, constants, lstatSync, rmSync, statSync } from 'fs'
+import {
+  accessSync,
+  constants,
+  lstatSync,
+  readlinkSync,
+  realpathSync,
+  rmSync,
+  statSync,
+} from 'fs'
 import { open, readFile } from 'fs/promises'
 import { memoize } from 'lodash-es'
-import { isAbsolute, join, resolve, sep } from 'path'
+import { dirname, isAbsolute, join, resolve, sep } from 'path'
 import {
   getAdditionalDirectoriesForClaudeMd,
   getCwdState,
@@ -237,6 +245,35 @@ function shouldAllowManagedReadPathsOnly(): boolean {
  *
  * @param settings Merged settings (used for sandbox config like network, ripgrep, etc.)
  */
+/**
+ * Official 2.1.176 `FV$` — if `settings.json` is a symlink, denyWrite the
+ * resolved target (absolute readlink targets included). Linux bwrap fails
+ * when the deny path is the symlink itself with an absolute target.
+ */
+function resolveSettingsSymlinkForSandbox(settingsPath: string): string {
+  let linkTarget: string
+  try {
+    linkTarget = readlinkSync(settingsPath)
+  } catch {
+    return settingsPath
+  }
+  try {
+    return realpathSync(settingsPath)
+  } catch {
+    let resolved = resolve(dirname(settingsPath), linkTarget)
+    for (let i = 0; i < 8; i++) {
+      let next: string
+      try {
+        next = readlinkSync(resolved)
+      } catch {
+        break
+      }
+      resolved = resolve(dirname(resolved), next)
+    }
+    return resolved
+  }
+}
+
 export function convertToSandboxRuntimeConfig(
   settings: SettingsJson,
 ): SandboxRuntimeConfig {
@@ -310,7 +347,7 @@ export function convertToSandboxRuntimeConfig(
   const settingsPaths = SETTING_SOURCES.map(source =>
     getSettingsFilePathForSource(source),
   ).filter((p): p is string => p !== undefined)
-  denyWrite.push(...settingsPaths)
+  denyWrite.push(...settingsPaths.map(resolveSettingsSymlinkForSandbox))
   denyWrite.push(getManagedSettingsDropInDir())
 
   // Also block settings files in the current working directory if it differs from original
@@ -318,8 +355,16 @@ export function convertToSandboxRuntimeConfig(
   const cwd = getCwdState()
   const originalCwd = getOriginalCwd()
   if (cwd !== originalCwd) {
-    denyWrite.push(resolve(cwd, '.claude', 'settings.json'))
-    denyWrite.push(resolve(cwd, '.claude', 'settings.local.json'))
+    denyWrite.push(
+      resolveSettingsSymlinkForSandbox(
+        resolve(cwd, '.claude', 'settings.json'),
+      ),
+    )
+    denyWrite.push(
+      resolveSettingsSymlinkForSandbox(
+        resolve(cwd, '.claude', 'settings.local.json'),
+      ),
+    )
   }
 
   // Block writes to .claude/skills in both original and current working directories.
@@ -380,8 +425,16 @@ export function convertToSandboxRuntimeConfig(
   // agent's worktree as writable and lock down its .claude / .git pointer.
   for (const agentCwd of agentSandboxCwdById.values()) {
     allowWrite.push(agentCwd)
-    denyWrite.push(resolve(agentCwd, '.claude', 'settings.json'))
-    denyWrite.push(resolve(agentCwd, '.claude', 'settings.local.json'))
+    denyWrite.push(
+      resolveSettingsSymlinkForSandbox(
+        resolve(agentCwd, '.claude', 'settings.json'),
+      ),
+    )
+    denyWrite.push(
+      resolveSettingsSymlinkForSandbox(
+        resolve(agentCwd, '.claude', 'settings.local.json'),
+      ),
+    )
     denyWrite.push(resolve(agentCwd, '.claude', 'skills'))
     denyWrite.push(resolve(agentCwd, '.claude', 'agents'))
     denyWrite.push(resolve(agentCwd, '.claude', 'commands'))

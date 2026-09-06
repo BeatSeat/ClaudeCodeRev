@@ -5,6 +5,7 @@ import {
   clearTrustedDeviceToken,
   enrollTrustedDevice,
 } from '../../bridge/trustedDevice.js'
+import { REMOTE_CONTROL_DISCONNECTED_MSG } from '../../bridge/types.js'
 import type { LocalJSXCommandContext } from '../../commands.js'
 import { ConfigurableShortcutHint } from '../../components/ConfigurableShortcutHint.js'
 import { ConsoleOAuthFlow } from '../../components/ConsoleOAuthFlow.js'
@@ -16,6 +17,8 @@ import { refreshGrowthBookAfterAuthChange } from '../../services/analytics/growt
 import { refreshPolicyLimits } from '../../services/policyLimits/index.js'
 import { refreshRemoteManagedSettings } from '../../services/remoteManagedSettings/index.js'
 import type { LocalJSXCommandOnDone } from '../../types/command.js'
+import { getOauthAccountInfo } from '../../utils/auth.js'
+import { logForDebugging } from '../../utils/debug.js'
 import { stripSignatureBlocks } from '../../utils/messages.js'
 import {
   checkAndDisableAutoModeIfNeeded,
@@ -23,59 +26,126 @@ import {
   resetAutoModeGateCheck,
   resetBypassPermissionsCheck,
 } from '../../utils/permissions/bypassPermissionsKillswitch.js'
+import { getSecureStorage } from '../../utils/secureStorage/index.js'
 import { resetUserCache } from '../../utils/user.js'
+
+export type PreviousLoginAccount = {
+  accountUuid: string
+  organizationUuid?: string
+}
+
+/** Official 2.1.176 `SZH` — existing trusted-device token, env or storage. */
+async function hasExistingTrustedDeviceToken(): Promise<string | undefined> {
+  const envToken = process.env.CLAUDE_TRUSTED_DEVICE_TOKEN
+  if (envToken) return envToken
+  const stored = (await getSecureStorage().readAsync())?.trustedDeviceToken
+  return typeof stored === 'string' ? stored : undefined
+}
+
+/**
+ * Official 2.1.176 `R0H`. Shared post-login hooks. Disconnects Remote Control
+ * when the signed-in account changes. Returns whether an interactive RC
+ * session was torn down so the success line can say so.
+ */
+export async function applyLoginHooks(
+  context: LocalJSXCommandContext,
+  success: boolean,
+  opts?: {
+    previousAccount?: PreviousLoginAccount
+    awaitEnrollment?: boolean
+  },
+): Promise<{ bridgeDisconnected: boolean }> {
+  context.onChangeAPIKey()
+  context.setMessages(stripSignatureBlocks)
+  if (!success) return { bridgeDisconnected: false }
+
+  resetCostState()
+  void refreshRemoteManagedSettings()
+  void refreshPolicyLimits()
+  resetUserCache()
+  refreshGrowthBookAfterAuthChange()
+
+  const previous = opts?.previousAccount
+  const current = getOauthAccountInfo()
+  const sameAccount =
+    previous?.accountUuid !== undefined &&
+    previous.accountUuid === current?.accountUuid &&
+    previous.organizationUuid === current?.organizationUuid
+  const { replBridgeEnabled, replBridgeOutboundOnly } = context.getAppState()
+  const accountChanged =
+    previous?.accountUuid !== undefined && !sameAccount && replBridgeEnabled
+  const bridgeDisconnected = accountChanged && !replBridgeOutboundOnly
+  if (accountChanged) {
+    logForDebugging(
+      '[bridge:repl] Account changed via /login — disconnecting Remote Control session',
+    )
+    context.setAppState(prev =>
+      prev.replBridgeEnabled
+        ? {
+            ...prev,
+            replBridgeEnabled: false,
+            replBridgeExplicit: false,
+            replBridgeOutboundOnly: false,
+          }
+        : prev,
+    )
+  }
+
+  if (sameAccount && (await hasExistingTrustedDeviceToken())) {
+    logForDebugging(
+      '[trusted-device] Same account+org re-login with existing token, skipping re-enrollment',
+    )
+  } else {
+    clearTrustedDeviceToken()
+    const enrollment = enrollTrustedDevice()
+    if (opts?.awaitEnrollment) await enrollment
+  }
+
+  resetBypassPermissionsCheck()
+  const appState = context.getAppState()
+  void checkAndDisableBypassPermissionsIfNeeded(
+    appState.toolPermissionContext,
+    context.setAppState,
+  )
+  if (feature('TRANSCRIPT_CLASSIFIER')) {
+    resetAutoModeGateCheck()
+    void checkAndDisableAutoModeIfNeeded(
+      appState.toolPermissionContext,
+      context.setAppState,
+      appState.fastMode,
+    )
+  }
+  context.setAppState(prev => ({
+    ...prev,
+    authVersion: prev.authVersion + 1,
+  }))
+  return { bridgeDisconnected }
+}
+
+export function loginSuccessMessage(bridgeDisconnected: boolean): string {
+  return bridgeDisconnected
+    ? `Login successful. ${REMOTE_CONTROL_DISCONNECTED_MSG}`
+    : 'Login successful'
+}
 
 export async function call(
   onDone: LocalJSXCommandOnDone,
   context: LocalJSXCommandContext,
 ): Promise<React.ReactNode> {
+  const current = getOauthAccountInfo()
+  const previousAccount = current && {
+    accountUuid: current.accountUuid,
+    organizationUuid: current.organizationUuid,
+  }
   return (
     <Login
       onDone={async success => {
-        context.onChangeAPIKey()
-        // Signature-bearing blocks (thinking, connector_text) are bound to the API key —
-        // strip them so the new key doesn't reject stale signatures.
-        context.setMessages(stripSignatureBlocks)
-        if (success) {
-          // Post-login refresh logic. Keep in sync with onboarding in src/interactiveHelpers.tsx
-          // Reset cost state when switching accounts
-          resetCostState()
-          // Refresh remotely managed settings after login (non-blocking)
-          void refreshRemoteManagedSettings()
-          // Refresh policy limits after login (non-blocking)
-          void refreshPolicyLimits()
-          // Clear user data cache BEFORE GrowthBook refresh so it picks up fresh credentials
-          resetUserCache()
-          // Refresh GrowthBook after login to get updated feature flags (e.g., for claude.ai MCPs)
-          refreshGrowthBookAfterAuthChange()
-          // Clear any stale trusted device token from a previous account before
-          // re-enrolling — prevents sending the old token on bridge calls while
-          // the async enrollTrustedDevice() is in-flight.
-          clearTrustedDeviceToken()
-          // Enroll as a trusted device for Remote Control (10-min fresh-session window)
-          void enrollTrustedDevice()
-          // Reset killswitch gate checks and re-run with new org
-          resetBypassPermissionsCheck()
-          const appState = context.getAppState()
-          void checkAndDisableBypassPermissionsIfNeeded(
-            appState.toolPermissionContext,
-            context.setAppState,
-          )
-          if (feature('TRANSCRIPT_CLASSIFIER')) {
-            resetAutoModeGateCheck()
-            void checkAndDisableAutoModeIfNeeded(
-              appState.toolPermissionContext,
-              context.setAppState,
-              appState.fastMode,
-            )
-          }
-          // Increment authVersion to trigger re-fetching of auth-dependent data in hooks (e.g., MCP servers)
-          context.setAppState(prev => ({
-            ...prev,
-            authVersion: prev.authVersion + 1,
-          }))
-        }
-        onDone(success ? 'Login successful' : 'Login interrupted')
+        const { bridgeDisconnected } = await applyLoginHooks(context, success, {
+          previousAccount,
+        })
+        onDone(
+          success ? loginSuccessMessage(bridgeDisconnected) : 'Login interrupted',
+        )
       }}
     />
   )

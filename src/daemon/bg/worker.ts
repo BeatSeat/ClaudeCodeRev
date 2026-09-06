@@ -128,7 +128,12 @@ export class BgWorker {
   onState = createDaemonSignal<[Partial<WorkerRecord>]>()
   onSettle = createDaemonSignal<[string]>()
   onRepaintDone = createDaemonSignal<[]>()
-  attachers = new Map<string, { caps?: unknown }>()
+  attachers = new Map<
+    string,
+    { caps?: unknown; deliver?: (s: string) => void }
+  >()
+  /** Official 2.1.176 `lastInputAttacher` — detach-request targets this window. */
+  lastInputAttacher: string | undefined
   pty: PtyHandle | undefined
   procStart: string | undefined
   ptyCols = 200
@@ -1028,7 +1033,12 @@ export class BgWorker {
         } else if (H.type === 'done') this.settle(String(H.outcome ?? 'done'))
         else if (H.type === 'state') this.patch(H.patch as Partial<WorkerRecord>)
         else if (H.type === 'detach-request') {
-          this.onStream.emit(detachOsc(H.msg as string | undefined))
+          const osc = detachOsc(H.msg as string | undefined)
+          const target = this.attachers.get(this.lastInputAttacher as string)
+          if (!H.broadcast && target?.deliver) target.deliver(osc)
+          else if (this.attachers.size > 0) {
+            for (const att of this.attachers.values()) att.deliver?.(osc)
+          } else this.onStream.emit(osc)
         } else if (H.type === 'repaint-done') this.onRepaintDone.emit()
       },
       () => void this.checkPid(),

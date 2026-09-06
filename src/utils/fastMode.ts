@@ -22,10 +22,12 @@ import { logForDebugging } from './debug.js'
 import { isEnvTruthy } from './envUtils.js'
 import {
   getDefaultMainLoopModelSetting,
+  getMainLoopModel,
   isOpus1mMergeEnabled,
   type ModelSetting,
   parseUserSpecifiedModel,
 } from './model/model.js'
+import { isModelAllowed } from './model/modelAllowlist.js'
 import { getAPIProvider } from './model/providers.js'
 import { isEssentialTrafficOnly } from './privacyLevel.js'
 import {
@@ -88,6 +90,21 @@ export function getFastModeUnavailableReason(): string | null {
   if (statigReason !== null) {
     logForDebugging(`Fast mode unavailable: ${statigReason}`)
     return statigReason
+  }
+
+  // Official 2.1.176 `g6H`: refuse when enabling fast mode would switch to
+  // the fast model (`DhH` / getFastModeModel) outside availableModels.
+  // Exception: local session already on an allowed fast-capable model
+  // (official `!NJ() && KY(q) && N9(q)` — this tree has no `NJ`/`controlChannel`).
+  if (!isModelAllowed(getFastModeModel())) {
+    const current = getMainLoopModel()
+    if (
+      !(isFastModeSupportedByModel(current) && isModelAllowed(current))
+    ) {
+      const reason = `${FAST_MODE_MODEL_DISPLAY} is not in your organization's allowed models`
+      logForDebugging(`Fast mode unavailable: ${reason}`)
+      return reason
+    }
   }
 
   // Previously, fast mode required the native binary (bun build). This is no

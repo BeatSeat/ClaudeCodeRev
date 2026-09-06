@@ -107,9 +107,34 @@ export function setPermissionModeChangedListener(
 
 let hasPendingAction = false
 let currentState: SessionState = 'idle'
+/** Official 2.1.176 `uy$`. */
+let mainLoopRefcount = 0
+let lastWaitingOnUser = false
+let waitingOnUserListener: ((waiting: boolean) => void) | null = null
 
 export function getSessionState(): SessionState {
   return currentState
+}
+
+/** Official 2.1.176 `waitingOnUser`. */
+export function isWaitingOnUser(): boolean {
+  return currentState === 'requires_action' && mainLoopRefcount === 0
+}
+
+/** Official 2.1.176 `setMainLoopRefcount`. */
+export function setMainLoopRefcount(count: number): void {
+  mainLoopRefcount = count
+  const waiting = isWaitingOnUser()
+  if (waiting !== lastWaitingOnUser) {
+    lastWaitingOnUser = waiting
+    waitingOnUserListener?.(waiting)
+  }
+}
+
+export function setWaitingOnUserListener(
+  cb: ((waiting: boolean) => void) | null,
+): void {
+  waitingOnUserListener = cb
 }
 
 export function notifySessionStateChanged(
@@ -117,6 +142,7 @@ export function notifySessionStateChanged(
   details?: RequiresActionDetails,
 ): void {
   currentState = state
+  lastWaitingOnUser = isWaitingOnUser()
   stateListener?.(state, details)
 
   // Mirror details into external_metadata so GetSession carries the

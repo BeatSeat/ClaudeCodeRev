@@ -21,11 +21,26 @@ export type SessionActivityReason = 'api_call' | 'tool_exec'
 
 let activityCallback: (() => void) | null = null
 let refcount = 0
+/** Official 2.1.176 `uy$`/`bb8`/`xb8` — main-loop only (ownerKey === undefined). */
+let mainLoopRefcount = 0
+let mainLoopRefcountListener: ((count: number) => void) | null = null
 const activeReasons = new Map<SessionActivityReason, number>()
 let oldestActivityStartedAt: number | null = null
 let heartbeatTimer: ReturnType<typeof setInterval> | null = null
 let idleTimer: ReturnType<typeof setTimeout> | null = null
 let cleanupRegistered = false
+
+/** Official 2.1.176 `v9q`. */
+export function setMainLoopRefcountListener(
+  cb: ((count: number) => void) | null,
+): void {
+  mainLoopRefcountListener = cb
+}
+
+/** Official 2.1.176 `bU4`. */
+export function getMainLoopRefcount(): number {
+  return mainLoopRefcount
+}
 
 function startHeartbeatTimer(): void {
   clearIdleTimer()
@@ -89,8 +104,20 @@ export function isSessionActivityTrackingActive(): boolean {
  * Increment the activity refcount. When it transitions from 0→1 and a callback
  * is registered, start a periodic heartbeat timer.
  */
-export function startSessionActivity(reason: SessionActivityReason): void {
+/**
+ * Official 2.1.176 `bb8(H,$)`. `$` is the agent id; main-loop calls omit it
+ * (`=== undefined`) and bump `mainLoopRefcount` so `/bg` mid-turn with
+ * nothing left can drop `waitingOnUser`.
+ */
+export function startSessionActivity(
+  reason: SessionActivityReason,
+  ownerKey?: string,
+): void {
   refcount++
+  if (ownerKey === undefined) {
+    mainLoopRefcount++
+    mainLoopRefcountListener?.(mainLoopRefcount)
+  }
   activeReasons.set(reason, (activeReasons.get(reason) ?? 0) + 1)
   if (refcount === 1) {
     oldestActivityStartedAt = Date.now()
@@ -118,9 +145,23 @@ export function startSessionActivity(reason: SessionActivityReason): void {
  * Decrement the activity refcount. When it reaches 0, stop the heartbeat timer
  * and start an idle timer that logs after 30s of inactivity.
  */
-export function stopSessionActivity(reason: SessionActivityReason): void {
+/** Official 2.1.176 `xb8(H,$)`. */
+export function stopSessionActivity(
+  reason: SessionActivityReason,
+  ownerKey?: string,
+): void {
   if (refcount > 0) {
     refcount--
+  }
+  if (ownerKey === undefined) {
+    if (mainLoopRefcount > 0) {
+      mainLoopRefcount--
+      mainLoopRefcountListener?.(mainLoopRefcount)
+    } else {
+      logForDiagnosticsNoPII('warn', 'session_activity_main_loop_underflow', {
+        reason,
+      })
+    }
   }
   const n = (activeReasons.get(reason) ?? 0) - 1
   if (n > 0) activeReasons.set(reason, n)

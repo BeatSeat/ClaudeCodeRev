@@ -22,7 +22,10 @@ import {
 import { logEvent } from '../../services/analytics/index.js'
 import { logForDebugging } from '../../utils/debug.js'
 import { isPathTrusted, markPathTrusted } from '../../utils/config.js'
+import { getReplBridgeHandle } from '../../bridge/replBridgeHandle.js'
 import { getCwd } from '../../utils/cwd.js'
+import { getIsGit } from '../../utils/git.js'
+import { reanchorGitFileWatcher } from '../../utils/git/gitFilesystem.js'
 import { setCwd } from '../../utils/Shell.js'
 import { SandboxManager } from '../../utils/sandbox/sandbox-adapter.js'
 import { relocateSessionTranscript } from '../../utils/sessionStorage.js'
@@ -197,6 +200,10 @@ async function performCd(newDirectory: string): Promise<string> {
       throw error
     }
   }
+  // Official 2.1.176 `nIf`: Ll(), OM.cache.clear?.(), zX()?.refreshGitBranch?.()
+  reanchorGitFileWatcher()
+  getIsGit.cache.clear?.()
+  getReplBridgeHandle()?.refreshGitBranch?.()
   SandboxManager.refreshConfig()
   logEvent('tengu_cd_command', {})
   const claudeMdHint = await getClaudeMdHintForNewDirectory(newDirectory)

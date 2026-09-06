@@ -6,6 +6,8 @@ type CacheEntry<T> = {
   value: T
   timestamp: number
   refreshing: boolean
+  /** Official 2.1.176 `_yH` — per-entry lifetime (number TTL or result fn). */
+  lifetimeMs: number
 }
 
 type MemoizedFunction<Args extends unknown[], Result> = {
@@ -55,6 +57,7 @@ export function memoizeWithTTL<Args extends unknown[], Result>(
         value,
         timestamp: now,
         refreshing: false,
+        lifetimeMs: cacheLifetimeMs,
       })
       return value
     }
@@ -81,6 +84,7 @@ export function memoizeWithTTL<Args extends unknown[], Result>(
               value: newValue,
               timestamp: Date.now(),
               refreshing: false,
+              lifetimeMs: cacheLifetimeMs,
             })
           }
         })
@@ -119,8 +123,13 @@ export function memoizeWithTTL<Args extends unknown[], Result>(
  */
 export function memoizeWithTTLAsync<Args extends unknown[], Result>(
   f: (...args: Args) => Promise<Result>,
-  cacheLifetimeMs: number = 5 * 60 * 1000, // Default 5 minutes
+  cacheLifetimeMs: number | ((result: Result) => number) = 5 * 60 * 1000, // Default 5 minutes
 ): ((...args: Args) => Promise<Result>) & { cache: { clear: () => void } } {
+  // Official 2.1.176 `_yH`: `$` may be a number or `(result) => ttl`.
+  const resolveLifetime = (result: Result): number =>
+    typeof cacheLifetimeMs === 'function'
+      ? cacheLifetimeMs(result)
+      : cacheLifetimeMs
   const cache = new Map<string, CacheEntry<Result>>()
   // In-flight cold-miss dedup. The old memoizeWithTTL (sync) accidentally
   // provided this: it stored the Promise synchronously before the first
@@ -147,11 +156,13 @@ export function memoizeWithTTLAsync<Args extends unknown[], Result>(
         // Identity-guard: cache.clear() during the await should discard this
         // result (clear intent is to invalidate). If we're still in-flight,
         // store it. clear() wipes inFlight too, so this check catches that.
+        // Official `_yH` timestamps after the await (`Date.now()`).
         if (inFlight.get(key) === promise) {
           cache.set(key, {
             value: result,
-            timestamp: now,
+            timestamp: Date.now(),
             refreshing: false,
+            lifetimeMs: resolveLifetime(result),
           })
         }
         return result
@@ -165,7 +176,7 @@ export function memoizeWithTTLAsync<Args extends unknown[], Result>(
     // If we have a stale cache entry and it's not already refreshing
     if (
       cached &&
-      now - cached.timestamp > cacheLifetimeMs &&
+      now - cached.timestamp > cached.lifetimeMs &&
       !cached.refreshing
     ) {
       // Mark as refreshing to prevent multiple parallel refreshes
@@ -185,6 +196,7 @@ export function memoizeWithTTLAsync<Args extends unknown[], Result>(
               value: newValue,
               timestamp: Date.now(),
               refreshing: false,
+              lifetimeMs: resolveLifetime(newValue),
             })
           }
         })

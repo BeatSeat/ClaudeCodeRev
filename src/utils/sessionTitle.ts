@@ -73,10 +73,12 @@ Good examples:
 {"title": "Add OAuth authentication"}
 {"title": "Debug failing CI tests"}
 {"title": "Refactor API client error handling"}
+Good (Korean session): {"title": "결제 모듈 리팩토링"}
 
 Bad (too vague): {"title": "Code changes"}
 Bad (too long): {"title": "Investigate and fix the issue where the login button does not respond on mobile devices"}
-Bad (wrong case): {"title": "Fix Login Button On Mobile"}`
+Bad (wrong case): {"title": "Fix Login Button On Mobile"}
+Bad (English title for a Korean session): {"title": "Refactor payment module"}`
 
 const titleSchema = lazySchema(() => z.object({ title: z.string() }))
 
@@ -115,18 +117,21 @@ export async function generateSessionTitle(
   const trimmed = description.trim()
   if (!trimmed || trimmed.length < MIN_SESSION_TITLE_INPUT_LENGTH) return null
 
+  // Official 2.1.176 P1H: language pin (or conversation-language fallback)
+  // lives on the user prompt, not as a second system-prompt part.
   const language = getInitialSettings().language
-  const systemPromptParts = language
-    ? [
-        SESSION_TITLE_PROMPT,
-        `Write the title in ${language}. Keep technical terms and code identifiers in their original form.`,
-      ]
-    : [SESSION_TITLE_PROMPT]
+  const languageInstruction = language
+    ? `Write the title in ${language}. Keep technical terms and code identifiers in their original form.`
+    : 'Write the title in the language the user wrote in, regardless of the language of the examples above.'
 
   try {
     const result = await queryHaiku({
-      systemPrompt: asSystemPrompt(systemPromptParts),
-      userPrompt: trimmed,
+      systemPrompt: asSystemPrompt([SESSION_TITLE_PROMPT]),
+      userPrompt: `<session>
+${trimmed}
+</session>
+
+${languageInstruction}`,
       outputFormat: {
         type: 'json_schema',
         schema: {

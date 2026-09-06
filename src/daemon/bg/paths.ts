@@ -195,16 +195,20 @@ export async function ensureRuntimeDaemonDir(): Promise<void> {
   }
 }
 
-/** Official `SE4`. */
+/** Official 2.1.176 `M69` (175 `ee4` was a Windows no-op). */
 export async function ensureDaemonDir(): Promise<void> {
-  if (getPlatform() === 'windows') return
   const dir = daemonDir()
   const { mkdir: mkdirP, lstat, chmod } = await import('fs/promises')
+  if (getPlatform() === 'windows') {
+    await mkdirP(dir, { recursive: true })
+    await chmod(dir, 0o700).catch(() => {})
+    return
+  }
   await mkdirP(dir, { recursive: true, mode: 0o700 })
   const uid = process.getuid?.()
   const st = await lstat(dir)
   if (uid !== undefined && st.uid !== uid) {
-    throw new Error(`refusing to bind: ${dir} is owned by uid ${st.uid}`)
+    throw new Error(`refusing to use daemon dir: ${dir} is owned by uid ${st.uid}`)
   }
   if ((st.mode & 511) !== 448) await chmod(dir, 0o700)
 }

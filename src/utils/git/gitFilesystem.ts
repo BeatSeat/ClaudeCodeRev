@@ -493,6 +493,21 @@ class GitFileWatcher {
     this.gitDir = null
     this.commonDir = null
   }
+
+  /**
+   * Official 2.1.176 `reanchor` (`Ll` / `reanchorGitFileWatcher`).
+   * Drop cwd-bound watches + cache after `/cd` or a worktree move so the
+   * next read resolves the new repo. Unlike `reset()`, official does not
+   * clear `repoWatchers` (this tree has none).
+   */
+  reanchor(): void {
+    this.stopWatching()
+    this.cache.clear()
+    this.initialized = false
+    this.initPromise = null
+    this.gitDir = null
+    this.commonDir = null
+  }
 }
 
 const gitWatcher = new GitFileWatcher()
@@ -584,6 +599,11 @@ export function getCachedDefaultBranch(): Promise<string> {
 /** Reset the git file watcher state. For testing only. */
 export function resetGitFileWatcher(): void {
   gitWatcher.reset()
+}
+
+/** Official 2.1.176 `Ll`. */
+export function reanchorGitFileWatcher(): void {
+  gitWatcher.reanchor()
 }
 
 /**
