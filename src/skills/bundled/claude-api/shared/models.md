@@ -8,6 +8,21 @@ If you're unsure which model to use, consider starting with **Claude Opus 4.6** 
 
 All current Claude models support text and image input, text output, multilingual capabilities, and vision. Models are available via the Claude API, AWS Bedrock, and Google Vertex AI.
 
+## Current Models (recommended)
+
+| Friendly Name     | Alias (use this)    | Full ID                       | Context        | Max Output | Status |
+|-------------------|---------------------|-------------------------------|----------------|------------|--------|
+| Claude Fable 5    | `{{FABLE_ID}}`      | —                             | 1M             | 128K       | Active |
+| Claude Opus 4.8   | `claude-opus-4-8`   | —                             | 1M             | 128K       | Active |
+| Claude Opus 4.7   | `claude-opus-4-7`   | —                             | 1M             | 128K       | Active |
+| Claude Opus 4.6   | `claude-opus-4-6`   | —                             | 1M             | 128K       | Active |
+| Claude Sonnet 4.6 | `claude-sonnet-4-6` | -                             | 1M             | 64K        | Active |
+| Claude Haiku 4.5  | `claude-haiku-4-5`  | `claude-haiku-4-5-20251001`   | 200K           | 64K        | Active |
+
+### Model Descriptions
+- **Claude Fable 5** — Our most powerful, most intelligent model. New tier above Opus. Same API surface as Opus 4.7/4.8 (see `shared/model-migration.md`) with one new breaking change: an explicit `thinking: {type: "disabled"}` returns a 400 (omit the `thinking` param instead); $10/$50 per MTok.
+- **Claude Opus 4.8** — The most capable Opus-tier model — highly autonomous, state-of-the-art on long-horizon agentic work, knowledge work, and memory; clearer, warmer writing. Same API surface as Opus 4.7 (adaptive thinking only; sampling parameters and `budget_tokens` removed). 1M context window at standard API pricing (no long-context premium). See `shared/model-migration.md` → Migrating to Opus 4.8 — a 4.7 → 4.8 move is a model-ID swap plus prompt re-tuning, no new breaking changes.
+
 ### Latest models comparison
 
 | Feature | Claude Opus 4.6 | Claude Sonnet 4.6 | Claude Haiku 4.5 |

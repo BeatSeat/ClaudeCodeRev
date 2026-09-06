@@ -127,7 +127,8 @@ const FRONTIER_MODEL_NAME = 'Claude Opus 4.6'
 
 // @[MODEL LAUNCH]: Update the model family IDs below to the latest in each tier.
 const CLAUDE_4_5_OR_4_6_MODEL_IDS = {
-  opus: 'claude-opus-4-6',
+  fable: 'claude-fable-5',
+  opus: 'claude-opus-4-8',
   sonnet: 'claude-sonnet-4-6',
   haiku: 'claude-haiku-4-5-20251001',
 }
@@ -735,13 +736,13 @@ export async function computeSimpleEnvInfo(
     knowledgeCutoffMessage,
     process.env.USER_TYPE === 'ant' && isUndercover()
       ? null
-      : `The most recent Claude model family is Claude 4.5/4.6. Model IDs — Opus 4.6: '${CLAUDE_4_5_OR_4_6_MODEL_IDS.opus}', Sonnet 4.6: '${CLAUDE_4_5_OR_4_6_MODEL_IDS.sonnet}', Haiku 4.5: '${CLAUDE_4_5_OR_4_6_MODEL_IDS.haiku}'. When building AI applications, default to the latest and most capable Claude models.`,
+      : `The most recent Claude models are Fable 5 and the Claude 4.X family. Model IDs — Fable 5: '${CLAUDE_4_5_OR_4_6_MODEL_IDS.fable}', Opus 4.8: '${CLAUDE_4_5_OR_4_6_MODEL_IDS.opus}', Sonnet 4.6: '${CLAUDE_4_5_OR_4_6_MODEL_IDS.sonnet}', Haiku 4.5: '${CLAUDE_4_5_OR_4_6_MODEL_IDS.haiku}'. When building AI applications, default to the latest and most capable Claude models.`,
     process.env.USER_TYPE === 'ant' && isUndercover()
       ? null
       : `Claude Code is available as a CLI in the terminal, desktop app (Mac/Windows), web app (claude.ai/code), and IDE extensions (VS Code, JetBrains).`,
     process.env.USER_TYPE === 'ant' && isUndercover()
       ? null
-      : `Fast mode for Claude Code uses the same ${FRONTIER_MODEL_NAME} model with faster output. It does NOT switch to a different model. It can be toggled with /fast.`,
+      : `Fast mode for Claude Code uses Claude Opus with faster output (it does not downgrade to a smaller model). It can be toggled with /fast and is available on Opus 4.8/4.7/4.6.`,
   ].filter(item => item !== null)
 
   return [
@@ -786,9 +787,15 @@ export async function getExcludedDynamicSectionsContent(
 // @[MODEL LAUNCH]: Add a knowledge cutoff date for the new model.
 function getKnowledgeCutoff(modelId: string): string | null {
   const canonical = getCanonicalName(modelId)
+  // Official 2.1.170 `SMq`
+  if (canonical === 'claude-fable-5' || canonical === 'claude-mythos-5') {
+    return 'January 2026'
+  }
   if (canonical.includes('claude-sonnet-4-6')) {
     return 'August 2025'
   } else if (canonical.includes('claude-opus-4-8')) {
+    return 'January 2026'
+  } else if (canonical.includes('claude-opus-4-7')) {
     return 'January 2026'
   } else if (canonical.includes('claude-opus-4-6')) {
     return 'May 2025'

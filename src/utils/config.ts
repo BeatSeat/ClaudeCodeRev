@@ -517,6 +517,8 @@ export type GlobalConfig = {
   opus47LaunchSeenCount?: number
   /** Official 2.1.154 SI: pin Opus 4.8 launch default (high) until /effort. */
   unpinOpus48LaunchEffort?: boolean
+  /** Official 2.1.170 `BC`: pin Fable 5 launch default (high) until /effort. */
+  unpinFable5LaunchEffort?: boolean
 
   // Fullscreen in-app text selection behavior
   copyOnSelect?: boolean // Auto-copy to clipboard on mouse-up (undefined → true; lets cmd+c "work" via no-op)
@@ -691,6 +693,7 @@ function createDefaultGlobalConfig(): GlobalConfig {
     copyFullResponse: false,
     unpinOpus47LaunchEffort: false,
     unpinOpus48LaunchEffort: false,
+    unpinFable5LaunchEffort: false,
   }
 }
 

@@ -1820,7 +1820,7 @@ async function run(): Promise<CommanderCommand> {
     // @[MODEL LAUNCH]: Update the example model ID in the --model help text.
     .option(
       '--model <model>',
-      `Model for the current session. Provide an alias for the latest model (e.g. 'sonnet' or 'opus') or a model's full name (e.g. 'claude-sonnet-4-6').`,
+      `Model for the current session. Provide an alias for the latest model (e.g. 'fable', 'opus', or 'sonnet') or a model's full name (e.g. 'claude-fable-5').`,
     )
     .addOption(
       new Option(

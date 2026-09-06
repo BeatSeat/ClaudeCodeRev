@@ -342,9 +342,9 @@ export const POWERUP_LESSONS: PowerupLesson[] = [
     body: (
       <Box flexDirection="column" gap={1}>
         <Text>
-          Run <Cmd>/model</Cmd> to switch models. Opus for hard problems,
-          Sonnet for most work, Haiku for quick questions. Each trades speed
-          for depth.
+          Run <Cmd>/model</Cmd> to switch models. Fable for the hardest
+          problems, Opus for complex work, Sonnet for most tasks, Haiku for
+          quick questions. Each trades speed for depth.
         </Text>
         <Demo
           frames={[

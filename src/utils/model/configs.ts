@@ -103,6 +103,27 @@ export const CLAUDE_OPUS_4_8_CONFIG = {
   anthropicAws: 'claude-opus-4-8',
 } as const satisfies ModelConfig
 
+/** Official 2.1.170 `bcH`. */
+export const CLAUDE_FABLE_5_CONFIG = {
+  firstParty: 'claude-fable-5',
+  bedrock: 'us.anthropic.claude-fable-5',
+  vertex: 'claude-fable-5',
+  foundry: 'claude-fable-5',
+  anthropicAws: 'claude-fable-5',
+} as const satisfies ModelConfig
+
+/**
+ * Official 2.1.170 `wDK`. Sibling Mythos-class ID used by availability /
+ * display helpers. Not registered in ALL_MODEL_CONFIGS (official `Dz` omits it).
+ */
+export const CLAUDE_MYTHOS_5_CONFIG = {
+  firstParty: 'claude-mythos-5',
+  bedrock: 'us.anthropic.claude-mythos-5',
+  vertex: 'claude-mythos-5',
+  foundry: 'claude-mythos-5',
+  anthropicAws: 'claude-mythos-5',
+} as const satisfies ModelConfig
+
 export const CLAUDE_SONNET_4_6_CONFIG = {
   firstParty: 'claude-sonnet-4-6',
   bedrock: 'us.anthropic.claude-sonnet-4-6',
@@ -126,6 +147,7 @@ export const ALL_MODEL_CONFIGS = {
   opus46: CLAUDE_OPUS_4_6_CONFIG,
   opus47: CLAUDE_OPUS_4_7_CONFIG,
   opus48: CLAUDE_OPUS_4_8_CONFIG,
+  fable5: CLAUDE_FABLE_5_CONFIG,
 } as const satisfies Record<string, ModelConfig>
 
 export type ModelKey = keyof typeof ALL_MODEL_CONFIGS

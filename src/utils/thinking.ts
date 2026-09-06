@@ -91,6 +91,19 @@ export function getRainbowColor(
   return colors[charIndex % colors.length]!
 }
 
+/** Official 2.1.170 `XD_` / `HnH` (was 169 `fV_` / `bnH`). */
+const FABLE_FAMILY_CODENAMES = ['fable', 'fruitcake', 'macaroon', 'mythos']
+
+export function isFableFamilyThinkingModel(model: string): boolean {
+  const lower = model.toLowerCase()
+  if (FABLE_FAMILY_CODENAMES.some(name => lower.includes(name))) {
+    return true
+  }
+  const env = process.env.ANTHROPIC_DEFAULT_FABLE_MODEL
+  if (!env) return false
+  return model.replace(/\[1m]$/, '') === env.replace(/\[1m]$/, '')
+}
+
 // TODO(inigo): add support for probing unknown models via API error detection
 // Provider-aware thinking support detection (aligns with modelSupportsISP in betas.ts)
 export function modelSupportsThinking(model: string): boolean {
@@ -122,8 +135,11 @@ export function modelSupportsAdaptiveThinking(model: string): boolean {
     return supported3P
   }
   const canonical = getCanonicalName(model)
-  // Supported by a subset of Claude 4 models
+  // Official 2.1.170 `$nH`: fable/mythos/opus-4-8 join the adaptive allowlist.
   if (
+    canonical.includes('fable-5') ||
+    canonical.includes('mythos-5') ||
+    canonical.includes('opus-4-8') ||
     canonical.includes('opus-4-7') ||
     canonical.includes('opus-4-6') ||
     canonical.includes('sonnet-4-6')

@@ -14,6 +14,7 @@ import type { IDESelection } from '../../hooks/useIdeSelection.js'
 import { useMainLoopModel } from '../../hooks/useMainLoopModel.js'
 import { useVoiceEnabled } from '../../hooks/useVoiceEnabled.js'
 import { Box, Text } from '../../ink.js'
+import { addFableUsageCreditListener } from '../../services/claudeAiLimits.js'
 import { useClaudeAiLimits } from '../../services/claudeAiLimitsHook.js'
 import { calculateTokenWarningState } from '../../services/compact/autoCompact.js'
 import { useCompactWarningSuppression } from '../../services/compact/compactWarningHook.js'
@@ -33,6 +34,7 @@ import { toIDEDisplayName } from '../../utils/ide.js'
 import { getLastApiCompletionTimestamp } from '../../bootstrap/state.js'
 import { getFeatureValue_CACHED_MAY_BE_STALE } from '../../services/analytics/growthbook.js'
 import { getMessagesAfterCompactBoundary } from '../../utils/messages.js'
+import { modelIdStartsWithFableFamily } from '../../utils/model/model.js'
 import { tokenCountFromLastAPIResponse } from '../../utils/tokens.js'
 import { AutoUpdaterWrapper } from '../AutoUpdaterWrapper.js'
 import { ConfigurableShortcutHint } from '../ConfigurableShortcutHint.js'
@@ -208,6 +210,20 @@ export function Notifications({
     addNotification,
     removeNotification,
   ])
+
+  // Official 2.1.170 `hL8` / `TlH`: Fable plan-limits → usage-credits toast.
+  useEffect(() => {
+    if (!modelIdStartsWithFableFamily(mainLoopModel)) return
+    const show = () => {
+      addNotification({
+        key: 'fable-usage-credits',
+        text: 'Fable 5 is now consuming usage credits instead of your plan limits. Update Claude Code to the latest version to learn more',
+        color: 'error',
+        priority: 'immediate',
+      })
+    }
+    return addFableUsageCreditListener(show)
+  }, [mainLoopModel, addNotification])
 
   return (
     <SentryErrorBoundary>

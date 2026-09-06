@@ -95,6 +95,8 @@ import {
   getDefaultOpusModel,
   getDefaultSonnetModel,
   getSmallFastModel,
+  isFableModel,
+  isMythosModel,
   isNonCustomOpusModel,
 } from '../../utils/model/model.js'
 import {
@@ -248,6 +250,7 @@ import {
 import {
   API_ERROR_MESSAGE_PREFIX,
   CUSTOM_OFF_SWITCH_MESSAGE,
+  FABLE_OFF_SWITCH_MESSAGE,
   getAssistantMessageFromError,
   getErrorMessageIfRefusal,
 } from './errors.js'
@@ -1067,12 +1070,12 @@ async function* queryModel(
   StreamEvent | AssistantMessage | SystemAPIErrorMessage,
   void
 > {
-  // Check cheap conditions first — the off-switch await blocks on GrowthBook
-  // init (~10ms). For non-Opus models (haiku, sonnet) this skips the await
-  // entirely. Subscribers don't hit this path at all.
+  // Official 2.1.170 `wL9`: `N8H || AlH || HD$`, message `AlH ? IxH : RxH`.
   if (
     !isClaudeAISubscriber() &&
-    isNonCustomOpusModel(options.model) &&
+    (isNonCustomOpusModel(options.model) ||
+      isFableModel(options.model) ||
+      isMythosModel(options.model)) &&
     (
       await getDynamicConfig_BLOCKS_ON_INIT<{ activated: boolean }>(
         'tengu-off-switch',
@@ -1084,7 +1087,11 @@ async function* queryModel(
   ) {
     logEvent('tengu_off_switch_query', {})
     yield getAssistantMessageFromError(
-      new Error(CUSTOM_OFF_SWITCH_MESSAGE),
+      new Error(
+        isFableModel(options.model)
+          ? FABLE_OFF_SWITCH_MESSAGE
+          : CUSTOM_OFF_SWITCH_MESSAGE,
+      ),
       options.model,
     )
     return

@@ -1,0 +1,55 @@
+{
+  "version": "2.1.170",
+  "from": "2.1.169",
+  "astdiff": "0.99677",
+  "contract": "astdiff genuine-structural + added-product (changelog is classification only)",
+  "coverage": "restore-work/diffs/2.1.170-astdiff-coverage.md",
+  "items": [
+    {
+      "item": "Introducing Claude Fable 5 (Mythos-class, generally available). Update to 2.1.170 for access. https://www.anthropic.com/news/claude-fable-5-mythos-5",
+      "status": "located",
+      "evidence": "astdiff-driven: bcH/Dz.fable5 configs.ts; wDK not in ALL_MODEL_CONFIGS. AlH/MkH/HD$/h68/_D$/N_H/T0K/Pw6/U7 model.ts. OkH/Zz_ aliases. qnH/AxK/PJ$/hD6/SD_/ID_ PJ$(f) modelOptions.ts. fr7 agent.ts. zt5 cost.ts. $nH thinking.ts. HnH/XD_ + lr7 yoloClassifier. IxH/RxH wL9 errors.ts+claude.ts+AssistantTextMessage. NA4 Fable5Notice. SMq prompts. Oa9 envUtils. ckH unpinFable5LaunchEffort. hL8 overageInUse toast. mXq+SKILL.md Current Models."
+    },
+    {
+      "item": "Fixed sessions not saving transcripts (and not appearing in --resume) when launched from the VS Code integrated terminal or any shell that inherited Claude Code environment variables.",
+      "status": "shared-logic",
+      "evidence": "astdiff lOH was BOH 0.825; ioH history. 169 HkH removed. TS shouldSkipPersistence/addToHistory never called HkH."
+    },
+    {
+      "item": "astdiff: qnH/AxK/PJ$ family-aware Fable picker insert",
+      "status": "located",
+      "evidence": "Official qnH: non-fable push; else after Default + consecutive same-family as AxK(Jj()). TS insertPickerOption. hD6 treats any two fable picker values as the same row."
+    },
+    {
+      "item": "astdiff: IxH Fable capacity off-switch",
+      "status": "located",
+      "evidence": "Official wL9: !kq && (N8H||AlH||HD$) && tengu-off-switch → AlH?IxH:RxH. UI 'We are experiencing high demand for Fable 5.' Mapper + capacity_off_switch include IxH. RxH Opus string kept."
+    },
+    {
+      "item": "astdiff: $nH adaptive thinking + HnH/lr7 classifier headroom",
+      "status": "located",
+      "evidence": "$nH adds claude-fable-5/mythos-5/opus-4-8. HnH XD_=['fable','fruitcake','macaroon','mythos']||h8H. lr7 if HnH return [undefined,2048]. astdiff XQf→HnH is a false pair; 169 parent is bnH."
+    },
+    {
+      "item": "astdiff: zt5 cost family classifier",
+      "status": "located",
+      "evidence": "Fa5→zt5 0.773 used by nw4 /cost breakdown. Not PIN_TIERS. shortModelFamily fable first."
+    },
+    {
+      "item": "astdiff: announcement registry pxf {id:fable5-launch}",
+      "status": "partial",
+      "evidence": "Official Qxf includes pxf. No Qxf registry in this tree (pre-existing). Launch copy via LogoV2 NA4. dist fable5-launch=0."
+    },
+    {
+      "item": "astdiff: I68→LxK / YTK→Z78 refusal-fallback copy",
+      "status": "partial",
+      "evidence": "Genuine mods of 169 I68/YTK. TS has no x-is-refusal-fallback / model_refusal_fallback parent. Not invented. Official strings: Mythos-level GJ$ + https://support.claude.com/en/articles/15363606."
+    },
+    {
+      "item": "astdiff: Bu fallback-credit-2026-06-01",
+      "status": "partial",
+      "evidence": "Official Bu date bump. No TS beta-header registry (pre-existing)."
+    }
+  ],
+  "notes": "Mythos5 config is not in ALL_MODEL_CONFIGS (official Dz omits it). ModelConfig still lacks mantle/gateway/eagerInputStreaming — pre-existing, not backfilled. isFableAvailable omits official gateway + org-disabled/ajH checks so Fable strings stay reachable. hD_ 3P i_H(*) assembly not fully ported. HelpV2 false-maps not rewritten. PIN_TIERS unchanged. No 2.1.172+ product. Skill language guides still 169-era examples."
+}

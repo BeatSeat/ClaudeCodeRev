@@ -6,6 +6,7 @@ import {
   applyOpus1mMergeIfNeeded,
   getCanonicalName,
   getRuntimeMainLoopModel,
+  isFableAvailable,
   parseUserSpecifiedModel,
 } from './model.js'
 import { getAPIProvider } from './providers.js'
@@ -115,6 +116,8 @@ export function getAgentModel(
 function aliasMatchesParentTier(alias: string, parentModel: string): boolean {
   const canonical = getCanonicalName(parentModel)
   switch (alias.toLowerCase()) {
+    case 'fable':
+      return canonical.includes('fable')
     case 'opus':
       return canonical.includes('opus')
     case 'sonnet':
@@ -137,26 +140,36 @@ export function getAgentModelDisplay(model: string | undefined): string {
  * Get available model options for agents
  */
 export function getAgentModelOptions(): AgentModelOption[] {
-  return [
+  // Official 2.1.170 `fr7`: Fable when `N_H() || !wf() || anthropicAws`.
+  const options: AgentModelOption[] = []
+  if (isFableAvailable() || getAPIProvider() !== 'firstParty') {
+    options.push({
+      value: 'fable',
+      label: 'Fable',
+      description: 'Most capable for your hardest and longest-running tasks',
+    })
+  }
+  options.push(
     {
       value: 'sonnet',
       label: 'Sonnet',
-      description: 'Balanced performance - best for most agents',
+      description: 'Efficient for routine tasks',
     },
     {
       value: 'opus',
       label: 'Opus',
-      description: 'Most capable for complex reasoning tasks',
+      description: 'Best for everyday, complex tasks',
     },
     {
       value: 'haiku',
       label: 'Haiku',
-      description: 'Fast and efficient for simple tasks',
+      description: 'Fastest for quick answers',
     },
     {
       value: 'inherit',
       label: 'Inherit from parent',
       description: 'Use the same model as the main conversation',
     },
-  ]
+  )
+  return options
 }

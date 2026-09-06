@@ -43,6 +43,8 @@ export function modelSupportsEffort(model: string): boolean {
     return true
   }
   if (
+    q.includes('fable-5') ||
+    q.includes('mythos-5') ||
     q.includes('opus-4-8') ||
     q.includes('opus-4-7') ||
     q.includes('opus-4-6') ||
@@ -92,7 +94,12 @@ export function modelSupportsXHighEffort(model: string): boolean {
     return supported3P
   }
   const lower = model.toLowerCase()
-  return lower.includes('opus-4-8') || lower.includes('opus-4-7')
+  return (
+    lower.includes('fable-5') ||
+    lower.includes('mythos-5') ||
+    lower.includes('opus-4-8') ||
+    lower.includes('opus-4-7')
+  )
 }
 
 export function modelSupportsMaxEffort(model: string): boolean {
@@ -322,9 +329,9 @@ export function getEffortLevelDescription(level: EffortLevel): string {
     case 'high':
       return 'Comprehensive implementation with extensive testing and documentation'
     case 'xhigh':
-      return 'Deeper reasoning than high, just below maximum (Opus 4.8/4.7 only)'
+      return 'Deeper reasoning than high, just below maximum (Fable 5, Opus 4.8/4.7 only)'
     case 'max':
-      return 'Maximum capability with deepest reasoning'
+      return 'Maximum capability with deepest reasoning. May use excessive tokens resulting in long response times or overthinking. Use sparingly for the hardest tasks.'
   }
 }
 
@@ -419,7 +426,14 @@ export function applyEffortSelection(
   return parsed ?? getInitialEffortSetting()
 }
 
-/** Official 2.1.154 AkH: pin opus-4-7 → xhigh and opus-4-8 → high until /effort. */
+/** Official 2.1.170 `h8H`. */
+function isDefaultFableModelEnv(model: string): boolean {
+  const env = process.env.ANTHROPIC_DEFAULT_FABLE_MODEL
+  if (!env) return false
+  return model.replace(/\[1m]$/, '') === env.replace(/\[1m]$/, '')
+}
+
+/** Official 2.1.154 `AkH` / 2.1.170 `ckH`: pin launch defaults until /effort. */
 export function isOpusLaunchEffortPinned(model: string): boolean {
   const lower = model.toLowerCase()
   const cfg = getGlobalConfig()
@@ -429,6 +443,9 @@ export function isOpusLaunchEffortPinned(model: string): boolean {
   if (lower.includes('opus-4-8')) {
     return !cfg.unpinOpus48LaunchEffort
   }
+  if (lower.includes('fable-5') || isDefaultFableModelEnv(model)) {
+    return !cfg.unpinFable5LaunchEffort
+  }
   return false
 }
 
@@ -436,15 +453,18 @@ export function unpinOpus47LaunchEffort(): void {
   unpinOpusLaunchEffort()
 }
 
-/** Official 2.1.154 SI: write both unpin flags together. */
+/** Official 2.1.154 `SI` / 2.1.170 `BC`: write all launch-effort unpin flags together. */
 export function unpinOpusLaunchEffort(): void {
   saveGlobalConfig(current =>
-    current.unpinOpus47LaunchEffort && current.unpinOpus48LaunchEffort
+    current.unpinOpus47LaunchEffort &&
+    current.unpinOpus48LaunchEffort &&
+    current.unpinFable5LaunchEffort
       ? current
       : {
           ...current,
           unpinOpus47LaunchEffort: true,
           unpinOpus48LaunchEffort: true,
+          unpinFable5LaunchEffort: true,
         },
   )
 }
