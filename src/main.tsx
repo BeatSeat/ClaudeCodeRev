@@ -249,10 +249,13 @@ import { getModelDeprecationWarning } from './utils/model/deprecation.js'
 import { isModelAllowed } from './utils/model/modelAllowlist.js'
 import {
   getDefaultMainLoopModel,
+  getDefaultMainLoopModelSetting,
   getUserSpecifiedModelSetting,
+  isWindowSilentDefaultPick,
   normalizeModelStringForAPI,
   parseUserSpecifiedModel,
 } from './utils/model/model.js'
+import { updateJobRespawnFlag } from './daemon/bg/jobState.js'
 import { ensureModelStringsInitialized } from './utils/model/modelStrings.js'
 import { PERMISSION_MODES } from './utils/permissions/PermissionMode.js'
 import {
@@ -292,6 +295,7 @@ import {
   getManagedSettingsKeysForLogging,
   getSettingsForSource,
   getSettingsWithErrors,
+  getSettings_DEPRECATED,
 } from './utils/settings/settings.js'
 import { resetSettingsCache } from './utils/settings/settingsCache.js'
 import { getUserIntentSetting } from './utils/settings/userIntent.js'
@@ -538,6 +542,98 @@ if ("external" !== 'ant' && isBeingDebugged()) {
   // and gracefulShutdown is not yet available
   // eslint-disable-next-line custom-rules/no-top-level-side-effects
   process.exit(1)
+}
+
+/** Official 2.1.175 `PBK`. */
+export function resolveStartupModelConfig(params: {
+  cli: { model?: string }
+  env: NodeJS.ProcessEnv
+  settings: ReturnType<typeof getSettings_DEPRECATED>
+  agentFrontmatter?: { model?: string }
+}): {
+  effectiveModel: string | undefined
+  initialMainLoopModel: string | null
+  resolvedInitialModel: string
+  restrictedModel: string | undefined
+} {
+  const { cli, env, settings, agentFrontmatter } = params
+  let effectiveModel =
+    cli.model === 'default'
+      ? getDefaultMainLoopModel()
+      : cli.model
+  const agentModel = agentFrontmatter?.model
+  let frontmatterModel: string | undefined
+  if (!effectiveModel && agentModel && agentModel !== 'inherit') {
+    frontmatterModel = agentModel
+    effectiveModel = parseUserSpecifiedModel(agentModel)
+  }
+  const isDefaultPick = false
+  let rawSetting = effectiveModel
+  if (rawSetting === undefined) {
+    rawSetting = env.ANTHROPIC_MODEL || settings?.model || undefined
+  }
+  let restrictedModel: string | undefined
+  if (rawSetting && !isModelAllowed(rawSetting)) {
+    const candidate =
+      frontmatterModel !== undefined && !isDefaultPick
+        ? frontmatterModel
+        : rawSetting
+    if (
+      !(
+        candidate.trim().toLowerCase() === 'default' ||
+        isWindowSilentDefaultPick(candidate)
+      ) &&
+      !isDefaultPick
+    ) {
+      restrictedModel = candidate
+    }
+    rawSetting = undefined
+    effectiveModel = undefined
+  }
+  const initialMainLoopModel = rawSetting || null
+  const resolvedInitialModel = parseUserSpecifiedModel(
+    initialMainLoopModel ?? getDefaultMainLoopModel(),
+  )
+  return {
+    effectiveModel,
+    initialMainLoopModel,
+    resolvedInitialModel,
+    restrictedModel,
+  }
+}
+
+/** Official 2.1.175 `Sn9`. */
+export function resolveStartupModel(params: {
+  userSpecifiedModel?: string
+  agentModel?: string
+}): {
+  effectiveModel: string | undefined
+  initialMainLoopModel: string | null
+  resolvedInitialModel: string
+  restrictedModel: string | undefined
+} {
+  const {
+    effectiveModel,
+    initialMainLoopModel,
+    resolvedInitialModel,
+    restrictedModel,
+  } = resolveStartupModelConfig({
+    cli: { model: params.userSpecifiedModel },
+    env: process.env,
+    settings: getSettings_DEPRECATED() || {},
+    agentFrontmatter:
+      params.agentModel !== undefined ? { model: params.agentModel } : undefined,
+  })
+  setMainLoopModelOverride(effectiveModel)
+  setInitialMainLoopModel(initialMainLoopModel)
+  updateJobRespawnFlag('--model', ['-m'], initialMainLoopModel)
+  logEvent('tengu_feature_ok', { feature_name: 'startup_resolve_model' as any })
+  return {
+    effectiveModel,
+    initialMainLoopModel,
+    resolvedInitialModel,
+    restrictedModel,
+  }
 }
 
 /**
@@ -3310,27 +3406,15 @@ async function run(): Promise<CommanderCommand> {
         }
       }
 
-      // Compute effective model early so hooks can run in parallel with MCP
-      // If user didn't specify a model but agent has one, use the agent's model
-      let effectiveModel = userSpecifiedModel
-      if (
-        !effectiveModel &&
-        mainThreadAgentDefinition?.model &&
-        mainThreadAgentDefinition.model !== 'inherit'
-      ) {
-        effectiveModel = parseUserSpecifiedModel(
-          mainThreadAgentDefinition.model,
-        )
-      }
-
-      setMainLoopModelOverride(effectiveModel)
-
-      // Compute resolved model for hooks (use user-specified model at launch)
-      setInitialMainLoopModel(getUserSpecifiedModelSetting() || null)
-      const initialMainLoopModel = getInitialMainLoopModel()
-      const resolvedInitialModel = parseUserSpecifiedModel(
-        initialMainLoopModel ?? getDefaultMainLoopModel(),
-      )
+      const {
+        effectiveModel,
+        initialMainLoopModel,
+        resolvedInitialModel,
+        restrictedModel,
+      } = resolveStartupModel({
+        userSpecifiedModel,
+        agentModel: mainThreadAgentDefinition?.model,
+      })
 
       let advisorModel: string | undefined
       if (isAdvisorEnabled()) {
@@ -4360,6 +4444,7 @@ async function run(): Promise<CommanderCommand> {
             systemPrompt,
             appendSystemPrompt,
             userSpecifiedModel: effectiveModel,
+            restrictedStartupModel: restrictedModel,
             fallbackModel: userSpecifiedFallbackModels,
             teleport,
             sdkUrl,
@@ -4503,6 +4588,23 @@ async function run(): Promise<CommanderCommand> {
             plugins: [],
           },
           needsRefresh: false,
+        },
+        setupIssues: {
+          settingsErrorCount: 0,
+          lspFailedCount: 0,
+          installBrokenMessages: [],
+          installPathCount: 0,
+          marketplaceIssueCount: 0,
+          chromeExtensionIssueCount: 0,
+          npmInstallDeprecated: false,
+          sandboxIssueCount: 0,
+          statuslineIssueCount: 0,
+          flaggedPluginCount: 0,
+          modelDeprecationWarning: deprecationWarning ?? null,
+          modelRestrictedWarning: restrictedModel
+            ? { requested: restrictedModel, effective: resolvedInitialModel }
+            : null,
+          existingClaudeSubscription: null,
         },
         statusLineText: undefined,
         kairosEnabled,

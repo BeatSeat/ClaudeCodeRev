@@ -281,6 +281,7 @@ import {
 } from 'src/utils/messages/mappers.js'
 import {
   createModelSwitchBreadcrumbs,
+  createSystemMessage,
   getContentText,
 } from 'src/utils/messages.js'
 import { collectContextData } from 'src/commands/context/context-noninteractive.js'
@@ -290,11 +291,19 @@ import {
   type ClaudeAILimits,
 } from 'src/services/claudeAiLimits.js'
 import {
+  formatModelRestrictedWarning,
   getDefaultMainLoopModel,
+  getDefaultMainLoopModelSetting,
   getMainLoopModel,
+  isExemptDefaultResolvingPick,
   modelDisplayString,
   parseUserSpecifiedModel,
+  sanitizeModelNameForDisplay,
 } from 'src/utils/model/model.js'
+import {
+  isModelAllowed,
+  isModelAllowedUnderActiveEnforcement,
+} from 'src/utils/model/modelAllowlist.js'
 import { getModelOptions } from 'src/utils/model/modelOptions.js'
 import {
   modelSupportsEffort,
@@ -307,6 +316,7 @@ import { modelSupportsAutoMode } from 'src/utils/betas.js'
 import { ensureModelStringsInitialized } from 'src/utils/model/modelStrings.js'
 import {
   getSessionId,
+  getMainLoopModelOverride,
   setMainLoopModelOverride,
   setMainThreadAgentType,
   switchSession,
@@ -552,6 +562,89 @@ function cancelStaleParkedPrompt(
   })
 }
 
+/** Official 2.1.175 `Aa9`. */
+export function shouldWarnRestrictedStartupModel(
+  userSpecifiedModel: string | undefined,
+  restrictedStartupModel: string | undefined,
+): boolean {
+  return (
+    userSpecifiedModel === undefined ||
+    parseUserSpecifiedModel(userSpecifiedModel) !==
+      parseUserSpecifiedModel(restrictedStartupModel)
+  )
+}
+
+/** Official 2.1.175 `za9`. */
+export function resolveDefaultPickRepoint(
+  turnOptions: Record<string, any>,
+  activeUserSpecifiedModel: string | undefined,
+  currentMainLoopModel: string | null,
+): string | null | undefined {
+  if (
+    'model' in turnOptions &&
+    (turnOptions.model == null ||
+      String(turnOptions.model).trim().toLowerCase() === 'default') &&
+    activeUserSpecifiedModel !== undefined &&
+    activeUserSpecifiedModel !== currentMainLoopModel
+  ) {
+    return currentMainLoopModel
+  }
+  return undefined
+}
+
+/** Official 2.1.175 `Ya9`. */
+export function modelOverrideToAdoptAfterTurn({
+  activeUserSpecifiedModel,
+  overrideAtTurnStart,
+  overrideAtTurnEnd,
+}: {
+  activeUserSpecifiedModel: string | undefined
+  overrideAtTurnStart: string | null | undefined
+  overrideAtTurnEnd: string | null | undefined
+}):
+  | { kind: 'keep'; blockedByAllowlist?: string; allowedOverrideApplied?: boolean }
+  | { kind: 'clearToSessionDefault' }
+  | { kind: 'adopt'; model: string } {
+  if (activeUserSpecifiedModel === undefined) {
+    if (overrideAtTurnEnd !== overrideAtTurnStart) {
+      if (typeof overrideAtTurnEnd === 'string') {
+        const candidate =
+          overrideAtTurnEnd.trim().toLowerCase() === 'default'
+            ? getDefaultMainLoopModel()
+            : overrideAtTurnEnd
+        if (!isModelAllowed(candidate) && !isExemptDefaultResolvingPick(candidate)) {
+          return { kind: 'keep', blockedByAllowlist: overrideAtTurnEnd }
+        }
+      }
+      return { kind: 'keep', allowedOverrideApplied: true }
+    }
+    return { kind: 'keep' }
+  }
+  if (overrideAtTurnEnd === overrideAtTurnStart) {
+    return { kind: 'keep' }
+  }
+  if (overrideAtTurnEnd === null) {
+    return { kind: 'clearToSessionDefault' }
+  }
+  if (typeof overrideAtTurnEnd !== 'string') {
+    return { kind: 'keep' }
+  }
+  const candidate =
+    overrideAtTurnEnd.trim().toLowerCase() === 'default'
+      ? getDefaultMainLoopModel()
+      : overrideAtTurnEnd
+  if (
+    parseUserSpecifiedModel(candidate) ===
+    parseUserSpecifiedModel(activeUserSpecifiedModel)
+  ) {
+    return { kind: 'keep' }
+  }
+  if (!isExemptDefaultResolvingPick(candidate) && !isModelAllowed(candidate)) {
+    return { kind: 'keep', blockedByAllowlist: overrideAtTurnEnd }
+  }
+  return { kind: 'adopt', model: candidate }
+}
+
 export async function runHeadless(
   inputPrompt: string | AsyncIterable<string>,
   getAppState: () => AppState,
@@ -576,6 +669,7 @@ export async function runHeadless(
     systemPrompt: string | undefined
     appendSystemPrompt: string | undefined
     userSpecifiedModel: string | undefined
+    restrictedStartupModel?: string | undefined
     fallbackModel: string | string[] | undefined
     teleport: string | true | null | undefined
     sdkUrl: string | undefined
@@ -870,6 +964,34 @@ export async function runHeadless(
     return
   }
 
+  let startupRestrictedWarningMessage: Message | undefined
+  if (
+    options.restrictedStartupModel &&
+    shouldWarnRestrictedStartupModel(
+      options.userSpecifiedModel,
+      options.restrictedStartupModel,
+    )
+  ) {
+    const warningText = formatModelRestrictedWarning(
+      options.restrictedStartupModel,
+      getMainLoopModel(),
+    )
+    if (
+      !initialMessages.some(
+        msg =>
+          msg.type === 'system' &&
+          msg.subtype === 'informational' &&
+          msg.content.includes(warningText),
+      )
+    ) {
+      initialMessages.push(createSystemMessage(warningText, 'warning'))
+    }
+    startupRestrictedWarningMessage = createSystemMessage(
+      warningText,
+      'warning',
+    )
+  }
+
   // Handle --rewind-files: restore filesystem and exit immediately
   if (options.rewindFiles) {
     // File history snapshots are only created for user messages,
@@ -1007,6 +1129,7 @@ export async function runHeadless(
       : null
 
   headlessProfilerCheckpoint('before_runHeadlessStreaming')
+  let streamedSystemInit = false
   for await (const message of runHeadlessStreaming(
     structuredIO,
     appState.mcp.clients,
@@ -1030,6 +1153,22 @@ export async function runHeadless(
       }
     } else if (options.outputFormat === 'stream-json' && options.verbose) {
       await structuredIO.write(message)
+      const streamed = message as { type?: string; subtype?: string }
+      if (
+        !streamedSystemInit &&
+        streamed.type === 'system' &&
+        streamed.subtype === 'init'
+      ) {
+        streamedSystemInit = true
+      }
+      if (streamedSystemInit && startupRestrictedWarningMessage) {
+        const pending = startupRestrictedWarningMessage
+        startupRestrictedWarningMessage = undefined
+        await structuredIO.write({
+          ...pending,
+          session_id: getSessionId(),
+        } as unknown as StdoutMessage)
+      }
     }
     // Should not be getting control messages or stream events in non-stream mode.
     // Also filter out streamlined types since they're only produced by the transformer.
@@ -1307,6 +1446,24 @@ function runHeadlessStreaming(
   // include Assistant, User, Attachment, and Progress messages.
   // TODO: Clean up this code to avoid passing around a mutable array.
   const mutableMessages: Message[] = initialMessages
+
+  let lastRestrictedWarningModel: string | undefined
+  function emitModelRestrictedWarning(requested: string, effective?: string) {
+    if (requested === lastRestrictedWarningModel) return
+    lastRestrictedWarningModel = requested
+    const warningMsg = createSystemMessage(
+      formatModelRestrictedWarning(requested, effective ?? getMainLoopModel()),
+      'warning',
+    )
+    mutableMessages.push(warningMsg)
+    output.enqueue({
+      ...warningMsg,
+      session_id: getSessionId(),
+    } as unknown as StdoutMessage)
+  }
+  function clearRestrictedWarningState() {
+    lastRestrictedWarningModel = undefined
+  }
 
   // Seed the readFileState cache from the transcript (content the model saw,
   // with message timestamps) so getChangedFiles can detect external edits.
@@ -2327,6 +2484,7 @@ function runHeadlessStreaming(
           const cmd = command
           await runWithWorkload(cmd.workload ?? options.workload, async () => {
             await runWithInteractionContext(input, async () => {
+            const overrideAtTurnStart = getMainLoopModelOverride()
             try {
             for await (const message of ask({
               commands: uniqBy(
@@ -2432,8 +2590,47 @@ function runHeadlessStreaming(
                 output.enqueue(message)
               }
             }
-            pendingDeferredToolUse = undefined
             } finally {
+              const adopted = modelOverrideToAdoptAfterTurn({
+                activeUserSpecifiedModel,
+                overrideAtTurnStart,
+                overrideAtTurnEnd: getMainLoopModelOverride(),
+              })
+              if (
+                adopted.kind !== 'keep' &&
+                activeUserSpecifiedModel !== undefined
+              ) {
+                logEvent('tengu_print_model_override_adopted', {
+                  from_model_scope: /-eap($|\[)/i.test(activeUserSpecifiedModel)
+                    ? 'eap'
+                    : 'other',
+                  ...(adopted.kind === 'adopt'
+                    ? {
+                        to_model_scope: /-eap($|\[)/i.test(adopted.model)
+                          ? 'eap'
+                          : 'other',
+                      }
+                    : { cleared_to_session_default: true }),
+                } as any)
+                activeUserSpecifiedModel =
+                  adopted.kind === 'adopt' ? adopted.model : undefined
+                clearRestrictedWarningState()
+              }
+              if (adopted.kind === 'keep' && adopted.allowedOverrideApplied) {
+                clearRestrictedWarningState()
+              }
+              if (
+                adopted.kind === 'keep' &&
+                adopted.blockedByAllowlist !== undefined &&
+                (activeUserSpecifiedModel === undefined ||
+                  isExemptDefaultResolvingPick(activeUserSpecifiedModel) ||
+                  isModelAllowed(activeUserSpecifiedModel))
+              ) {
+                emitModelRestrictedWarning(
+                  adopted.blockedByAllowlist,
+                  activeUserSpecifiedModel,
+                )
+              }
               endInteractionSpan()
             }
             })
@@ -3088,7 +3285,7 @@ function runHeadlessStreaming(
             }
           }
 
-          await handleInitializeRequest(
+          const initResult = await handleInitializeRequest(
             message.request,
             message.request_id,
             initialized,
@@ -3101,6 +3298,9 @@ function runHeadlessStreaming(
             agents,
             getAppState,
           )
+          if (initResult?.restrictedAgentModel) {
+            emitModelRestrictedWarning(initResult.restrictedAgentModel)
+          }
 
           // Enable prompt suggestions in AppState when SDK consumer opts in.
           // shouldEnablePromptSuggestion() returns false for non-interactive
@@ -3143,16 +3343,52 @@ function runHeadlessStreaming(
           // now fired by onChangeAppState (with externalized mode name).
         } else if (message.request.subtype === 'set_model') {
           const requestedModel = message.request.model ?? 'default'
-          const model =
-            requestedModel === 'default'
-              ? getDefaultMainLoopModel()
-              : requestedModel
-          activeUserSpecifiedModel = model
-          setMainLoopModelOverride(model)
-          notifySessionMetadataChanged({ model })
-          injectModelSwitchBreadcrumbs(requestedModel, model)
-
-          sendControlResponseSuccess(message)
+          const isDefault = requestedModel.trim().toLowerCase() === 'default'
+          const model = isDefault
+            ? getDefaultMainLoopModel()
+            : requestedModel
+          if (
+            !isDefault &&
+            !isExemptDefaultResolvingPick(model) &&
+            !(
+              isModelAllowedUnderActiveEnforcement(model) ??
+              isModelAllowed(model)
+            )
+          ) {
+            const fallbackModel =
+              activeUserSpecifiedModel !== undefined &&
+              (isExemptDefaultResolvingPick(activeUserSpecifiedModel) ||
+                isModelAllowed(activeUserSpecifiedModel))
+                ? parseUserSpecifiedModel(activeUserSpecifiedModel)
+                : undefined
+            emitModelRestrictedWarning(requestedModel, fallbackModel)
+            sendControlResponseError(
+              message,
+              formatModelRestrictedWarning(
+                requestedModel,
+                fallbackModel ?? getMainLoopModel(),
+              ),
+            )
+          } else {
+            const prevEffective = getMainLoopModel()
+            const prevActive = activeUserSpecifiedModel
+            activeUserSpecifiedModel = model
+            setMainLoopModelOverride(model)
+            setAppState(prev => ({
+              ...prev,
+              mainLoopModelForSession: model,
+            }))
+            notifySessionMetadataChanged({ model })
+            if (
+              getMainLoopModel() !== prevEffective ||
+              parseUserSpecifiedModel(model) !==
+                parseUserSpecifiedModel(prevActive ?? prevEffective)
+            ) {
+              injectModelSwitchBreadcrumbs(requestedModel, model)
+            }
+            clearRestrictedWarningState()
+            sendControlResponseSuccess(message)
+          }
         } else if (message.request.subtype === 'set_max_thinking_tokens') {
           if (message.request.max_thinking_tokens === null) {
             options.thinkingConfig = undefined
@@ -4046,28 +4282,81 @@ function runHeadlessStreaming(
           // previous direct call skipped.
           settingsChangeDetector.notifyChange('flagSettings')
 
-          // If the incoming settings include a model change, update the
-          // override so getMainLoopModel() reflects it. The override has
-          // higher priority than the settings cascade in
-          // getUserSpecifiedModelSetting(), so without this update,
-          // getMainLoopModel() returns the stale override and the model
-          // change is silently ignored (matching set_model at :2811).
-          if ('model' in incoming) {
-            if (incoming.model != null) {
-              setMainLoopModelOverride(String(incoming.model))
-            } else {
-              setMainLoopModelOverride(undefined)
-            }
+          // Official 2.1.175 apply_flag_settings model rewrite (T6/H6/za9/fH).
+          const blockedByAllowlist =
+            'model' in incoming &&
+            incoming.model != null &&
+            String(incoming.model).trim().toLowerCase() !== 'default' &&
+            !isExemptDefaultResolvingPick(String(incoming.model)) &&
+            !(
+              isModelAllowedUnderActiveEnforcement(String(incoming.model)) ??
+              isModelAllowed(String(incoming.model))
+            )
+          const appliedSetting =
+            'model' in incoming && incoming.model != null
+              ? String(incoming.model).trim().toLowerCase() === 'default'
+                ? getDefaultMainLoopModel()
+                : String(incoming.model)
+              : null
+          if ('model' in incoming && !blockedByAllowlist) {
+            setMainLoopModelOverride(appliedSetting ?? undefined)
           }
-
-          // If the model changed, inject breadcrumbs so the model sees the
-          // mid-conversation switch, and notify metadata listeners (CCR).
+          const acceptedSetting =
+            'model' in incoming &&
+            !blockedByAllowlist &&
+            incoming.model != null &&
+            appliedSetting != null
+              ? appliedSetting
+              : undefined
           const newModel = getMainLoopModel()
-          if (newModel !== prevModel) {
-            activeUserSpecifiedModel = newModel
-            const modelArg = incoming.model ? String(incoming.model) : 'default'
+          const parsedVsEffective =
+            acceptedSetting !== undefined &&
+            newModel === prevModel &&
+            parseUserSpecifiedModel(acceptedSetting) !==
+              parseUserSpecifiedModel(prevModel)
+          const repointed = resolveDefaultPickRepoint(
+            incoming,
+            activeUserSpecifiedModel,
+            newModel,
+          )
+          if (repointed !== undefined) {
+            activeUserSpecifiedModel = repointed
+          }
+          if (newModel !== prevModel || parsedVsEffective) {
+            const sessionModel = parsedVsEffective
+              ? parseUserSpecifiedModel(acceptedSetting!)
+              : newModel
+            activeUserSpecifiedModel = parsedVsEffective
+              ? acceptedSetting
+              : newModel
+            setAppState(prev => ({
+              ...prev,
+              mainLoopModelForSession: sessionModel,
+            }))
+            const breadcrumbArg =
+              incoming.model && !blockedByAllowlist
+                ? String(incoming.model)
+                : 'model' in incoming && !blockedByAllowlist
+                  ? 'default'
+                  : newModel
             notifySessionMetadataChanged({ model: newModel })
-            injectModelSwitchBreadcrumbs(modelArg, newModel)
+            injectModelSwitchBreadcrumbs(breadcrumbArg, newModel)
+          }
+          if ('model' in incoming) {
+            if (incoming.model == null) {
+              clearRestrictedWarningState()
+            } else if (blockedByAllowlist) {
+              emitModelRestrictedWarning(
+                String(incoming.model),
+                activeUserSpecifiedModel !== undefined &&
+                  (isExemptDefaultResolvingPick(activeUserSpecifiedModel) ||
+                    isModelAllowed(activeUserSpecifiedModel))
+                  ? parseUserSpecifiedModel(activeUserSpecifiedModel)
+                  : undefined,
+              )
+            } else {
+              clearRestrictedWarningState()
+            }
           }
 
           sendControlResponseSuccess(message)
@@ -4257,10 +4546,44 @@ function runHeadlessStreaming(
                     abortController?.abort()
                   },
                   onSetModel(model) {
-                    const resolved =
-                      model === 'default' ? getDefaultMainLoopModel() : model
+                    const isDefault =
+                      model == null ||
+                      model.trim().toLowerCase() === 'default'
+                    const resolved = isDefault
+                      ? getDefaultMainLoopModel()
+                      : model
+                    if (
+                      !isDefault &&
+                      !isExemptDefaultResolvingPick(resolved) &&
+                      !(
+                        isModelAllowedUnderActiveEnforcement(resolved) ??
+                        isModelAllowed(resolved)
+                      )
+                    ) {
+                      const fallback =
+                        activeUserSpecifiedModel !== undefined &&
+                        (isExemptDefaultResolvingPick(
+                          activeUserSpecifiedModel,
+                        ) ||
+                          isModelAllowed(activeUserSpecifiedModel))
+                          ? parseUserSpecifiedModel(activeUserSpecifiedModel)
+                          : undefined
+                      emitModelRestrictedWarning(resolved, fallback)
+                      return {
+                        ok: false as const,
+                        error: formatModelRestrictedWarning(
+                          resolved,
+                          fallback ?? getMainLoopModel(),
+                        ),
+                      }
+                    }
                     activeUserSpecifiedModel = resolved
                     setMainLoopModelOverride(resolved)
+                    setAppState(prev => ({
+                      ...prev,
+                      mainLoopModelForSession: resolved ?? null,
+                    }))
+                    clearRestrictedWarningState()
                   },
                   onSetMaxThinkingTokens(maxTokens) {
                     if (maxTokens === null) {
@@ -4704,7 +5027,8 @@ async function handleInitializeRequest(
   },
   agents: AgentDefinition[],
   getAppState: () => AppState,
-): Promise<void> {
+): Promise<{ restrictedAgentModel?: string }> {
+  let restrictedAgentModel: string | undefined
   if (initialized) {
     output.enqueue({
       type: 'control_response',
@@ -4716,7 +5040,7 @@ async function handleInitializeRequest(
           structuredIO.getPendingPermissionRequests(),
       },
     })
-    return
+    return {}
   }
 
   // Apply systemPrompt/appendSystemPrompt from stdin to avoid ARG_MAX limits
@@ -4764,7 +5088,14 @@ async function handleInitializeRequest(
         mainThreadAgent.model !== 'inherit'
       ) {
         const agentModel = parseUserSpecifiedModel(mainThreadAgent.model)
-        setMainLoopModelOverride(agentModel)
+        if (
+          isExemptDefaultResolvingPick(agentModel) ||
+          isModelAllowed(agentModel)
+        ) {
+          setMainLoopModelOverride(agentModel)
+        } else {
+          restrictedAgentModel = mainThreadAgent.model
+        }
       }
 
       // SDK-defined agents arrive via init, so main.tsx's lookup missed them.
@@ -4869,6 +5200,7 @@ async function handleInitializeRequest(
       })
     }
   }
+  return { restrictedAgentModel }
 }
 
 async function handleRewindFiles(

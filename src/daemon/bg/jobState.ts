@@ -180,3 +180,86 @@ export function bridgeReattachEnv(
   }
   return env
 }
+
+/** Official 2.1.175 `nLH`. */
+export async function updateJobRespawnFlag(
+  flag: string,
+  aliases: string[],
+  value: string | null,
+): Promise<void> {
+  const dir = process.env.CLAUDE_JOB_DIR
+  if (!dir || process.env.CLAUDE_CODE_SESSION_KIND !== 'bg') return
+  cache.delete(dir)
+  const current = await readJobState(dir)
+  if (!current?.respawnFlags) return
+  const matchFlags = [flag, ...aliases]
+  const filter = (flags: string[]) => {
+    const res: string[] = []
+    for (let i = 0; i < flags.length; i++) {
+      const item = flags[i]!
+      if (matchFlags.some(f => item === f || item.startsWith(`${f}=`))) {
+        if (item.indexOf('=') === -1 && flags[i + 1] !== undefined) {
+          i++
+        }
+        continue
+      }
+      res.push(item)
+    }
+    return value === null ? res : [...res, flag, value]
+  }
+  const next = filter(current.respawnFlags)
+  if (
+    next.length === current.respawnFlags.length &&
+    next.every((v, i) => v === current.respawnFlags[i])
+  ) {
+    return
+  }
+  cache.delete(dir)
+  const fresh = (await readJobState(dir)) ?? current
+  await writeJobState(dir, {
+    ...fresh,
+    respawnFlags: filter(fresh.respawnFlags ?? current.respawnFlags),
+    updatedAt: new Date().toISOString(),
+  }).catch(err => {
+    if (!isENOENT(err)) {
+      logForDebugging(
+        `updateJobRespawnFlag failed: ${err instanceof Error ? err.message : String(err)}`,
+        { level: 'warn' },
+      )
+    }
+  })
+}
+
+/** Official 2.1.175 `IJ7`. */
+export async function appendJobRespawnFlag(
+  flag: string,
+  value: string,
+): Promise<void> {
+  const dir = process.env.CLAUDE_JOB_DIR
+  if (!dir || process.env.CLAUDE_CODE_SESSION_KIND !== 'bg') return
+  cache.delete(dir)
+  const current = await readJobState(dir)
+  if (!current?.respawnFlags) return
+  for (let i = 0; i < current.respawnFlags.length - 1; i++) {
+    if (
+      current.respawnFlags[i] === flag &&
+      current.respawnFlags[i + 1] === value
+    ) {
+      return
+    }
+  }
+  cache.delete(dir)
+  const fresh = (await readJobState(dir)) ?? current
+  await writeJobState(dir, {
+    ...fresh,
+    respawnFlags: [...(fresh.respawnFlags ?? []), flag, value],
+    updatedAt: new Date().toISOString(),
+  }).catch(err => {
+    if (!isENOENT(err)) {
+      logForDebugging(
+        `appendJobRespawnFlag failed: ${err instanceof Error ? err.message : String(err)}`,
+        { level: 'warn' },
+      )
+    }
+  })
+}

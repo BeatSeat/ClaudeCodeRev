@@ -6,6 +6,19 @@ import {
   type BridgePermissionResponse,
   isBridgePermissionResponse,
 } from '../bridge/bridgePermissionCallbacks.js'
+import {
+  getDefaultMainLoopModel,
+  isExemptDefaultResolvingPick,
+  parseUserSpecifiedModel,
+  sanitizeModelNameForDisplay,
+  formatModelRestrictedWarning,
+} from '../utils/model/model.js'
+import {
+  isModelAllowed,
+  isModelAllowedUnderActiveEnforcement,
+} from '../utils/model/modelAllowlist.js'
+import { resolveEffectiveMainLoopModelSetting } from './useMainLoopModel.js'
+
 import { buildBridgeConnectUrl } from '../bridge/bridgeStatusUtil.js'
 import { extractInboundMessageFields } from '../bridge/inboundMessages.js'
 import type { BridgeState, ReplBridgeHandle } from '../bridge/replBridge.js'
@@ -492,7 +505,37 @@ export function useReplBridge(
               return items.map(item => ({ path: item.displayText }))
             },
             onSetModel(model) {
-              const resolved = model === 'default' ? null : (model ?? null)
+              const isDefault =
+                model == null || model.trim().toLowerCase() === 'default'
+              const resolved = isDefault
+                ? getDefaultMainLoopModel()
+                : model
+              if (
+                !isDefault &&
+                !isExemptDefaultResolvingPick(resolved) &&
+                !(
+                  isModelAllowedUnderActiveEnforcement(resolved) ??
+                  isModelAllowed(resolved)
+                )
+              ) {
+                const appState = store.getState()
+                const warning = formatModelRestrictedWarning(
+                  resolved,
+                  parseUserSpecifiedModel(
+                    resolveEffectiveMainLoopModelSetting(
+                      appState.mainLoopModelForSession,
+                      appState.mainLoopModel,
+                    ),
+                  ),
+                )
+                addNotification({
+                  key: `model-restricted-bridge-${sanitizeModelNameForDisplay(resolved)}`,
+                  kind: 'warning',
+                  text: warning,
+                  priority: 'immediate',
+                })
+                return { ok: false as const, error: warning }
+              }
               setMainLoopModelOverride(resolved)
               setAppState(prev => {
                 if (prev.mainLoopModelForSession === resolved) return prev

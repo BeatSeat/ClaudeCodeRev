@@ -20,6 +20,8 @@ import {
   type SessionInternalMetadata,
 } from '../utils/sessionState.js'
 import { getUserIntentSetting, setUserIntentSetting } from '../utils/settings/userIntent.js'
+import { getDefaultMainLoopModel } from '../utils/model/model.js'
+import { updateJobRespawnFlag } from '../daemon/bg/jobState.js'
 import type { AppState } from './AppStateStore.js'
 
 // Inverse of the push below — restore on worker restart.
@@ -130,7 +132,10 @@ export function onChangeAppState({
   // Official 2.1.153: AppState model changes are session-scoped. Persist
   // only via persistModelAsDefault (Enter / onSetDefault), not every write.
   if (newState.mainLoopModel !== oldState.mainLoopModel) {
-    setMainLoopModelOverride(newState.mainLoopModel)
+    const model = newState.mainLoopModel
+    setMainLoopModelOverride(model)
+    notifySessionMetadataChanged({ model: model ?? getDefaultMainLoopModel() })
+    void updateJobRespawnFlag('--model', ['-m'], model)
   }
 
   // expandedView → persist as showExpandedTodos + showSpinnerTree for backwards compat

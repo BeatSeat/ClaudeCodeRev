@@ -29,6 +29,7 @@ import {
   getDefaultFableModel,
   getDefaultMainLoopModel,
   getDefaultMainLoopModelSetting,
+  isDefaultModelEnforced,
   getMainLoopModel,
   getMarketingNameForModel,
   getUserSpecifiedModelSetting,
@@ -75,12 +76,15 @@ export function getDefaultOptionForUser(fastMode = false): ModelOption {
     }
   }
 
-  // PAYG
+  // PAYG — official 2.1.175 `B98` + `IZ_`.
   const is3P = !isFirstPartyApiFamily()
+  const enforced = isDefaultModelEnforced()
+  const pricing =
+    is3P || enforced ? '' : ` · ${formatModelPricing(COST_TIER_3_15)}`
   return {
     value: null,
-    label: 'Default (recommended)',
-    description: `Use the default model (currently ${renderDefaultModelSetting(getDefaultMainLoopModelSetting())})${is3P ? '' : ` · ${formatModelPricing(COST_TIER_3_15)}`}`,
+    label: is3P ? 'Default' : 'Default (recommended)',
+    description: `Use the default model (currently ${renderDefaultModelSetting(getDefaultMainLoopModelSetting())})${pricing}${enforced ? ' · Set by your organization' : ''}`,
   }
 }
 

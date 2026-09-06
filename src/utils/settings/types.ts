@@ -423,6 +423,12 @@ export const SettingsSchema = lazySchema(() =>
             'If undefined, all models are available. If empty array, only the default model is available. ' +
             'Typically set in managed settings by enterprise administrators.',
         ),
+      enforceAvailableModels: z
+        .boolean()
+        .optional()
+        .describe(
+          'When true and availableModels is a non-empty array, the Default model selection is also constrained: if the default model for the user tier is not in availableModels, Default resolves to the first allowed availableModels entry instead. Has no effect when availableModels is unset or an empty array. Typically set in managed settings by enterprise administrators.',
+        ),
       modelOverrides: z
         .record(z.string(), z.string())
         .optional()

@@ -39,13 +39,21 @@ import {
   getWslInherits,
 } from './mdm/settings.js'
 import {
+  getCachedAdminPolicyLoadErrors,
   getCachedParsedFile,
+  getCachedPolicySettingsLoadErrors,
+  getCachedPolicySettingsOrigin,
   getCachedSettingsForSource,
+  getCachedSurvivingAdminPolicySource,
   getPluginSettingsBase,
   getSessionSettingsCache,
   resetSettingsCache,
+  setCachedAdminPolicyLoadErrors,
   setCachedParsedFile,
+  setCachedPolicySettingsLoadErrors,
+  setCachedPolicySettingsOrigin,
   setCachedSettingsForSource,
+  setCachedSurvivingAdminPolicySource,
   setSessionSettingsCache,
 } from './settingsCache.js'
 import { publishSettingsChange } from './settingsChangeSignal.js'
@@ -581,39 +589,33 @@ function getSettingsForSourceUncached(
  * Uses "first source wins" — returns the first source that has content.
  * Priority: remote > plist/hklm > file (managed-settings.json) > parent > hkcu
  */
-export function getPolicySettingsOrigin():
-  | 'remote'
+export function getBasePolicySettingsOrigin():
   | 'plist'
   | 'hklm'
   | 'file'
   | 'parent'
   | 'hkcu'
   | null {
-  // 1. Remote (highest)
   const remoteSettings = getRemoteManagedSettingsSyncFromCache()
   if (remoteSettings && Object.keys(remoteSettings).length > 0) {
-    return 'remote'
+    return 'remote' as any
   }
 
-  // 2. Admin-only MDM (HKLM / macOS plist)
   const mdmResult = getMdmSettings()
   if (Object.keys(mdmResult.settings).length > 0) {
     return getPlatform() === 'macos' ? 'plist' : 'hklm'
   }
 
-  // 3. managed-settings.json + managed-settings.d/ (file-based, requires admin)
   const { settings: fileSettings } = loadManagedFileSettings()
   if (fileSettings) {
     return 'file'
   }
 
-  // 4. SDK parent `--managed-settings`
   const { settings: parentSettings } = loadParentManagedSettings()
   if (parentSettings) {
     return 'parent'
   }
 
-  // 5. HKCU (lowest — user-writable)
   const hkcu = getHkcuSettings()
   if (Object.keys(hkcu.settings).length > 0) {
     return 'hkcu'
@@ -622,22 +624,115 @@ export function getPolicySettingsOrigin():
   return null
 }
 
+export function getPolicySettingsOrigin():
+  | 'remote'
+  | 'plist'
+  | 'hklm'
+  | 'file'
+  | 'parent'
+  | 'hkcu'
+  | null {
+  const cached = getCachedPolicySettingsOrigin()
+  if (cached !== undefined) {
+    return cached.value as any
+  }
+  const origin = getBasePolicySettingsOrigin()
+  setCachedPolicySettingsOrigin(origin)
+  return origin
+}
+
 /**
- * Official 2.1.166 `_3$` — validation errors from every managed policy
- * source: MDM (plist/HKLM), file-based managed settings, parent managed
+ * Official 2.1.166 `_3$` / 2.1.175 `Lj$` — validation errors from every managed policy
+ * source: remote, MDM (plist/HKLM), file-based managed settings, parent managed
  * settings, and HKCU.
  */
 export function getPolicySettingsLoadErrors(): ValidationError[] {
+  const cached = getCachedPolicySettingsLoadErrors()
+  if (cached !== undefined) return cached
+
   const errors: ValidationError[] = []
+  const remoteSettings = getRemoteManagedSettingsSyncFromCache()
+  if (remoteSettings && Object.keys(remoteSettings).length > 0) {
+    const filteredRemote = cloneAndFilterSettingsWarnings(
+      remoteSettings,
+      'remote managed settings',
+    )
+    errors.push(...filteredRemote.warnings)
+    const result = SettingsSchema().safeParse(filteredRemote.settings)
+    if (!result.success) {
+      errors.push(...formatZodError(result.error, 'remote managed settings'))
+    }
+  }
   errors.push(...getMdmSettings().errors)
   errors.push(...loadManagedFileSettings().errors)
   errors.push(...loadParentManagedSettings().errors)
   errors.push(...getHkcuSettings().errors)
+  setCachedPolicySettingsLoadErrors(errors)
   return errors
 }
 
 /**
- * Official 2.1.166 `H66` — print managed-settings validation problems to
+ * Official 2.1.175 `Uiq` — validation errors from admin policy sources only:
+ * remote, MDM (plist/HKLM), and file-based managed settings (excludes parent and HKCU).
+ */
+export function getAdminPolicyLoadErrors(): ValidationError[] {
+  const cached = getCachedAdminPolicyLoadErrors()
+  if (cached !== undefined) return cached
+
+  const errors: ValidationError[] = []
+  const remoteSettings = getRemoteManagedSettingsSyncFromCache()
+  if (remoteSettings && Object.keys(remoteSettings).length > 0) {
+    const filteredRemote = cloneAndFilterSettingsWarnings(
+      remoteSettings,
+      'remote managed settings',
+    )
+    errors.push(...filteredRemote.warnings)
+    const result = SettingsSchema().safeParse(filteredRemote.settings)
+    if (!result.success) {
+      errors.push(...formatZodError(result.error, 'remote managed settings'))
+    }
+  }
+  errors.push(...getMdmSettings().errors)
+  errors.push(...loadManagedFileSettings().errors)
+  setCachedAdminPolicyLoadErrors(errors)
+  return errors
+}
+
+/** Official 2.1.175 `Fiq` — filter out non-fatal warnings from policy validation errors. */
+export function filterFatalPolicyErrors(
+  errors: ValidationError[],
+): ValidationError[] {
+  return errors.filter(error => error.severity !== 'warning')
+}
+
+/** Official 2.1.175 `Pj$` — fatal validation errors from admin policy sources. */
+export function getFatalAdminPolicyLoadErrors(): ValidationError[] {
+  return filterFatalPolicyErrors(getAdminPolicyLoadErrors())
+}
+
+/** Official 2.1.175 `Wj$` — check if any admin policy source loaded with non-empty settings. */
+export function hasSurvivingAdminPolicySource(): boolean {
+  const cached = getCachedSurvivingAdminPolicySource()
+  if (cached !== undefined) return cached
+
+  const hasContent = (val: unknown): boolean =>
+    val != null && typeof val === 'object' && Object.keys(val).length > 0
+
+  const remoteSettings = getRemoteManagedSettingsSyncFromCache()
+  const mdm = getMdmSettings()
+  const { settings: fileSettings } = loadManagedFileSettings()
+
+  const result = Boolean(
+    hasContent(remoteSettings) ||
+      hasContent(mdm.settings) ||
+      hasContent(fileSettings),
+  )
+  setCachedSurvivingAdminPolicySource(result)
+  return result
+}
+
+/**
+ * Official 2.1.166 `H66` / 2.1.175 `p_6` — print managed-settings validation problems to
  * stderr at startup (headless surface). Fatal errors (missing severity, i.e.
  * the whole source failed) mean that source's policies are NOT in effect;
  * warnings mean invalid entries were dropped but remaining valid policies
@@ -657,6 +752,9 @@ export function surfaceManagedSettingsErrorsHeadless(): void {
   process.stderr.write(`${header}\n${lines.join('\n')}\n`)
   logEvent('tengu_managed_settings_validation_errors', {
     error_count: errors.length,
+    remote_error_count: errors.filter(
+      e => e.file === 'remote managed settings',
+    ).length,
     fatal,
   })
 }
@@ -933,6 +1031,7 @@ function loadSettingsFromDisk(): SettingsWithErrors {
     const allErrors: ValidationError[] = []
     const seenErrors = new Set<string>()
     const seenFiles = new Set<string>()
+    let policySettingsSnapshot: SettingsJson | null = null
 
     // Merge settings from each source in priority order with deep merging
     for (const source of getEnabledSettingSources()) {
@@ -998,6 +1097,7 @@ function loadSettingsFromDisk(): SettingsWithErrors {
         }
 
         // Merge the winning policy source into the settings chain
+        policySettingsSnapshot = policySettings
         if (policySettings) {
           mergedSettings = mergeWith(
             mergedSettings,
@@ -1080,6 +1180,15 @@ function loadSettingsFromDisk(): SettingsWithErrors {
             }
           }
         }
+      }
+    }
+
+    if (policySettingsSnapshot) {
+      if (policySettingsSnapshot.availableModels !== undefined) {
+        mergedSettings.availableModels = [...policySettingsSnapshot.availableModels]
+      }
+      if (policySettingsSnapshot.enforceAvailableModels !== undefined) {
+        mergedSettings.enforceAvailableModels = policySettingsSnapshot.enforceAvailableModels
       }
     }
 

@@ -3,7 +3,7 @@ import type { PermissionMode } from '../permissions/PermissionMode.js'
 import { capitalize } from '../stringUtils.js'
 import { MODEL_ALIASES } from './aliases.js'
 import { applyBedrockRegionPrefix, getBedrockRegionPrefix } from './bedrock.js'
-import { isModelAllowed } from './modelAllowlist.js'
+import { isModelAllowed, stripTrailing1mSuffix } from './modelAllowlist.js'
 import {
   applyOpus1mMergeIfNeeded,
   getCanonicalName,
@@ -15,7 +15,7 @@ import {
   isFableAvailable,
   parseUserSpecifiedModel,
 } from './model.js'
-import { getAPIProvider } from './providers.js'
+import { getAPIProvider, isFirstPartyApiFamily } from './providers.js'
 
 export const AGENT_MODEL_OPTIONS = [...MODEL_ALIASES, 'inherit'] as const
 export type AgentModelAlias = (typeof AGENT_MODEL_OPTIONS)[number]
@@ -66,8 +66,21 @@ export function getAgentModel(
   parentModel: string,
   toolSpecifiedModel?: AgentModelAlias,
   permissionMode?: PermissionMode,
+  onModelRestricted?: (requested: string, effective: string) => void,
 ): string {
   const inherit = () => inheritParentModel(parentModel, permissionMode)
+
+  const fallback = (spec: string, candidate: string = spec) => {
+    warnSubagentModelNotAllowed(spec)
+    const effective = inherit()
+    if (
+      stripTrailing1mSuffix(parseUserSpecifiedModel(candidate)).toLowerCase() !==
+      stripTrailing1mSuffix(parseUserSpecifiedModel(effective)).toLowerCase()
+    ) {
+      onModelRestricted?.(spec, effective)
+    }
+    return effective
+  }
 
   // Official 2.1.172 `He`: env inherit / allowlist before Bedrock prefix.
   const envModel = process.env.CLAUDE_CODE_SUBAGENT_MODEL
@@ -77,8 +90,7 @@ export function getAgentModel(
     }
     const resolved = parseUserSpecifiedModel(envModel)
     if (!isModelAllowed(resolved)) {
-      warnSubagentModelNotAllowed(envModel)
-      return inherit()
+      return fallback(envModel)
     }
     return resolved
   }
@@ -118,8 +130,7 @@ export function getAgentModel(
       toolSpecifiedModel,
     )
     if (!isModelAllowed(model)) {
-      warnSubagentModelNotAllowed(toolSpecifiedModel)
-      return inherit()
+      return fallback(toolSpecifiedModel, model)
     }
     return model
   }
@@ -140,8 +151,7 @@ export function getAgentModel(
     agentModelWithExp,
   )
   if (!isModelAllowed(model)) {
-    warnSubagentModelNotAllowed(agentModelWithExp)
-    return inherit()
+    return fallback(agentModelWithExp, model)
   }
   return model
 }
@@ -189,7 +199,9 @@ export function getAgentModelOptions(): AgentModelOption[] {
   // Official 2.1.172 `ga7`: each family row only if `r3(defaultModel)`.
   const options: AgentModelOption[] = []
   if (
-    (isFableAvailable() || getAPIProvider() !== 'firstParty') &&
+    (isFableAvailable() ||
+      !isFirstPartyApiFamily() ||
+      getAPIProvider() === 'anthropicAws') &&
     isModelAllowed(getDefaultFableModel())
   ) {
     options.push({

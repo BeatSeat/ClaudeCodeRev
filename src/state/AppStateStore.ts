@@ -239,6 +239,21 @@ export type AppState = DeepImmutable<{
   agentDefinitions: AgentDefinitionsResult
   fileHistory: FileHistoryState
   attribution: AttributionState
+  setupIssues?: {
+    settingsErrorCount?: number
+    lspFailedCount?: number
+    installBrokenMessages?: string[]
+    installPathCount?: number
+    marketplaceIssueCount?: number
+    chromeExtensionIssueCount?: number
+    npmInstallDeprecated?: boolean
+    sandboxIssueCount?: number
+    statuslineIssueCount?: number
+    flaggedPluginCount?: number
+    modelDeprecationWarning?: string | null
+    modelRestrictedWarning?: { requested: string; effective: string } | null
+    existingClaudeSubscription?: string | null
+  }
   todos: { [agentId: string]: TodoList }
   remoteAgentTaskSuggestions: { summary: string; task: string }[]
   notifications: {

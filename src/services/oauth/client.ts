@@ -228,6 +228,9 @@ export async function refreshOAuthToken(
       if (profileInfo.subscriptionCreatedAt !== undefined) {
         updates.subscriptionCreatedAt = profileInfo.subscriptionCreatedAt
       }
+      if (profileInfo.seatTier !== undefined) {
+        updates.seatTier = profileInfo.seatTier
+      }
       if (Object.keys(updates).length > 0) {
         saveGlobalConfig(current => ({
           ...current,
@@ -360,6 +363,7 @@ export async function fetchProfileInfo(accessToken: string): Promise<{
   billingType: BillingType | null
   accountCreatedAt?: string
   subscriptionCreatedAt?: string
+  seatTier?: string | null
   rawProfile?: OAuthProfileResponse
 }> {
   const profile = await getOauthProfileFromOauthToken(accessToken)
@@ -394,12 +398,16 @@ export async function fetchProfileInfo(accessToken: string): Promise<{
     billingType: BillingType | null
     accountCreatedAt?: string
     subscriptionCreatedAt?: string
+    seatTier?: string | null
   } = {
     subscriptionType,
     rateLimitTier: profile?.organization?.rate_limit_tier ?? null,
     hasExtraUsageEnabled:
       profile?.organization?.has_extra_usage_enabled ?? null,
     billingType: profile?.organization?.billing_type ?? null,
+    seatTier:
+      (profile?.organization as { seat_tier?: string | null } | undefined)
+        ?.seat_tier ?? null,
   }
 
   if (profile?.account?.display_name) {
@@ -513,6 +521,9 @@ export async function populateOAuthAccountInfoIfNeeded(): Promise<boolean> {
         accountCreatedAt: profile.account.created_at,
         subscriptionCreatedAt:
           profile.organization.subscription_created_at ?? undefined,
+        seatTier:
+          (profile.organization as { seat_tier?: string | null }).seat_tier ??
+          null,
       })
       return true
     }
@@ -529,6 +540,7 @@ export function storeOAuthAccountInfo({
   billingType,
   accountCreatedAt,
   subscriptionCreatedAt,
+  seatTier,
 }: {
   accountUuid: string
   emailAddress: string
@@ -538,6 +550,7 @@ export function storeOAuthAccountInfo({
   billingType?: BillingType
   accountCreatedAt?: string
   subscriptionCreatedAt?: string
+  seatTier?: string | null
 }): void {
   const accountInfo: AccountInfo = {
     accountUuid,
@@ -547,6 +560,7 @@ export function storeOAuthAccountInfo({
     billingType,
     accountCreatedAt,
     subscriptionCreatedAt,
+    seatTier,
   }
   if (displayName) {
     accountInfo.displayName = displayName
@@ -563,7 +577,8 @@ export function storeOAuthAccountInfo({
       current.oauthAccount?.billingType === accountInfo.billingType &&
       current.oauthAccount?.accountCreatedAt === accountInfo.accountCreatedAt &&
       current.oauthAccount?.subscriptionCreatedAt ===
-        accountInfo.subscriptionCreatedAt
+        accountInfo.subscriptionCreatedAt &&
+      current.oauthAccount?.seatTier === accountInfo.seatTier
     ) {
       return current
     }
