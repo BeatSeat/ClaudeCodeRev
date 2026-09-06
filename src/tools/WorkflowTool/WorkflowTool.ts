@@ -442,6 +442,54 @@ function validateWorkflowMeta(
   }
 }
 
+/**
+ * Official 2.1.172 `eZ4`. Bundle uses vendored acorn; host walk is TypeScript
+ * AST (same as `parseWorkflowScript`). Parse errors do not reject.
+ */
+function workflowScriptUsesBannedNondeterminism(scriptBody: string): boolean {
+  let sourceFile: ts.SourceFile
+  try {
+    sourceFile = ts.createSourceFile(
+      'workflow.js',
+      scriptBody,
+      ts.ScriptTarget.Latest,
+      true,
+      ts.ScriptKind.JS,
+    )
+  } catch {
+    return false
+  }
+  let found = false
+  const visit = (node: ts.Node): void => {
+    if (found) {
+      return
+    }
+    if (ts.isPropertyAccessExpression(node) && !node.questionDotToken) {
+      if (
+        ts.isIdentifier(node.expression) &&
+        ts.isIdentifier(node.name) &&
+        ((node.expression.text === 'Date' && node.name.text === 'now') ||
+          (node.expression.text === 'Math' && node.name.text === 'random'))
+      ) {
+        found = true
+        return
+      }
+    }
+    if (
+      ts.isNewExpression(node) &&
+      ts.isIdentifier(node.expression) &&
+      node.expression.text === 'Date' &&
+      (node.arguments?.length ?? 0) === 0
+    ) {
+      found = true
+      return
+    }
+    ts.forEachChild(node, visit)
+  }
+  visit(sourceFile)
+  return found
+}
+
 /** Official 2.1.153 `vq4`. Host parser is TypeScript AST (acorn `Vq4` is not a package dep). */
 function evalMetaLiteral(node: ts.Expression): unknown {
   switch (node.kind) {
@@ -920,12 +968,7 @@ export const WorkflowTool = buildTool({
         errorCode: 2,
       }
     }
-    if (
-      input.script &&
-      /\bDate\s*\.\s*now\b|\bMath\s*\.\s*random\b|\bnew\s+Date\s*\(\s*\)/.test(
-        parsed.scriptBody,
-      )
-    ) {
+    if (input.script && workflowScriptUsesBannedNondeterminism(parsed.scriptBody)) {
       return {
         result: false as const,
         message:

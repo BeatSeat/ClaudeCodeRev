@@ -235,13 +235,16 @@ export function getRuntimeMainLoopModel(params: {
 }): ModelName {
   const { permissionMode, mainLoopModel, exceeds200kTokens = false } = params
 
-  // opusplan uses Opus in plan mode without [1m] suffix.
+  // Official 2.1.172 `Jv`: opusplan and opusplan[1m]; 1M via `iD$` when tagged or merge-on.
+  const setting = getUserSpecifiedModelSetting()
   if (
-    getUserSpecifiedModelSetting() === 'opusplan' &&
+    (setting === 'opusplan' || setting === 'opusplan[1m]') &&
     permissionMode === 'plan' &&
     !exceeds200kTokens
   ) {
-    return getDefaultOpusModel()
+    return setting === 'opusplan[1m]' || isOpus1mMergeEnabled()
+      ? ensureSingle1mSuffix(getDefaultOpusModel())
+      : getDefaultOpusModel()
   }
 
   // sonnetplan by default
@@ -270,14 +273,18 @@ export function getDefaultMainLoopModelSetting(): ModelName | ModelAlias {
     )
   }
 
-  // Max users get Opus as default
+  // Official 2.1.172 `tG`: entitled default uses `iD$` so a default Opus that
+  // already carries `[1m]` does not become `[1m][1m]`.
   if (isMaxSubscriber()) {
-    return getDefaultOpusModel() + (isOpus1mMergeEnabled() ? '[1m]' : '')
+    return isOpus1mMergeEnabled()
+      ? ensureSingle1mSuffix(getDefaultOpusModel())
+      : getDefaultOpusModel()
   }
 
-  // Team Premium gets Opus (same as Max)
   if (isTeamPremiumSubscriber()) {
-    return getDefaultOpusModel() + (isOpus1mMergeEnabled() ? '[1m]' : '')
+    return isOpus1mMergeEnabled()
+      ? ensureSingle1mSuffix(getDefaultOpusModel())
+      : getDefaultOpusModel()
   }
 
   // PAYG (1P and 3P), Enterprise, Team Standard, and Pro get Sonnet as default
@@ -442,6 +449,11 @@ export function isOpus1mMergeEnabled(): boolean {
   return true
 }
 
+/** Official 2.1.172 `iD$` — strip every trailing `[1m]` then add one. */
+export function ensureSingle1mSuffix(model: string): string {
+  return model.replace(/(\[1m\])+$/i, '') + '[1m]'
+}
+
 /**
  * Official 2.1.107 nc4 / 2.1.111: when opus-1m merge is on, resolved
  * opus-4-6 / opus-4-7 agent models that lack an explicit [1m] suffix get one.
@@ -603,7 +615,11 @@ export function parseUserSpecifiedModel(
       case 'haiku':
         return getDefaultHaikuModel() + (has1mTag ? '[1m]' : '')
       case 'opus':
-        return getDefaultOpusModel() + (has1mTag ? '[1m]' : '')
+        // Official 2.1.172 `g7`: opus + [1m] uses `iD$` so a default that
+        // already includes the suffix does not double it.
+        return has1mTag
+          ? ensureSingle1mSuffix(getDefaultOpusModel())
+          : getDefaultOpusModel()
       case 'best':
         return getBestModel()
       default:
@@ -641,7 +657,7 @@ export function parseUserSpecifiedModel(
   // Preserve original case for custom model names (e.g., Azure Foundry deployment IDs)
   // Only strip [1m] suffix if present, maintaining case of the base model
   if (has1mTag) {
-    return modelInputTrimmed.replace(/\[1m\]$/i, '').trim() + '[1m]'
+    return ensureSingle1mSuffix(modelInputTrimmed)
   }
   return modelInputTrimmed
 }

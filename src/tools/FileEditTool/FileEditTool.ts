@@ -573,7 +573,7 @@ export const FileEditTool = buildTool({
     if (absoluteFilePath.endsWith(`${sep}CLAUDE.md`)) {
       logEvent('tengu_write_claudemd', {})
     }
-    countLinesChanged(patch)
+    countLinesChanged(patch, parentMessage.message.model)
 
     logFileOperation({
       operation: 'edit',

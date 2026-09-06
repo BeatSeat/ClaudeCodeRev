@@ -204,6 +204,8 @@ type State = {
   mainThreadAgentType: string | undefined
   // Frontmatter hooks from the main-thread --agent (official 2.1.116 rAH)
   mainThreadAgentHooks: HooksSettings | undefined
+  // Official 2.1.172 `YFH`/`kr8` — 1M context credits 429 clamp
+  longContext1mCreditsBlocked: boolean
   // Remote mode (--remote flag)
   isRemoteMode: boolean
   // Official 2.1.153 AxH/Xx8: --strict-mcp-config
@@ -407,6 +409,7 @@ function getInitialState(): State {
     mainThreadAgentType: undefined,
     // Main-thread --agent frontmatter hooks
     mainThreadAgentHooks: undefined,
+    longContext1mCreditsBlocked: false,
     // Remote mode
     isRemoteMode: false,
     strictMcpConfig: false,
@@ -999,7 +1002,7 @@ export function setMeter(
   })
   STATE.locCounter = createCounter('claude_code.lines_of_code.count', {
     description:
-      "Count of lines of code modified, with the 'type' attribute indicating whether lines were added or removed",
+      "Count of lines of code modified, with the 'type' attribute indicating whether lines were added or removed and the 'model' attribute indicating which model made the change",
   })
   STATE.prCounter = createCounter('claude_code.pull_request.count', {
     description: 'Number of pull requests created',
@@ -1721,6 +1724,16 @@ export function setMainThreadAgentHooks(
   hooks: HooksSettings | undefined,
 ): void {
   STATE.mainThreadAgentHooks = hooks
+}
+
+/** Official 2.1.172 `YFH`. */
+export function getLongContext1mCreditsBlocked(): boolean {
+  return STATE.longContext1mCreditsBlocked
+}
+
+/** Official 2.1.172 `kr8`. */
+export function setLongContext1mCreditsBlocked(value: boolean): void {
+  STATE.longContext1mCreditsBlocked = value
 }
 
 export function getIsRemoteMode(): boolean {

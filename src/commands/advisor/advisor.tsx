@@ -13,6 +13,7 @@ import {
   isValidAdvisorModel,
   modelSupportsAdvisor,
 } from '../../utils/advisor.js'
+import { isModelAllowed } from '../../utils/model/modelAllowlist.js'
 import {
   normalizeModelStringForAPI,
   parseUserSpecifiedModel,
@@ -65,11 +66,13 @@ function AdvisorDialog({
   const setAppState = useSetAppState()
   const matchedAlias = advisorModel ? matchAdvisorAlias(advisorModel) : undefined
   const extraOption =
-    advisorModel && !matchedAlias
+    advisorModel && !matchedAlias && isModelAllowed(advisorModel)
       ? { label: advisorLabel(advisorModel), value: advisorModel }
       : undefined
   const options = [
-    ...ADVISOR_MODELS.map(alias => ({
+    ...ADVISOR_MODELS.filter(alias =>
+      isModelAllowed(parseUserSpecifiedModel(alias)),
+    ).map(alias => ({
       label: advisorLabel(alias),
       value: alias,
     })),

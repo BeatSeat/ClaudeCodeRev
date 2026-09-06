@@ -265,26 +265,6 @@ export function validatePermissionRule(
         ],
       }
     }
-
-    // Warn about wildcards not at boundaries
-    if (
-      content.includes('*') &&
-      !content.match(/^\*|\*$|\*\*|\/\*|\*\.|\*\)/) &&
-      !content.includes('**')
-    ) {
-      // This is a loose check - wildcards in the middle might be valid in some cases
-      // but often indicate confusion
-      return {
-        valid: false,
-        error: 'Wildcard placement might be incorrect',
-        suggestion: 'Wildcards are typically used at path boundaries',
-        examples: [
-          `${parsed.toolName}(*.js) - all .js files`,
-          `${parsed.toolName}(src/*) - all files directly in src`,
-          `${parsed.toolName}(src/**) - all files recursively in src`,
-        ],
-      }
-    }
   }
 
   return { valid: true }

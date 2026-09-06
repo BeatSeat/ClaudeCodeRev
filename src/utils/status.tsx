@@ -11,7 +11,7 @@ import {
 } from './claudemd.js'
 import { getDoctorDiagnostic } from './doctorDiagnostic.js'
 import {
-  getAWSRegion,
+  formatAWSRegionForStatus,
   getDefaultVertexRegion,
   isEnvTruthy,
 } from './envUtils.js'
@@ -373,7 +373,7 @@ export function buildAPIProviderProperties(): Property[] {
 
     properties.push({
       label: 'AWS region',
-      value: getAWSRegion(),
+      value: formatAWSRegionForStatus(),
     })
 
     const bedrockServiceTier = process.env.ANTHROPIC_BEDROCK_SERVICE_TIER
@@ -455,7 +455,7 @@ export function buildAPIProviderProperties(): Property[] {
     }
     properties.push({
       label: 'AWS region',
-      value: getAWSRegion(),
+      value: formatAWSRegionForStatus(),
     })
     if (isEnvTruthy(process.env.CLAUDE_CODE_SKIP_ANTHROPIC_AWS_AUTH)) {
       properties.push({
@@ -475,7 +475,7 @@ export function buildAPIProviderProperties(): Property[] {
     if (apiProvider === 'mantle') {
       properties.push({
         label: 'AWS region',
-        value: getAWSRegion(),
+        value: formatAWSRegionForStatus(),
       })
     }
     if (isEnvTruthy(process.env.CLAUDE_CODE_SKIP_MANTLE_AUTH)) {

@@ -20,6 +20,7 @@ import type { AgentToolResult } from '../../tools/AgentTool/agentToolUtils.js'
 import type { AgentDefinition } from '../../tools/AgentTool/loadAgentsDir.js'
 import { SYNTHETIC_OUTPUT_TOOL_NAME } from '../../tools/SyntheticOutputTool/SyntheticOutputTool.js'
 import { asAgentId } from '../../types/ids.js'
+import { getAgentContext } from '../../utils/agentContext.js'
 import type { Message } from '../../types/message.js'
 import {
   createAbortController,
@@ -196,6 +197,8 @@ export type LocalAgentTaskState = TaskStateBase & {
   // timestamp = hide + GC-eligible after this time. Set at terminal transition
   // and on unselect; cleared on retain.
   evictAfter?: number
+  /** Official 2.1.172 `spawnDepth` — `t7$` / `mh4`. */
+  spawnDepth?: number
 }
 
 export function isLocalAgentTask(task: unknown): task is LocalAgentTaskState {
@@ -579,6 +582,7 @@ export function registerAsyncAgent({
   setAppState,
   parentAbortController,
   toolUseId,
+  spawnDepth,
 }: {
   agentId: string
   description: string
@@ -587,6 +591,7 @@ export function registerAsyncAgent({
   setAppState: SetAppState
   parentAbortController?: AbortController
   toolUseId?: string
+  spawnDepth?: number
 }): LocalAgentTaskState {
   void initTaskOutputAsSymlink(
     agentId,
@@ -614,6 +619,7 @@ export function registerAsyncAgent({
     pendingMessages: [],
     retain: false,
     diskLoaded: false,
+    spawnDepth: spawnDepth ?? (getAgentContext()?.depth ?? 0) + 1,
   }
 
   // Register cleanup handler
@@ -687,6 +693,7 @@ export function registerAgentForeground({
     pendingMessages: [],
     retain: false,
     diskLoaded: false,
+    spawnDepth: (getAgentContext()?.depth ?? 0) + 1,
   }
 
   // Create background signal promise

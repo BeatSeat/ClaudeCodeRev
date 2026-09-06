@@ -47,6 +47,66 @@ type OutputSchema = ReturnType<typeof outputSchema>
 
 export type Output = z.infer<OutputSchema>
 
+/** Official 2.1.172 `JL4` — glob `*` → `[^.:]*` after escaping the rest. */
+function escapeWebFetchDomainGlob(pattern: string): string {
+  return pattern
+    .split('*')
+    .map(part => part.replace(/[.+?^${}()|[\]\\]/g, '\\$&'))
+    .join('[^.:]*')
+}
+
+/** Official 2.1.172 `DL4` — lowercase hostname; strip trailing dots before an optional port. */
+function normalizeWebFetchDomainKey(key: string): string {
+  if (!key.startsWith('domain:')) {
+    return key
+  }
+  return `domain:${key.slice(7).toLowerCase().replace(/(?<=[^*.])\.+(?=(:\d+)?$)/, '')}`
+}
+
+/** Official 2.1.172 `o6f` — `domain:*.example.com` matches subdomains, not the apex. */
+function webFetchDomainWildcardMatches(
+  ruleKey: string,
+  inputKey: string,
+): boolean {
+  if (!ruleKey.startsWith('domain:') || !inputKey.startsWith('domain:')) {
+    return false
+  }
+  if (ruleKey === 'domain:*') {
+    return true
+  }
+  const source = ruleKey.startsWith('domain:*.')
+    ? `^domain:(?:[^.:]+\\.)+${escapeWebFetchDomainGlob(ruleKey.slice(9))}$`
+    : `^domain:${escapeWebFetchDomainGlob(ruleKey.slice(7))}$`
+  return new RegExp(source, 'i').test(inputKey)
+}
+
+/** Official 2.1.172 `Ay8` — exact Map hit, else first wildcard match. */
+function matchWebFetchDomainRule<T>(
+  rules: Map<string, T>,
+  key: string,
+): T | undefined {
+  const exact = rules.get(key)
+  if (exact) {
+    return exact
+  }
+  const normalizedInput = normalizeWebFetchDomainKey(key)
+  let wildcard: T | undefined
+  for (const [ruleKey, rule] of rules) {
+    const normalizedRule = normalizeWebFetchDomainKey(ruleKey)
+    if (!normalizedRule.includes('*')) {
+      if (normalizedRule === normalizedInput) {
+        return rule
+      }
+    } else if (
+      wildcard === undefined &&
+      webFetchDomainWildcardMatches(normalizedRule, normalizedInput)
+    ) {
+      wildcard = rule
+    }
+  }
+  return wildcard
+}
+
 function webFetchToolInputToPermissionRuleContent(input: {
   [k: string]: unknown
 }): string {
@@ -123,11 +183,10 @@ export const WebFetchTool = buildTool({
     // Check for a rule specific to the tool input (matching hostname)
     const ruleContent = webFetchToolInputToPermissionRuleContent(input)
 
-    const denyRule = getRuleByContentsForTool(
-      permissionContext,
-      WebFetchTool,
-      'deny',
-    ).get(ruleContent)
+    const denyRule = matchWebFetchDomainRule(
+      getRuleByContentsForTool(permissionContext, WebFetchTool, 'deny'),
+      ruleContent,
+    )
     if (denyRule) {
       return {
         behavior: 'deny',
@@ -139,11 +198,10 @@ export const WebFetchTool = buildTool({
       }
     }
 
-    const askRule = getRuleByContentsForTool(
-      permissionContext,
-      WebFetchTool,
-      'ask',
-    ).get(ruleContent)
+    const askRule = matchWebFetchDomainRule(
+      getRuleByContentsForTool(permissionContext, WebFetchTool, 'ask'),
+      ruleContent,
+    )
     if (askRule) {
       return {
         behavior: 'ask',
@@ -156,11 +214,10 @@ export const WebFetchTool = buildTool({
       }
     }
 
-    const allowRule = getRuleByContentsForTool(
-      permissionContext,
-      WebFetchTool,
-      'allow',
-    ).get(ruleContent)
+    const allowRule = matchWebFetchDomainRule(
+      getRuleByContentsForTool(permissionContext, WebFetchTool, 'allow'),
+      ruleContent,
+    )
     if (allowRule) {
       return {
         behavior: 'allow',

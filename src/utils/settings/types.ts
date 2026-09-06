@@ -529,6 +529,12 @@ export const SettingsSchema = lazySchema(() =>
         .describe(
           '@internal Disable the Workflows feature (also via CLAUDE_CODE_DISABLE_WORKFLOWS).',
         ),
+      disableArtifact: z
+        .boolean()
+        .optional()
+        .describe(
+          'Disable the Artifact tool (also via CLAUDE_CODE_DISABLE_ARTIFACT).',
+        ),
       enableWorkflows: z
         .boolean()
         .optional()

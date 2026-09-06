@@ -113,10 +113,10 @@ export function computeShimmerSegments(
 /** Computed bridge status label and color from connection state. */
 export type BridgeStatusInfo = {
   label:
-    | 'Remote Control failed'
-    | 'Remote Control reconnecting'
-    | 'Remote Control active'
-    | 'Remote Control connecting\u2026'
+    | '/rc failed'
+    | '/rc reconnecting'
+    | '/rc active'
+    | '/rc connecting\u2026'
   color: 'error' | 'warning' | 'success'
 }
 
@@ -132,12 +132,11 @@ export function getBridgeStatus({
   sessionActive: boolean
   reconnecting: boolean
 }): BridgeStatusInfo {
-  if (error) return { label: 'Remote Control failed', color: 'error' }
-  if (reconnecting)
-    return { label: 'Remote Control reconnecting', color: 'warning' }
+  if (error) return { label: '/rc failed', color: 'error' }
+  if (reconnecting) return { label: '/rc reconnecting', color: 'warning' }
   if (sessionActive || connected)
-    return { label: 'Remote Control active', color: 'success' }
-  return { label: 'Remote Control connecting\u2026', color: 'warning' }
+    return { label: '/rc active', color: 'success' }
+  return { label: '/rc connecting\u2026', color: 'warning' }
 }
 
 /** Footer text shown when bridge is idle (Ready state). */

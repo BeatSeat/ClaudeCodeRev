@@ -453,7 +453,7 @@ export const FileWriteTool = buildTool({
         ...(gitDiff && { gitDiff }),
       }
       // Track lines added and removed for file updates, right before yielding result
-      countLinesChanged(patch)
+      countLinesChanged(patch, parentMessage.message.model)
 
       logFileOperation({
         operation: 'write',
@@ -478,7 +478,7 @@ export const FileWriteTool = buildTool({
     }
 
     // For creation of new files, count all lines as additions, right before yielding the result
-    countLinesChanged([], newContent)
+    countLinesChanged([], parentMessage.message.model, newContent)
 
     logFileOperation({
       operation: 'write',

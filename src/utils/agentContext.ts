@@ -36,6 +36,8 @@ export type SubagentContext = {
   parentSessionId?: string
   /** Official 2.1.145: immediate parent agent id for OTEL tool-span nesting. */
   parentAgentId?: string
+  /** Official 2.1.172 `gz().depth` — 0 on the main thread; increment on each spawn. */
+  depth?: number
   /** Agent type - 'subagent' for Agent tool agents */
   agentType: 'subagent'
   /** The subagent's type name (e.g., "Explore", "Bash", "code-reviewer") */
@@ -74,6 +76,8 @@ export type TeammateAgentContext = {
   parentSessionId: string
   /** Official 2.1.145: immediate parent agent id for OTEL tool-span nesting. */
   parentAgentId?: string
+  /** Official 2.1.172 `gz().depth` — teammates copy the caller; Agent spawn increments. */
+  depth?: number
   /** Whether this agent is the team lead */
   isTeamLead: boolean
   /** Agent type - 'teammate' for swarm teammates */

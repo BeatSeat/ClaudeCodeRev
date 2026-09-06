@@ -1,4 +1,8 @@
-import { isUltrareviewEnabled } from '../../commands/review/ultrareviewEnabled.js'
+import {
+  getUltrareviewUnavailableReason,
+  isUltrareviewCloudEntitled,
+  isUltrareviewFeatureEnabled,
+} from '../../commands/review/ultrareviewEnabled.js'
 import { AGENT_TOOL_NAME } from '../../tools/AgentTool/constants.js'
 import type { ToolUseContext } from '../../Tool.js'
 import { isCommandEnabled } from '../../types/command.js'
@@ -222,13 +226,13 @@ skipped (or confirm the code was already clean).
 
 /** Official 2.1.152 `ihz`. */
 function ihz(): string {
-  return `Review the current diff for correctness bugs and reuse/simplification/efficiency cleanups at the given effort level (low/medium: fewer, high-confidence findings; high\u2192max: broader coverage, may include uncertain findings${isUltrareviewEnabled() ? '; ultra: deep multi-agent review in the cloud' : ''}). Pass --comment to post findings as inline PR comments, or --fix to apply the findings to the working tree after the review.`
+  return `Review the current diff for correctness bugs and reuse/simplification/efficiency cleanups at the given effort level (low/medium: fewer, high-confidence findings; high\u2192max: broader coverage, may include uncertain findings${isUltrareviewFeatureEnabled() ? `; ultra: deep multi-agent review in the cloud${isUltrareviewCloudEntitled() ? '' : ' (requires claude.ai account access)'}` : ''}). Pass --comment to post findings as inline PR comments, or --fix to apply the findings to the working tree after the review.`
 }
 
 /** Official 2.1.152 `rhz`. */
 function rhz(): string {
   const levels = EFFORT_LEVELS.join('|')
-  return `[${isUltrareviewEnabled() ? `${levels}|ultra` : levels}] [--fix] [--comment] [<target>]`
+  return `[${isUltrareviewFeatureEnabled() ? `${levels}|ultra` : levels}] [--fix] [--comment] [<target>]`
 }
 
 /** Official 2.1.152 `ohz`. */
@@ -246,9 +250,18 @@ function ohz({
   context: ToolUseContext
 }): string {
   if (ultraFallback) {
-    if (!isUltrareviewEnabled()) {
+    if (!isUltrareviewCloudEntitled()) {
       if (fix) {
         return `(Running a local ${level}-effort review and applying its findings.)\n\n`
+      }
+      if (isUltrareviewFeatureEnabled()) {
+        if (context.options?.isNonInteractiveSession) {
+          const reason = getUltrareviewUnavailableReason()
+          if (reason) {
+            return `(${reason} Falling back to a local ${level}-effort review.)\n\n`
+          }
+        }
+        return `(ultra (cloud review) requires claude.ai account access this session doesn't have \u2014 see https://code.claude.com/docs/en/ultrareview. Falling back to a local ${level}-effort review.)\n\n`
       }
       return `(ultra (cloud review) isn't available in this environment \u2014 see https://code.claude.com/docs/en/ultrareview. Falling back to a local ${level}-effort review.)\n\n`
     }

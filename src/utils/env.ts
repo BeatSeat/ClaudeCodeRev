@@ -327,6 +327,31 @@ function isSSHSession(): boolean {
   )
 }
 
+/**
+ * Official 2.1.172 `C77.isWslWithUnrecognizedWindowsHost`.
+ * WSL whose Windows host terminal is unrecognized (raw conhost / no
+ * WT_SESSION) — used to disable SGR mouse tracking.
+ */
+function isWslWithUnrecognizedWindowsHost(): boolean {
+  const envVars = process.env
+  if (
+    process.platform !== 'linux' ||
+    !(envVars.WSL_DISTRO_NAME || envVars.WSL_INTEROP)
+  ) {
+    return false
+  }
+  return !(
+    envVars.WT_SESSION ||
+    envVars.TERM_PROGRAM ||
+    envVars.TERMINAL_EMULATOR ||
+    envVars.ConEmuPID ||
+    envVars.ALACRITTY_WINDOW_ID ||
+    envVars.SSH_CONNECTION ||
+    envVars.TMUX ||
+    envVars.STY
+  )
+}
+
 export const env = {
   hasInternetAccess,
   isCI: isEnvTruthy(process.env.CI),
@@ -344,6 +369,7 @@ export const env = {
   isNpmFromWindowsPath,
   isConductor,
   detectDeploymentEnvironment,
+  isWslWithUnrecognizedWindowsHost,
 }
 
 /**

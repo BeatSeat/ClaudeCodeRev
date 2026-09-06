@@ -10,11 +10,15 @@ import { shouldOfferTerminalSetup } from '../../commands/terminalSetup/terminalS
 import { getDesktopUpsellConfig } from '../../components/DesktopUpsell/DesktopUpsellStartup.js'
 import { color } from '../../components/design-system/color.js'
 import { isAgentsFleetEnabled } from '../../components/FleetView/fleetGate.js'
-import { getIsNonInteractiveSession } from '../../bootstrap/state.js'
+import {
+  getIsNonInteractiveSession,
+  getIsRemoteMode,
+} from '../../bootstrap/state.js'
 import { shouldShowOverageCreditUpsell } from '../../components/LogoV2/OverageCreditUpsell.js'
 import { getShortcutDisplay } from '../../keybindings/shortcutFormat.js'
 import { isKairosCronEnabled } from '../../tools/ScheduleCronTool/prompt.js'
 import { is1PApiCustomer } from '../../utils/auth.js'
+import { isEnvTruthy } from '../../utils/envUtils.js'
 import { countConcurrentSessions } from '../../utils/concurrentSessions.js'
 import { getGlobalConfig } from '../../utils/config.js'
 import {
@@ -594,6 +598,12 @@ const externalTips: Tip[] = [
     },
     cooldownSessions: 3,
     isRelevant: async () => {
+      if (
+        isEnvTruthy(process.env.CLAUDE_CODE_REMOTE) ||
+        getIsRemoteMode()
+      ) {
+        return false
+      }
       if (!is1PApiCustomer()) return false
       if (!isKairosCronEnabled()) return false
       return (
