@@ -2644,16 +2644,29 @@ function runHeadlessStreaming(
                   output.enqueue(event)
                 }
 
-                // Hold-back: don't emit result while background agents are running
+                // Official 2.1.179 hold-back (`e61` || `G&&byq`):
+                // only when input is closed — either local_agent/local_workflow
+                // still running (backgrounded), or terminal agent-result
+                // notifications have not yet enqueued (shared `byq` waits map).
                 const currentState = getAppState()
-                if (
+                const holdForRunningAgents =
+                  inputClosed &&
                   getRunningTasks(currentState).some(
                     t =>
                       (t.type === 'local_agent' ||
                         t.type === 'local_workflow') &&
                       isBackgroundTask(t),
                   )
-                ) {
+                const holdForPendingAgentResult =
+                  inputClosed &&
+                  hasPendingAgentResultNotificationWait({
+                    tasks: Object.values(
+                      currentState.tasks ?? {},
+                    ) as PrintDrainTask[],
+                    waits: agentResultNotificationWaits,
+                    now: Date.now(),
+                  })
+                if (holdForRunningAgents || holdForPendingAgentResult) {
                   heldBackResult = message
                 } else {
                   heldBackResult = null

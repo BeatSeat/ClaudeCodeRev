@@ -15,12 +15,12 @@
     {
       "item": "Fixed mid-stream connection drops: partial responses are now preserved instead of showing a raw error, and the spinner no longer gets stuck at \"running tool\"",
       "status": "absent-in-bundle",
-      "evidence": "No unique 178→179 mid-stream preserve / spinner-stuck token in explore land-candidates. Not invented."
+      "evidence": "No unique 178\u2192179 mid-stream preserve / spinner-stuck token in explore land-candidates. Not invented."
     },
     {
       "item": "Fixed mouse-wheel scrolling in WSL2 under Windows Terminal and VS Code (regression in 2.1.172)",
       "status": "partial",
-      "evidence": "Core landed AltGr `CLAUDE_CODE_ALTGR_AS_TEXT` / WT_SESSION (`t$5`) in parse-keypress.ts — adjacent terminal input. Dedicated WSL2 wheel scroll helper not a land-candidate in explore; WY7→vw7 dropped WSL-unrecognized-host mouse gate."
+      "evidence": "Core landed AltGr `CLAUDE_CODE_ALTGR_AS_TEXT` / WT_SESSION (`t$5`) in parse-keypress.ts \u2014 adjacent terminal input. Dedicated WSL2 wheel scroll helper not a land-candidate in explore; WY7\u2192vw7 dropped WSL-unrecognized-host mouse gate."
     },
     {
       "item": "Fixed a sandbox denyRead/allowRead glob over a large directory tree making the Bash tool description enormous and the session unusable on Linux",
@@ -30,10 +30,10 @@
     {
       "item": "Fixed the feedback survey capturing a single-digit reply as a session rating immediately after a turn completes",
       "status": "absent-in-bundle",
-      "evidence": "No unique survey/single-digit rating token 0→N in explore land-candidates. Not invented."
+      "evidence": "No unique survey/single-digit rating token 0\u2192N in explore land-candidates. Not invented."
     },
     {
-      "item": "Fixed the welcome screen stacking multiple promotional banners — at most one promo now shows per session",
+      "item": "Fixed the welcome screen stacking multiple promotional banners \u2014 at most one promo now shows per session",
       "status": "partial",
       "evidence": "S4H/c74 useOnceFire + guest-passes / fable5-launch / subscription-switch once-fire. fotw-nudge / fullscreen-downsell / status-slot registry skipped (no hosts). Lw9/ltf company announcement picker + cache."
     },
@@ -50,7 +50,7 @@
     {
       "item": "Fixed remote session background tasks appearing stuck as \"still running\" between turns",
       "status": "located",
-      "evidence": "Core Eqq/byq/Hq1 print.ts agent-result notification wait (240s) + idle notify. Tokens: completion notification did not enqueue."
+      "evidence": "Core Eqq/byq/Hq1 print.ts agent-result notification wait (240s) + idle notify. Tokens: completion notification did not enqueue. Post-commit Core review FAIL fixed: result hold-back now uses inputClosed && (e61 running || byq pending) on shared waits map (print.ts)."
     },
     {
       "item": "Improved plugin loading performance in remote sessions",
