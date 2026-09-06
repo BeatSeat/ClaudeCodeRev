@@ -1,7 +1,6 @@
-import { getFeatureValue_CACHED_MAY_BE_STALE } from '../../services/analytics/growthbook.js'
 import { getSubscriptionType } from '../../utils/auth.js'
 import { hasEmbeddedSearchTools } from '../../utils/embeddedTools.js'
-import { isEnvDefinedFalsy, isEnvTruthy } from '../../utils/envUtils.js'
+import { isEnvTruthy } from '../../utils/envUtils.js'
 import { isTeammate } from '../../utils/teammate.js'
 import { isInProcessTeammate } from '../../utils/teammateContext.js'
 import { FILE_READ_TOOL_NAME } from '../FileReadTool/prompt.js'
@@ -57,24 +56,18 @@ export function formatAgentLine(agent: AgentDefinition): string {
  * Override with CLAUDE_CODE_AGENT_LIST_IN_MESSAGES=true/false for testing.
  */
 export function shouldInjectAgentListInMessages(): boolean {
-  if (isEnvTruthy(process.env.CLAUDE_CODE_AGENT_LIST_IN_MESSAGES)) return true
-  if (isEnvDefinedFalsy(process.env.CLAUDE_CODE_AGENT_LIST_IN_MESSAGES))
-    return false
-  return getFeatureValue_CACHED_MAY_BE_STALE('tengu_agent_list_attach', false)
+  // Official 2.1.178 dropped `t7q` / `tengu_agent_list_attach` /
+  // `CLAUDE_CODE_AGENT_LIST_IN_MESSAGES`. Listing is always via reminder.
+  return true
 }
 
 export async function getPrompt(
-  agentDefinitions: AgentDefinition[],
+  _agentDefinitions: AgentDefinition[],
   isCoordinator?: boolean,
-  allowedAgentTypes?: string[],
+  _model?: string,
 ): Promise<string> {
-  // Filter agents by allowed types when Agent(x,y) restricts which agents can be spawned
-  const effectiveAgents = allowedAgentTypes
-    ? agentDefinitions.filter(a => allowedAgentTypes.includes(a.agentType))
-    : agentDefinitions
-
-  // Fork subagent feature: when enabled, insert the "When to fork" section
-  // (fork semantics, directive-style prompts) and swap in fork-aware examples.
+  // Official 2.1.178 `hp4(model, coordinator, available)` — listing is always
+  // the reminder sentence (176 `t7q` / inline list dropped).
   const forkEnabled = isForkSubagentEnabled()
 
   const whenToForkSection = forkEnabled
@@ -82,13 +75,11 @@ export async function getPrompt(
 
 ## When to fork
 
-Fork yourself (omit \`subagent_type\`) when the intermediate tool output isn't worth keeping in your context. The criterion is qualitative \u2014 "will I need this output again" \u2014 not task size.
-- **Research**: fork open-ended questions. If research can be broken into independent questions, launch parallel forks in one message. A fork beats a fresh subagent for this \u2014 it inherits context and shares your cache.
-- **Implementation**: prefer to fork implementation work that requires more than a couple of edits. Do research before jumping to implementation.
+Fork yourself (pass \`subagent_type: "fork"\`) when the intermediate tool output isn't worth keeping in your context. The criterion is qualitative \u2014 "will I need this output again" \u2014 not task size. Fork open-ended questions. If research can be broken into independent questions, launch parallel forks in one message. A fork beats a fresh subagent for this \u2014 it inherits context and shares your cache.
 
-Forks are cheap because they share your prompt cache. Don't set \`model\` on a fork \u2014 a different model can't reuse the parent's cache. Pass a short \`name\` (one or two words, lowercase) so the user can see the fork in the teams panel and steer it mid-run.
+Forks are cheap because they share your prompt cache.
 
-**Don't peek.** The tool result includes an \`output_file\` path — do not Read or tail it unless the user explicitly asks for a progress check. You get a completion notification; trust it. Reading the transcript mid-flight pulls the fork's tool noise into your context, which defeats the point of forking.
+**Don't peek.** The tool result includes an \`output_file\` path — do not Read or tail it. You get a completion notification; trust it. Reading the transcript mid-flight pulls the fork's tool noise into your context, which defeats the point of forking.
 
 **Don't race.** After launching, you know nothing about what the fork found. Never fabricate or predict fork results in any format — not as prose, summary, or structured output. The notification arrives as a user-role message in a later turn; it is never something you write yourself. If the user asks a follow-up before the notification lands, tell them the fork is still running — give status, not a guess.
 
@@ -187,16 +178,9 @@ assistant: "I'm going to use the ${AGENT_TOOL_NAME} tool to launch the greeting-
 </example>
 `
 
-  // When the gate is on, the agent list lives in an agent_listing_delta
-  // attachment (see attachments.ts) instead of inline here. This keeps the
-  // tool description static across MCP/plugin/permission changes so the
-  // tools-block prompt cache doesn't bust every time an agent loads.
   const listViaAttachment = shouldInjectAgentListInMessages()
 
-  const agentListSection = listViaAttachment
-    ? `Available agent types are listed in <system-reminder> messages in the conversation.`
-    : `Available agent types and the tools they have access to:
-${effectiveAgents.map(agent => formatAgentLine(agent)).join('\n')}`
+  const agentListSection = `Available agent types are listed in <system-reminder> messages in the conversation.`
 
   // Shared core prompt used by both coordinator and non-coordinator modes
   const shared = `Launch a new agent to handle complex, multi-step tasks autonomously.
@@ -269,17 +253,14 @@ Usage notes:
 - Clearly tell the agent whether you expect it to write code or just to do research (search, file reads, web fetches, etc.)${forkEnabled ? '' : ", since it is not aware of the user's intent"}
 - If the agent description mentions that it should be used proactively, then you should try your best to use it without the user having to ask for it first. Use your judgement.
 - If the user specifies that they want you to run agents "in parallel", you MUST send a single message with multiple ${AGENT_TOOL_NAME} tool use content blocks. For example, if you need to launch both a build-validator agent and a test-runner agent in parallel, send a single message with both tool calls.
-- You can optionally set \`isolation: "worktree"\` to run the agent in a temporary git worktree, giving it an isolated copy of the repository. The worktree is automatically cleaned up if the agent makes no changes; if changes are made, the worktree path and branch are returned in the result.${
-    process.env.USER_TYPE === 'ant'
-      ? `\n- You can set \`isolation: "remote"\` to run the agent in a remote CCR environment. This is always a background task; you'll be notified when it completes. Use for long-running tasks that need a fresh sandbox.`
-      : ''
-  }${
+- You can optionally set \`isolation: "worktree"\` to run the agent in a temporary git worktree, giving it an isolated copy of the repository. The worktree is automatically cleaned up if the agent makes no changes; if changes are made, the worktree path and branch are returned in the result.
+- You can set \`isolation: "remote"\` to run the agent in a remote CCR environment. This is always a background task; you'll be notified when it completes. Use for long-running tasks that need a fresh sandbox.${
     isInProcessTeammate()
       ? `
-- The run_in_background, name, team_name, and mode parameters are not available in this context. Only synchronous subagents are supported.`
+- The run_in_background, name, and mode parameters are not available in this context. Only synchronous subagents are supported.`
       : isTeammate()
         ? `
-- The name, team_name, and mode parameters are not available in this context — teammates cannot spawn other teammates. Omit them to spawn a subagent.`
+- The name and mode parameters are not available in this context — teammates cannot spawn other teammates. Omit them to spawn a subagent.`
         : ''
   }${whenToForkSection}${writingThePromptSection}
 

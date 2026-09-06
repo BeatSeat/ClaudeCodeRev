@@ -1,81 +1,20 @@
-import setWith from 'lodash-es/setWith.js'
 import * as React from 'react'
-import { Box, Text, useTheme } from '../ink.js'
+import { Box, Text } from '../ink.js'
 import type { ValidationError } from '../utils/settings/validation.js'
-import { type TreeNode, treeify } from '../utils/treeify.js'
+import { List } from './design-system/List.js'
 
-/**
- * Builds a nested tree structure from dot-notation paths
- * Uses lodash setWith to avoid automatic array creation
- */
-function buildNestedTree(errors: ValidationError[]): TreeNode {
-  const tree: TreeNode = {}
-
-  errors.forEach(error => {
-    if (!error.path) {
-      // Root level error - use empty string as key
-      tree[''] = error.message
-      return
-    }
-
-    // Try to enhance the path with meaningful values
-    const pathParts = error.path.split('.')
-    let modifiedPath = error.path
-
-    // If we have an invalid value, try to make the path more readable
-    if (
-      error.invalidValue !== null &&
-      error.invalidValue !== undefined &&
-      pathParts.length > 0
-    ) {
-      const newPathParts: string[] = []
-
-      for (let i = 0; i < pathParts.length; i++) {
-        const part = pathParts[i]
-        if (!part) continue
-
-        const numericPart = parseInt(part, 10)
-
-        // If this is a numeric index and it's the last part where we have the invalid value
-        if (!isNaN(numericPart) && i === pathParts.length - 1) {
-          // Format the value for display
-          let displayValue: string
-          if (typeof error.invalidValue === 'string') {
-            displayValue = `"${error.invalidValue}"`
-          } else if (error.invalidValue === null) {
-            displayValue = 'null'
-          } else if (error.invalidValue === undefined) {
-            displayValue = 'undefined'
-          } else {
-            displayValue = String(error.invalidValue)
-          }
-
-          newPathParts.push(displayValue)
-        } else {
-          // Keep other parts as-is
-          newPathParts.push(part)
-        }
-      }
-
-      modifiedPath = newPathParts.join('.')
-    }
-
-    setWith(tree, modifiedPath, error.message, Object)
-  })
-
-  return tree
+/** Official 2.1.178 `Adf`/`wdf` — path last-segment as the node label. */
+function settingsErrorLabel(error: ValidationError): string | undefined {
+  if (!error.path) return undefined
+  const parts = error.path.split('.')
+  return parts[parts.length - 1] || undefined
 }
 
-/**
- * Groups and displays validation errors using treeify with deduplication
- */
 export function ValidationErrorsList({
   errors,
 }: {
   errors: ValidationError[]
 }): React.ReactNode {
-  const [themeName] = useTheme()
-
   if (errors.length === 0) {
     return null
   }
@@ -108,9 +47,6 @@ export function ValidationErrorsList({
           return (a.path || '').localeCompare(b.path || '')
         })
 
-        // Build nested tree structure from error paths
-        const errorTree = buildNestedTree(fileErrors)
-
         // Collect unique suggestion+docLink pairs
         const suggestionPairs = new Map<
           string,
@@ -130,23 +66,25 @@ export function ValidationErrorsList({
           }
         })
 
-        // Render the tree
-        const treeOutput = treeify(errorTree, {
-          showValues: true,
-          themeName,
-          treeCharColors: {
-            treeChar: 'inactive',
-            key: 'text',
-            value: 'inactive',
-          },
-        })
-
         return (
           <Box key={file} flexDirection="column">
             <Text>{file}</Text>
-            <Box marginLeft={1}>
-              <Text dimColor>{treeOutput}</Text>
-            </Box>
+            <List variant="tree">
+              {fileErrors.map((error, i) => {
+                const label = settingsErrorLabel(error)
+                return (
+                  <List.Node key={i}>
+                    {label ? (
+                      <Text>
+                        {label}: <Text dimColor>{error.message}</Text>
+                      </Text>
+                    ) : (
+                      <Text dimColor>{error.message}</Text>
+                    )}
+                  </List.Node>
+                )
+              })}
+            </List>
             {/* Display unique suggestion+docLink pairs */}
             {suggestionPairs.size > 0 && (
               <Box flexDirection="column" marginTop={1}>

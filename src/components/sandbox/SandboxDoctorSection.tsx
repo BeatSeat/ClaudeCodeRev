@@ -1,13 +1,20 @@
 import React from 'react'
 import { Box, Text } from '../../ink.js'
 import { SandboxManager } from '../../utils/sandbox/sandbox-adapter.js'
+import { DoctorSectionTitle } from '../design-system/DoctorSectionTitle.js'
+import { List } from '../design-system/List.js'
 
+/** Official 2.1.178 `E49` — TZ title + XK tree + `/sandbox` highlight. */
 export function SandboxDoctorSection(): React.ReactNode {
   if (!SandboxManager.isSupportedPlatform()) {
     return null
   }
 
   if (!SandboxManager.isSandboxEnabledInSettings()) {
+    return null
+  }
+
+  if (!SandboxManager.isPlatformInEnabledList()) {
     return null
   }
 
@@ -19,30 +26,30 @@ export function SandboxDoctorSection(): React.ReactNode {
     return null
   }
 
-  const statusColor = hasErrors ? ('error' as const) : ('warning' as const)
-  const statusText = hasErrors
-    ? 'Missing dependencies'
-    : 'Available (with warnings)'
-
   return (
-    <Box flexDirection="column">
-      <Text bold>Sandbox</Text>
-      <Text>
-        └ Status: <Text color={statusColor}>{statusText}</Text>
-      </Text>
-      {depCheck.errors.map((e, i) => (
-        <Text key={i} color="error">
-          └ {e}
-        </Text>
-      ))}
-      {depCheck.warnings.map((w, i) => (
-        <Text key={i} color="warning">
-          └ {w}
-        </Text>
-      ))}
-      {hasErrors && (
-        <Text dimColor>└ Run /sandbox for install instructions</Text>
-      )}
+    <Box flexDirection="column" marginTop={1}>
+      <DoctorSectionTitle
+        title="Sandbox"
+        status={hasErrors ? 'error' : 'warning'}
+      />
+      <List variant="tree">
+        {depCheck.errors.map((e, i) => (
+          <List.Node key={`e-${i}`} color="error">
+            {e}
+          </List.Node>
+        ))}
+        {depCheck.warnings.map((w, i) => (
+          <List.Node key={`w-${i}`} color="warning">
+            {w}
+          </List.Node>
+        ))}
+        {hasErrors && (
+          <List.Node dimColor>
+            Run <Text color="suggestion">/sandbox</Text> for install
+            instructions
+          </List.Node>
+        )}
+      </List>
     </Box>
   )
 }

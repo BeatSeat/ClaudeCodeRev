@@ -1654,6 +1654,7 @@ function PromptInput({
     filename?: string,
     dimensions?: ImageDimensions,
     sourcePath?: string,
+    continuesGesture?: boolean,
   ) {
     logEvent('tengu_paste_image', {})
     onModeChange('prompt')
@@ -1682,7 +1683,9 @@ function PromptInput({
     // armed, the previous pill's lazy space fires now (before this pill)
     // rather than being lost.
     const prefix = pendingSpaceAfterPillRef.current ? ' ' : ''
-    insertTextAtCursor(prefix + formatImageRef(pasteId))
+    insertTextAtCursor(prefix + formatImageRef(pasteId), {
+      continuesGesture,
+    })
     pendingSpaceAfterPillRef.current = true
   }
 
@@ -1755,9 +1758,15 @@ function PromptInput({
     [],
   )
 
-  function insertTextAtCursor(text: string) {
-    // Push current state to buffer before inserting
-    pushToBuffer(input, cursorOffset, pastedContents)
+  function insertTextAtCursor(
+    text: string,
+    opts?: { continuesGesture?: boolean },
+  ) {
+    // Official 2.1.178 `g8H`/`continuesGesture`: subsequent images in one
+    // multi-image paste share a single undo entry.
+    if (!opts?.continuesGesture) {
+      pushToBuffer(input, cursorOffset, pastedContents)
+    }
 
     const newInput =
       input.slice(0, cursorOffset) + text + input.slice(cursorOffset)

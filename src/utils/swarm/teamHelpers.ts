@@ -124,6 +124,27 @@ export function getTeamFilePath(teamName: string): string {
 }
 
 /**
+ * Official 2.1.178 `cx4`. Thrown when a session team file is missing after
+ * startup should have created it.
+ */
+export function sessionTeamMissingError(teamName: string): Error {
+  const err = new Error(
+    `Internal error: team file for "${teamName}" not found. The session team should have been initialized at startup.`,
+  )
+  err.name = 'Team file missing (session team not initialized)'
+  return err
+}
+
+/** Official 2.1.178 `cx4` throw site (`jVH` ENOENT). */
+export async function readSessionTeamFileOrThrow(
+  teamName: string,
+): Promise<TeamFile> {
+  const teamFile = await readTeamFileAsync(teamName)
+  if (!teamFile) throw sessionTeamMissingError(teamName)
+  return teamFile
+}
+
+/**
  * Reads a team file by name (sync — for sync contexts like React render paths)
  * @internal Exported for team discovery UI
  */

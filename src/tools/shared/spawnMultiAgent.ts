@@ -68,8 +68,46 @@ import {
 import { getHardcodedTeammateModelFallback } from '../../utils/swarm/teammateModel.js'
 import { registerTask } from '../../utils/task/framework.js'
 import { writeToMailbox } from '../../utils/teammateMailbox.js'
+import { MAIN_CONVERSATION_NAME } from '../SendMessageTool/constants.js'
 import type { CustomAgentDefinition } from '../AgentTool/loadAgentsDir.js'
 import { isCustomAgent } from '../AgentTool/loadAgentsDir.js'
+
+/** Official 2.1.178 `D24` / `J24`. */
+const CONTROL_CHAR_RE = /\p{Cc}/u
+
+function hasControlChars(value: string | undefined): boolean {
+  return typeof value === 'string' && CONTROL_CHAR_RE.test(value)
+}
+
+const SESSION_TEAM_UNINITIALIZED =
+  'Internal error: session team not initialized. This should have happened at startup when agent swarms are enabled.'
+
+function requireSessionTeamName(
+  teamContextName: string | undefined,
+): string {
+  if (!teamContextName) {
+    throw new Error(SESSION_TEAM_UNINITIALIZED)
+  }
+  return teamContextName
+}
+
+function assertSpawnNameControlChars(
+  name: string,
+  teamName: string | undefined,
+): void {
+  for (const [field, value] of [
+    ['name', name],
+    ['team_name', teamName],
+  ] as const) {
+    if (hasControlChars(value)) {
+      throw new Error(
+        field === 'name'
+          ? 'Invalid name: control characters are not allowed in agent or team names'
+          : 'Invalid team_name: control characters are not allowed in agent or team names',
+      )
+    }
+  }
+}
 
 /** Official 2.1.172 `$6q`. */
 function warnTeammateModelNotAllowed(spec: string): void {
@@ -300,29 +338,37 @@ export async function generateUniqueTeammateName(
   baseName: string,
   teamName: string | undefined,
 ): Promise<string> {
+  const sanitized = sanitizeAgentName(baseName)
+  // Official 2.1.178 `EZf`: refuse reserved SendMessage recipient.
+  if (sanitized === MAIN_CONVERSATION_NAME) {
+    throw new Error(
+      '"main" is a reserved recipient name (SendMessage routes it to the main conversation) — choose another teammate name.',
+    )
+  }
+
   if (!teamName) {
-    return baseName
+    return sanitized
   }
 
   const teamFile = await readTeamFileAsync(teamName)
   if (!teamFile) {
-    return baseName
+    return sanitized
   }
 
   const existingNames = new Set(teamFile.members.map(m => m.name.toLowerCase()))
 
   // If the base name doesn't exist, use it as-is
-  if (!existingNames.has(baseName.toLowerCase())) {
-    return baseName
+  if (!existingNames.has(sanitized.toLowerCase())) {
+    return sanitized
   }
 
   // Find the next available suffix
   let suffix = 2
-  while (existingNames.has(`${baseName}-${suffix}`.toLowerCase())) {
+  while (existingNames.has(`${sanitized}-${suffix}`.toLowerCase())) {
     suffix++
   }
 
-  return `${baseName}-${suffix}`
+  return `${sanitized}-${suffix}`
 }
 
 // ============================================================================
@@ -348,15 +394,10 @@ async function handleSpawnSplitPane(
     throw new Error('name and prompt are required for spawn operation')
   }
 
-  // Get team name from input or inherit from leader's team context
+  // Official 2.1.178 `SZf`/`Pp4`/`RZf`: implicit session team only.
   const appState = getAppState()
-  const teamName = input.team_name || appState.teamContext?.teamName
-
-  if (!teamName) {
-    throw new Error(
-      'team_name is required for spawn operation. Either provide team_name in input or call spawnTeam first to establish team context.',
-    )
-  }
+  const teamName = requireSessionTeamName(appState.teamContext?.teamName)
+  assertSpawnNameControlChars(name, teamName)
 
   // Generate unique name if duplicate exists in team
   const uniqueName = await generateUniqueTeammateName(name, teamName)
@@ -588,15 +629,10 @@ async function handleSpawnSeparateWindow(
     throw new Error('name and prompt are required for spawn operation')
   }
 
-  // Get team name from input or inherit from leader's team context
+  // Official 2.1.178 `SZf`/`Pp4`/`RZf`: implicit session team only.
   const appState = getAppState()
-  const teamName = input.team_name || appState.teamContext?.teamName
-
-  if (!teamName) {
-    throw new Error(
-      'team_name is required for spawn operation. Either provide team_name in input or call spawnTeam first to establish team context.',
-    )
-  }
+  const teamName = requireSessionTeamName(appState.teamContext?.teamName)
+  assertSpawnNameControlChars(name, teamName)
 
   // Generate unique name if duplicate exists in team
   const uniqueName = await generateUniqueTeammateName(name, teamName)
@@ -883,15 +919,10 @@ async function handleSpawnInProcess(
     throw new Error('name and prompt are required for spawn operation')
   }
 
-  // Get team name from input or inherit from leader's team context
+  // Official 2.1.178 `SZf`/`Pp4`/`RZf`: implicit session team only.
   const appState = getAppState()
-  const teamName = input.team_name || appState.teamContext?.teamName
-
-  if (!teamName) {
-    throw new Error(
-      'team_name is required for spawn operation. Either provide team_name in input or call spawnTeam first to establish team context.',
-    )
-  }
+  const teamName = requireSessionTeamName(appState.teamContext?.teamName)
+  assertSpawnNameControlChars(name, teamName)
 
   // Generate unique name if duplicate exists in team
   const uniqueName = await generateUniqueTeammateName(name, teamName)

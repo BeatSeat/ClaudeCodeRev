@@ -1594,3 +1594,17 @@ function getUpdatedInputOrFallback(
       : undefined) ?? fallback
   )
 }
+
+/** Official 2.1.178 `Gtq`. */
+export function isPreAskDecision(decision: {
+  decideLocation?: string
+}): boolean {
+  return decision.decideLocation === 'pre-ask'
+}
+
+/** Official 2.1.178 `WC4` `buildDeny` / config-deny tail. */
+export function withAskPathLocation<T extends object>(
+  decision: T,
+): T & { decideLocation: 'ask-path' } {
+  return { ...decision, decideLocation: 'ask-path' }
+}

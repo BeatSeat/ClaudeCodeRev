@@ -32,6 +32,7 @@ import {
   isDefaultModelEnforced,
   getMainLoopModel,
   getMarketingNameForModel,
+  parseUserSpecifiedModel,
   getUserSpecifiedModelSetting,
   isFableAvailable,
   isOpus1mMergeEnabled,
@@ -44,6 +45,14 @@ import { has1mContext, is1mContextDisabled } from '../context.js'
 import { getGlobalConfig } from '../config.js'
 import { getGatewayModelOptions } from './gatewayModels.js'
 import { ALL_MODEL_CONFIGS } from './configs.js'
+import { logForDebugging } from '../debug.js'
+import {
+  formatPlanLimitsEndDate,
+  getFable5LaunchConfig,
+  isFableOverageRequired,
+  isFablePermanentAccess,
+} from './fableOverages.js'
+import { getModelErrorOverridePickerHint } from './modelErrorOverrides.js'
 
 // @[MODEL LAUNCH]: Update all the available and default model option strings below.
 
@@ -52,6 +61,8 @@ export type ModelOption = {
   label: string
   description: string
   descriptionForModel?: string
+  /** Official 2.1.178 `dcK` — picker row disabled by model-error-overrides. */
+  disabled?: boolean
 }
 
 export function getDefaultOptionForUser(fastMode = false): ModelOption {
@@ -138,17 +149,78 @@ function getCustomFableOption(): ModelOption | undefined {
   }
 }
 
-/** Official 2.1.170 `SD6`. */
+/** Official 2.1.178 `tZ6` (170 `SD6`). */
 function getFable5Option(): ModelOption {
   const is3P = !isFirstPartyApiFamily()
+  let description =
+    'Fable 5 · Most capable for your hardest and longest-running tasks'
+  if (!isFablePermanentAccess()) {
+    if (isFableOverageRequired()) {
+      description += ' · Draws from usage credits'
+    } else {
+      const until = formatPlanLimitsEndDate(
+        getFable5LaunchConfig().planLimitsEndDate,
+      )
+      if (until !== undefined) {
+        description += ` · Included with your plan until ${until}`
+      }
+    }
+  }
   return {
     value: is3P ? getModelStrings().fable5 : 'fable',
     label: 'Fable',
-    description:
-      'Fable 5 · Most capable for your hardest and longest-running tasks',
+    description,
     descriptionForModel:
       'Fable 5 - most capable for your hardest and longest-running tasks',
   }
+}
+
+/**
+ * Official 2.1.178 `oy_` — keep cached/known Fable rows in sync with
+ * overage vs plan-limits copy.
+ */
+function annotateFablePickerOverage(option: ModelOption): ModelOption {
+  if (
+    option.value === null ||
+    typeof option.value !== 'string' ||
+    !isFablePickerValue(option.value) ||
+    isFablePermanentAccess() ||
+    option.disabled === true
+  ) {
+    return option
+  }
+  const overage = isFableOverageRequired()
+  const parts = (option.description ?? '').split(' · ').filter(part =>
+    overage
+      ? !part.startsWith('Uses your limits')
+      : part !== 'Draws from usage credits',
+  )
+  if (overage && !parts.includes('Draws from usage credits')) {
+    parts.push('Draws from usage credits')
+  }
+  return { ...option, description: parts.filter(Boolean).join(' · ') }
+}
+
+/**
+ * Official 2.1.178 `MW$` `dcK` arm — disable a row when GB has a block/hint.
+ */
+function applyModelErrorOverrideHint(option: ModelOption): ModelOption {
+  if (option.disabled === true) return option
+  try {
+    const target =
+      option.value === null
+        ? getMainLoopModel()
+        : parseUserSpecifiedModel(option.value)
+    const hint = getModelErrorOverridePickerHint(getCanonicalName(target))
+    if (hint !== null) {
+      return { ...option, disabled: true, description: hint }
+    }
+  } catch (error) {
+    logForDebugging(`model-error-overrides picker hint failed: ${error}`, {
+      level: 'error',
+    })
+  }
+  return option
 }
 
 /** Official 2.1.170 `PJ$`. */
@@ -730,11 +802,19 @@ export function getModelOptions(fastMode = false): ModelOption[] {
  */
 function filterModelOptionsByAllowlist(options: ModelOption[]): ModelOption[] {
   const settings = getSettings_DEPRECATED() || {}
-  if (!settings.availableModels) {
-    return options // No restrictions
-  }
-  return options.filter(
-    opt =>
-      opt.value === null || (opt.value !== null && isModelAllowed(opt.value)),
-  )
+  const allowed = !settings.availableModels
+    ? options
+    : options.filter(
+        opt =>
+          opt.value === null ||
+          (opt.value !== null && isModelAllowed(opt.value)),
+      )
+  // Official 2.1.178 `oy_` + `MW$` `dcK`: annotate Fable copy, then disable
+  // rows that have a model-error-overrides hint (disabled rows last).
+  const annotated = allowed
+    .map(annotateFablePickerOverage)
+    .map(applyModelErrorOverrideHint)
+  const disabled = annotated.filter(opt => opt.disabled === true)
+  if (disabled.length === 0) return annotated
+  return [...annotated.filter(opt => opt.disabled !== true), ...disabled]
 }

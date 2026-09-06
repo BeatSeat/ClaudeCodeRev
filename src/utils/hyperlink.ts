@@ -1,6 +1,26 @@
 import chalk from 'chalk'
 import stripAnsi from 'strip-ansi'
+import { fileURLToPath } from 'url'
 import { supportsHyperlinks } from '../ink/supports-hyperlinks.js'
+import { openBrowser, openPath } from './browser.js'
+import { logForDebugging } from './debug.js'
+
+/** Official 2.1.178 `Tw` / `jg6` — schemes `xW8` will dispatch. */
+const HYPERLINK_ALLOWED_SCHEMES = new Set([
+  'https:',
+  'http:',
+  'vscode:',
+  'vscode-insiders:',
+  'cursor:',
+  'windsurf:',
+  'zed:',
+  'jetbrains:',
+  'idea:',
+  'slack:',
+  'linear:',
+  'notion:',
+  'figma:',
+])
 
 // OSC 8 hyperlink escape sequences
 // Format: \e]8;;URL\e\\TEXT\e]8;;\e\\
@@ -48,4 +68,35 @@ export function createHyperlink(
   const displayText = content ?? url
   const coloredText = chalk.blue(displayText)
   return `${OSC8_START}${url}${OSC8_END}${coloredText}${OSC8_START}${OSC8_END}`
+}
+
+/**
+ * Official 2.1.178 `xW8` — open a clicked OSC 8 URL. `file:` via
+ * `fileURLToPath`+`openPath` (empty host only); other schemes must be
+ * allowlisted or the click is refused and logged.
+ */
+export async function dispatchClickedHyperlink(url: string): Promise<boolean> {
+  let parsed: URL
+  try {
+    parsed = new URL(url)
+  } catch {
+    return false
+  }
+  const scheme = parsed.protocol
+  if (scheme === 'file:') {
+    if (parsed.host !== '') return false
+    try {
+      return await openPath(fileURLToPath(url))
+    } catch {
+      return false
+    }
+  }
+  if (!HYPERLINK_ALLOWED_SCHEMES.has(scheme)) {
+    logForDebugging(
+      `[hyperlink] refusing to dispatch clicked link with non-allowlisted scheme ${scheme}`,
+      { level: 'warn' },
+    )
+    return false
+  }
+  return openBrowser(url)
 }

@@ -6,16 +6,27 @@ import { Ratchet } from './design-system/Ratchet.js'
 type Props = {
   children: React.ReactNode
   height?: number
+  /** Official 2.1.178 `ov4` — e.g. `Error:` on rate-limit API errors. */
+  screenReaderLabel?: string
 }
 
-export function MessageResponse({ children, height }: Props): React.ReactNode {
+export function MessageResponse({
+  children,
+  height,
+  screenReaderLabel,
+}: Props): React.ReactNode {
   const isMessageResponse = useContext(MessageResponseContext)
   if (isMessageResponse) {
     return children
   }
   const content = (
     <MessageResponseProvider>
-      <Box flexDirection="row" height={height} overflowY="hidden">
+      <Box
+        flexDirection="row"
+        height={height}
+        overflowY="hidden"
+        aria-label={screenReaderLabel}
+      >
         <NoSelect fromLeftEdge flexShrink={0}>
           <Text dimColor>{'  '}⎿ &nbsp;</Text>
         </NoSelect>

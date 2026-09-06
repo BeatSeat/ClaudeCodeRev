@@ -24,6 +24,8 @@ type PasteHandlerProps = {
     filename?: string,
     dimensions?: ImageDimensions,
     sourcePath?: string,
+    /** Official 2.1.178 `uV$` — true for the 2nd+ image in a multi-image paste. */
+    continuesGesture?: boolean,
   ) => void
 }
 
@@ -145,7 +147,8 @@ export function usePasteHandler({
 
                 if (validImages.length > 0) {
                   // Successfully read at least one image
-                  for (const imageData of validImages) {
+                  // Official 2.1.178 `uV$`: 6th arg is `b>0` (subsequent image).
+                  for (const [b, imageData] of validImages.entries()) {
                     const filename = basename(imageData.path)
                     onImagePaste(
                       imageData.base64,
@@ -153,6 +156,7 @@ export function usePasteHandler({
                       filename,
                       imageData.dimensions,
                       imageData.path,
+                      b > 0,
                     )
                   }
                   // If some paths weren't images, paste them as text
