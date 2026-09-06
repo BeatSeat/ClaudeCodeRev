@@ -54,6 +54,7 @@ import {
   type Roster,
   type SpawnPty,
 } from './types.js'
+import { spareWorkerEnv } from './spawnArgs.js'
 import { KF } from './worker.js'
 
 declare const MACRO: { VERSION: string }
@@ -645,7 +646,7 @@ function spawnSpare(log: (line: string) => void, onExit: () => void): Promise<Sp
       ],
       {
         cwd: spareDir(),
-        env: process.env,
+        env: spareWorkerEnv(),
         stdio: ['ignore', 'ignore', 'ignore'],
         detached: true,
         windowsHide: true,

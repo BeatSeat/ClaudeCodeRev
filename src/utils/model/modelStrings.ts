@@ -32,7 +32,8 @@ const MODEL_KEYS = Object.keys(ALL_MODEL_CONFIGS) as ModelKey[]
 function bedrockRegionPrefixFromAwsRegion(
   region: string,
 ): BedrockRegionPrefix {
-  if (region.startsWith('us-') && !region.startsWith('us-gov-')) return 'us'
+  if (region.startsWith('us-gov-')) return 'us-gov'
+  if (region.startsWith('us-')) return 'us'
   if (region.startsWith('eu-')) return 'eu'
   if (region.startsWith('ap-')) return 'apac'
   return 'global'

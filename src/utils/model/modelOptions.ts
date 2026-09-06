@@ -27,6 +27,7 @@ import {
   getDefaultOpusModel,
   getDefaultHaikuModel,
   getDefaultFableModel,
+  getDefaultMainLoopModel,
   getDefaultMainLoopModelSetting,
   getMainLoopModel,
   getMarketingNameForModel,
@@ -387,6 +388,58 @@ function getOpusPlanOption(): ModelOption {
   }
 }
 
+/** Official 2.1.174 `DL6` — insert the Default-resolves-to family as its own row. */
+function insertDefaultFamilyRow(
+  options: ModelOption[],
+  fastMode = false,
+): ModelOption[] {
+  const family = modelFamilyKey(getDefaultMainLoopModel())
+  if (family !== 'opus' && family !== 'sonnet') return options
+  const opusMerged = family === 'opus' && isOpus1mMergeEnabled()
+  if (
+    options.some(
+      row =>
+        row.value === family ||
+        (opusMerged && row.value === `${family}[1m]`),
+    )
+  ) {
+    return options
+  }
+  const subscriber = isClaudeAISubscriber()
+  let row: ModelOption
+  if (family === 'sonnet') {
+    const sonnet = getDefaultSonnetModel()
+    if (getCanonicalName(sonnet) === 'claude-sonnet-4-6') {
+      row = subscriber ? MaxSonnet46Option : getSonnet46Option()
+    } else {
+      const z = getMarketingNameForModel(sonnet) ?? 'Sonnet'
+      row = {
+        value: 'sonnet',
+        label: 'Sonnet',
+        description: `${z} · Efficient for routine tasks`,
+        descriptionForModel: `${z} - efficient for routine tasks`,
+      }
+    }
+  } else if (opusMerged) {
+    row = { ...getMergedOpus1MOption(fastMode), label: 'Opus' }
+  } else {
+    const opus = getDefaultOpusModel()
+    const z = getMarketingNameForModel(opus) ?? 'Opus'
+    row = {
+      value: 'opus',
+      label: 'Opus',
+      description: `${z} · Best for everyday, complex tasks${subscriber ? '' : getOpus46PricingSuffix(fastMode)}`,
+      descriptionForModel: `${z} - best for everyday, complex tasks`,
+    }
+  }
+  options.splice(
+    options.findIndex(opt => opt.value === null) + 1,
+    0,
+    row,
+  )
+  return options
+}
+
 // @[MODEL LAUNCH]: Update the model picker lists below to include/reorder options for the new model.
 // Each user tier (ant, Max/Team Premium, Pro/Team Standard/Enterprise, PAYG 1P, PAYG 3P) has its own list.
 function getModelOptionsBase(fastMode = false): ModelOption[] {
@@ -426,7 +479,7 @@ function getModelOptionsBase(fastMode = false): ModelOption[] {
       }
 
       premiumOptions.push(MaxHaiku45Option)
-      return premiumOptions
+      return insertDefaultFamilyRow(premiumOptions, fastMode)
     }
 
     // Pro/Team Standard/Enterprise users: Sonnet is default, show Opus as alternative
@@ -445,7 +498,7 @@ function getModelOptionsBase(fastMode = false): ModelOption[] {
     }
 
     standardOptions.push(MaxHaiku45Option)
-    return standardOptions
+    return insertDefaultFamilyRow(standardOptions, fastMode)
   }
 
   // PAYG 1P API: Default (Sonnet) + Sonnet 1M + Opus 4.6 + Opus 1M + Haiku
@@ -463,7 +516,7 @@ function getModelOptionsBase(fastMode = false): ModelOption[] {
       }
     }
     payg1POptions.push(getHaiku45Option())
-    return payg1POptions
+    return insertDefaultFamilyRow(payg1POptions, fastMode)
   }
 
   // PAYG 3P: Default (Sonnet 4.5) + Sonnet (3P custom) or Sonnet 4.6/1M + Opus (3P custom) or Opus 4.1/Opus 4.6/Opus1M + Haiku + Opus 4.1

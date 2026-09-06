@@ -2678,6 +2678,13 @@ export function resetSentSkillNames(): void {
   suppressNext = false
 }
 
+/** Official 2.1.174 `u1q` — unmark only the skills whose content changed. */
+export function unmarkSentSkillNames(names: string[]): void {
+  for (const sent of sentSkillNames.values()) {
+    for (const name of names) sent.delete(name)
+  }
+}
+
 /**
  * Suppress the next skill-listing injection. Called by conversationRecovery
  * on --resume when a skill_listing attachment already exists in the

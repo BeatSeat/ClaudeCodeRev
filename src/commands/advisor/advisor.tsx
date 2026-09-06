@@ -66,7 +66,9 @@ function AdvisorDialog({
   const setAppState = useSetAppState()
   const matchedAlias = advisorModel ? matchAdvisorAlias(advisorModel) : undefined
   const extraOption =
-    advisorModel && !matchedAlias && isModelAllowed(advisorModel)
+    advisorModel &&
+    !matchedAlias &&
+    isValidAdvisorModel(parseUserSpecifiedModel(advisorModel))
       ? { label: advisorLabel(advisorModel), value: advisorModel }
       : undefined
   const options = [

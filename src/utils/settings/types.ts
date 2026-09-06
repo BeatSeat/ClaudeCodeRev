@@ -1346,6 +1346,13 @@ export const SettingsSchema = lazySchema(() =>
         .describe(
           'Auto-scroll the conversation view to bottom (fullscreen mode only)',
         ),
+      // Official 2.1.174: not in GiH / USER_INTENT_SETTING_KEYS. Read via n1 walker.
+      wheelScrollAccelerationEnabled: z
+        .boolean()
+        .optional()
+        .describe(
+          'Ramp mouse-wheel scroll speed during fast scrolls (fullscreen mode only)',
+        ),
       fileCheckpointingEnabled: z
         .boolean()
         .optional()

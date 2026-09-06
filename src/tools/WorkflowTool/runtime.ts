@@ -9,6 +9,11 @@ import { logEvent } from '../../services/analytics/index.js'
 import type { Tool, ToolUseContext, Tools } from '../../Tool.js'
 import { toolMatchesName } from '../../Tool.js'
 import { runAgent } from '../AgentTool/runAgent.js'
+import {
+  getAgentContext,
+  runWithAgentContext,
+} from '../../utils/agentContext.js'
+import { getParentSessionId } from '../../utils/teammate.js'
 import { AGENT_TOOL_NAME } from '../AgentTool/constants.js'
 import {
   isBuiltInAgent,
@@ -1273,7 +1278,18 @@ You are running in an isolated git worktree at ${worktree.worktreePath} (a separ
       let structuredAttempts = 0
       let lastStructuredInput: unknown
       const turnStarted = Date.now()
+      const parent = getAgentContext()
+      const workflowAgentContext = {
+        agentId,
+        parentAgentId: parent?.agentId,
+        depth: (parent?.depth ?? 0) + 1,
+        parentSessionId: getParentSessionId(),
+        agentType: 'subagent' as const,
+        subagentName: definition.agentType,
+        isBuiltIn: isBuiltInAgent(definition),
+      }
       try {
+        await runWithAgentContext(workflowAgentContext, async () => {
         for await (const message of runAgent({
           agentDefinition: definition,
           promptMessages: [createUserMessage({ content: runPrompt })],
@@ -1338,6 +1354,7 @@ You are running in an isolated git worktree at ${worktree.worktreePath} (a separ
             })
           }
         }
+        })
       } catch (error) {
         const reason = agentAbort.signal.aborted
           ? agentAbort.signal.reason

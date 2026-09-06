@@ -34,10 +34,10 @@ export type UserIntentSettingKey = (typeof USER_INTENT_SETTING_KEYS)[number]
 export type UserIntentSource = SettingSource | 'legacyGlobalConfig' | 'default'
 
 /**
- * Official 2.1.119 T5 — walk enabled settings sources high→low, then fall
- * back to a non-default ~/.claude.json value for user-intent keys.
+ * Official 2.1.119 T5 / 2.1.174 `n1` — walk any settings key high→low;
+ * GiH / USER_INTENT_SETTING_KEYS legacy fallback stays intent-only.
  */
-export function getUserIntentSettingWithSource<K extends UserIntentSettingKey>(
+export function getUserIntentSettingWithSource<K extends keyof SettingsJson>(
   key: K,
   defaultValue: SettingsJson[K],
 ): { value: SettingsJson[K]; source: UserIntentSource } {
@@ -50,7 +50,7 @@ export function getUserIntentSettingWithSource<K extends UserIntentSettingKey>(
       return { value: value as SettingsJson[K], source }
     }
   }
-  if ((USER_INTENT_SETTING_KEYS as readonly string[]).includes(key)) {
+  if ((USER_INTENT_SETTING_KEYS as readonly string[]).includes(key as string)) {
     const legacy = (getGlobalConfig() as Record<string, unknown>)[key]
     const fallback = (DEFAULT_GLOBAL_CONFIG as Record<string, unknown>)[key]
     if (legacy !== undefined && legacy !== fallback) {
@@ -60,7 +60,7 @@ export function getUserIntentSettingWithSource<K extends UserIntentSettingKey>(
   return { value: defaultValue, source: 'default' }
 }
 
-export function getUserIntentSetting<K extends UserIntentSettingKey>(
+export function getUserIntentSetting<K extends keyof SettingsJson>(
   key: K,
   defaultValue: SettingsJson[K],
 ): SettingsJson[K] {

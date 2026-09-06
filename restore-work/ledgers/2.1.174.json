@@ -1,0 +1,81 @@
+{
+  "version": "2.1.174",
+  "from": "2.1.173",
+  "astdiff": "0.99275",
+  "contract": "astdiff genuine-structural + added-product (changelog is classification only)",
+  "coverage": "restore-work/diffs/2.1.174-astdiff-coverage.md",
+  "scout": "restore-work/diffs/2.1.174-changelog-scout.md",
+  "items": [
+    {
+      "item": "Added `wheelScrollAccelerationEnabled` setting to disable mouse-wheel scroll acceleration in fullscreen mode",
+      "status": "located",
+      "evidence": "Official schema describe Ramp mouse-wheel scroll speed… 0→1; n1 not GiH. sIf accelEnabled; Et4 · accelDisabled; ht4 gates. TS: types.ts, userIntent n1 widen, ScrollKeybindingHandler.tsx."
+    },
+    {
+      "item": "Fixed the `/model` picker hiding the model family that Default resolves to — Opus now appears as its own row on Max/Team Premium/Enterprise plans, Sonnet on Pro/Team plans, and Opus on pay-as-you-go API accounts",
+      "status": "located",
+      "evidence": "Official DL6 + d2_ on Max/TeamPrem/Ent, Pro/Team, PAYG 1P. OBK={...YBK,label:Opus}. TS insertDefaultFamilyRow in modelOptions.ts. No DL6 on PAYG 3P/ant."
+    },
+    {
+      "item": "Fixed `/model` picker showing a hardcoded Sonnet version label when `ANTHROPIC_DEFAULT_SONNET_MODEL` pins a different Sonnet",
+      "status": "located",
+      "evidence": "Official DL6: qK(O0())===claude-sonnet-4-6 uses wBK/XL6 else marketing-name row. TS same in insertDefaultFamilyRow."
+    },
+    {
+      "item": "Fixed the \"Fable 5 is now consuming usage credits\" banner incorrectly showing for enterprise accounts with usage-based billing",
+      "status": "located",
+      "evidence": "Official Gg9 if(oa())return. oa=g_()?.billingType===usage_based. Banner 1→1. TS isUsageBasedBilling + Notifications.tsx. No enterprise conjunct."
+    },
+    {
+      "item": "Fixed Bedrock GovCloud regions (`us-gov-*`) deriving the wrong inference profile prefix (`global` instead of `us-gov`), causing 400 errors on derived model IDs",
+      "status": "located",
+      "evidence": "Official _6H (173 l8H): us-gov- before us-. TS bedrockRegionPrefixFromAwsRegion + geoPrefixFromRegion; BEDROCK_REGION_PREFIXES += us-gov."
+    },
+    {
+      "item": "Fixed background sessions inheriting another session's `ANTHROPIC_*` provider env (gateway URL, custom headers, `/model` aliases) from the shell that started the background daemon",
+      "status": "located",
+      "evidence": "Official I09/BVA strip FXq+WG$+QXq→PG$. TS workerEnv + spareWorkerEnv in spawnArgs.ts; supervisor spawnSpare uses spareWorkerEnv."
+    },
+    {
+      "item": "Fixed a 1-2 second pause when exiting Claude Code shortly after a shell command was interrupted or killed on macOS and Linux",
+      "status": "partial",
+      "evidence": "Official iJq.#R polls l29 every 100ms after SIGTERM. TS ShellCommand.#doKill is tree-kill SIGKILL (behind 173). Not invented."
+    },
+    {
+      "item": "Fixed git commit co-author attribution showing an incorrect model name for some models",
+      "status": "partial",
+      "evidence": "Official umH PyH?IK8(fable):fU4(H)?IK8(H):Claude. Landed fallback Claude. fU4 inference-profile recognizer has no TS parent."
+    },
+    {
+      "item": "Fixed the `/advisor` dialog pre-selecting a saved advisor model that is blocked by the `availableModels` allowlist",
+      "status": "located",
+      "evidence": "Official mof extraOption OZ8=b2H(KA(G7(H))). TS extraOption isValidAdvisorModel(parseUserSpecifiedModel). b2H rank not invented."
+    },
+    {
+      "item": "Fixed skill hot-reload re-sending the entire skill listing when a single skill changed; only changed skills are now re-announced",
+      "status": "located",
+      "evidence": "Official KwA Map + u1q(changed names). TS fingerprintSkills + unmarkSentSkillNames. x3H not invented."
+    },
+    {
+      "item": "Fixed Workflow tool `agent()` subagents missing per-agent attribution headers",
+      "status": "located",
+      "evidence": "Official eu(V$,…) wrap. V$ agentId/parent/depth+1/Hm/subagent/isBuiltIn. TS runWithAgentContext in WorkflowTool/runtime.ts."
+    },
+    {
+      "item": "[VSCode] Added usage attribution to the Account & usage dialog (`/usage`) showing cache misses, long context, subagents, and per-skill/agent/plugin/MCP breakdowns over the last 24h or 7d",
+      "status": "absent-in-bundle",
+      "evidence": "VSCode dialog strings 0→0 in Cometix CLI cli.js."
+    },
+    {
+      "item": "Fixed pre-warmed background workers failing with \"Could not resolve authentication method\" when claimed after sitting idle",
+      "status": "located",
+      "evidence": "Shared auth string 1→1. AUTH PATH is I09/BVA provider-env strip (same as bg ANTHROPIC_* item), not a new OAuth refresh-on-claim."
+    },
+    {
+      "item": "astdiff: Switch anytime / Fable5Notice period; xhigh hint Fable 5, Opus 4.7+",
+      "status": "located",
+      "evidence": "Switch anytime 0→1; Try anytime 1→0; Fable 5, Opus 4.7+ 0→1. Fable5Notice.tsx + effort.ts + effort.tsx. ppK 1→1 left alone."
+    }
+  ],
+  "notes": "Typecheck delta vs /tmp/ccbase-173 empty. Build 2.1.174. Unique wheelScrollAccelerationEnabled 2 and Ramp mouse-wheel… 1 in dist/cli.js. Do not add wheel key to GiH/DEFAULT_GLOBAL_CONFIG. Do not invent fU4/b2H/l29/Y_6 skip/enterprise toast conjunct/PAYG-3P DL6. Inventory refresh under .cursor/skills is unrelated and must stay out of the hop commit."
+}

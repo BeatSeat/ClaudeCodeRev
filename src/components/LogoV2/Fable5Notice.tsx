@@ -76,7 +76,7 @@ export function Fable5Notice(): React.ReactNode {
           <Text color="claude" bold>
             Fable 5 is here!
           </Text>{' '}
-          Our newest model for complex, long-running work
+          Our newest model for complex, long-running work.
         </Text>
         {planLimits}
       </Box>
@@ -90,7 +90,7 @@ export function Fable5Notice(): React.ReactNode {
         <Text color="claude" bold>
           Fable 5
         </Text>
-        , our newest model for complex, long-running work. Try anytime with
+        , our newest model for complex, long-running work. Switch anytime with
         /model.
       </Text>
       {planLimits}

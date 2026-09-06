@@ -24,6 +24,7 @@ import {
   getApiKeyHelperElapsedMs,
   getConfiguredApiKeyHelper,
   getSubscriptionType,
+  isUsageBasedBilling,
 } from '../../utils/auth.js'
 import type { AutoUpdaterResult } from '../../utils/autoUpdater.js'
 import { getExternalEditor } from '../../utils/editor.js'
@@ -215,6 +216,7 @@ export function Notifications({
   useEffect(() => {
     if (!modelIdStartsWithFableFamily(mainLoopModel)) return
     const show = () => {
+      if (isUsageBasedBilling()) return
       addNotification({
         key: 'fable-usage-credits',
         text: 'Fable 5 is now consuming usage credits instead of your plan limits. Update Claude Code to the latest version to learn more',

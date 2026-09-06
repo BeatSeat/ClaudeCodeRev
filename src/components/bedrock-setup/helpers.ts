@@ -76,7 +76,10 @@ type ClientAuth =
 
 export function geoPrefixFromRegion(region?: string): BedrockRegionPrefix {
   const value = region ?? ''
-  if (value.startsWith('us-') && !value.startsWith('us-gov-')) {
+  if (value.startsWith('us-gov-')) {
+    return 'us-gov'
+  }
+  if (value.startsWith('us-')) {
     return 'us'
   }
   if (value.startsWith('eu-')) {
