@@ -15,6 +15,7 @@ import {
 import { getSettings_DEPRECATED } from '../settings/settings.js'
 import { checkOpus1mAccess, checkSonnet1mAccess } from './check1mAccess.js'
 import {
+  getAPIProvider,
   isFirstPartyAnthropicBaseUrl,
   isFirstPartyApiFamily,
 } from './providers.js'
@@ -25,11 +26,15 @@ import {
   getDefaultSonnetModel,
   getDefaultOpusModel,
   getDefaultHaikuModel,
+  getDefaultFableModel,
   getDefaultMainLoopModelSetting,
+  getMainLoopModel,
   getMarketingNameForModel,
   getUserSpecifiedModelSetting,
+  isFableAvailable,
   isOpus1mMergeEnabled,
   getOpus46PricingSuffix,
+  modelIdIncludesFable,
   renderDefaultModelSetting,
   type ModelSetting,
 } from './model.js'
@@ -108,9 +113,101 @@ function getSonnet46Option(): ModelOption {
   return {
     value: is3P ? getModelStrings().sonnet46 : 'sonnet',
     label: 'Sonnet',
-    description: `Sonnet 4.6 · Best for everyday tasks${is3P ? '' : ` · ${formatModelPricing(COST_TIER_3_15)}`}`,
+    description: `Sonnet 4.6 · Efficient for routine tasks${is3P ? '' : ` · ${formatModelPricing(COST_TIER_3_15)}`}`,
     descriptionForModel:
-      'Sonnet 4.6 - best for everyday tasks. Generally recommended for most coding tasks',
+      'Sonnet 4.6 - efficient for routine tasks. Generally recommended for most coding tasks',
+  }
+}
+
+function getCustomFableOption(): ModelOption | undefined {
+  const customFableModel = process.env.ANTHROPIC_DEFAULT_FABLE_MODEL
+  if (shouldHonorDefaultModelEnvOverrides() && customFableModel) {
+    return {
+      value: 'fable',
+      label: process.env.ANTHROPIC_DEFAULT_FABLE_MODEL_NAME ?? customFableModel,
+      description:
+        process.env.ANTHROPIC_DEFAULT_FABLE_MODEL_DESCRIPTION ??
+        'Custom Fable model',
+      descriptionForModel: `${process.env.ANTHROPIC_DEFAULT_FABLE_MODEL_DESCRIPTION ?? 'Custom Fable model'} (${customFableModel})`,
+    }
+  }
+}
+
+/** Official 2.1.170 `SD6`. */
+function getFable5Option(): ModelOption {
+  const is3P = !isFirstPartyApiFamily()
+  return {
+    value: is3P ? getModelStrings().fable5 : 'fable',
+    label: 'Fable',
+    description:
+      'Fable 5 · Most capable for your hardest and longest-running tasks',
+    descriptionForModel:
+      'Fable 5 - most capable for your hardest and longest-running tasks',
+  }
+}
+
+/** Official 2.1.170 `PJ$`. */
+function isFablePickerValue(value: string): boolean {
+  return value === 'fable' || value === 'fable[1m]' || modelIdIncludesFable(value)
+}
+
+/** Official 2.1.170 `AxK`. */
+function modelFamilyKey(
+  model: string,
+): 'fable' | 'opus' | 'sonnet' | 'haiku' | null {
+  const lower = model.toLowerCase()
+  if (lower.includes('fable')) return 'fable'
+  if (lower.includes('opus')) return 'opus'
+  if (lower.includes('sonnet')) return 'sonnet'
+  if (lower.includes('haiku')) return 'haiku'
+  return null
+}
+
+/** Official 2.1.170 `hD6`. */
+function samePickerOption(a: ModelOption, b: ModelOption): boolean {
+  if (a.value === b.value) return true
+  return (
+    typeof a.value === 'string' &&
+    typeof b.value === 'string' &&
+    isFablePickerValue(a.value) &&
+    isFablePickerValue(b.value)
+  )
+}
+
+/** Official 2.1.170 `qnH`: Fable rows go after Default + the current family's rows. */
+function insertPickerOption(options: ModelOption[], option: ModelOption): void {
+  if (!(typeof option.value === 'string' && isFablePickerValue(option.value))) {
+    options.push(option)
+    return
+  }
+  const defaultIdx = options.findIndex(o => o.value === null)
+  if (defaultIdx === -1) {
+    options.splice(0, 0, option)
+    return
+  }
+  const currentFamily = modelFamilyKey(getMainLoopModel())
+  let insertAt = defaultIdx + 1
+  if (currentFamily !== null) {
+    while (insertAt < options.length) {
+      const v = options[insertAt]?.value
+      if (typeof v === 'string' && modelFamilyKey(v) === currentFamily) {
+        insertAt++
+      } else {
+        break
+      }
+    }
+  }
+  options.splice(insertAt, 0, option)
+}
+
+function insertFableOption(options: ModelOption[]): void {
+  const custom = getCustomFableOption()
+  if (custom) {
+    insertPickerOption(options, custom)
+    return
+  }
+  if (isFableAvailable() || getAPIProvider() === 'anthropicAws') {
+    insertPickerOption(options, getFable5Option())
   }
 }
 
@@ -144,8 +241,8 @@ function getOpus46Option(fastMode = false): ModelOption {
   return {
     value: is3P ? getModelStrings().opus46 : 'opus',
     label: 'Opus',
-    description: `Opus 4.6 · Most capable for complex work${getOpus46PricingSuffix(fastMode)}`,
-    descriptionForModel: 'Opus 4.6 - most capable for complex work',
+    description: `Opus 4.6 · Best for everyday, complex tasks${getOpus46PricingSuffix(fastMode)}`,
+    descriptionForModel: 'Opus 4.6 - best for everyday, complex tasks',
   }
 }
 
@@ -238,7 +335,7 @@ function getMaxOpusOption(fastMode = false): ModelOption {
   return {
     value: 'opus',
     label: 'Opus',
-    description: `Opus 4.7 · Most capable for complex work${fastMode ? getOpus46PricingSuffix(true) : ''}`,
+    description: `Opus 4.7 · Best for everyday, complex tasks${fastMode ? getOpus46PricingSuffix(true) : ''}`,
   }
 }
 
@@ -264,16 +361,16 @@ function getMergedOpus1MOption(fastMode = false): ModelOption {
   return {
     value: is3P ? getModelStrings().opus46 + '[1m]' : 'opus[1m]',
     label: 'Opus (1M context)',
-    description: `Opus 4.7 with 1M context · Most capable for complex work${!is3P && fastMode ? getOpus46PricingSuffix(fastMode) : ''}`,
+    description: `Opus 4.7 with 1M context · Best for everyday, complex tasks${!is3P && fastMode ? getOpus46PricingSuffix(fastMode) : ''}`,
     descriptionForModel:
-      'Opus 4.7 with 1M context - most capable for complex work',
+      'Opus 4.7 with 1M context - best for everyday, complex tasks',
   }
 }
 
 const MaxSonnet46Option: ModelOption = {
   value: 'sonnet',
   label: 'Sonnet',
-  description: 'Sonnet 4.6 · Best for everyday tasks',
+  description: 'Sonnet 4.6 · Efficient for routine tasks',
 }
 
 const MaxHaiku45Option: ModelOption = {
@@ -405,9 +502,10 @@ function getModelOptionsBase(fastMode = false): ModelOption[] {
 
 // Official 2.1.157 `$a6` / `yv8` / `qa6`. Alias picker rows already embed
 // these slogans — do not retarget those. Only the pinned option uses them.
-const SLOGAN_SONNET = 'Best for everyday tasks'
-const SLOGAN_OPUS = 'Most capable for complex work'
+const SLOGAN_SONNET = 'Efficient for routine tasks'
+const SLOGAN_OPUS = 'Best for everyday, complex tasks'
 const SLOGAN_HAIKU = 'Fastest for quick answers'
+const SLOGAN_FABLE = 'Most capable for your hardest and longest-running tasks'
 
 /**
  * Official 2.1.157 `Yr_`: pinned /model row. Family slogan + `(${id})`, or
@@ -421,7 +519,14 @@ function getKnownModelOption(model: string): ModelOption | null {
   const canonical = getCanonicalName(model)
   let family: { alias: string; aliasModel: string; slogan: string } | null =
     null
-  if (canonical.includes('sonnet')) {
+  // Official 2.1.170 `SD_`: fable before sonnet/opus/haiku.
+  if (canonical.includes('fable')) {
+    family = {
+      alias: 'Fable',
+      aliasModel: getDefaultFableModel(),
+      slogan: SLOGAN_FABLE,
+    }
+  } else if (canonical.includes('sonnet')) {
     family = {
       alias: 'Sonnet',
       aliasModel: getDefaultSonnetModel(),
@@ -475,6 +580,8 @@ function getKnownModelOption(model: string): ModelOption | null {
 
 export function getModelOptions(fastMode = false): ModelOption[] {
   const options = getModelOptionsBase(fastMode)
+  // Official 2.1.170 `qnH`: insert Fable after the default row.
+  insertFableOption(options)
 
   // Add the custom model from the ANTHROPIC_CUSTOM_MODEL_OPTION env var
   const envCustomModel = process.env.ANTHROPIC_CUSTOM_MODEL_OPTION
@@ -491,10 +598,10 @@ export function getModelOptions(fastMode = false): ModelOption[] {
     })
   }
 
-  // Append additional model options fetched during bootstrap
+  // Official 2.1.170 `ID_`: additional cache rows go through `qnH`/`hD6`.
   for (const opt of getGlobalConfig().additionalModelOptionsCache ?? []) {
-    if (!options.some(existing => existing.value === opt.value)) {
-      options.push(opt)
+    if (!options.some(existing => samePickerOption(existing, opt))) {
+      insertPickerOption(options, opt)
     }
   }
 
@@ -519,6 +626,20 @@ export function getModelOptions(fastMode = false): ModelOption[] {
     return filterModelOptionsByAllowlist(options)
   } else if (customModel === 'opusplan') {
     return filterModelOptionsByAllowlist([...options, getOpusPlanOption()])
+  } else if (
+    typeof customModel === 'string' &&
+    isFablePickerValue(customModel)
+  ) {
+    // Official 2.1.170 `ID_` `PJ$(f)`: reuse the Fable row or insert via `qnH`.
+    const idx = options.findIndex(
+      o => typeof o.value === 'string' && isFablePickerValue(o.value),
+    )
+    if (idx !== -1) {
+      options[idx] = { ...options[idx]!, value: customModel }
+    } else {
+      insertPickerOption(options, { ...getFable5Option(), value: customModel })
+    }
+    return filterModelOptionsByAllowlist(options)
   } else if (customModel === 'opus' && isFirstPartyApiFamily()) {
     return filterModelOptionsByAllowlist([
       ...options,

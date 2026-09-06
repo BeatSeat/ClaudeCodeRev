@@ -53,8 +53,8 @@ type EffortCommandResult = {
   effortUpdate?: { value: EffortValue | undefined; ultracode?: boolean }
 }
 
-const XHIGH_MODEL_HINT = 'Opus 4.8/4.7 only'
-const MAX_MODEL_HINT = 'Opus 4.6+, Sonnet 4.6'
+const XHIGH_MODEL_HINT = 'Fable 5, Opus 4.8/4.7 only'
+const MAX_MODEL_HINT = 'Fable 5, Opus 4.6+, Sonnet 4.6'
 
 function effortHelpText(): string {
   const offerUltracode = isUltracodeEffortAvailable(getMainLoopModel())

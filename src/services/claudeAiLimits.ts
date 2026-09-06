@@ -197,6 +197,8 @@ export type ClaudeAILimits = {
   overageResetsAt?: number
   overageDisabledReason?: OverageDisabledReason
   isUsingOverage?: boolean
+  /** Official 2.1.170 `overageInUse` from `anthropic-ratelimit-unified-overage-in-use`. */
+  overageInUse?: boolean
   surpassedThreshold?: number
 }
 
@@ -245,6 +247,16 @@ function extractRawUtilization(headers: globalThis.Headers): RawUtilization {
 
 type StatusChangeListener = (limits: ClaudeAILimits) => void
 export const statusListeners: Set<StatusChangeListener> = new Set()
+
+/** Official 2.1.170 `hL8` — Fable usage-credits toast subscribers. */
+const fableUsageCreditListeners: Set<() => void> = new Set()
+
+export function addFableUsageCreditListener(listener: () => void): () => void {
+  fableUsageCreditListeners.add(listener)
+  return () => {
+    fableUsageCreditListeners.delete(listener)
+  }
+}
 
 export function emitStatusChange(limits: ClaudeAILimits) {
   currentLimits = limits
@@ -472,6 +484,9 @@ function computeNewLimitsFromHeaders(
   const isUsingOverage =
     status === 'rejected' &&
     (overageStatus === 'allowed' || overageStatus === 'allowed_warning')
+  // Official 2.1.170 `Jl7`: distinct from isUsingOverage.
+  const overageInUse =
+    headers.get('anthropic-ratelimit-unified-overage-in-use') === 'true'
 
   // Check for early warning based on surpassed-threshold header
   // If status is allowed/allowed_warning and we find a surpassed threshold, show warning
@@ -482,7 +497,10 @@ function computeNewLimitsFromHeaders(
       unifiedRateLimitFallbackAvailable,
     )
     if (earlyWarning) {
-      return earlyWarning
+      return {
+        ...earlyWarning,
+        ...(overageInUse && { overageInUse }),
+      }
     }
     // No early warning threshold surpassed
     finalStatus = 'allowed'
@@ -497,6 +515,7 @@ function computeNewLimitsFromHeaders(
     ...(overageResetsAt && { overageResetsAt }),
     ...(overageDisabledReason && { overageDisabledReason }),
     isUsingOverage,
+    ...(overageInUse && { overageInUse }),
   }
 }
 
@@ -546,6 +565,10 @@ export function extractQuotaStatusFromHeaders(
 
   if (!isEqual(currentLimits, newLimits)) {
     emitStatusChange(newLimits)
+  }
+  // Official 2.1.170 `uU6`: fire `hL8` after emit, independent of equality.
+  if (newLimits.overageInUse === true) {
+    fableUsageCreditListeners.forEach(listener => listener())
   }
 }
 

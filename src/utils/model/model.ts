@@ -125,11 +125,69 @@ export function getMainLoopModel(): ModelName {
   return getDefaultMainLoopModel()
 }
 
+/** Official 2.1.170 `Pw6` — re-entrancy guard for `T0K` / `availableModels: ["best"]`. */
+let resolvingBestModel = false
+
 export function getBestModel(): ModelName {
+  // Official 2.1.170 `T0K`: Fable when available and allowlisted, else Opus.
+  if (isFableAvailable()) {
+    const fable = getDefaultFableModel()
+    if (resolvingBestModel) {
+      return fable
+    }
+    resolvingBestModel = true
+    try {
+      if (isModelAllowed(fable)) {
+        return fable
+      }
+    } finally {
+      resolvingBestModel = false
+    }
+  }
   return getDefaultOpusModel()
 }
 
 // @[MODEL LAUNCH]: Update the default Opus model (3P providers may lag so keep defaults unchanged).
+/** Official 2.1.170 `_D$`. */
+export function getDefaultFableModel(): ModelName {
+  if (process.env.ANTHROPIC_DEFAULT_FABLE_MODEL) {
+    return process.env.ANTHROPIC_DEFAULT_FABLE_MODEL
+  }
+  return getModelStrings().fable5
+}
+
+/** Official 2.1.170 `AlH`. */
+export function isFableModel(model: ModelName): boolean {
+  return firstPartyNameToCanonical(model) === 'claude-fable-5'
+}
+
+/** Official 2.1.170 `HD$`. */
+export function isMythosModel(model: ModelName): boolean {
+  return firstPartyNameToCanonical(model) === 'claude-mythos-5'
+}
+
+/** Official 2.1.170 `MkH`. */
+export function modelIdIncludesFable(model: string): boolean {
+  return model.includes('claude-fable-5')
+}
+
+/** Official 2.1.170 `TlH`. */
+export function modelIdStartsWithFableFamily(model: string): boolean {
+  return firstPartyNameToCanonical(model).startsWith('claude-fable-')
+}
+
+/** Official 2.1.170 `N_H`. */
+export function isFableAvailable(): boolean {
+  if (process.env.ANTHROPIC_DEFAULT_FABLE_MODEL) {
+    return true
+  }
+  const provider = getAPIProvider()
+  // Official `N_H` also treats a custom-gateway provider as available.
+  // This tree's `APIProvider` union has no `'gateway'` member (pre-existing
+  // gap vs official `bcH` / `N_H`); firstParty + anthropicAws match 170.
+  return provider === 'firstParty' || provider === 'anthropicAws'
+}
+
 export function getDefaultOpusModel(): ModelName {
   if (process.env.ANTHROPIC_DEFAULT_OPUS_MODEL) {
     return process.env.ANTHROPIC_DEFAULT_OPUS_MODEL
@@ -246,6 +304,12 @@ export function firstPartyNameToCanonical(name: ModelName): ModelShortName {
   name = name.toLowerCase()
   // Special cases for Claude 4+ models to differentiate versions
   // Order matters: check more specific versions first (4-5 before 4)
+  if (name.includes('claude-fable-5')) {
+    return 'claude-fable-5'
+  }
+  if (name.includes('claude-mythos-5')) {
+    return 'claude-mythos-5'
+  }
   if (name.includes('claude-opus-4-8')) {
     return 'claude-opus-4-8'
   }
@@ -335,11 +399,11 @@ export function getClaudeAiUserDefaultModelDescription(
 ): string {
   if (isMaxSubscriber() || isTeamPremiumSubscriber()) {
     if (isOpus1mMergeEnabled()) {
-      return `Opus 4.7 with 1M context · Most capable for complex work`
+      return `Opus 4.7 with 1M context · Best for everyday, complex tasks`
     }
-    return `Opus 4.7 · Most capable for complex work`
+    return `Opus 4.7 · Best for everyday, complex tasks`
   }
-  return 'Sonnet 4.6 · Best for everyday tasks'
+  return 'Sonnet 4.6 · Efficient for routine tasks'
 }
 
 export function renderDefaultModelSetting(
@@ -411,6 +475,10 @@ export function renderModelSetting(setting: ModelName | ModelAlias): string {
  */
 export function getPublicModelDisplayName(model: ModelName): string | null {
   switch (model) {
+    case getModelStrings().fable5:
+      return 'Fable 5'
+    case getModelStrings().fable5 + '[1m]':
+      return 'Fable 5 (1M context)'
     case getModelStrings().opus48:
       return 'Opus 4.8'
     case getModelStrings().opus48 + '[1m]':
@@ -526,6 +594,8 @@ export function parseUserSpecifiedModel(
 
   if (isModelAlias(modelString)) {
     switch (modelString) {
+      case 'fable':
+        return getDefaultFableModel() + (has1mTag ? '[1m]' : '')
       case 'opusplan':
         return getDefaultSonnetModel() + (has1mTag ? '[1m]' : '') // Sonnet is default, Opus in plan mode
       case 'sonnet':
@@ -647,6 +717,12 @@ export function getMarketingNameForModel(modelId: string): string | undefined {
   const has1m = modelId.toLowerCase().includes('[1m]')
   const canonical = getCanonicalName(modelId)
 
+  if (canonical.includes('claude-fable-5')) {
+    return 'Fable 5'
+  }
+  if (canonical.includes('claude-mythos-5')) {
+    return 'Mythos 5'
+  }
   if (canonical.includes('claude-opus-4-8')) {
     return has1m ? 'Opus 4.8 (1M context)' : 'Opus 4.8'
   }

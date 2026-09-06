@@ -49,7 +49,7 @@ import {
 import { EmergencyTip } from './EmergencyTip.js'
 import { ModelPinHeader } from './ModelPinHeader.js'
 import { VoiceModeNotice } from './VoiceModeNotice.js'
-import { Opus48Notice, shouldShowOpus48Notice } from './Opus48Notice.js'
+import { Fable5Notice, shouldShowFable5Notice } from './Fable5Notice.js'
 import { Opus1mMergeNotice } from './Opus1mMergeNotice.js'
 import { PromptCachingDisabledNotice } from './PromptCachingDisabledNotice.js'
 import { feature } from 'bun:bundle'
@@ -111,7 +111,7 @@ export function LogoV2(): React.ReactNode {
   const { columns } = useTerminalSize()
   const showOnboarding = shouldShowProjectOnboarding()
   // Official 2.1.154 `LN8` / `WKz` = `De6()`
-  const [showOpus48Notice] = useState(shouldShowOpus48Notice)
+  const [showFable5Notice] = useState(shouldShowFable5Notice)
   const showGuestPassesUpsell = useShowGuestPassesUpsell()
   const showOverageCreditUpsell = useShowOverageCreditUpsell()
   const showOpus47LaunchFeed = useShowOpus47LaunchFeed()
@@ -218,7 +218,7 @@ export function LogoV2(): React.ReactNode {
       <>
         <CondensedLogo />
         <VoiceModeNotice />
-        {showOpus48Notice && <Opus48Notice />}
+        {showFable5Notice && <Fable5Notice />}
         <Opus1mMergeNotice />
         <PromptCachingDisabledNotice />
         {ChannelsNoticeModule && <ChannelsNoticeModule.ChannelsNotice />}
@@ -342,7 +342,7 @@ export function LogoV2(): React.ReactNode {
           </Box>
         </OffscreenFreeze>
         <VoiceModeNotice />
-        {showOpus48Notice && <Opus48Notice />}
+        {showFable5Notice && <Fable5Notice />}
         <Opus1mMergeNotice />
         <PromptCachingDisabledNotice />
         {ChannelsNoticeModule && <ChannelsNoticeModule.ChannelsNotice />}
@@ -465,7 +465,7 @@ export function LogoV2(): React.ReactNode {
         </Box>
       </OffscreenFreeze>
       <VoiceModeNotice />
-      {showOpus48Notice && <Opus48Notice />}
+      {showFable5Notice && <Fable5Notice />}
       <Opus1mMergeNotice />
       <PromptCachingDisabledNotice />
       {ChannelsNoticeModule && <ChannelsNoticeModule.ChannelsNotice />}

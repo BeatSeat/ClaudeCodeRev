@@ -9,6 +9,7 @@ import {
   API_TIMEOUT_ERROR_MESSAGE,
   CREDIT_BALANCE_TOO_LOW_ERROR_MESSAGE,
   CUSTOM_OFF_SWITCH_MESSAGE,
+  FABLE_OFF_SWITCH_MESSAGE,
   INVALID_API_KEY_ERROR_MESSAGE,
   INVALID_API_KEY_ERROR_MESSAGE_EXTERNAL,
   ORG_DISABLED_ERROR_MESSAGE_ENV_KEY,
@@ -164,6 +165,21 @@ export function AssistantTextMessage({
           <Box flexDirection="column" gap={1}>
             <Text color="error">
               We are experiencing high demand for Opus 4.
+            </Text>
+            <Text>
+              To continue immediately, use /model to switch to{' '}
+              {renderModelName(getDefaultSonnetModel())} and continue coding.
+            </Text>
+          </Box>
+        </MessageResponse>
+      )
+
+    case FABLE_OFF_SWITCH_MESSAGE:
+      return (
+        <MessageResponse>
+          <Box flexDirection="column" gap={1}>
+            <Text color="error">
+              We are experiencing high demand for Fable 5.
             </Text>
             <Text>
               To continue immediately, use /model to switch to{' '}
