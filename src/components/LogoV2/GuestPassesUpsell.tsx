@@ -1,6 +1,7 @@
 import * as React from 'react'
-import { useState } from 'react'
+import { useCallback, useState } from 'react'
 import { Text } from '../../ink.js'
+import { useOnceFire } from '../../hooks/useOnceFire.js'
 import { logEvent } from '../../services/analytics/index.js'
 import {
   checkCachedPassesEligibility,
@@ -60,6 +61,10 @@ export function incrementGuestPassesSeenCount(): void {
 
 // Condensed layout for mini welcome screen
 export function GuestPassesUpsell(): React.ReactNode {
+  // Official 2.1.179 `S4H("guest-passes", rtf)`
+  const markShown = useCallback(() => incrementGuestPassesSeenCount(), [])
+  useOnceFire('guest-passes', markShown)
+
   const reward = getCachedReferrerReward()
   return (
     <Text dimColor>

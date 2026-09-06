@@ -60,7 +60,9 @@ export function captureTeammateModeSnapshot(): void {
       `[TeammateModeSnapshot] Captured from CLI override: ${initialTeammateMode}`,
     )
   } else {
-    initialTeammateMode = getUserIntentSetting('teammateMode', 'auto') ?? 'auto'
+    // Official 2.1.179 `Eh$` default is `in-process` (178 was `auto`).
+    initialTeammateMode =
+      getUserIntentSetting('teammateMode', 'in-process') ?? 'in-process'
     logForDebugging(
       `[TeammateModeSnapshot] Captured from config: ${initialTeammateMode}`,
     )
@@ -81,6 +83,6 @@ export function getTeammateModeFromSnapshot(): TeammateMode {
     )
     captureTeammateModeSnapshot()
   }
-  // Fallback to 'auto' if somehow still null (shouldn't happen, but safe)
-  return initialTeammateMode ?? 'auto'
+  // Official 2.1.179 `Eh$` fallback
+  return initialTeammateMode ?? 'in-process'
 }

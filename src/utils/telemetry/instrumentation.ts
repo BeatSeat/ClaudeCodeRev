@@ -768,6 +768,24 @@ function parseOtelHeadersEnvVar(): Record<string, string> {
 }
 
 /**
+ * Official 2.1.179 `k4f` — loopback hostnames skip the OTEL HTTPS proxy agent.
+ */
+function isOtlpLoopbackEndpoint(endpoint: string | undefined): boolean {
+  if (!endpoint) return false
+  try {
+    const hostname = new URL(endpoint).hostname.toLowerCase()
+    return (
+      hostname === 'localhost' ||
+      hostname === '::1' ||
+      hostname === '[::1]' ||
+      /^127(\.\d{1,3}){3}$/.test(hostname)
+    )
+  } catch {
+    return false
+  }
+}
+
+/**
  * Get configuration for OTLP exporters including:
  * - HTTP agent options (proxy, mTLS)
  * - Dynamic headers via otelHeadersHelper or static headers from env var
@@ -796,7 +814,13 @@ function getOTLPExporterConfig() {
 
   // Check if we should bypass proxy for OTEL endpoint
   const otelEndpoint = process.env.OTEL_EXPORTER_OTLP_ENDPOINT
-  if (!proxyUrl || (otelEndpoint && shouldBypassProxy(otelEndpoint))) {
+  // Official 2.1.179 `k4f`: also skip proxy for loopback OTEL endpoints.
+  if (
+    !proxyUrl ||
+    (otelEndpoint &&
+      (isOtlpLoopbackEndpoint(otelEndpoint) ||
+        shouldBypassProxy(otelEndpoint)))
+  ) {
     // No proxy configured or OTEL endpoint should bypass proxy
     const caCerts = getCACertificates()
     if (mtlsConfig || caCerts) {

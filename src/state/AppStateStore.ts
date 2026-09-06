@@ -95,18 +95,17 @@ export type AppState = DeepImmutable<{
   mainLoopModel: ModelSetting
   mainLoopModelForSession: ModelSetting
   statusLineText: string | undefined
-  expandedView: 'none' | 'tasks' | 'teammates'
+  expandedView: 'none' | 'tasks'
   isBriefOnly: boolean
   // NO_FLICKER Focus view: collapse tool uses to a one-line summary
   briefTranscript: boolean
-  // Optional - only present when ENABLE_AGENT_SWARMS is true (for dead code elimination)
-  showTeammateMessagePreview?: boolean
-  selectedIPAgentIndex: number
   // CoordinatorTaskPanel selection: -1 = pill, 0 = main, 1..N = agent rows.
   // AppState (not local) so the panel can read it directly without prop-drilling
   // through PromptInput → PromptInputFooter.
   coordinatorTaskIndex: number
-  viewSelectionMode: 'none' | 'selecting-agent' | 'viewing-agent'
+  // Official 2.1.179: `selecting-agent` / `selectedIPAgentIndex` /
+  // `showTeammateMessagePreview` DCE'd with TeammateSpinnerTree. Keep viewing-agent.
+  viewSelectionMode: 'none' | 'viewing-agent'
   // Which footer pill is focused (arrow-key navigation below the prompt).
   // Lives in AppState so pill components rendered outside PromptInput
   // (CompanionSprite in REPL.tsx) can read their own focused state.
@@ -533,8 +532,6 @@ export function getDefaultAppState(): AppState {
     expandedView: 'none',
     isBriefOnly: false,
     briefTranscript: false,
-    showTeammateMessagePreview: false,
-    selectedIPAgentIndex: -1,
     coordinatorTaskIndex: -1,
     viewSelectionMode: 'none',
     footerSelection: null,

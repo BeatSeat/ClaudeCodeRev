@@ -21,13 +21,13 @@ export const call: LocalCommandCall = async args => {
     return {
       type: 'text',
       value: formatAutoCompactWindowStatus(
-        resolveAutoCompactWindow(modelWindow, settingsWindow),
+        resolveAutoCompactWindow(modelWindow, settingsWindow, model),
         isAutoCompactEnabled(),
       ),
     }
   }
   return {
     type: 'text',
-    value: setAutoCompactWindowFromArg(trimmed, modelWindow),
+    value: setAutoCompactWindowFromArg(trimmed, modelWindow, model),
   }
 }

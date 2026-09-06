@@ -138,18 +138,14 @@ export function onChangeAppState({
     void updateJobRespawnFlag('--model', ['-m'], model)
   }
 
-  // expandedView → persist as showExpandedTodos + showSpinnerTree for backwards compat
+  // expandedView → persist as showExpandedTodos (showSpinnerTree DCE'd 2.1.179)
   if (newState.expandedView !== oldState.expandedView) {
     const showExpandedTodos = newState.expandedView === 'tasks'
-    const showSpinnerTree = newState.expandedView === 'teammates'
-    if (
-      getGlobalConfig().showExpandedTodos !== showExpandedTodos ||
-      getGlobalConfig().showSpinnerTree !== showSpinnerTree
-    ) {
+    if (getGlobalConfig().showExpandedTodos !== showExpandedTodos) {
       saveGlobalConfig(current => ({
         ...current,
         showExpandedTodos,
-        showSpinnerTree,
+        showSpinnerTree: false,
       }))
     }
   }

@@ -975,9 +975,14 @@ export function useInboxPoller({
     store,
   ])
 
-  // Poll if running as a teammate or as a team lead
-  const shouldPoll = enabled && !!getAgentNameToPoll(store.getState())
-  useInterval(() => void poll(), shouldPoll ? INBOX_POLL_INTERVAL_MS : null)
+  // Official 2.1.179 `Ur9`: subscribe-style shouldPoll (was a one-shot
+  // `enabled && !!getAgentNameToPoll(store.getState())` that missed team
+  // context appearing after mount).
+  const hasAgentToPoll = useAppState(s => !!getAgentNameToPoll(s))
+  useInterval(
+    () => void poll(),
+    enabled && hasAgentToPoll ? INBOX_POLL_INTERVAL_MS : null,
+  )
 
   // Initial poll on mount (only once)
   const hasDoneInitialPollRef = useRef(false)

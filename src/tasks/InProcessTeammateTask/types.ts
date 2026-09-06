@@ -87,6 +87,47 @@ export function isInProcessTeammateTask(
 }
 
 /**
+ * Official 2.1.179 `WPz` (178 `RPz` was a boolean teammate predicate).
+ * Task-field agentId for in-process teammates vs local agents.
+ */
+export function getTaskAgentId(task: {
+  type: string
+  agentId?: string
+  identity?: { agentId: string }
+}): string | undefined {
+  return task.type === 'in_process_teammate'
+    ? task.identity?.agentId
+    : task.agentId
+}
+
+/**
+ * Official 2.1.179 `Fu9` (178 `SPz` was a boolean teammate predicate).
+ * Display name: teammate identity.agentName, else local agentType.
+ */
+export function getTaskDisplayName(task: {
+  type: string
+  agentType?: string
+  identity?: { agentName: string }
+}): string | undefined {
+  return task.type === 'in_process_teammate'
+    ? task.identity?.agentName
+    : task.agentType
+}
+
+/**
+ * Official 2.1.179 `ZPz` — pending queue length across teammate/local shapes.
+ */
+export function getTaskPendingMessageCount(task: {
+  type: string
+  pendingMessages?: string[]
+  pendingUserMessages?: string[]
+}): number {
+  return task.type === 'in_process_teammate'
+    ? (task.pendingUserMessages?.length ?? 0)
+    : (task.pendingMessages?.length ?? 0)
+}
+
+/**
  * Cap on the number of messages kept in task.messages (the AppState UI mirror).
  *
  * task.messages exists purely for the zoomed transcript dialog, which only

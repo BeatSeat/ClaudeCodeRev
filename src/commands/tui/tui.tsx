@@ -23,6 +23,7 @@ import {
   isTuiDownsellGate,
 } from '../../utils/fullscreen.js'
 import { logError } from '../../utils/log.js'
+import { getAxScreenReaderSpawnEnv } from '../../utils/axScreenReaderEnv.js'
 import { execRelaunchSession } from '../../utils/relaunch.js'
 import {
   getInitialSettings,
@@ -46,7 +47,11 @@ async function relaunchRenderer(
   try {
     await execRelaunchSession({
       freshIfNoTranscript: true,
-      env: { CLAUDE_CODE_TUI_JUST_SWITCHED: renderer },
+      // Official 2.1.179 `...ULH()` on tui respawn env
+      env: {
+        CLAUDE_CODE_TUI_JUST_SWITCHED: renderer,
+        ...getAxScreenReaderSpawnEnv(),
+      },
       dropEnv: [
         'CLAUDE_CODE_NO_FLICKER',
         'CLAUDE_CODE_FORCE_FULLSCREEN_UPSELL',

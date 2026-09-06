@@ -31,7 +31,8 @@ import {
   isDebugToStdErr,
   getDebugLogPath,
 } from 'src/utils/debug.js'
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
+import { useOnceFire } from '../../hooks/useOnceFire.js'
 import {
   getSteps,
   shouldShowProjectOnboarding,
@@ -105,6 +106,39 @@ function incrementOpus47LaunchSeenCount(): void {
 
 const LEFT_PANEL_MAX_WIDTH = 50
 
+// Official 2.1.179 `Lw9` / `$d8` company-announcement picker cache.
+let companyAnnouncementCache: string | null = null
+
+/**
+ * Official 2.1.179 `Lw9(shouldCache)`.
+ * Prefers the cached pick; otherwise filters non-empty `companyAnnouncements`,
+ * takes index 0 on first startup else a random entry.
+ */
+function pickCompanyAnnouncement(shouldCache: boolean): string | null {
+  if (companyAnnouncementCache !== null) return companyAnnouncementCache
+  const announcements = (getInitialSettings().companyAnnouncements ?? []).filter(
+    (a): a is string => Boolean(a),
+  )
+  if (announcements.length === 0) return null
+  const picked =
+    getGlobalConfig().numStartups === 1
+      ? announcements[0]
+      : announcements[Math.floor(Math.random() * announcements.length)]
+  if (!picked) return null
+  if (shouldCache) companyAnnouncementCache = picked
+  return picked
+}
+
+/** Official 2.1.179 `ltf` — `return Lw9(false)`. */
+function peekCompanyAnnouncement(): string | null {
+  return pickCompanyAnnouncement(false)
+}
+
+/** Official 2.1.179 `ctf` — clear `$d8`. */
+export function clearCompanyAnnouncementCache(): void {
+  companyAnnouncementCache = null
+}
+
 export function LogoV2(): React.ReactNode {
   const username = getGlobalConfig().oauthAccount?.displayName ?? ''
 
@@ -127,16 +161,12 @@ export function LogoV2(): React.ReactNode {
     changelog = []
   }
 
-  // Get company announcements and select one:
-  // - First startup (numStartups === 1): show first announcement
-  // - All other startups: randomly select from announcements
-  const [announcement] = useState(() => {
-    const announcements = getInitialSettings().companyAnnouncements
-    if (!announcements || announcements.length === 0) return undefined
-    return config.numStartups === 1
-      ? announcements[0]
-      : announcements[Math.floor(Math.random() * announcements.length)]
-  })
+  // Official 2.1.179 `Lw9` / `ltf`: filter empties, optional module cache.
+  // `ltf` = peek without caching (`Lw9(false)`); `Pw9` caches via `Lw9(true)`
+  // when once-fire context is on — we peek here (Logo mount is the consumer).
+  const [announcement] = useState(
+    () => peekCompanyAnnouncement() ?? undefined,
+  )
   const { hasReleaseNotes } = checkForReleaseNotesSync(
     config.lastReleaseNotesSeen,
   )
@@ -169,11 +199,12 @@ export function LogoV2(): React.ReactNode {
     }
   }, [showOpus47LaunchFeed, showOnboarding, isCondensedMode])
 
-  useEffect(() => {
-    if (showGuestPassesUpsell && !showOnboarding && !isCondensedMode) {
-      incrementGuestPassesSeenCount()
-    }
-  }, [showGuestPassesUpsell, showOnboarding, isCondensedMode])
+  // Official 2.1.179 `S4H("guest-passes", rtf)` — full-logo feed path
+  // (CondensedLogo mounts <GuestPassesUpsell/> which fires the same key).
+  const markGuestPasses = useCallback(() => incrementGuestPassesSeenCount(), [])
+  useOnceFire('guest-passes', markGuestPasses, {
+    enabled: showGuestPassesUpsell && !showOnboarding && !isCondensedMode,
+  })
 
   useEffect(() => {
     if (

@@ -3,6 +3,7 @@ import chalk from 'chalk'
 import { getSessionId } from '../../bootstrap/state.js'
 import type { LocalCommandCall } from '../../types/command.js'
 import { logEvent } from '../../services/analytics/index.js'
+import { getAxScreenReaderSpawnEnv } from '../../utils/axScreenReaderEnv.js'
 import {
   execRelaunchSession,
   getRelaunchCwd,
@@ -54,12 +55,18 @@ export const call: LocalCommandCall = async (_args, context) => {
   const teamName = context.getAppState().teamContext?.teamName
   const assistantTeam = teamName?.startsWith('assistant-') ? teamName : undefined
 
+  // Official 2.1.179 `Object.assign(j, ULH())` on /update respawn env
+  const spawnEnv: NodeJS.ProcessEnv = {
+    ...getAxScreenReaderSpawnEnv(),
+  }
+  if (assistantTeam) {
+    spawnEnv.CLAUDE_INTERNAL_ASSISTANT_TEAM_NAME = assistantTeam
+  }
+
   await execRelaunchSession({
     launcher: await resolveLauncher(),
     freshIfNoTranscript: true,
-    env: assistantTeam
-      ? { CLAUDE_INTERNAL_ASSISTANT_TEAM_NAME: assistantTeam }
-      : undefined,
+    env: Object.keys(spawnEnv).length > 0 ? spawnEnv : undefined,
     preSpawn: () =>
       process.stdout.write(
         chalk.dim(

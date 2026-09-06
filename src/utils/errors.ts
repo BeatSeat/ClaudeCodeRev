@@ -187,6 +187,11 @@ export function isENOENT(e: unknown): boolean {
   return getErrnoCode(e) === 'ENOENT'
 }
 
+/** Official 2.1.179 `A6H`. */
+export function isEISDIR(e: unknown): boolean {
+  return getErrnoCode(e) === 'EISDIR'
+}
+
 /**
  * Extract the errno path (the filesystem path that triggered the error)
  * from a caught error. Returns undefined if the error has no path.

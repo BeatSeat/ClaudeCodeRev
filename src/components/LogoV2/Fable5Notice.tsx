@@ -1,7 +1,8 @@
 import * as React from 'react'
-import { useEffect, useState } from 'react'
+import { useCallback, useState } from 'react'
 import { Box, Text } from '../../ink.js'
 import { useMainLoopModel } from '../../hooks/useMainLoopModel.js'
+import { useOnceFire } from '../../hooks/useOnceFire.js'
 import { logEvent } from '../../services/analytics/index.js'
 import {
   formatPlanLimitsEndDate,
@@ -43,9 +44,9 @@ export function Fable5Notice(): React.ReactNode {
   const launch = getFable5LaunchConfig()
   const planLimitsUntil = formatPlanLimitsEndDate(launch.planLimitsEndDate)
 
-  useEffect(() => {
-    incrementFable5LaunchShown()
-  }, [])
+  // Official 2.1.179 `S4H("fable5-launch", Yef)`
+  const markShown = useCallback(() => incrementFable5LaunchShown(), [])
+  useOnceFire('fable5-launch', markShown)
 
   if (!show) return null
 

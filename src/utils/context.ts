@@ -157,6 +157,22 @@ export function calculateContextPercentages(
 }
 
 /**
+ * Official 2.1.179 `Qn_` — `clientDataCache.heather_vale[canonicalModel]`
+ * positive integer default-max_tokens overlay.
+ */
+function getHeatherValeDefaultMaxTokens(canonicalModel: string): number | null {
+  const map = getGlobalConfig().clientDataCache?.heather_vale
+  if (typeof map !== 'object' || map === null || Array.isArray(map)) {
+    return null
+  }
+  const value = (map as Record<string, unknown>)[canonicalModel]
+  if (typeof value !== 'number' || !Number.isInteger(value) || value <= 0) {
+    return null
+  }
+  return value
+}
+
+/**
  * Returns the model's default and upper limit for max output tokens.
  */
 export function getModelMaxOutputTokens(model: string): {
@@ -214,6 +230,12 @@ export function getModelMaxOutputTokens(model: string): {
   } else {
     defaultTokens = MAX_OUTPUT_TOKENS_DEFAULT
     upperLimit = MAX_OUTPUT_TOKENS_UPPER_LIMIT
+  }
+
+  // Official 2.1.179 `uLH`: `let _=Qn_(K);if(_!==null)$=Math.min(_,q)`
+  const overlay = getHeatherValeDefaultMaxTokens(m)
+  if (overlay !== null) {
+    defaultTokens = Math.min(overlay, upperLimit)
   }
 
   const cap = getModelCapability(model)

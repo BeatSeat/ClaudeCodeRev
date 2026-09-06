@@ -398,11 +398,90 @@ import { unassignTeammateTasks } from '../utils/tasks.js'
 import { getRunningTasks } from '../utils/task/framework.js'
 import { isBackgroundTask } from '../tasks/types.js'
 import { stopTask } from '../tasks/stopTask.js'
+import { isTerminalTaskStatus, type TaskStatus } from '../Task.js'
 import { drainSdkEvents } from '../utils/sdkEventQueue.js'
 import { initializeGrowthBook } from '../services/analytics/growthbook.js'
 import { errorMessage, toError } from '../utils/errors.js'
 import { sleep } from '../utils/sleep.js'
 import { isExtractModeActive } from '../memdir/paths.js'
+
+/**
+ * Official 2.1.179 `Eqq` = `NR8`(60s) + `yR8`(120s) + 60s → 240_000 ms.
+ * Print-mode wait for terminal agent-result tasks whose notification never
+ * enqueued.
+ */
+const PRINT_AGENT_RESULT_NOTIFICATION_WAIT_MS = 60_000 + 120_000 + 60_000
+
+type PrintAgentResultWait = { firstSeen: number; expired: boolean }
+
+/** Duck shape — `TaskState` union often collapses under tsc in this tree. */
+type PrintDrainTask = {
+  id: string
+  type: string
+  status: string
+  notified?: boolean
+  isBackgrounded?: boolean
+}
+
+/**
+ * Official 2.1.179 `ACz` — local_agent / local_workflow terminal + un-notified.
+ */
+function isUnnotifiedTerminalAgentResultTask(task: PrintDrainTask): boolean {
+  if (task.type !== 'local_agent' && task.type !== 'local_workflow') {
+    return false
+  }
+  if (task.isBackgrounded === false) {
+    return false
+  }
+  if (!isTerminalTaskStatus(task.status as TaskStatus)) {
+    return false
+  }
+  return !task.notified
+}
+
+/**
+ * Official 2.1.179 `byq` — keep draining while terminal tasks lack a
+ * completion notification, up to `Eqq`.
+ */
+function hasPendingAgentResultNotificationWait(args: {
+  tasks: PrintDrainTask[]
+  waits: Map<string, PrintAgentResultWait>
+  now: number
+}): boolean {
+  let pending = false
+  const seen = new Set<string>()
+  for (const task of args.tasks) {
+    if (!isUnnotifiedTerminalAgentResultTask(task)) continue
+    seen.add(task.id)
+    let wait = args.waits.get(task.id)
+    if (!wait) {
+      wait = { firstSeen: args.now, expired: false }
+      args.waits.set(task.id, wait)
+    }
+    if (wait.expired) continue
+    if (args.now - wait.firstSeen >= PRINT_AGENT_RESULT_NOTIFICATION_WAIT_MS) {
+      wait.expired = true
+      logForDebugging(
+        `[print] task ${task.id} is terminal but its completion notification did not enqueue within ${PRINT_AGENT_RESULT_NOTIFICATION_WAIT_MS}ms — exiting without it (enqueue dropped, or post-completion work still in flight)`,
+        { level: 'warn' },
+      )
+      continue
+    }
+    pending = true
+  }
+  for (const id of args.waits.keys()) {
+    if (!seen.has(id)) args.waits.delete(id)
+  }
+  return pending
+}
+
+/** Official 2.1.179 `Hq1` — emit idle while waiting for agents (input still open). */
+function shouldNotifyIdleWhileWaitingForAgents(args: {
+  inputClosed: boolean
+  currentState: ReturnType<typeof getSessionState>
+}): boolean {
+  return !args.inputClosed && args.currentState === 'running'
+}
 
 // Dead code elimination: conditional imports
 /* eslint-disable @typescript-eslint/no-require-imports */
@@ -2265,6 +2344,8 @@ function runHeadlessStreaming(
     try {
       let command: QueuedCommand | undefined
       let waitingForAgents = false
+      // Official 2.1.179 `byq` wait map — persists across drain iterations.
+      const agentResultNotificationWaits = new Map<string, PrintAgentResultWait>()
 
       // Extract command processing into a named function for the do-while pattern.
       // Drains the queue, batching consecutive prompt-mode commands into one
@@ -2784,10 +2865,32 @@ function runHeadlessStreaming(
             t => isBackgroundTask(t) && t.type !== 'in_process_teammate',
           )
           const hasMainThreadQueued = peek(isMainThread) !== undefined
-          if (hasRunningBg || hasMainThreadQueued) {
+          const now = Date.now()
+          // Official 2.1.179 `byq` / `Eqq` — wait for terminal agent-result
+          // notifications that have not yet enqueued.
+          const hasPendingAgentResultWait =
+            hasPendingAgentResultNotificationWait({
+              tasks: Object.values(state.tasks ?? {}) as PrintDrainTask[],
+              waits: agentResultNotificationWaits,
+              now,
+            })
+          if (
+            hasRunningBg ||
+            hasMainThreadQueued ||
+            hasPendingAgentResultWait
+          ) {
             waitingForAgents = true
             if (!hasMainThreadQueued) {
               runPhase = 'waiting_for_agents'
+              // Official 2.1.179 `Hq1` + idle notify while waiting
+              if (
+                shouldNotifyIdleWhileWaitingForAgents({
+                  inputClosed,
+                  currentState: getSessionState(),
+                })
+              ) {
+                notifySessionStateChanged('idle')
+              }
               // No commands ready yet, wait for tasks to complete
               await sleep(100)
             }

@@ -16,7 +16,7 @@ import { logEvent } from 'src/services/analytics/index.js'
 import { getFeatureValue_CACHED_MAY_BE_STALE } from '../services/analytics/growthbook.js'
 import { getCwd } from '../utils/cwd.js'
 import { logForDebugging } from './debug.js'
-import { isENOENT, isFsInaccessible } from './errors.js'
+import { getErrnoCode, isEISDIR, isENOENT, isFsInaccessible } from './errors.js'
 import {
   detectEncodingForResolvedPath,
   detectLineEndingsForString,
@@ -103,9 +103,9 @@ export function detectFileEncoding(filePath: string): BufferEncoding {
     const { resolvedPath } = safeResolvePath(fs, filePath)
     return detectEncodingForResolvedPath(resolvedPath)
   } catch (error) {
-    if (isFsInaccessible(error)) {
+    if (isFsInaccessible(error) || isEISDIR(error)) {
       logForDebugging(
-        `detectFileEncoding failed for expected reason: ${error.code}`,
+        `detectFileEncoding failed for expected reason: ${getErrnoCode(error)}`,
         {
           level: 'debug',
         },
@@ -129,7 +129,16 @@ export function detectLineEndings(
     const content = buffer.toString(encoding, 0, bytesRead)
     return detectLineEndingsForString(content)
   } catch (error) {
-    logError(error)
+    if (isFsInaccessible(error) || isEISDIR(error)) {
+      logForDebugging(
+        `detectLineEndings failed for expected reason: ${getErrnoCode(error)}`,
+        {
+          level: 'debug',
+        },
+      )
+    } else {
+      logError(error)
+    }
     return 'LF'
   }
 }

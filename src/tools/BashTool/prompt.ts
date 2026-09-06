@@ -169,6 +169,20 @@ function dedup<T>(arr: T[] | undefined): T[] | undefined {
   return [...new Set(arr)]
 }
 
+/** Official 2.1.179 `Xzq` / `gBH`. */
+const SANDBOX_PROMPT_LIST_CAP = 50
+
+function truncateSandboxPromptList(
+  arr: string[] | undefined,
+): string[] | undefined {
+  if (!arr || arr.length <= SANDBOX_PROMPT_LIST_CAP) return arr
+  const more = arr.length - SANDBOX_PROMPT_LIST_CAP
+  return [
+    ...arr.slice(0, SANDBOX_PROMPT_LIST_CAP),
+    `... and ${more} more (truncated for prompt size)`,
+  ]
+}
+
 function getSimpleSandboxSection(): string {
   if (!SandboxManager.isSandboxingEnabled()) {
     return ''
@@ -191,25 +205,37 @@ function getSimpleSandboxSection(): string {
 
   const filesystemConfig = {
     read: {
-      denyOnly: dedup(fsReadConfig.denyOnly),
+      denyOnly: truncateSandboxPromptList(dedup(fsReadConfig.denyOnly)),
       ...(fsReadConfig.allowWithinDeny && {
-        allowWithinDeny: dedup(fsReadConfig.allowWithinDeny),
+        allowWithinDeny: truncateSandboxPromptList(
+          dedup(fsReadConfig.allowWithinDeny),
+        ),
       }),
     },
     write: {
-      allowOnly: normalizeAllowOnly(fsWriteConfig.allowOnly),
-      denyWithinAllow: dedup(fsWriteConfig.denyWithinAllow),
+      allowOnly: truncateSandboxPromptList(
+        normalizeAllowOnly(fsWriteConfig.allowOnly),
+      ),
+      denyWithinAllow: truncateSandboxPromptList(
+        dedup(fsWriteConfig.denyWithinAllow),
+      ),
     },
   }
 
   const networkConfig = {
     ...(networkRestrictionConfig?.allowedHosts && {
-      allowedHosts: dedup(networkRestrictionConfig.allowedHosts),
+      allowedHosts: truncateSandboxPromptList(
+        dedup(networkRestrictionConfig.allowedHosts),
+      ),
     }),
     ...(networkRestrictionConfig?.deniedHosts && {
-      deniedHosts: dedup(networkRestrictionConfig.deniedHosts),
+      deniedHosts: truncateSandboxPromptList(
+        dedup(networkRestrictionConfig.deniedHosts),
+      ),
     }),
-    ...(allowUnixSockets && { allowUnixSockets: dedup(allowUnixSockets) }),
+    ...(allowUnixSockets && {
+      allowUnixSockets: truncateSandboxPromptList(dedup(allowUnixSockets)),
+    }),
   }
 
   const restrictionsLines = []

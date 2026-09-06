@@ -1224,7 +1224,13 @@ export async function keepWorktree(): Promise<void> {
     const { worktreePath, originalCwd, worktreeBranch } = currentWorktreeSession
 
     // Change back to original directory first
-    process.chdir(originalCwd)
+    try {
+      process.chdir(originalCwd)
+    } catch (error) {
+      logForDebugging(
+        `Could not chdir to original directory while keeping worktree: ${error}`,
+      )
+    }
 
     // Clear the session but keep the worktree intact
     currentWorktreeSession = null
@@ -1258,7 +1264,13 @@ export async function cleanupWorktree(): Promise<void> {
       currentWorktreeSession
 
     // Change back to original directory first
-    process.chdir(originalCwd)
+    try {
+      process.chdir(originalCwd)
+    } catch (error) {
+      logForDebugging(
+        `Could not chdir to original directory while cleaning up worktree: ${error}`,
+      )
+    }
 
     if (hookBased) {
       // Hook-based worktree: delegate cleanup to WorktreeRemove hook

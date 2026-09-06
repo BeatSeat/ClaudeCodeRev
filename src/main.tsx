@@ -4556,13 +4556,7 @@ async function run(): Promise<CommanderCommand> {
           : viewMode
             ? viewMode === 'focus'
             : getGlobalConfig().briefTranscript ?? false,
-        expandedView: getGlobalConfig().showSpinnerTree
-          ? 'teammates'
-          : getGlobalConfig().showExpandedTodos
-            ? 'tasks'
-            : 'none',
-        showTeammateMessagePreview: isAgentSwarmsEnabled() ? false : undefined,
-        selectedIPAgentIndex: -1,
+        expandedView: getGlobalConfig().showExpandedTodos ? 'tasks' : 'none',
         coordinatorTaskIndex: -1,
         viewSelectionMode: 'none',
         footerSelection: null,

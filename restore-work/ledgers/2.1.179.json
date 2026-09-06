@@ -1,0 +1,76 @@
+{
+  "version": "2.1.179",
+  "from": "2.1.178",
+  "astdiff": "0.99515",
+  "contract": "astdiff genuine-structural + added-product (explore reports; changelog is classification only)",
+  "coverage": "restore-work/diffs/2.1.179-landing-brief.md",
+  "scout": "restore-work/diffs/2.1.179-explore-added-a.md",
+  "domainLandings": [
+    "restore-work/diffs/2.1.179-tools-landing.md",
+    "restore-work/diffs/2.1.179-ui-landing.md",
+    "restore-work/diffs/2.1.179-core-landing.md",
+    "restore-work/diffs/2.1.179-services-landing.md"
+  ],
+  "items": [
+    {
+      "item": "Fixed mid-stream connection drops: partial responses are now preserved instead of showing a raw error, and the spinner no longer gets stuck at \"running tool\"",
+      "status": "absent-in-bundle",
+      "evidence": "No unique 178→179 mid-stream preserve / spinner-stuck token in explore land-candidates. Not invented."
+    },
+    {
+      "item": "Fixed mouse-wheel scrolling in WSL2 under Windows Terminal and VS Code (regression in 2.1.172)",
+      "status": "partial",
+      "evidence": "Core landed AltGr `CLAUDE_CODE_ALTGR_AS_TEXT` / WT_SESSION (`t$5`) in parse-keypress.ts — adjacent terminal input. Dedicated WSL2 wheel scroll helper not a land-candidate in explore; WY7→vw7 dropped WSL-unrecognized-host mouse gate."
+    },
+    {
+      "item": "Fixed a sandbox denyRead/allowRead glob over a large directory tree making the Bash tool description enormous and the session unusable on Linux",
+      "status": "located",
+      "evidence": "ni4/gBH truncateSandboxPromptList cap 50 (`Xzq=50`) in BashTool/prompt.ts. Token truncated for prompt size."
+    },
+    {
+      "item": "Fixed the feedback survey capturing a single-digit reply as a session rating immediately after a turn completes",
+      "status": "absent-in-bundle",
+      "evidence": "No unique survey/single-digit rating token 0→N in explore land-candidates. Not invented."
+    },
+    {
+      "item": "Fixed the welcome screen stacking multiple promotional banners — at most one promo now shows per session",
+      "status": "partial",
+      "evidence": "S4H/c74 useOnceFire + guest-passes / fable5-launch / subscription-switch once-fire. fotw-nudge / fullscreen-downsell / status-slot registry skipped (no hosts). Lw9/ltf company announcement picker + cache."
+    },
+    {
+      "item": "Fixed Ctrl+O not showing the subagent's transcript when viewing a subagent",
+      "status": "partial",
+      "evidence": "UI DCE selecting-agent / toggleTeammatePreview; keep viewing-agent. Bs4 REPL isLoading when viewing teammate. Spinner v5f defaultVerb+agentId. Full Ctrl+O transcript path not a discrete new helper."
+    },
+    {
+      "item": "Fixed clicking the prompt input not returning focus from the subagent/footer panel",
+      "status": "partial",
+      "evidence": "TeamsDialog / teammate footer pills / selectedIPAgentIndex DCE (Ur8/xPz cluster). PromptInput focus path shared with viewing-agent retention."
+    },
+    {
+      "item": "Fixed remote session background tasks appearing stuck as \"still running\" between turns",
+      "status": "located",
+      "evidence": "Core Eqq/byq/Hq1 print.ts agent-result notification wait (240s) + idle notify. Tokens: completion notification did not enqueue."
+    },
+    {
+      "item": "Improved plugin loading performance in remote sessions",
+      "status": "partial",
+      "evidence": "pluginLoader.ts touched in hop (SHA/download-related). Full remote-session plugin perf path not fully scoped in explore; do not invent."
+    },
+    {
+      "item": "astdiff Tools: X64 NUL rewrite, ExitWorktree FF4/g_q, attribution Claude-Session, oS8, YOLO Live-Shared, WPz/Fu9/ZPz",
+      "status": "located",
+      "evidence": "shellQuoting X64; ExitWorktreeTool FF4/g_q; attribution Fi4/ZEf/F_$/gi4; teamHelpers oS8; permissions_external Live-Shared bullet; task accessors. Skips: ArtifactTool Md4, ultrareview maxLines host, model local Fable consent."
+    },
+    {
+      "item": "astdiff Core: machineID aO8, AltGr, llH git segments, h$H reactive, design MCP Tz7, clientdata O5$, k4f loopback",
+      "status": "located",
+      "evidence": "config aO8; parse-keypress; detectRepository llH; reactiveCompact h$H; firstPartyBuiltins + growthbook; autoCompactWindow; instrumentation k4f. Skip RH6/IH6 OTLP cache (no host)."
+    },
+    {
+      "item": "astdiff Services: S4H once-fire, Qn_ heather_vale, ULH axScreenReaderEnv",
+      "status": "located",
+      "evidence": "useOnceFire; context.ts heather_vale; axScreenReaderEnv ULH/Ui_. Skips J$$, plugin-disuse tip, fotw/fullscreen slot registry, ArtifactTool."
+    }
+  ]
+}

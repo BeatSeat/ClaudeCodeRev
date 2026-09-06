@@ -10,6 +10,7 @@ import {
   isLocalAgentTask,
   type LocalAgentTaskState,
 } from '../../tasks/LocalAgentTask/LocalAgentTask.js'
+import { getTaskDisplayName } from '../../tasks/InProcessTeammateTask/types.js'
 import { formatDuration, formatTokens } from '../../utils/format.js'
 import { truncateToWidth } from '../../utils/format.js'
 import { StatusIcon } from '../design-system/StatusIcon.js'
@@ -165,7 +166,7 @@ export function AgentsRunningTab({ onExit }: Props): React.ReactNode {
             <Text color={isSelected ? 'suggestion' : undefined}>
               {isSelected ? `${figures.pointer} ` : '  '}
               <Text color="success">{BLACK_CIRCLE}</Text>{' '}
-              <Text bold>{name || task.agentType}</Text>
+              <Text bold>{name || getTaskDisplayName(task)}</Text>
               {name && <Text dimColor> · {task.agentType}</Text>}
               <Text dimColor> · {summary}</Text>
               <Text dimColor> · {elapsed}</Text>
@@ -198,7 +199,7 @@ export function AgentsRunningTab({ onExit }: Props): React.ReactNode {
                     status={task.status === 'completed' ? 'success' : 'error'}
                     withSpace
                   />
-                  <Text bold>{name || task.agentType}</Text>
+                  <Text bold>{name || getTaskDisplayName(task)}</Text>
                   <Text dimColor> · {completedSummary(task)}</Text>
                 </Text>
               </Box>

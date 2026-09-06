@@ -8,7 +8,7 @@ import { getFeatureValue_CACHED_MAY_BE_STALE } from '../analytics/growthbook.js'
 import { isAutoCompactEnabled, isEphemeralAutocompactSkipSource } from './autoCompact.js'
 import type { CompactionResult } from './compact.js'
 
-/** Official 2.1.178 `m$H` (minus `replBridgeActive` — no getter on HEAD). */
+/** Official 2.1.179 `h$H` (178 `m$H`). After remote GB check, always on. */
 export function isReactiveCompactEnabled(): boolean {
   if (isEnvTruthy(process.env.CLAUDE_CODE_REMOTE)) {
     if (
@@ -20,7 +20,7 @@ export function isReactiveCompactEnabled(): boolean {
       return false
     }
   }
-  return process.env.CLAUDE_CODE_ENVIRONMENT_KIND !== 'bridge'
+  return true
 }
 
 export type ReactiveCompactAttempt = {

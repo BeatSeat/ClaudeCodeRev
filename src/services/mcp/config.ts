@@ -46,6 +46,7 @@ import {
   hasMcpDiscoveryButNoToken,
 } from './auth.js'
 import { fetchClaudeAIMcpConfigsIfEligible } from './claudeai.js'
+import { getFirstPartyBuiltinMcpServers } from './firstPartyBuiltins.js'
 import { expandEnvVarsInString } from './envExpansion.js'
 import {
   type ConfigScope,
@@ -1254,6 +1255,11 @@ export async function getClaudeCodeMcpConfigs(
     ? noServers
     : getMcpConfigsByScope('local')
 
+  // Official 2.1.179 `Tz7` — first-party builtins (empty when mcp locked)
+  const firstPartyBuiltinServers = mcpLocked
+    ? {}
+    : getFirstPartyBuiltinMcpServers()
+
   // Load plugin MCP servers
   const pluginMcpServers: Record<string, ScopedMcpServerConfig> = {}
 
@@ -1318,7 +1324,8 @@ export async function getClaudeCodeMcpConfigs(
       status === 'pending' &&
       options.includePendingProjectServers &&
       !localServers[name] &&
-      !userServers[name]
+      !userServers[name] &&
+      !firstPartyBuiltinServers[name]
     ) {
       approvedProjectServers[name] = config
       pendingProjectServers.add(name)
@@ -1334,6 +1341,7 @@ export async function getClaudeCodeMcpConfigs(
   // (manual is skipped by name at connection time; plugin was removed here).
   const enabledManualServers: Record<string, ScopedMcpServerConfig> = {}
   for (const [name, config] of Object.entries({
+    ...firstPartyBuiltinServers,
     ...userServers,
     ...approvedProjectServers,
     ...localServers,
@@ -1383,9 +1391,10 @@ export async function getClaudeCodeMcpConfigs(
     })
   }
 
-  // Merge in order of precedence: plugin < user < project < local
+  // Merge in order of precedence: firstParty < plugin < user < project < local
   const configs = Object.assign(
     {},
+    firstPartyBuiltinServers,
     dedupedPluginServers,
     userServers,
     approvedProjectServers,

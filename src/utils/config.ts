@@ -199,6 +199,8 @@ export type GlobalConfig = {
   // Session count when Doctor was last shown
   doctorShownAtSession?: number
   userID?: string
+  /** Official 2.1.179 `aO8` / `machineID`. */
+  machineID?: string
   theme: ThemeSetting
   hasCompletedOnboarding?: boolean
   // Tracks the last version that reset onboarding, used with MIN_VERSION_REQUIRING_ONBOARDING_RESET
@@ -588,7 +590,7 @@ export type GlobalConfig = {
   permissionExplainerEnabled?: boolean // Enable Haiku-generated explanations for permission requests (default: true)
 
   // Teammate spawn mode: 'auto' | 'tmux' | 'in-process'
-  teammateMode?: 'auto' | 'tmux' | 'in-process' // How to spawn teammates (default: 'auto')
+  teammateMode?: 'auto' | 'tmux' | 'in-process' // How to spawn teammates (default: 'in-process'; official 2.1.179 `Eh$`)
   // Model for new teammates when the tool call doesn't pass one.
   // undefined = hardcoded Opus (backward-compat); null = leader's model; string = model alias/ID.
   teammateDefaultModel?: string | null
@@ -1937,6 +1939,34 @@ export function getOrCreateUserID(): string {
   const userID = randomBytes(32).toString('hex')
   saveGlobalConfig(current => ({ ...current, userID }))
   return userID
+}
+
+/** In-memory cache for `aO8` when persist fails mid-session (official `FE6`). */
+let cachedMachineID: string | undefined
+
+/**
+ * Official 2.1.179 `aO8` / `getOrCreateMachineID`.
+ * Persists a per-machine hex id next to `userID`.
+ */
+export function getOrCreateMachineID(): string {
+  const config = getGlobalConfig()
+  if (config.machineID) {
+    return config.machineID
+  }
+  if (cachedMachineID) {
+    return cachedMachineID
+  }
+  const machineID = randomBytes(32).toString('hex')
+  cachedMachineID = machineID
+  try {
+    saveGlobalConfig(current => ({ ...current, machineID }))
+  } catch (error) {
+    logForDebugging(
+      `getOrCreateMachineID: could not persist machineID: ${error}`,
+      { level: 'error' },
+    )
+  }
+  return machineID
 }
 
 export function recordFirstStartTime(): void {

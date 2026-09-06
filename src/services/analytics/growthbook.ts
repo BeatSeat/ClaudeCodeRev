@@ -24,6 +24,7 @@ import {
   is1PEventLoggingEnabled,
   logGrowthBookExperimentTo1P,
 } from './firstPartyEventLogger.js'
+import { setDesignMcpFeatureFlagGetter } from '../mcp/firstPartyBuiltins.js'
 
 /**
  * User attributes sent to GrowthBook for targeting.
@@ -773,6 +774,9 @@ export function getFeatureValue_CACHED_MAY_BE_STALE<T>(
     return defaultValue
   }
 }
+
+// Official 2.1.179 `Vz7(j$)` — register GB getter for first-party design MCP.
+setDesignMcpFeatureFlagGetter(getFeatureValue_CACHED_MAY_BE_STALE)
 
 /**
  * @deprecated Disk cache is now synced on every successful payload load
