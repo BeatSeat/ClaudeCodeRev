@@ -1001,6 +1001,7 @@ export function PluginSettings({
               setResult={setResult}
               setViewState={setViewState}
               onInstallComplete={markPluginsChanged}
+              onSearchModeChange={setChildSearchActive}
               targetMarketplace={viewState.targetMarketplace}
               targetPlugin={viewState.targetPlugin}
             />

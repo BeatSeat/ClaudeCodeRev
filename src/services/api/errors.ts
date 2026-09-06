@@ -24,13 +24,23 @@ import {
   createAssistantAPIErrorMessage,
   NO_RESPONSE_REQUESTED,
 } from 'src/utils/messages.js'
+import { stripTrailing1mSuffix } from 'src/utils/model/modelAllowlist.js'
 import {
+  firstPartyNameToCanonical,
   getDefaultMainLoopModelSetting,
+  isFableModel,
+  isMythosModel,
   isNonCustomOpusModel,
+  modelIdStartsWithFableFamily,
+  renderModelName,
 } from 'src/utils/model/model.js'
 import { getModelStrings } from 'src/utils/model/modelStrings.js'
 import { getAPIProvider, isFirstPartyApiFamily } from 'src/utils/model/providers.js'
-import { getIsNonInteractiveSession } from '../../bootstrap/state.js'
+import {
+  getIsNonInteractiveSession,
+  getLongContext1mCreditsBlocked,
+  setLongContext1mCreditsBlocked,
+} from '../../bootstrap/state.js'
 import {
   API_PDF_MAX_PAGES,
   PDF_TARGET_RAW_SIZE,
@@ -150,6 +160,26 @@ export function isMediaSizeErrorMessage(msg: AssistantMessage): boolean {
     msg.isApiErrorMessage === true &&
     msg.errorDetails !== undefined &&
     isMediaSizeError(msg.errorDetails)
+  )
+}
+
+/** Official 2.1.172 `f1q`. */
+export function isLongContextCreditsError(message: string): boolean {
+  return (
+    message.includes('Extra usage is required for long context') ||
+    message.includes('Usage credits are required for long context')
+  )
+}
+
+/** Official 2.1.172 `I07`. Consumer is `a_5` (reactiveCompact stub). */
+export function isLongContextCreditsBoundaryMessage(
+  msg: AssistantMessage,
+): boolean {
+  return (
+    getLongContext1mCreditsBlocked() &&
+    msg.isApiErrorMessage === true &&
+    msg.errorDetails !== undefined &&
+    isLongContextCreditsError(msg.errorDetails)
   )
 }
 
@@ -577,20 +607,37 @@ export function getAssistantMessageFromError(
       })
     }
 
+    // Official 2.1.172: first 1M-credits 429 sets the session clamp (`kr8`).
+    if (
+      isSubscriberRateLimit &&
+      isLongContextCreditsError(error.message) &&
+      !getLongContext1mCreditsBlocked()
+    ) {
+      setLongContext1mCreditsBlocked(true)
+      logEvent('tengu_1m_credits_clamp_activated', {})
+    }
+    if (
+      isSubscriberRateLimit &&
+      modelIdStartsWithFableFamily(model) &&
+      error.message.toLowerCase().includes('usage credits are required')
+    ) {
+      return createAssistantAPIErrorMessage({
+        content: `${API_ERROR_MESSAGE_PREFIX}: Fable 5 requires usage credits. Update Claude Code to the latest version to learn more`,
+        error: 'rate_limit',
+        errorDetails: error.message,
+      })
+    }
     // No quota headers — this is NOT a quota limit. Surface what the API actually
     // said instead of a generic "Rate limit reached". Entitlement rejections
     // (e.g. 1M context without Extra Usage) and infra capacity 429s land here.
-    if (
-      isSubscriberRateLimit &&
-      (error.message.includes('Extra usage is required for long context') ||
-        error.message.includes('Usage credits are required for long context'))
-    ) {
+    if (isSubscriberRateLimit && isLongContextCreditsError(error.message)) {
       const hint = getIsNonInteractiveSession()
         ? 'turn on usage credits at claude.ai/settings/usage, or use --model to switch to standard context'
         : 'run /usage-credits to turn them on, or /model to switch to standard context'
       return createAssistantAPIErrorMessage({
         content: `${API_ERROR_MESSAGE_PREFIX}: Usage credits required for 1M context · ${hint}`,
         error: 'rate_limit',
+        errorDetails: error.message,
       })
     }
     // SDK's APIError.makeMessage prepends "429 " and JSON-stringifies the body
@@ -1355,6 +1402,37 @@ export function categorizeRetryableAPIError(
   return 'unknown'
 }
 
+const REFUSAL_LEARN_MORE_URL =
+  'https://support.claude.com/en/articles/15363606'
+const REFUSAL_FEEDBACK_HINT = `Send feedback with /feedback or learn more: ${REFUSAL_LEARN_MORE_URL}`
+const REFUSAL_MYTHOS_CAPABILITY_NOTE =
+  "They may flag safe, normal content as well. These measures let us bring you Mythos-level capability in other areas sooner, and we're working to refine them."
+
+/**
+ * Official 2.1.172 `E48` gate used by `j9$`: true when the current model
+ * would resolve a cyber/biology fallback (not mythos; fable-family / EAP /
+ * ANTHROPIC_DEFAULT_FABLE_MODEL).
+ */
+function hasCyberBiologyRefusalCopy(model: string): boolean {
+  const canonical = firstPartyNameToCanonical(model)
+  if (canonical.startsWith('claude-mythos-') || isMythosModel(model)) {
+    return false
+  }
+  if (modelIdStartsWithFableFamily(model) || isFableModel(model)) {
+    return true
+  }
+  if (/-eap($|\[)/i.test(model)) return true
+  const defaultFable = process.env.ANTHROPIC_DEFAULT_FABLE_MODEL
+  if (
+    defaultFable &&
+    stripTrailing1mSuffix(model) === stripTrailing1mSuffix(defaultFable)
+  ) {
+    return true
+  }
+  return false
+}
+
+/** Official 2.1.172 `j9$` (170 `wI8`). */
 export function getErrorMessageIfRefusal(
   stopReason: BetaStopReason | null,
   model: string,
@@ -1375,8 +1453,21 @@ export function getErrorMessageIfRefusal(
       ? stopDetails.explanation.trimEnd()
       : null
 
+  const category =
+    typeof stopDetails === 'object' &&
+    stopDetails !== null &&
+    'category' in stopDetails
+      ? stopDetails.category
+      : undefined
+
   logEvent('tengu_refusal_api_response', {
     has_explanation: Boolean(explanation),
+    ...(typeof category === 'string'
+      ? {
+          category:
+            category as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
+        }
+      : {}),
     request_id:
       (requestId as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS) ||
       undefined,
@@ -1391,21 +1482,41 @@ export function getErrorMessageIfRefusal(
     ? ` ${truncatedExplanation}${/[.!?…]$/.test(truncatedExplanation) ? '' : '.'}`
     : ''
 
-  const baseMessage = getIsNonInteractiveSession()
-    ? `${API_ERROR_MESSAGE_PREFIX}: Claude Code is unable to respond to this request, which appears to violate our Usage Policy (https://www.anthropic.com/legal/aup).${explanationSuffix} Try rephrasing the request or attempting a different approach.`
-    : `${API_ERROR_MESSAGE_PREFIX}: Claude Code is unable to respond to this request, which appears to violate our Usage Policy (https://www.anthropic.com/legal/aup).${explanationSuffix} Please double press esc to edit your last message or start a new session for Claude Code to assist with a different task.`
-
-  const modelSuggestion =
-    model !== 'claude-sonnet-4-20250514'
-      ? ' If you are seeing this refusal repeatedly, try running /model claude-sonnet-4-20250514 to switch models.'
-      : ''
+  const nonInteractive = getIsNonInteractiveSession()
+  const newSessionCloser =
+    'Try rephrasing the request in a new session or change your model.'
+  let content: string
+  if (hasCyberBiologyRefusalCopy(model)) {
+    const display = renderModelName(model)
+    const closer = nonInteractive
+      ? newSessionCloser
+      : 'Double press esc to edit your last message, or try a different model with /model.'
+    const learnMore = nonInteractive
+      ? `Learn more: ${REFUSAL_LEARN_MORE_URL}`
+      : REFUSAL_FEEDBACK_HINT
+    content = `${API_ERROR_MESSAGE_PREFIX}: ${display} has safety measures that flag messages on most cybersecurity or biology topics (https://www.anthropic.com/legal/aup). ${REFUSAL_MYTHOS_CAPABILITY_NOTE} Claude Code can't respond to this request with ${display}.\n\n${closer}\n\n${learnMore}`
+  } else {
+    const closer = nonInteractive
+      ? newSessionCloser
+      : 'Please double press esc to edit your last message or start a new session for Claude Code to assist with a different task.'
+    content = `${API_ERROR_MESSAGE_PREFIX}: Claude Code is unable to respond to this request, which appears to violate our Usage Policy (https://www.anthropic.com/legal/aup).${explanationSuffix} ${closer}`
+  }
 
   const requestIdSuffix = requestId ? `\n\nRequest ID: ${requestId}` : ''
 
   const message = createAssistantAPIErrorMessage({
-    content: baseMessage + modelSuggestion + requestIdSuffix,
+    content: content + requestIdSuffix,
     error: 'invalid_request',
   })
   message.requestId = requestId ?? undefined
+  message.message.stop_reason = 'refusal'
+  // Official `j9$` sets `stop_details`; SDK BetaMessage typings omit it.
+  ;(message.message as BetaMessage & { stop_details?: unknown }).stop_details =
+    typeof stopDetails === 'object' &&
+    stopDetails !== null &&
+    'type' in stopDetails &&
+    stopDetails.type === 'refusal'
+      ? stopDetails
+      : null
   return message
 }

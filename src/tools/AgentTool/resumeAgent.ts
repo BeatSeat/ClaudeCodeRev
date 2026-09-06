@@ -4,7 +4,10 @@ import { getSystemPrompt } from '../../constants/prompts.js'
 import { isCoordinatorMode } from '../../coordinator/coordinatorMode.js'
 import type { CanUseToolFn } from '../../hooks/useCanUseTool.js'
 import type { ToolUseContext } from '../../Tool.js'
-import { registerAsyncAgent } from '../../tasks/LocalAgentTask/LocalAgentTask.js'
+import {
+  isLocalAgentTask,
+  registerAsyncAgent,
+} from '../../tasks/LocalAgentTask/LocalAgentTask.js'
 import { assembleToolPool } from '../../tools.js'
 import { asAgentId } from '../../types/ids.js'
 import {
@@ -203,6 +206,13 @@ export async function resumeAgentBackground({
     contentReplacementState: resumedReplacementState,
   }
 
+  // Official 2.1.172 resume: `depth:D??(gz()?.depth??0)+1` where D is task.spawnDepth.
+  const existingTask = toolUseContext.getAppState().tasks[agentId]
+  const spawnDepth =
+    isLocalAgentTask(existingTask) && existingTask.spawnDepth !== undefined
+      ? existingTask.spawnDepth
+      : (getAgentContext()?.depth ?? 0) + 1
+
   // Skip name-registry write — original entry persists from the initial spawn
   const agentBackgroundTask = registerAsyncAgent({
     agentId,
@@ -211,6 +221,7 @@ export async function resumeAgentBackground({
     selectedAgent,
     setAppState: rootSetAppState,
     toolUseId: toolUseContext.toolUseId,
+    spawnDepth,
   })
 
   const metadata = {
@@ -226,6 +237,7 @@ export async function resumeAgentBackground({
     agentId,
     parentAgentId: getAgentContext()?.agentId,
     parentSessionId: getParentSessionId(),
+    depth: spawnDepth,
     agentType: 'subagent' as const,
     subagentName: selectedAgent.agentType,
     isBuiltIn: isBuiltInAgent(selectedAgent),

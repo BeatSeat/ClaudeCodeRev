@@ -135,6 +135,33 @@ export const MAX_MARKDOWN_LENGTH = 100_000
 // below still truncates the secondary-model prompt.
 const MAX_HTML_TO_MARKDOWN_LENGTH = 1_048_576
 
+// Official 2.1.172 (G2) `FZH` — max chars of raw artifact HTML to echo back
+// to the model on the owner read path before the "…N chars follow" suffix.
+export const ARTIFACT_HTML_DUMP_CAP = 100_000
+
+// Official 2.1.172 (G2) `c24` — HTML bytes handed to Turndown on the artifact
+// reader path before the apply-prompt call (mirrors the bundle's 1MB cap).
+const MAX_ARTIFACT_TURNDOWN_BYTES = 1_048_576
+
+/**
+ * Official 2.1.172 `ny8` — turndown an artifact's raw HTML for the WebFetch
+ * reader path (apply-prompt). Falls back to the raw HTML if Turndown throws.
+ */
+export async function turndownHtmlString(html: string): Promise<string> {
+  try {
+    let markdown = await (await getTurndownService()).turndown(
+      html.slice(0, MAX_ARTIFACT_TURNDOWN_BYTES),
+    )
+    if (html.length > MAX_ARTIFACT_TURNDOWN_BYTES) {
+      markdown += '  [Content truncated due to length...]'
+    }
+    return markdown
+  } catch (e) {
+    logError(e)
+    return html
+  }
+}
+
 export function isPreapprovedUrl(url: string): boolean {
   try {
     const parsedUrl = new URL(url)

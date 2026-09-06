@@ -1,10 +1,16 @@
+import { logForDebugging } from '../debug.js'
 import type { PermissionMode } from '../permissions/PermissionMode.js'
 import { capitalize } from '../stringUtils.js'
-import { MODEL_ALIASES, type ModelAlias } from './aliases.js'
+import { MODEL_ALIASES } from './aliases.js'
 import { applyBedrockRegionPrefix, getBedrockRegionPrefix } from './bedrock.js'
+import { isModelAllowed } from './modelAllowlist.js'
 import {
   applyOpus1mMergeIfNeeded,
   getCanonicalName,
+  getDefaultFableModel,
+  getDefaultHaikuModel,
+  getDefaultOpusModel,
+  getDefaultSonnetModel,
   getRuntimeMainLoopModel,
   isFableAvailable,
   parseUserSpecifiedModel,
@@ -36,14 +42,45 @@ export function getDefaultSubagentModel(): string {
  * This ensures subagents use the same region as the parent, which is necessary when
  * IAM permissions are scoped to specific cross-region inference profiles.
  */
+function inheritParentModel(
+  parentModel: string,
+  permissionMode?: PermissionMode,
+): string {
+  return getRuntimeMainLoopModel({
+    permissionMode: permissionMode ?? 'default',
+    mainLoopModel: parentModel,
+    exceeds200kTokens: false,
+  })
+}
+
+/** Official 2.1.172 `Tg6`. */
+function warnSubagentModelNotAllowed(spec: string): void {
+  logForDebugging(
+    `Subagent model "${spec}" is not in the availableModels allowlist; inheriting the parent model instead`,
+    { level: 'warn' },
+  )
+}
+
 export function getAgentModel(
   agentModel: string | undefined,
   parentModel: string,
-  toolSpecifiedModel?: ModelAlias,
+  toolSpecifiedModel?: AgentModelAlias,
   permissionMode?: PermissionMode,
 ): string {
-  if (process.env.CLAUDE_CODE_SUBAGENT_MODEL) {
-    return parseUserSpecifiedModel(process.env.CLAUDE_CODE_SUBAGENT_MODEL)
+  const inherit = () => inheritParentModel(parentModel, permissionMode)
+
+  // Official 2.1.172 `He`: env inherit / allowlist before Bedrock prefix.
+  const envModel = process.env.CLAUDE_CODE_SUBAGENT_MODEL
+  if (envModel) {
+    if (envModel === 'inherit') {
+      return inherit()
+    }
+    const resolved = parseUserSpecifiedModel(envModel)
+    if (!isModelAllowed(resolved)) {
+      warnSubagentModelNotAllowed(envModel)
+      return inherit()
+    }
+    return resolved
   }
 
   // Extract Bedrock region prefix from parent model to inherit for subagents.
@@ -70,13 +107,21 @@ export function getAgentModel(
 
   // Prioritize tool-specified model if provided
   if (toolSpecifiedModel) {
+    if (toolSpecifiedModel === 'inherit') {
+      return inherit()
+    }
     if (aliasMatchesParentTier(toolSpecifiedModel, parentModel)) {
       return parentModel
     }
-    const model = applyOpus1mMergeIfNeeded(
-      parseUserSpecifiedModel(toolSpecifiedModel),
+    const model = applyParentRegionPrefix(
+      applyOpus1mMergeIfNeeded(parseUserSpecifiedModel(toolSpecifiedModel)),
+      toolSpecifiedModel,
     )
-    return applyParentRegionPrefix(model, toolSpecifiedModel)
+    if (!isModelAllowed(model)) {
+      warnSubagentModelNotAllowed(toolSpecifiedModel)
+      return inherit()
+    }
+    return model
   }
 
   const agentModelWithExp = agentModel ?? getDefaultSubagentModel()
@@ -84,20 +129,21 @@ export function getAgentModel(
   if (agentModelWithExp === 'inherit') {
     // Apply runtime model resolution for inherit to get the effective model
     // This ensures agents using 'inherit' get opusplan→Opus resolution in plan mode
-    return getRuntimeMainLoopModel({
-      permissionMode: permissionMode ?? 'default',
-      mainLoopModel: parentModel,
-      exceeds200kTokens: false,
-    })
+    return inherit()
   }
 
   if (aliasMatchesParentTier(agentModelWithExp, parentModel)) {
     return parentModel
   }
-  const model = applyOpus1mMergeIfNeeded(
-    parseUserSpecifiedModel(agentModelWithExp),
+  const model = applyParentRegionPrefix(
+    applyOpus1mMergeIfNeeded(parseUserSpecifiedModel(agentModelWithExp)),
+    agentModelWithExp,
   )
-  return applyParentRegionPrefix(model, agentModelWithExp)
+  if (!isModelAllowed(model)) {
+    warnSubagentModelNotAllowed(agentModelWithExp)
+    return inherit()
+  }
+  return model
 }
 
 /**
@@ -140,36 +186,43 @@ export function getAgentModelDisplay(model: string | undefined): string {
  * Get available model options for agents
  */
 export function getAgentModelOptions(): AgentModelOption[] {
-  // Official 2.1.170 `fr7`: Fable when `N_H() || !wf() || anthropicAws`.
+  // Official 2.1.172 `ga7`: each family row only if `r3(defaultModel)`.
   const options: AgentModelOption[] = []
-  if (isFableAvailable() || getAPIProvider() !== 'firstParty') {
+  if (
+    (isFableAvailable() || getAPIProvider() !== 'firstParty') &&
+    isModelAllowed(getDefaultFableModel())
+  ) {
     options.push({
       value: 'fable',
       label: 'Fable',
       description: 'Most capable for your hardest and longest-running tasks',
     })
   }
-  options.push(
-    {
+  if (isModelAllowed(getDefaultSonnetModel())) {
+    options.push({
       value: 'sonnet',
       label: 'Sonnet',
       description: 'Efficient for routine tasks',
-    },
-    {
+    })
+  }
+  if (isModelAllowed(getDefaultOpusModel())) {
+    options.push({
       value: 'opus',
       label: 'Opus',
       description: 'Best for everyday, complex tasks',
-    },
-    {
+    })
+  }
+  if (isModelAllowed(getDefaultHaikuModel())) {
+    options.push({
       value: 'haiku',
       label: 'Haiku',
       description: 'Fastest for quick answers',
-    },
-    {
-      value: 'inherit',
-      label: 'Inherit from parent',
-      description: 'Use the same model as the main conversation',
-    },
-  )
+    })
+  }
+  options.push({
+    value: 'inherit',
+    label: 'Inherit from parent',
+    description: 'Use the same model as the main conversation',
+  })
   return options
 }

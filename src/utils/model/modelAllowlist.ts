@@ -86,6 +86,11 @@ function familyHasSpecificEntries(
   return false
 }
 
+/** Official 2.1.172 `tW` — strip one trailing `[1m]` so version IDs still match 1M rows. */
+export function stripTrailing1mSuffix(model: string): string {
+  return model.replace(/\[1m\]$/i, '')
+}
+
 /**
  * Check if a model is allowed by the availableModels allowlist in settings.
  * If availableModels is not set, all models are allowed.
@@ -107,9 +112,15 @@ export function isModelAllowed(model: string): boolean {
     return false // Empty allowlist blocks all user-specified models
   }
 
+  const normalizedAllowlist = availableModels.map(m =>
+    stripTrailing1mSuffix(m.trim().toLowerCase()),
+  )
+  const normalizedInput = stripTrailing1mSuffix(model.trim().toLowerCase())
+  if (normalizedInput.startsWith('anthropic.') && normalizedAllowlist.includes(normalizedInput)) {
+    return true
+  }
   const resolvedModel = resolveOverriddenModel(model)
-  const normalizedModel = resolvedModel.trim().toLowerCase()
-  const normalizedAllowlist = availableModels.map(m => m.trim().toLowerCase())
+  const normalizedModel = stripTrailing1mSuffix(resolvedModel.trim().toLowerCase())
 
   // Direct match (alias-to-alias or full-name-to-full-name)
   // Skip family aliases that have been narrowed by specific entries —

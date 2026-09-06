@@ -1,10 +1,17 @@
+import { STATUS_CODES } from 'http'
 import { z } from 'zod/v4'
-import { buildTool, type ToolDef } from '../../Tool.js'
+import { buildTool, toolMatchesName, type Tools, type ToolDef } from '../../Tool.js'
 import type { PermissionUpdate } from '../../types/permissions.js'
 import { formatFileSize } from '../../utils/format.js'
 import { lazySchema } from '../../utils/lazySchema.js'
 import type { PermissionDecision } from '../../utils/permissions/PermissionResult.js'
 import { getRuleByContentsForTool } from '../../utils/permissions/permissions.js'
+import {
+  parseArtifactUrl,
+  type ParsedArtifactUrl,
+} from '../ArtifactTool/artifactUrls.js'
+import { isArtifactToolEnabled } from '../ArtifactTool/artifactGates.js'
+import { readArtifactContent } from '../ArtifactTool/artifactPublish.js'
 import { isPreapprovedHost } from './preapproved.js'
 import { DESCRIPTION, WEB_FETCH_TOOL_NAME } from './prompt.js'
 import {
@@ -15,10 +22,12 @@ import {
 } from './UI.js'
 import {
   applyPromptToMarkdown,
+  ARTIFACT_HTML_DUMP_CAP,
   type FetchedContent,
   getURLMarkdownContent,
   isPreapprovedUrl,
   MAX_MARKDOWN_LENGTH,
+  turndownHtmlString,
 } from './utils.js'
 
 const inputSchema = lazySchema(() =>
@@ -46,6 +55,151 @@ const outputSchema = lazySchema(() =>
 type OutputSchema = ReturnType<typeof outputSchema>
 
 export type Output = z.infer<OutputSchema>
+
+/** Official 2.1.172 `JL4` — glob `*` → `[^.:]*` after escaping the rest. */
+function escapeWebFetchDomainGlob(pattern: string): string {
+  return pattern
+    .split('*')
+    .map(part => part.replace(/[.+?^${}()|[\]\\]/g, '\\$&'))
+    .join('[^.:]*')
+}
+
+/** Official 2.1.172 `DL4` — lowercase hostname; strip trailing dots before an optional port. */
+function normalizeWebFetchDomainKey(key: string): string {
+  if (!key.startsWith('domain:')) {
+    return key
+  }
+  return `domain:${key.slice(7).toLowerCase().replace(/(?<=[^*.])\.+(?=(:\d+)?$)/, '')}`
+}
+
+/** Official 2.1.172 `o6f` — `domain:*.example.com` matches subdomains, not the apex. */
+function webFetchDomainWildcardMatches(
+  ruleKey: string,
+  inputKey: string,
+): boolean {
+  if (!ruleKey.startsWith('domain:') || !inputKey.startsWith('domain:')) {
+    return false
+  }
+  if (ruleKey === 'domain:*') {
+    return true
+  }
+  const source = ruleKey.startsWith('domain:*.')
+    ? `^domain:(?:[^.:]+\\.)+${escapeWebFetchDomainGlob(ruleKey.slice(9))}$`
+    : `^domain:${escapeWebFetchDomainGlob(ruleKey.slice(7))}$`
+  return new RegExp(source, 'i').test(inputKey)
+}
+
+/** Official 2.1.172 `Ay8` — exact Map hit, else first wildcard match. */
+function matchWebFetchDomainRule<T>(
+  rules: Map<string, T>,
+  key: string,
+): T | undefined {
+  const exact = rules.get(key)
+  if (exact) {
+    return exact
+  }
+  const normalizedInput = normalizeWebFetchDomainKey(key)
+  let wildcard: T | undefined
+  for (const [ruleKey, rule] of rules) {
+    const normalizedRule = normalizeWebFetchDomainKey(ruleKey)
+    if (!normalizedRule.includes('*')) {
+      if (normalizedRule === normalizedInput) {
+        return rule
+      }
+    } else if (
+      wildcard === undefined &&
+      webFetchDomainWildcardMatches(normalizedRule, normalizedInput)
+    ) {
+      wildcard = rule
+    }
+  }
+  return wildcard
+}
+
+/** Official 2.1.172 (G2) `ay8` — HTTP status code → reason-phrase text. */
+function httpStatusText(status: number): string {
+  return STATUS_CODES?.[status] ?? 'Unknown Status'
+}
+
+/**
+ * Official 2.1.172 (G2) `u4f` — if the Artifact tool is present in the active
+ * tool set AND enabled, parse the URL as an artifact slug. Returns null for
+ * non-artifact URLs (fall through to the normal fetch path).
+ */
+function getArtifactSlug(
+  url: string,
+  tools: Tools,
+): ParsedArtifactUrl | null {
+  const hasArtifactTool = tools.some(tool => toolMatchesName(tool, 'Artifact'))
+  if (!hasArtifactTool || !isArtifactToolEnabled()) {
+    return null
+  }
+  return parseArtifactUrl(url)
+}
+
+/**
+ * Official 2.1.172 (G2) — the artifact read-path. Reads the artifact content
+ * (boot + asset), then:
+ *   - if `err`, return an error output (or throw when no HTTP status)
+ *   - if `role === 'owner'`, dump the raw HTML (capped) straight to the model
+ *   - otherwise run the prompt over a Turndown conversion of the HTML
+ */
+async function fetchArtifactContent(
+  parsed: ParsedArtifactUrl,
+  prompt: string,
+  url: string,
+  abortController: AbortController,
+  isNonInteractiveSession: boolean,
+  start: number,
+): Promise<Output> {
+  const read = await readArtifactContent(parsed, abortController.signal)
+  if (read.err !== null) {
+    if (read.status === undefined) {
+      throw new Error(`Artifact ${parsed.slug}: ${read.err}`)
+    }
+    return {
+      bytes: 0,
+      code: read.status,
+      codeText: httpStatusText(read.status),
+      result: `Artifact ${parsed.slug}: ${read.err}`,
+      durationMs: Date.now() - start,
+      url,
+    }
+  }
+
+  const html = read.html ?? ''
+  let result: string
+  if (read.role === 'owner') {
+    const titleSuffix = read.title
+      ? ` "${read.title.length > 200 ? read.title.slice(0, 200) : read.title}"`
+      : ''
+    const sizeNote =
+      html.length > ARTIFACT_HTML_DUMP_CAP
+        ? `; first ${ARTIFACT_HTML_DUMP_CAP} chars of ${read.bytes ?? html.length} bytes follow`
+        : '; raw HTML follows'
+    result = `[Artifact ${parsed.slug}${titleSuffix} — owned by you${sizeNote}]\n${
+      html.length > ARTIFACT_HTML_DUMP_CAP ? html.slice(0, ARTIFACT_HTML_DUMP_CAP) : html
+    }`
+  } else {
+    const markdown = await turndownHtmlString(html)
+    result = await applyPromptToMarkdown(
+      prompt,
+      markdown,
+      abortController.signal,
+      isNonInteractiveSession,
+      false,
+    )
+  }
+
+  return {
+    bytes: read.bytes ?? 0,
+    code: 200,
+    codeText: 'OK',
+    result,
+    durationMs: Date.now() - start,
+    url,
+  }
+}
 
 function webFetchToolInputToPermissionRuleContent(input: {
   [k: string]: unknown
@@ -123,11 +277,10 @@ export const WebFetchTool = buildTool({
     // Check for a rule specific to the tool input (matching hostname)
     const ruleContent = webFetchToolInputToPermissionRuleContent(input)
 
-    const denyRule = getRuleByContentsForTool(
-      permissionContext,
-      WebFetchTool,
-      'deny',
-    ).get(ruleContent)
+    const denyRule = matchWebFetchDomainRule(
+      getRuleByContentsForTool(permissionContext, WebFetchTool, 'deny'),
+      ruleContent,
+    )
     if (denyRule) {
       return {
         behavior: 'deny',
@@ -139,11 +292,10 @@ export const WebFetchTool = buildTool({
       }
     }
 
-    const askRule = getRuleByContentsForTool(
-      permissionContext,
-      WebFetchTool,
-      'ask',
-    ).get(ruleContent)
+    const askRule = matchWebFetchDomainRule(
+      getRuleByContentsForTool(permissionContext, WebFetchTool, 'ask'),
+      ruleContent,
+    )
     if (askRule) {
       return {
         behavior: 'ask',
@@ -156,11 +308,10 @@ export const WebFetchTool = buildTool({
       }
     }
 
-    const allowRule = getRuleByContentsForTool(
-      permissionContext,
-      WebFetchTool,
-      'allow',
-    ).get(ruleContent)
+    const allowRule = matchWebFetchDomainRule(
+      getRuleByContentsForTool(permissionContext, WebFetchTool, 'allow'),
+      ruleContent,
+    )
     if (allowRule) {
       return {
         behavior: 'allow',
@@ -207,9 +358,26 @@ ${DESCRIPTION}`
   renderToolResultMessage,
   async call(
     { url, prompt },
-    { abortController, options: { isNonInteractiveSession } },
+    { abortController, options },
   ) {
     const start = Date.now()
+
+    // Official 2.1.172 (G2) — artifact read-path. If this URL is an artifact
+    // slug and the Artifact tool is active, read the page content directly
+    // (no WebFetch redirect/blocklist flow) and short-circuit.
+    const artifact = getArtifactSlug(url, options.tools)
+    if (artifact) {
+      return {
+        data: await fetchArtifactContent(
+          artifact,
+          prompt,
+          url,
+          abortController,
+          options.isNonInteractiveSession,
+          start,
+        ),
+      }
+    }
 
     const response = await getURLMarkdownContent(url, abortController)
 
@@ -272,7 +440,7 @@ To complete your request, I need to fetch content from the redirected URL. Pleas
         prompt,
         content,
         abortController.signal,
-        isNonInteractiveSession,
+        options.isNonInteractiveSession,
         isPreapproved,
       )
     }

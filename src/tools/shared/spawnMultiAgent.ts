@@ -25,6 +25,7 @@ import { getCwd } from '../../utils/cwd.js'
 import { logForDebugging } from '../../utils/debug.js'
 import { errorMessage } from '../../utils/errors.js'
 import { execFileNoThrow } from '../../utils/execFileNoThrow.js'
+import { isModelAllowed } from '../../utils/model/modelAllowlist.js'
 import { parseUserSpecifiedModel } from '../../utils/model/model.js'
 import type { PermissionMode } from '../../utils/permissions/PermissionMode.js'
 import { isTmuxAvailable } from '../../utils/swarm/backends/detection.js'
@@ -70,6 +71,14 @@ import { writeToMailbox } from '../../utils/teammateMailbox.js'
 import type { CustomAgentDefinition } from '../AgentTool/loadAgentsDir.js'
 import { isCustomAgent } from '../AgentTool/loadAgentsDir.js'
 
+/** Official 2.1.172 `$6q`. */
+function warnTeammateModelNotAllowed(spec: string): void {
+  logForDebugging(
+    `Teammate model "${spec}" is not in the availableModels allowlist; using the default teammate model instead`,
+    { level: 'warn' },
+  )
+}
+
 function getDefaultTeammateModel(leaderModel: string | null): string {
   const configured = getGlobalConfig().teammateDefaultModel
   if (configured === null) {
@@ -77,7 +86,11 @@ function getDefaultTeammateModel(leaderModel: string | null): string {
     return leaderModel ?? getHardcodedTeammateModelFallback()
   }
   if (configured !== undefined) {
-    return parseUserSpecifiedModel(configured)
+    const resolved = parseUserSpecifiedModel(configured)
+    if (isModelAllowed(resolved)) {
+      return resolved
+    }
+    warnTeammateModelNotAllowed(configured)
   }
   return getHardcodedTeammateModelFallback()
 }
@@ -95,8 +108,21 @@ export function resolveTeammateModel(
   inputModel: string | undefined,
   leaderModel: string | null,
 ): string {
+  const envModel = process.env.CLAUDE_CODE_SUBAGENT_MODEL
+  if (envModel && envModel !== 'inherit') {
+    const resolved = parseUserSpecifiedModel(envModel)
+    if (isModelAllowed(resolved)) {
+      return resolved
+    }
+    warnTeammateModelNotAllowed(envModel)
+    return getDefaultTeammateModel(leaderModel)
+  }
   if (inputModel === 'inherit') {
     return leaderModel ?? getDefaultTeammateModel(leaderModel)
+  }
+  if (inputModel !== undefined && !isModelAllowed(inputModel)) {
+    warnTeammateModelNotAllowed(inputModel)
+    return getDefaultTeammateModel(leaderModel)
   }
   return inputModel ?? getDefaultTeammateModel(leaderModel)
 }

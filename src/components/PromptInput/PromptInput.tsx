@@ -55,6 +55,7 @@ import {
 import type { VerificationStatus } from '../../hooks/useApiKeyVerification.js'
 import {
   type HistoryMode,
+  extractSubagentHistory,
   useArrowKeyHistory,
 } from '../../hooks/useArrowKeyHistory.js'
 import { useDoublePress } from '../../hooks/useDoublePress.js'
@@ -462,6 +463,17 @@ function PromptInput({
     s => s.speculationSessionTimeSavedMs,
   )
   const viewingAgentTaskId = useAppState(s => s.viewingAgentTaskId)
+  const viewingAgentMessages = useAppState(s => {
+    const agent = getActiveAgentForInput(s)
+    return agent.type === 'leader' ? undefined : agent.task.messages
+  })
+  const viewingAgentHistory = useMemo(
+    () =>
+      viewingAgentMessages
+        ? extractSubagentHistory(viewingAgentMessages)
+        : undefined,
+    [viewingAgentMessages],
+  )
   const viewSelectionMode = useAppState(s => s.viewSelectionMode)
   const showSpinnerTree = useAppState(s => s.expandedView) === 'teammates'
   const { companion: _companion, companionMuted } = feature('BUDDY')
@@ -1318,7 +1330,12 @@ function PromptInput({
     pastedContents,
     setCursorOffset,
     mode,
+    viewingAgentHistory,
   )
+
+  useEffect(() => {
+    resetHistory()
+  }, [viewingAgentTaskId, resetHistory])
 
   // Dismiss search hint when user starts searching
   useEffect(() => {

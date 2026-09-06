@@ -1,9 +1,12 @@
 import figures from 'figures'
 import * as React from 'react'
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { ConfigurableShortcutHint } from '../../components/ConfigurableShortcutHint.js'
 import { Byline } from '../../components/design-system/Byline.js'
-import { Box, Text } from '../../ink.js'
+import { SearchBox } from '../../components/SearchBox.js'
+import { useSearchInput } from '../../hooks/useSearchInput.js'
+import { useTerminalSize } from '../../hooks/useTerminalSize.js'
+import { Box, Text, useInput, useTerminalFocus } from '../../ink.js'
 import {
   useKeybinding,
   useKeybindings,
@@ -60,6 +63,7 @@ type Props = {
   setResult: (result: string | null) => void
   setViewState: (state: ParentViewState) => void
   onInstallComplete?: () => void | Promise<void>
+  onSearchModeChange?: (isActive: boolean) => void
   targetMarketplace?: string
   targetPlugin?: string
 }
@@ -84,6 +88,7 @@ export function BrowseMarketplace({
   setResult,
   setViewState: setParentViewState,
   onInstallComplete,
+  onSearchModeChange,
   targetMarketplace,
   targetPlugin,
 }: Props): React.ReactNode {
@@ -115,9 +120,52 @@ export function BrowseMarketplace({
     new Set(),
   )
 
+  const [isSearchMode, setIsSearchModeRaw] = useState(false)
+  const setIsSearchMode = useCallback(
+    (active: boolean) => {
+      setIsSearchModeRaw(active)
+    },
+    [],
+  )
+  const {
+    query: searchQuery,
+    setQuery: setSearchQuery,
+    cursorOffset: searchCursorOffset,
+  } = useSearchInput({
+    isActive: viewState === 'plugin-list' && isSearchMode && !loading,
+    onExit: () => {
+      setIsSearchMode(false)
+    },
+    onExitUp: () => {
+      setIsSearchMode(false)
+    },
+  })
+  const isSearchActiveWithQuery = isSearchMode && searchQuery !== ''
+  useEffect(() => {
+    onSearchModeChange?.(isSearchActiveWithQuery)
+  }, [isSearchActiveWithQuery, onSearchModeChange])
+  useEffect(() => () => onSearchModeChange?.(false), [onSearchModeChange])
+  const isTerminalFocused = useTerminalFocus()
+  const { columns: terminalWidth } = useTerminalSize()
+  const filteredPlugins = useMemo(() => {
+    if (!searchQuery) return availablePlugins
+    const lowerQuery = searchQuery.toLowerCase()
+    return availablePlugins.filter(
+      plugin =>
+        plugin.entry.name.toLowerCase().includes(lowerQuery) ||
+        (
+          plugin.entry as { displayName?: string }
+        ).displayName?.toLowerCase().includes(lowerQuery) ||
+        plugin.entry.description?.toLowerCase().includes(lowerQuery),
+    )
+  }, [availablePlugins, searchQuery])
+  useEffect(() => {
+    setSelectedIndex(0)
+  }, [searchQuery])
+
   // Pagination for plugin list (continuous scrolling)
   const pagination = usePagination<InstallablePlugin>({
-    totalItems: availablePlugins.length,
+    totalItems: filteredPlugins.length,
     selectedIndex,
   })
 
@@ -147,6 +195,7 @@ export function BrowseMarketplace({
         setViewState('marketplace-list')
         setSelectedMarketplace(null)
         setSelectedForInstall(new Set())
+        setSelectedIndex(0)
       }
     } else if (viewState === 'plugin-details') {
       setViewState('plugin-list')
@@ -157,7 +206,10 @@ export function BrowseMarketplace({
     }
   }, [viewState, targetMarketplace, setParentViewState, marketplaces.length])
 
-  useKeybinding('confirm:no', handleBack, { context: 'Confirmation' })
+  useKeybinding('confirm:no', handleBack, {
+    context: 'Confirmation',
+    isActive: !(viewState === 'plugin-list' && isSearchMode),
+  })
 
   // Load marketplaces and count installed plugins
   useEffect(() => {
@@ -378,6 +430,8 @@ export function BrowseMarketplace({
         setAvailablePlugins(installablePlugins)
         setSelectedIndex(0)
         setSelectedForInstall(new Set())
+        setIsSearchMode(false)
+        setSearchQuery('')
       } catch (err) {
         if (cancelled) return
         setError(err instanceof Error ? err.message : 'Failed to load plugins')
@@ -530,27 +584,52 @@ export function BrowseMarketplace({
     { context: 'Select', isActive: viewState === 'marketplace-list' },
   )
 
+  useInput(
+    (input, key) => {
+      const keyIsNotCtrlOrMeta = !key.ctrl && !key.meta
+      if (!isSearchMode) {
+        if (input === '/' && keyIsNotCtrlOrMeta) {
+          setIsSearchMode(true)
+          setSearchQuery('')
+        } else if (
+          keyIsNotCtrlOrMeta &&
+          input.length > 0 &&
+          !/^\s+$/.test(input) &&
+          input !== 'j' &&
+          input !== 'k' &&
+          input !== 'i'
+        ) {
+          setIsSearchMode(true)
+          setSearchQuery(input)
+        }
+      }
+    },
+    { isActive: viewState === 'plugin-list' && !loading },
+  )
+
   // Plugin-list navigation
   useKeybindings(
     {
       'select:previous': () => {
-        if (selectedIndex > 0) {
+        if (selectedIndex === 0) {
+          setIsSearchMode(true)
+        } else {
           pagination.handleSelectionChange(selectedIndex - 1, setSelectedIndex)
         }
       },
       'select:next': () => {
-        if (selectedIndex < availablePlugins.length - 1) {
+        if (selectedIndex < filteredPlugins.length - 1) {
           pagination.handleSelectionChange(selectedIndex + 1, setSelectedIndex)
         }
       },
       'select:accept': () => {
         if (
-          selectedIndex === availablePlugins.length &&
+          selectedIndex === filteredPlugins.length &&
           selectedForInstall.size > 0
         ) {
           void installSelectedPlugins()
-        } else if (selectedIndex < availablePlugins.length) {
-          const plugin = availablePlugins[selectedIndex]
+        } else if (selectedIndex < filteredPlugins.length) {
+          const plugin = filteredPlugins[selectedIndex]
           if (plugin) {
             if (plugin.isInstalled) {
               setParentViewState({
@@ -568,14 +647,17 @@ export function BrowseMarketplace({
         }
       },
     },
-    { context: 'Select', isActive: viewState === 'plugin-list' },
+    {
+      context: 'Select',
+      isActive: viewState === 'plugin-list' && !isSearchMode,
+    },
   )
 
   useKeybindings(
     {
       'plugin:toggle': () => {
-        if (selectedIndex < availablePlugins.length) {
-          const plugin = availablePlugins[selectedIndex]
+        if (selectedIndex < filteredPlugins.length) {
+          const plugin = filteredPlugins[selectedIndex]
           if (plugin && !plugin.isInstalled) {
             const newSelection = new Set(selectedForInstall)
             if (newSelection.has(plugin.pluginId)) {
@@ -593,7 +675,10 @@ export function BrowseMarketplace({
         }
       },
     },
-    { context: 'Plugin', isActive: viewState === 'plugin-list' },
+    {
+      context: 'Plugin',
+      isActive: viewState === 'plugin-list' && !isSearchMode,
+    },
   )
 
   // Plugin-details navigation
@@ -944,13 +1029,29 @@ export function BrowseMarketplace({
   }
 
   // Get visible plugins from pagination
-  const visiblePlugins = pagination.getVisibleItems(availablePlugins)
+  const visiblePlugins = pagination.getVisibleItems(filteredPlugins)
 
   return (
     <Box flexDirection="column">
       <Box marginBottom={1}>
         <Text bold>Install Plugins</Text>
       </Box>
+
+      <Box marginBottom={1}>
+        <SearchBox
+          query={searchQuery}
+          isFocused={isSearchMode}
+          isTerminalFocused={isTerminalFocused}
+          width={terminalWidth - 4}
+          cursorOffset={searchCursorOffset}
+        />
+      </Box>
+
+      {filteredPlugins.length === 0 && searchQuery && (
+        <Box marginBottom={1}>
+          <Text dimColor>No plugins match &quot;{searchQuery}&quot;</Text>
+        </Box>
+      )}
 
       {/* Scroll up indicator */}
       {pagination.scrollPosition.canScrollUp && (
@@ -974,8 +1075,8 @@ export function BrowseMarketplace({
             marginBottom={isLast && !error ? 0 : 1}
           >
             <Box>
-              <Text color={isSelected ? 'suggestion' : undefined}>
-                {isSelected ? figures.pointer : ' '}{' '}
+              <Text color={isSelected && !isSearchMode ? 'suggestion' : undefined}>
+                {isSelected && !isSearchMode ? figures.pointer : ' '}{' '}
               </Text>
               <Text color={plugin.isInstalled ? 'success' : undefined}>
                 {plugin.isInstalled

@@ -66,7 +66,11 @@ import { evictTaskOutput } from '../../utils/task/diskOutput.js'
 import { evictTerminalTask } from '../../utils/task/framework.js'
 import { tokenCountWithEstimation } from '../../utils/tokens.js'
 import { createAbortController } from '../abortController.js'
-import { type AgentContext, runWithAgentContext } from '../agentContext.js'
+import {
+  type AgentContext,
+  getAgentContext,
+  runWithAgentContext,
+} from '../agentContext.js'
 import { count } from '../array.js'
 import { logForDebugging } from '../debug.js'
 import { cloneFileStateCache } from '../fileStateCache.js'
@@ -916,6 +920,7 @@ export async function runInProcessTeammate(
     planModeRequired: identity.planModeRequired,
     isTeamLead: false,
     agentType: 'teammate',
+    depth: getAgentContext()?.depth ?? 0,
     invokingRequestId,
     invocationKind: 'spawn',
     invocationEmitted: false,

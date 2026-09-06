@@ -2,6 +2,8 @@ import type { BetaUsage } from '@anthropic-ai/sdk/resources/beta/messages/messag
 import { getFeatureValue_CACHED_MAY_BE_STALE } from '../services/analytics/growthbook.js'
 import { shouldIncludeFirstPartyOnlyBetas } from './betas.js'
 import { isEnvTruthy } from './envUtils.js'
+import { getCanonicalName, isFableAvailable } from './model/model.js'
+import { isModelAllowed } from './model/modelAllowlist.js'
 import { getAPIProvider } from './model/providers.js'
 import { getInitialSettings } from './settings/settings.js'
 
@@ -104,10 +106,17 @@ export function modelSupportsAdvisor(model: string): boolean {
 
 // @[MODEL LAUNCH]: Add the new model if it can serve as an advisor model.
 export function isValidAdvisorModel(model: string): boolean {
-  const m = model.toLowerCase()
+  // Official 2.1.172 `TN$`: allowlist first, then family.
+  if (!isModelAllowed(model)) {
+    return false
+  }
+  const canonical = getCanonicalName(model)
   return (
-    m.includes('opus-4-6') ||
-    m.includes('sonnet-4-6') ||
+    (canonical.includes('fable-5') && isFableAvailable()) ||
+    canonical.includes('opus-4-8') ||
+    canonical.includes('opus-4-7') ||
+    canonical.includes('opus-4-6') ||
+    canonical.includes('sonnet-4-6') ||
     process.env.USER_TYPE === 'ant'
   )
 }

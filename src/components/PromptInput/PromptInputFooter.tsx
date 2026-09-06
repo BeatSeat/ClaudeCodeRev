@@ -273,7 +273,9 @@ function PromptInputFooter({
               reviewState={prStatus.reviewState!}
             />
           )}
-          <BridgeStatusIndicator bridgeSelected={bridgeSelected} />
+          {columns >= 60 && (
+            <BridgeStatusIndicator bridgeSelected={bridgeSelected} />
+          )}
           {footerRowLabels.length > 0 && (
             <Text dimColor>{footerRowLabels.join(' & ')}</Text>
           )}
@@ -317,7 +319,7 @@ function BridgeStatusIndicator({
   })
 
   // For implicit (config-driven) remote, only show the reconnecting state
-  if (!explicit && status.label !== 'Remote Control reconnecting') {
+  if (!explicit && status.label !== '/rc reconnecting') {
     return null
   }
 

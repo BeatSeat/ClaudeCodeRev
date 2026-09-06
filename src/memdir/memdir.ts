@@ -23,6 +23,7 @@ import { isEnvTruthy } from '../utils/envUtils.js'
 import { formatFileSize } from '../utils/format.js'
 import { getProjectDir } from '../utils/sessionStorage.js'
 import { getInitialSettings } from '../utils/settings/settings.js'
+import { tryParseClaudeMemoryStores } from '../services/teamMemorySync/memoryStores.js'
 import {
   MEMORY_FRONTMATTER_EXAMPLE,
   TRUSTING_RECALL_SECTION,
@@ -456,6 +457,41 @@ export async function loadMemoryPrompt(): Promise<string | null> {
       // creates the auto dir as a side effect. If the team dir ever moves
       // out from under the auto dir, add a second ensureMemoryDirExists call
       // for autoDir here.
+      const stores = tryParseClaudeMemoryStores()
+      if (
+        stores !== null &&
+        !stores.some(store => store.scope === 'user' && store.mode === 'rw')
+      ) {
+        const writable = stores.filter(
+          store => store.scope === 'team' && store.mode === 'rw',
+        )
+        const readonly = stores.filter(
+          store => store.scope === 'team' && store.mode === 'ro',
+        )
+        for (const store of [...writable, ...readonly]) {
+          await ensureMemoryDirExists(join(teamDir, store.mount))
+        }
+        logMemoryDirCounts(autoDir, {
+          memory_type:
+            'auto' as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
+        })
+        logMemoryDirCounts(teamDir, {
+          memory_type:
+            'team' as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
+        })
+        return teamMemPrompts!.buildTeamStoresMemoryPrompt(
+          writable.map(store => ({
+            mount: store.mount,
+            promptIndex: store.promptIndex,
+          })),
+          readonly.map(store => ({
+            mount: store.mount,
+            promptIndex: store.promptIndex,
+          })),
+          extraGuidelines,
+          skipIndex,
+        )
+      }
       await ensureMemoryDirExists(teamDir)
       logMemoryDirCounts(autoDir, {
         memory_type:
