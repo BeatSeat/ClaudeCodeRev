@@ -93,9 +93,14 @@ import {
   getUserIntentSettingWithSource,
   setUserIntentSetting,
 } from '../../utils/settings/userIntent.js'
-import { getUserMsgOptIn, setUserMsgOptIn } from '../../bootstrap/state.js'
+import {
+  getUserMsgOptIn,
+  setUserMsgOptIn,
+} from '../../bootstrap/state.js'
+import { customThemeSlug } from '../../utils/customThemes.js'
+import { getSafeModeOffHint } from '../../utils/safeModeHint.js'
 import { DEFAULT_OUTPUT_STYLE_NAME } from 'src/constants/outputStyles.js'
-import { isEnvTruthy, isRunningOnHomespace } from 'src/utils/envUtils.js'
+import { isEnvTruthy, isRunningOnHomespace, isSafeMode } from 'src/utils/envUtils.js'
 import type {
   LocalJSXCommandContext,
   CommandResultDisplay,
@@ -1972,6 +1977,13 @@ export function Config({
               setShowSubmenu(null)
               setTabsHidden(false)
             }}
+            // Official 2.1.169 safe mode (bundle Settings dialog `K1("themes")`
+            // ≡ safe mode for themes).
+            helpText={
+              isSafeMode()
+                ? `Custom themes are disabled in safe mode — ${getSafeModeOffHint()} to load them${customThemeSlug(themeSetting) ? `. Your saved theme "${customThemeSlug(themeSetting)}" is a custom theme; selecting a preset here replaces it` : ''}`
+                : ''
+            }
             hideEscToCancel
             skipExitHandling={true} // Skip exit handling as Config already handles it
           />

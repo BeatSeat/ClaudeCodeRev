@@ -184,6 +184,14 @@ export const ORG_DISABLED_ERROR_MESSAGE_ENV_KEY_WITH_OAUTH =
   'Your ANTHROPIC_API_KEY belongs to a disabled organization · Unset the environment variable to use your subscription instead'
 export const ORG_DISABLED_ERROR_MESSAGE_ENV_KEY =
   'Your ANTHROPIC_API_KEY belongs to a disabled organization · Update or unset the environment variable'
+export const ORG_DISABLED_API_KEY_WITH_OAUTH =
+  'Your organization has disabled API key authentication · Unset ANTHROPIC_API_KEY to use your claude.ai account instead'
+export const ORG_DISABLED_API_KEY_WITHOUT_OAUTH =
+  'Your organization has disabled API key authentication · Unset ANTHROPIC_API_KEY and run /login to sign in with your claude.ai account'
+export const ORG_DISABLED_API_KEY_HELPER =
+  'Your organization has disabled API key authentication · Unset the apiKeyHelper setting and run /login to sign in with your claude.ai account'
+export const ORG_DISABLED_API_KEY_MANAGED =
+  'Your organization has disabled API key authentication · Run /login to sign in with your claude.ai account'
 export const TOKEN_REVOKED_ERROR_MESSAGE =
   'OAuth token revoked · Please run /login'
 export const CCR_AUTH_ERROR_MESSAGE =
@@ -902,6 +910,35 @@ export function getAssistantMessageFromError(
       error: 'oauth_org_not_allowed',
       content: getOauthOrgNotAllowedErrorMessage(),
     })
+  }
+
+  // Check for API key authentication disabled for this organization (Official 2.1.169)
+  if (
+    error instanceof APIError &&
+    error.status === 403 &&
+    error.message.toLowerCase().includes('api key authentication is disabled')
+  ) {
+    const { source } = getAnthropicApiKeyWithSource()
+    if (source === 'ANTHROPIC_API_KEY' && process.env.ANTHROPIC_API_KEY) {
+      return createAssistantAPIErrorMessage({
+        error: 'invalid_request',
+        content: isClaudeAISubscriber()
+          ? ORG_DISABLED_API_KEY_WITH_OAUTH
+          : ORG_DISABLED_API_KEY_WITHOUT_OAUTH,
+      })
+    }
+    if (source === 'apiKeyHelper') {
+      return createAssistantAPIErrorMessage({
+        error: 'invalid_request',
+        content: ORG_DISABLED_API_KEY_HELPER,
+      })
+    }
+    if (source === '/login managed key') {
+      return createAssistantAPIErrorMessage({
+        error: 'authentication_failed',
+        content: ORG_DISABLED_API_KEY_MANAGED,
+      })
+    }
   }
 
   // Generic handler for other 401/403 authentication errors

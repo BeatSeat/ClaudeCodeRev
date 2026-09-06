@@ -522,6 +522,8 @@ export type GlobalConfig = {
   copyOnSelect?: boolean // Auto-copy to clipboard on mouse-up (undefined → true; lets cmd+c "work" via no-op)
   /** Official 2.1.119: ← opens agent view when the prompt is empty. */
   leftArrowOpensAgents?: boolean
+  hasOpenedAgentsView?: boolean
+  hasUsedAgentsFleet?: boolean
 
   // GitHub repo path mapping for teleport directory switching
   // Key: "owner/repo" (lowercase), Value: array of absolute paths where repo is cloned
@@ -733,6 +735,8 @@ export const GLOBAL_CONFIG_KEYS = [
   'copyFullResponse',
   'copyOnSelect',
   'leftArrowOpensAgents',
+  'hasOpenedAgentsView',
+  'hasUsedAgentsFleet',
   'permissionExplainerEnabled',
   'prStatusFooterEnabled',
   'remoteControlAtStartup',
@@ -832,6 +836,29 @@ export function isPathTrusted(dir: string): boolean {
     if (parentPath === currentPath) return false
     currentPath = parentPath
   }
+}
+
+/**
+ * Persist trust for an arbitrary directory (Official 2.1.169 `AP$`, /cd):
+ * no-op when the directory is already trusted. Unlike the onboarding trust
+ * dialog this writes directly for a user-typed path, not for the session's
+ * project path.
+ */
+export function markPathTrusted(dir: string): void {
+  const normalized = normalizePathForConfigKey(resolve(dir))
+  saveGlobalConfig(config => {
+    if (config.projects?.[normalized]?.hasTrustDialogAccepted) return config
+    return {
+      ...config,
+      projects: {
+        ...config.projects,
+        [normalized]: {
+          ...config.projects?.[normalized],
+          hasTrustDialogAccepted: true,
+        },
+      },
+    }
+  })
 }
 
 // We have to put this test code here because Jest doesn't support mocking ES modules :O

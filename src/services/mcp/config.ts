@@ -6,6 +6,7 @@ import { dirname, join, parse } from 'path'
 import type { PluginError } from '../../types/plugin.js'
 import { getPluginErrorMessage } from '../../types/plugin.js'
 import { isClaudeInChromeMCPServer } from '../../utils/claudeInChrome/common.js'
+import { isComputerUseMCPServer } from '../../utils/computerUse/common.js'
 import {
   getCurrentProjectConfig,
   getGlobalConfig,
@@ -640,6 +641,54 @@ export function filterMcpServersByPolicy<T>(configs: Record<string, T>): {
     }
   }
   return { allowed, blocked }
+}
+
+const POLICY_ENFORCED_SCOPES = new Set(['dynamic', 'agent', 'claudeai'])
+
+function isExtensionServer(name: string): boolean {
+  return isClaudeInChromeMCPServer(name) || isComputerUseMCPServer(name)
+}
+
+export function isMcpServerBlockedByPolicy(
+  serverName: string,
+  config: McpServerConfig | ScopedMcpServerConfig,
+): boolean {
+  const scope = (config as { scope?: string }).scope
+  if (!scope || !POLICY_ENFORCED_SCOPES.has(scope)) {
+    return false
+  }
+  if (config.type === 'sdk') {
+    return false
+  }
+  if (
+    isExtensionServer(serverName) ||
+    config.type === 'sse-ide' ||
+    config.type === 'ws-ide'
+  ) {
+    return isMcpServerDenied(serverName, config)
+  }
+  return !isMcpServerAllowedByPolicy(serverName, config)
+}
+
+export function filterDynamicMcpConfigsByPolicy<T>(
+  configs?: Record<string, T>,
+): {
+  configs: Record<string, T>
+  blocked: string[]
+} {
+  if (!configs) {
+    return { configs: {} as Record<string, T>, blocked: [] }
+  }
+  const allowed: Record<string, T> = {}
+  const blocked: string[] = []
+  for (const [name, config] of Object.entries(configs)) {
+    if (isMcpServerBlockedByPolicy(name, config as McpServerConfig)) {
+      blocked.push(name)
+    } else {
+      allowed[name] = config
+    }
+  }
+  return { configs: allowed, blocked }
 }
 
 /**

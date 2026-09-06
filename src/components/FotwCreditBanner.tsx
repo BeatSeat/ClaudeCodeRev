@@ -112,5 +112,15 @@ export function FotwCreditBanner(): React.ReactNode {
           </Text>
         </Box>
       )
+    case 'needs_payment_setup':
+      return (
+        <Box paddingLeft={2}>
+          <Text>
+            To claim {amount} in usage credits, add a payment method at{' '}
+            <Text color="claude">https://claude.ai/settings/billing</Text>, then run
+            /{fotwClaim.command} again to claim (claiming turns on extra usage billing)
+          </Text>
+        </Box>
+      )
   }
 }

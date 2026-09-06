@@ -480,7 +480,7 @@ export type AppState = DeepImmutable<{
   channelPermissionCallbacks?: ChannelPermissionCallbacks
   // Official 2.1.153 T59 banner; 2.1.157 also the fotw-claim toast.
   fotwClaim?: {
-    phase: 'pending' | 'granted' | 'failed'
+    phase: 'pending' | 'granted' | 'failed' | 'needs_payment_setup'
     command: string
     amountMinorUnits: number
     currency: string

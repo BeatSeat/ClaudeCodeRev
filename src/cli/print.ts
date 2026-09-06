@@ -245,6 +245,7 @@ import {
 import {
   filterMcpServersByPolicy,
   getMcpConfigByName,
+  isMcpServerBlockedByPolicy,
   isMcpServerDisabled,
   setMcpServerEnabled,
 } from 'src/services/mcp/config.js'
@@ -519,6 +520,35 @@ async function waitForHeadlessMcpTools(
     pendingAfter: after.clients.filter(c => c.type === 'pending').length,
     toolsAfter: after.tools.length,
     mcpNonBlocking: isEnvTruthy(process.env.MCP_CONNECTION_NONBLOCKING),
+  })
+}
+
+function cancelStaleParkedPrompt(
+  io: StructuredIO,
+  state: RestoredWorkerState | null,
+): void {
+  const pendingAction = (state as any)?.external?.pending_action
+  const requestId = pendingAction?.request_id
+  if (!requestId) return
+  if (
+    [
+      ...io.getPendingPermissionRequests(),
+      ...io.getPendingUserDialogRequests(),
+    ].some(f => f.request_id === requestId)
+  ) {
+    logForDebugging(
+      `[resumeStalePromptCancel] pending_action ${requestId} is owned by this worker — redelivery handles it, skipping cancel`,
+    )
+    return
+  }
+  logForDebugging(
+    `[resumeStalePromptCancel] cancelling stale parked prompt ${requestId} from a prior worker`,
+  )
+  io.write({ type: 'control_cancel_request', request_id: requestId } as any)
+  logEvent('tengu_resume_stale_prompt_cancel', {
+    kind: (pendingAction.tool_name?.startsWith('dialog:')
+      ? 'dialog'
+      : 'permission') as any,
   })
 }
 
@@ -941,6 +971,14 @@ export async function runHeadless(
 
   // Install errors handlers to gracefully handle broken pipes (e.g., when parent process dies)
   registerProcessIOErrorHandlers()
+
+  structuredIO.restoredWorkerState
+    .then(state => cancelStaleParkedPrompt(structuredIO, state))
+    .catch(err => {
+      logForDebugging(`[print.ts] stale parked prompt cancel failed: ${err}`, {
+        level: 'error',
+      })
+    })
 
   headlessProfilerCheckpoint('after_loadInitialMessages')
 
@@ -3331,6 +3369,11 @@ function runHeadlessStreaming(
             null
           if (!config) {
             sendControlResponseError(message, `Server not found: ${serverName}`)
+          } else if (isMcpServerBlockedByPolicy(serverName, config)) {
+            sendControlResponseError(
+              message,
+              `MCP server ${serverName} is blocked by enterprise managed policy`,
+            )
           } else {
             const result = await reconnectMcpServerImpl(serverName, config)
             // Update appState.mcp with the new client, tools, commands, and resources
@@ -3441,6 +3484,11 @@ function runHeadlessStreaming(
               },
             }))
             sendControlResponseSuccess(message)
+          } else if (isMcpServerBlockedByPolicy(serverName, config)) {
+            sendControlResponseError(
+              message,
+              `MCP server ${serverName} is blocked by enterprise managed policy`,
+            )
           } else {
             // Enabling: persist + reconnect
             setMcpServerEnabled(serverName, true)
@@ -3632,6 +3680,13 @@ function runHeadlessStreaming(
                 .then(async () => {
                   // Don't reconnect if the server was disabled during the OAuth flow
                   if (isMcpServerDisabled(serverName)) {
+                    return
+                  }
+                  if (isMcpServerBlockedByPolicy(serverName, config)) {
+                    logForDebugging(
+                      `MCP server ${serverName} blocked by managed policy after OAuth — skipping reconnect`,
+                      { level: 'warn' },
+                    )
                     return
                   }
                   // Skip reconnect if the manual callback path was used —
@@ -3918,6 +3973,11 @@ function runHeadlessStreaming(
             sendControlResponseError(
               message,
               `Cannot clear auth for server type "${config.type}"`,
+            )
+          } else if (isMcpServerBlockedByPolicy(serverName, config)) {
+            sendControlResponseError(
+              message,
+              `MCP server ${serverName} is blocked by enterprise managed policy`,
             )
           } else {
             await revokeServerTokens(serverName, config)
@@ -5241,6 +5301,7 @@ async function loadInitialMessages(
           if (result.sessionId) {
             switchSession(
               asSessionId(result.sessionId),
+              'resume',
               result.fullPath ? dirname(result.fullPath) : null,
             )
             if (persistSession) {
@@ -5472,6 +5533,7 @@ async function loadInitialMessages(
       if (!options.forkSession && result.sessionId) {
         switchSession(
           asSessionId(result.sessionId),
+          'resume',
           result.fullPath ? dirname(result.fullPath) : null,
         )
         if (persistSession) {

@@ -8,6 +8,8 @@ import {
 import { Box, Text } from '../ink.js'
 import type { OutputStyle } from '../utils/config.js'
 import { getCwd } from '../utils/cwd.js'
+import { isSafeMode } from '../utils/envUtils.js'
+import { getSafeModeOffHint } from '../utils/safeModeHint.js'
 import type { OptionWithDescription } from './CustomSelect/select.js'
 import { Select } from './CustomSelect/select.js'
 import { Dialog } from './design-system/Dialog.js'
@@ -66,6 +68,14 @@ export function OutputStylePicker({
     [onComplete],
   )
 
+  // Official 2.1.169 safe mode (bundle `id4`): the saved style isn't among the
+  // loaded options — it's a custom style that safe mode keeps unloaded.
+  // Bundle `K1("outputStyles")` ≡ safe mode for output styles.
+  const savedCustomStyleDisabled =
+    !isLoading &&
+    isSafeMode() &&
+    !styleOptions.some(option => option.value === initialStyle)
+
   return (
     <Dialog
       title="Preferred output style"
@@ -79,6 +89,11 @@ export function OutputStylePicker({
             This changes how Claude Code communicates with you
           </Text>
         </Box>
+        {savedCustomStyleDisabled && (
+          <Text dimColor>
+            {`Your saved output style "${initialStyle}" is a custom style disabled in safe mode — ${getSafeModeOffHint()} to use it; selecting a style here replaces it`}
+          </Text>
+        )}
         {isLoading ? (
           <Text dimColor>Loading output styles…</Text>
         ) : (

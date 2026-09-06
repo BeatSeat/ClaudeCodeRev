@@ -22,6 +22,11 @@ type ManagedSettingsSecurityHandler = (
 
 let managedSettingsSecurityHandler: ManagedSettingsSecurityHandler | null =
   null
+let isConsentDialogPendingState = false
+
+export function isConsentDialogPending(): boolean {
+  return isConsentDialogPendingState
+}
 
 /** 121 `ZA6` — REPL/SDK can approve without a second Ink root (apply-and-continue). */
 export function setManagedSettingsSecurityHandler(
@@ -75,6 +80,7 @@ export async function checkManagedSettingsSecurity(
   }
 
   // Show blocking dialog
+  isConsentDialogPendingState = true
   return new Promise<SecurityCheckResult>(resolve => {
     void (async () => {
       const { unmount } = await render(
@@ -83,11 +89,13 @@ export async function checkManagedSettingsSecurity(
             <ManagedSettingsSecurityDialog
               settings={newSettings}
               onAccept={() => {
+                isConsentDialogPendingState = false
                 logEvent('tengu_managed_settings_security_dialog_accepted', {})
                 unmount()
                 void resolve('approved')
               }}
               onReject={() => {
+                isConsentDialogPendingState = false
                 logEvent('tengu_managed_settings_security_dialog_rejected', {})
                 unmount()
                 void resolve('rejected')

@@ -2646,6 +2646,7 @@ export function REPL({
         // current originalCwd.
         switchSession(
           asSessionId(sessionId),
+          'resume',
           log.fullPath ? dirname(log.fullPath) : null,
         )
         // Rename asciicast recording to match the resumed session ID

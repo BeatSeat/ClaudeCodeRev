@@ -63,10 +63,32 @@ export function AutoUpdater({
   // a concurrent installGlobalPackage() to run while one is already in
   // progress.
   const isUpdatingRef = useRef(isUpdating)
-  isUpdatingRef.current = isUpdating
+  const statusRef = useRef(autoUpdaterResult?.status)
+  const consecutiveExeLockFailuresRef = useRef(
+    autoUpdaterResult?.consecutiveExeLockFailures ?? 0,
+  )
+
+  useEffect(() => {
+    isUpdatingRef.current = isUpdating
+    statusRef.current = autoUpdaterResult?.status
+    consecutiveExeLockFailuresRef.current =
+      autoUpdaterResult?.consecutiveExeLockFailures ?? 0
+  })
 
   const checkForUpdates = React.useCallback(async () => {
     if (isUpdatingRef.current) {
+      return
+    }
+    if (statusRef.current === 'no_permissions') {
+      logForDebugging(
+        'AutoUpdater: Skipping update check (no_permissions persists this session)',
+      )
+      return
+    }
+    if (consecutiveExeLockFailuresRef.current >= 2) {
+      logForDebugging(
+        'AutoUpdater: Skipping update check (claude.exe locked by another process; damped for this session)',
+      )
       return
     }
 

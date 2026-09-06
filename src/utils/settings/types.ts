@@ -893,6 +893,12 @@ export const SettingsSchema = lazySchema(() =>
             'slash command but hides the skill from the model, and "name-only" ' +
             'exposes the name without the description.',
         ),
+      disableBundledSkills: z
+        .boolean()
+        .optional()
+        .describe(
+          'Disable the skills and workflows that ship with Claude Code: bundled skills and workflows are removed entirely; built-in slash commands stay typable by the user but are hidden from the model.',
+        ),
       promptSuggestionEnabled: z
         .boolean()
         .optional()

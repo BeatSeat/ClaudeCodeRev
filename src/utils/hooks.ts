@@ -43,9 +43,11 @@ import {
   getMainThreadAgentHooks,
 } from '../bootstrap/state.js'
 import { checkHasTrustDialogAccepted } from './config.js'
+import { isCustomizationDisabled } from './customizationGate.js'
 import {
   getHooksConfigFromSnapshot,
   shouldAllowManagedHooksOnly,
+  shouldAllowManagedHooksOnlyByPolicy,
   shouldDisableAllHooksIncludingManaged,
 } from './hooks/hooksConfigSnapshot.js'
 import {
@@ -178,7 +180,8 @@ import {
 } from './hooks/sessionHooks.js'
 import type { AppState } from '../state/AppState.js'
 import { jsonStringify, jsonParse } from './slowOperations.js'
-import { isEnvTruthy } from './envUtils.js'
+import { isEnvTruthy, isSafeMode } from './envUtils.js'
+import { getForceEnabledManagedPluginIds } from './plugins/managedPlugins.js'
 import { errorMessage, getErrnoCode } from './errors.js'
 import {
   persistToolResult,
@@ -1650,6 +1653,10 @@ function getHooksConfig(
 > {
   // HookMatcher is a zod-stripped {matcher, hooks} so snapshot matchers can be
   // pushed directly without re-wrapping.
+  // Official 2.1.169 `oaf`: the customization gate wraps every settings /
+  // registered source. Bare mode disables hooks entirely (`cS_.hooks`);
+  // safe mode keeps hooks (`lS_.hooks`) but forces managed-only below.
+  const hooksDisabledByGate = isCustomizationDisabled('hooks')
   const hooks: Array<
     | HookMatcher
     | HookCallbackMatcher
@@ -1657,22 +1664,43 @@ function getHooksConfig(
     | PluginHookMatcher
     | SkillHookMatcher
     | SessionDerivedHookMatcher
-  > = [
-    ...(getHooksConfigFromSnapshot()?.[hookEvent] ?? []),
-    // Official 2.1.116 rAH: main-thread --agent frontmatter hooks.
-    ...(getMainThreadAgentHooks()?.[hookEvent] ?? []),
-  ]
+  > = hooksDisabledByGate
+    ? []
+    : [
+        ...(getHooksConfigFromSnapshot()?.[hookEvent] ?? []),
+        // Official 2.1.116 rAH: main-thread --agent frontmatter hooks.
+      ]
 
   // Check if only managed hooks should run (used for both registered and session hooks)
   const managedOnly = shouldAllowManagedHooksOnly()
 
+  // Official 2.1.169: main-thread --agent hooks are skipped under the gate
+  // and whenever managed-only is in effect (safe mode or policy).
+  if (!hooksDisabledByGate && !managedOnly) {
+    for (const matcher of getMainThreadAgentHooks()?.[hookEvent] ?? []) {
+      hooks.push(matcher)
+    }
+  }
+
+  // Official 2.1.169 `oaf`: plugin hooks survive managed-only only when the
+  // policy's enabledPlugins allowlists them by exact id; safe mode never
+  // allowlists (`f&&!C9()?pa():null`).
+  const policyEnabledPluginIds =
+    managedOnly && !isSafeMode() ? getForceEnabledManagedPluginIds() : null
+
   // Process registered hooks (SDK callbacks and plugin native hooks)
-  const registeredHooks = getRegisteredHooks()?.[hookEvent]
+  const registeredHooks = hooksDisabledByGate
+    ? undefined
+    : getRegisteredHooks()?.[hookEvent]
   if (registeredHooks) {
     for (const matcher of registeredHooks) {
       // Skip plugin hooks when restricted to managed hooks only
       // Plugin hooks have pluginRoot set, SDK callbacks do not
-      if (managedOnly && 'pluginRoot' in matcher) {
+      if (
+        managedOnly &&
+        'pluginRoot' in matcher &&
+        !policyEnabledPluginIds?.has(matcher.pluginId)
+      ) {
         continue
       }
       hooks.push(matcher)
@@ -1682,14 +1710,17 @@ function getHooksConfig(
   // Merge session hooks for the current session only
   // Function hooks (like structured output enforcement) must be scoped to their session
   // to prevent hooks from one agent leaking to another (e.g., verification agent to main agent)
-  // Skip session hooks entirely when allowManagedHooksOnly is set —
+  // Skip session hooks entirely when the POLICY forces managed-only —
   // this prevents frontmatter hooks from agents/skills from bypassing the policy.
+  // Official 2.1.169: this gate is the policy-only check (`!V6H()`), NOT
+  // shouldAllowManagedHooksOnly() — session hooks created by /goal, agents,
+  // and skills still run in safe mode.
   // strictPluginOnlyCustomization does NOT block here — it gates at the
   // REGISTRATION sites (runAgent.ts:526 for agent frontmatter hooks) where
   // agentDefinition.source is known. A blanket block here would also kill
   // plugin-provided agents' frontmatter hooks, which is too broad.
   // Also skip if appState not provided (for backwards compatibility)
-  if (!managedOnly && appState !== undefined) {
+  if (!shouldAllowManagedHooksOnlyByPolicy() && appState !== undefined) {
     const sessionHooks = getSessionHooks(appState, sessionId, hookEvent).get(
       hookEvent,
     )
@@ -1737,7 +1768,14 @@ export function hasHookForEvent(
 ): boolean {
   const snap = getHooksConfigFromSnapshot()?.[hookEvent]
   if (snap && snap.length > 0) return true
-  if ((getMainThreadAgentHooks()?.[hookEvent] ?? []).length > 0) return true
+  // Official 2.1.169 `Fk`: main-thread --agent hooks don't count when
+  // managed-only (policy or safe mode) is in effect.
+  if (
+    !shouldAllowManagedHooksOnly() &&
+    (getMainThreadAgentHooks()?.[hookEvent] ?? []).length > 0
+  ) {
+    return true
+  }
   const reg = getRegisteredHooks()?.[hookEvent]
   if (reg && reg.length > 0) return true
   if (appState?.sessionHooks.get(sessionId)?.hooks[hookEvent]) return true
@@ -5579,14 +5617,32 @@ async function executeHookCallback({
  * blocking the git-worktree fallback.
  */
 export function hasWorktreeCreateHook(): boolean {
+  // Official 2.1.169 `C5H`: the customization gate disables hooks wholesale
+  // in bare mode.
+  if (isCustomizationDisabled('hooks')) return false
   const snapshotHooks = getHooksConfigFromSnapshot()?.['WorktreeCreate']
   if (snapshotHooks && snapshotHooks.length > 0) return true
+  // Mirror getHooksConfig(): main-thread --agent hooks don't count when
+  // managed-only is in effect.
+  if (!shouldAllowManagedHooksOnly()) {
+    const mainThreadHooks = getMainThreadAgentHooks()?.['WorktreeCreate']
+    if (mainThreadHooks && mainThreadHooks.length > 0) return true
+  }
   const registeredHooks = getRegisteredHooks()?.['WorktreeCreate']
   if (!registeredHooks || registeredHooks.length === 0) return false
-  // Mirror getHooksConfig(): skip plugin hooks in managed-only mode
+  // Mirror getHooksConfig(): skip plugin hooks in managed-only mode unless
+  // the policy's enabledPlugins allowlists the plugin (safe mode never
+  // allowlists — Official 2.1.169 `q&&!C9()?pa():null`).
   const managedOnly = shouldAllowManagedHooksOnly()
+  const policyEnabledPluginIds =
+    managedOnly && !isSafeMode() ? getForceEnabledManagedPluginIds() : null
   return registeredHooks.some(
-    matcher => !(managedOnly && 'pluginRoot' in matcher),
+    matcher =>
+      !(
+        managedOnly &&
+        'pluginRoot' in matcher &&
+        !policyEnabledPluginIds?.has(matcher.pluginId)
+      ),
   )
 }
 

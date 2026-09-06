@@ -85,6 +85,7 @@ import {
 } from '../../utils/errors.js'
 import { executePermissionDeniedHooks } from '../../utils/hooks.js'
 import { logError } from '../../utils/log.js'
+import { z } from 'zod/v4'
 import {
   CANCEL_MESSAGE,
   createProgressMessage,
@@ -666,10 +667,18 @@ export function buildSchemaNotSentHint(
   if (!isDeferredTool(tool)) return null
   const discovered = extractDiscoveredToolNames(messages)
   if (discovered.has(tool.name)) return null
+  let schemaRef = ''
+  try {
+    schemaRef = ` For reference, this tool's input schema is: ${jsonStringify(
+      z.toJSONSchema(tool.inputSchema),
+    )}`
+  } catch {
+    // Best-effort — the hint still helps without the serialized schema.
+  }
   return (
     `\n\nThis tool's schema was not sent to the API — it was not in the discovered-tool set derived from message history. ` +
     `Without the schema in your prompt, typed parameters (arrays, numbers, booleans) get emitted as strings and the client-side parser rejects them. ` +
-    `Load the tool first: call ${TOOL_SEARCH_TOOL_NAME} with query "select:${tool.name}", then retry this call.`
+    `Load the tool first: call ${TOOL_SEARCH_TOOL_NAME} with query "select:${tool.name}", then retry this call.${schemaRef}`
   )
 }
 
@@ -748,10 +757,37 @@ async function checkPermissionsAndCallTool(
     resolvedInput = { ...rest, command: resolved.command }
   }
 
+  // Official 2.1.169: tools may repair malformed model-emitted input before
+  // Zod validation; the outcome is recorded in tengu_tool_input_coerced.
+  let coerced: {
+    input: Record<string, unknown>
+    shapeClass: string
+  } | null = null
+  let inputToValidate: unknown = resolvedInput
+  if (tool.coerceInput) {
+    coerced = tool.coerceInput(resolvedInput)
+    if (coerced !== null) inputToValidate = coerced.input
+  }
+
   // Validate input types with zod (surprisingly, the model is not great at generating valid input)
-  const parsedInput = tool.inputSchema.safeParse(resolvedInput)
+  const parsedInput = tool.inputSchema.safeParse(inputToValidate)
+  if (coerced !== null) {
+    logEvent('tengu_tool_input_coerced', {
+      toolName: sanitizeToolNameForAnalytics(tool.name),
+      shapeClass: coerced.shapeClass as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
+      outcome: (
+        parsedInput.success ? 'coerced_valid' : 'coerced_still_invalid'
+      ) as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
+      toolInputSizeBytes,
+    })
+  }
   if (!parsedInput.success) {
     let errorContent = formatZodValidationError(tool.name, parsedInput.error)
+
+    const steer = tool.validationErrorSteer?.(resolvedInput)
+    if (steer) {
+      errorContent += `\n\n${steer}`
+    }
 
     const schemaHint = buildSchemaNotSentHint(
       tool,

@@ -9,6 +9,8 @@ import {
 import { shouldOfferTerminalSetup } from '../../commands/terminalSetup/terminalSetup.js'
 import { getDesktopUpsellConfig } from '../../components/DesktopUpsell/DesktopUpsellStartup.js'
 import { color } from '../../components/design-system/color.js'
+import { isAgentsFleetEnabled } from '../../components/FleetView/fleetGate.js'
+import { getIsNonInteractiveSession } from '../../bootstrap/state.js'
 import { shouldShowOverageCreditUpsell } from '../../components/LogoV2/OverageCreditUpsell.js'
 import { getShortcutDisplay } from '../../keybindings/shortcutFormat.js'
 import { isKairosCronEnabled } from '../../tools/ScheduleCronTool/prompt.js'
@@ -148,6 +150,25 @@ const externalTips: Tip[] = [
       if (getCurrentSessionAgentColor()) return false
       const count = await countConcurrentSessions()
       return count >= 2
+    },
+  },
+  {
+    id: 'agents-view-multiclauding',
+    priority: 3,
+    providerAgnostic: true,
+    maxLifetimeShows: 5,
+    cooldownSessions: 1,
+    content: async ctx => {
+      const highlight = color('suggestion', ctx.theme)
+      return `Running multiple Claude sessions? Run ${highlight('claude agents')} to see them all in one place · or press ${highlight('←')} twice on an empty prompt when Claude is idle`
+    },
+    isRelevant: async () => {
+      if (!isAgentsFleetEnabled()) return false
+      const config = getGlobalConfig()
+      if (config.leftArrowOpensAgents === false) return false
+      if (getIsNonInteractiveSession()) return false
+      if (config.hasOpenedAgentsView || config.hasUsedAgentsFleet) return false
+      return (await countConcurrentSessions()) >= 2
     },
   },
   {

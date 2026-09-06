@@ -230,7 +230,9 @@ import {
   isBareMode,
   isEnvTruthy,
   isInProtectedNamespace,
+  isSafeMode,
 } from './utils/envUtils.js'
+import { isCustomizationDisabled } from './utils/customizationGate.js'
 import { refreshExampleCommands } from './utils/exampleCommands.js'
 import type { FpsMetrics } from './utils/fpsTracker.js'
 import { getWorktreePaths } from './utils/getWorktreePaths.js'
@@ -1556,6 +1558,11 @@ async function run(): Promise<CommanderCommand> {
       'Minimal mode: skip hooks, LSP, plugin sync, attribution, auto-memory, background prefetches, keychain reads, and CLAUDE.md auto-discovery. Sets CLAUDE_CODE_SIMPLE=1. Anthropic auth is strictly ANTHROPIC_API_KEY or apiKeyHelper via --settings (OAuth and keychain are never read). 3P providers (Bedrock/Vertex/Foundry) use their own credentials. Skills still resolve via /skill-name. Explicitly provide context via: --system-prompt[-file], --append-system-prompt[-file], --add-dir (CLAUDE.md dirs), --mcp-config, --settings, --agents, --plugin-dir.',
       () => true,
     )
+    .option(
+      '--safe-mode',
+      'Start with all customizations (CLAUDE.md, skills, plugins, hooks, MCP servers, custom commands and agents, output styles, workflows, custom themes, keybindings, and more) disabled — useful for troubleshooting a broken configuration. Admin-managed (policy) settings still apply. Auth, model selection, built-in tools, and permissions work normally. Sets CLAUDE_CODE_SAFE_MODE=1.',
+      () => true,
+    )
     .addOption(
       new Option(
         '--init',
@@ -1914,6 +1921,17 @@ async function run(): Promise<CommanderCommand> {
       // dir-walk). Must be set before setup() / any of the gated work runs.
       if ((options as { bare?: boolean }).bare) {
         process.env.CLAUDE_CODE_SIMPLE = '1'
+      }
+
+      // --safe-mode / CLAUDE_CODE_SAFE_MODE: latch the env vars so the
+      // customization gates — and the raw CLAUDE_CODE_DISABLE_CLAUDE_MDS
+      // readers — fire even on paths that race the argv check.
+      // Official 2.1.169: `if(C9())process.env.CLAUDE_CODE_SAFE_MODE="1",
+      // process.env.CLAUDE_CODE_DISABLE_CLAUDE_MDS="1",RH("startup_safe_mode")`.
+      if (isSafeMode()) {
+        process.env.CLAUDE_CODE_SAFE_MODE = '1'
+        process.env.CLAUDE_CODE_DISABLE_CLAUDE_MDS = '1'
+        profileCheckpoint('startup_safe_mode')
       }
 
       // Ignore "code" as a prompt - treat it the same as no prompt
@@ -3192,9 +3210,12 @@ async function run(): Promise<CommanderCommand> {
       )
       profileCheckpoint('action_commands_loaded')
 
-      // Parse CLI agents if provided via --agents flag
+      // Parse CLI agents if provided via --agents flag.
+      // Official 2.1.169: safe mode disables user-supplied custom agents —
+      // the gate passes explicitlyRequested so bare mode still honors the
+      // explicit flag, and safe mode warns and ignores it.
       let cliAgents: typeof agentDefinitionsResult.activeAgents = []
-      if (agentsJson) {
+      if (agentsJson && !isCustomizationDisabled('agents', { explicitlyRequested: true })) {
         try {
           const parsedAgents = safeParseJSON(agentsJson)
           if (parsedAgents) {
@@ -3203,6 +3224,11 @@ async function run(): Promise<CommanderCommand> {
         } catch (error) {
           logError(error)
         }
+      } else if (agentsJson) {
+        logForDebugging(
+          '--agents: ignored in safe mode (user-supplied custom agents are disabled)',
+          { level: 'warn' },
+        )
       }
 
       // Merge CLI agents with existing ones
@@ -3696,7 +3722,18 @@ async function run(): Promise<CommanderCommand> {
         },
       )
       // CLI flag (--mcp-config) should override file-based configs, matching settings precedence
-      const allMcpConfigs = { ...existingMcpConfigs, ...dynamicMcpConfig }
+      const { allowed: allowedDynamic, blocked: blockedDynamic } =
+        filterMcpServersByPolicy(dynamicMcpConfig ?? {})
+      const { allowed: allowedExisting, blocked: blockedExisting } =
+        filterMcpServersByPolicy(existingMcpConfigs)
+      const allBlocked = [...blockedDynamic, ...blockedExisting]
+      if (allBlocked.length > 0) {
+        logForDebugging(
+          `MCP ${plural(allBlocked.length, 'server')} blocked by enterprise policy before prefetch: ${allBlocked.join(', ')}`,
+          { level: 'warn' },
+        )
+      }
+      const allMcpConfigs = { ...allowedExisting, ...allowedDynamic }
 
       // Separate SDK configs from regular MCP configs
       const sdkMcpConfigs: Record<string, McpSdkServerConfig> = {}
@@ -5126,7 +5163,7 @@ async function run(): Promise<CommanderCommand> {
           // New behavior: start local TUI with CCR engine
           // Mark that we're in remote mode for command visibility
           setIsRemoteMode(true)
-          switchSession(asSessionId(createdSession.id))
+          switchSession(asSessionId(createdSession.id), 'remote_attach')
 
           // Get OAuth credentials for remote session
           let apiCreds: { accessToken: string; orgUUID: string }
@@ -6624,17 +6661,21 @@ async function run(): Promise<CommanderCommand> {
     )
     .option(
       '--json',
-      'Print live sessions as a JSON array and exit (for scripting; does not require a TTY)',
+      'Print active sessions as a JSON array and exit (for scripting; does not require a TTY)',
+    )
+    .option(
+      '--all',
+      'With --json: include completed sessions (the full agent view list)',
     )
     .option('--cwd <path>', 'Filter live sessions to this working directory')
     .option(
       '--agent <agent>',
       "Default agent for sessions dispatched from agent view. Overrides the 'agent' setting.",
     )
-    .action(async (opts: { json?: boolean; cwd?: string }) => {
+    .action(async (opts: { json?: boolean; cwd?: string; all?: boolean }) => {
       if (opts.json) {
         const { printAgentsJson } = await import('./cli/handlers/agents.js')
-        await printAgentsJson(opts.cwd)
+        await printAgentsJson(opts.cwd, opts.all === true)
         process.exit(0)
       }
       if (process.stdout.isTTY) {

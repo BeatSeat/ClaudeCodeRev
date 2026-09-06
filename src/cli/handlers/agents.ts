@@ -34,16 +34,22 @@ function formatAgent(agent: ResolvedAgent): string {
 }
 
 /** Official 2.1.145 `l_A`. */
-export async function printAgentsJson(cwdFilter?: string): Promise<void> {
+export async function printAgentsJson(
+  cwdFilter?: string,
+  _all?: boolean,
+): Promise<void> {
   const filter = cwdFilter ? pathResolve(cwdFilter) : undefined
   const rows: Array<{
-    pid: number
+    pid?: number
+    id?: string
     cwd: string
     kind: 'background' | 'interactive'
     startedAt: number
     sessionId?: string
     name?: string
     status?: 'idle' | 'waiting' | 'busy'
+    waitingFor?: string
+    state?: string
   }> = []
   for (const session of await listLiveSessions()) {
     if (session.kind !== 'interactive' && session.kind !== 'bg') continue
@@ -53,6 +59,7 @@ export async function printAgentsJson(cwdFilter?: string): Promise<void> {
     }
     rows.push({
       pid: session.pid,
+      ...((session as any).jobId && { id: (session as any).jobId }),
       cwd: session.cwd,
       kind: session.kind === 'bg' ? 'background' : 'interactive',
       startedAt: session.startedAt,
@@ -66,8 +73,13 @@ export async function printAgentsJson(cwdFilter?: string): Promise<void> {
               ? 'waiting'
               : 'busy',
       }),
+      ...(session.status === 'waiting' &&
+        (session as any).waitingFor && {
+          waitingFor: (session as any).waitingFor,
+        }),
     })
   }
+  rows.sort((a, b) => a.startedAt - b.startedAt)
   // biome-ignore lint/suspicious/noConsole:: intentional console output
   process.stdout.write(`${jsonStringify(rows, null, 2)}\n`)
   logEvent('cli_agents_json', {})

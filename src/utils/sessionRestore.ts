@@ -492,6 +492,7 @@ export async function processResumedConversation(
       // is the project dir. Otherwise the session lives in the current project.
       switchSession(
         asSessionId(sid),
+        'resume',
         opts.transcriptPath ? dirname(opts.transcriptPath) : null,
       )
       // Rename asciicast recording to match the resumed session ID so

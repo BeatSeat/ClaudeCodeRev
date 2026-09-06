@@ -1019,7 +1019,13 @@ export class BgWorker {
       this.rvSockPath ?? rendezvousSock(this.dispatch.short),
       H => {
         if (H.type === 'heartbeat') this.lastRvHeartbeat = Date.now()
-        else if (H.type === 'done') this.settle(String(H.outcome ?? 'done'))
+        else if (H.type === 'reply-rejected') {
+          logForDebugging(
+            `[bg] worker ${this.dispatch.short} rejected reply: rv auth token mismatch — respawn the worker to re-key`,
+            { level: 'warn' },
+          )
+          bgEvent('tengu_bg_rv_reply_rejected', {})
+        } else if (H.type === 'done') this.settle(String(H.outcome ?? 'done'))
         else if (H.type === 'state') this.patch(H.patch as Partial<WorkerRecord>)
         else if (H.type === 'detach-request') {
           this.onStream.emit(detachOsc(H.msg as string | undefined))

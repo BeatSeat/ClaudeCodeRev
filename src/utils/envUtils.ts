@@ -68,12 +68,64 @@ export function isEnvDefinedFalsy(
  * Checks argv directly (in addition to the env var) because several gates
  * run before main.tsx's action handler sets CLAUDE_CODE_SIMPLE=1 from --bare
  * — notably startKeychainPrefetch() at main.tsx top-level.
+ *
+ * Official 2.1.169 `bF$`/`i5`: the argv check stops at `--` so a bare flag
+ * typed as part of the prompt passthrough doesn't enable the mode.
  */
 export function isBareMode(): boolean {
   return (
     isEnvTruthy(process.env.CLAUDE_CODE_SIMPLE) ||
-    process.argv.includes('--bare')
+    hasCliFlagBeforeDoubleDash('--bare')
   )
+}
+
+/**
+ * Official 2.1.169 `bF$`. True when `flag` appears in process.argv before a
+ * `--` separator (everything after `--` is the prompt passthrough, not
+ * flags).
+ */
+export function hasCliFlagBeforeDoubleDash(flag: string): boolean {
+  const doubleDashIndex = process.argv.indexOf('--')
+  const argv =
+    doubleDashIndex === -1 ? process.argv : process.argv.slice(0, doubleDashIndex)
+  return argv.includes(flag)
+}
+
+/**
+ * --safe-mode / CLAUDE_CODE_SAFE_MODE — start with all customizations
+ * (CLAUDE.md, skills, plugins, hooks, MCP servers, custom commands and
+ * agents, output styles, workflows, custom themes, keybindings, and more)
+ * disabled for troubleshooting a broken configuration. Admin-managed
+ * (policy) settings still apply; auth, model selection, built-in tools, and
+ * permissions work normally.
+ *
+ * Checks argv directly (like isBareMode) because gates run before main.tsx's
+ * action handler sets CLAUDE_CODE_SAFE_MODE=1. Official 2.1.169 `C9`.
+ */
+export function isSafeMode(): boolean {
+  return (
+    isEnvTruthy(process.env.CLAUDE_CODE_SAFE_MODE) ||
+    hasCliFlagBeforeDoubleDash('--safe-mode')
+  )
+}
+
+/**
+ * How to re-enable customizations next session, depending on how safe mode
+ * was entered (CLI flag vs env var). Official 2.1.169 `UJ`.
+ */
+export function getSafeModeExitHint(): string {
+  return hasCliFlagBeforeDoubleDash('--safe-mode')
+    ? 'restart without --safe-mode'
+    : 'unset CLAUDE_CODE_SAFE_MODE'
+}
+
+/**
+ * Same for bare mode. Official 2.1.169 `yGq`.
+ */
+export function getBareModeExitHint(): string {
+  return hasCliFlagBeforeDoubleDash('--bare')
+    ? 'restart without --bare'
+    : 'unset CLAUDE_CODE_SIMPLE'
 }
 
 /**

@@ -80,7 +80,7 @@ export async function setup(
 
   // Set custom session ID if provided
   if (customSessionId) {
-    switchSession(asSessionId(customSessionId))
+    switchSession(asSessionId(customSessionId), 'startup_custom_id')
   }
 
   // --bare / SIMPLE: skip UDS messaging server and teammate snapshot.

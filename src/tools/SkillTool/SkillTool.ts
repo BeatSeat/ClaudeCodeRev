@@ -64,7 +64,11 @@ import {
 import { escapeRegExp } from '../../utils/stringUtils.js'
 import type { ModelAlias } from '../../utils/model/aliases.js'
 import { resolveSkillModelOverride } from '../../utils/model/model.js'
-import { getSkillOverride } from '../../utils/settings/skillOverrides.js'
+import {
+  getSkillOverride,
+  isBuiltinPromptCommandAndBundledSkillsDisabled,
+} from '../../utils/settings/skillOverrides.js'
+import { getInitialSettings } from '../../utils/settings/settings.js'
 import {
   isSkillsSyncEnabled,
   isSyncedRemoteSkill,
@@ -524,9 +528,30 @@ export const SkillTool: Tool<InputSchema, Output, Progress> = buildTool({
       (override === 'user-invocable-only' &&
         !wasSkillInvokedViaSlashInCurrentTurn(normalizedCommandName, context))
     ) {
+      const settings = getInitialSettings()
+      const isBundledDisabled = isBuiltinPromptCommandAndBundledSkillsDisabled(
+        foundCommand,
+        settings,
+      )
+      const overrideVal = settings.skillOverrides?.[foundCommand.name]
+      const isExplicitOverride =
+        overrideVal === 'user-invocable-only' || overrideVal === 'off'
+      logEvent('tengu_feature_bad', {
+        feature_name: 'skill_invoke' as any,
+        error_code: (isBundledDisabled && !isExplicitOverride
+          ? 'skill_invoke_bundled_skills_disabled'
+          : 'skill_invoke_override_disabled') as any,
+      })
+      const settingOrEnv =
+        'by the disableBundledSkills setting or CLAUDE_CODE_DISABLE_BUNDLED_SKILLS env var'
+      const reason = isBundledDisabled
+        ? isExplicitOverride
+          ? `${settingOrEnv}, and by an explicit skillOverrides entry`
+          : settingOrEnv
+        : 'in skillOverrides settings'
       return {
         result: false,
-        message: `Skill ${normalizedCommandName} is disabled for model invocation in skillOverrides settings`,
+        message: `Skill ${normalizedCommandName} is disabled for model invocation ${reason}`,
         errorCode: 7,
       }
     }

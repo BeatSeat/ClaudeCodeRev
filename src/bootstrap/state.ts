@@ -477,10 +477,24 @@ export function getParentSessionId(): SessionId | undefined {
 }
 
 /**
+ * Why the active session changed. Official 2.1.169 tags every switch with
+ * the flow that caused it (used by switch listeners and diagnostics).
+ */
+export type SessionSwitchSource =
+  | 'cd'
+  | 'hydrate'
+  | 'spare_claim'
+  | 'startup_custom_id'
+  | 'resume'
+  | 'fork'
+  | 'remote_attach'
+
+/**
  * Atomically switch the active session. `sessionId` and `sessionProjectDir`
  * always change together — there is no separate setter for either, so they
  * cannot drift out of sync (CC-34).
  *
+ * @param source — the flow that caused the switch (Official 2.1.169).
  * @param projectDir — directory containing `<sessionId>.jsonl`. Omit (or
  *   pass `null`) for sessions in the current project — the path will derive
  *   from originalCwd at read time. Pass `dirname(transcriptPath)` when the
@@ -490,6 +504,7 @@ export function getParentSessionId(): SessionId | undefined {
  */
 export function switchSession(
   sessionId: SessionId,
+  source: SessionSwitchSource,
   projectDir: string | null = null,
 ): void {
   // Drop the outgoing session's plan-slug entry so the Map stays bounded
@@ -502,10 +517,10 @@ export function switchSession(
   }
   STATE.sessionId = sessionId
   STATE.sessionProjectDir = projectDir
-  sessionSwitched.emit(sessionId)
+  sessionSwitched.emit(sessionId, source)
 }
 
-const sessionSwitched = createSignal<[id: SessionId]>()
+const sessionSwitched = createSignal<[id: SessionId, source: SessionSwitchSource]>()
 
 /**
  * Register a callback that fires when switchSession changes the active

@@ -25,6 +25,7 @@ export type RemoteManagedSettingsResponse = z.infer<
 export type RemoteManagedSettingsFetchResult = {
   success: boolean
   settings?: SettingsJson | null // null means 304 Not Modified (cache is valid)
+  salvagedSettings?: SettingsJson
   checksum?: string
   error?: string
   skipRetry?: boolean // If true, don't retry on failure (e.g., auth errors)

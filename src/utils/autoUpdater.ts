@@ -71,6 +71,7 @@ export type AutoUpdaterResult = {
   version: string | null
   status: InstallStatus
   notifications?: string[]
+  consecutiveExeLockFailures?: number
 }
 
 export type MaxVersionConfig = {

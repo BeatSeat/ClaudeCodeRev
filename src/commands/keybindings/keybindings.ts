@@ -1,5 +1,6 @@
 import { mkdir, writeFile } from 'fs/promises'
 import { dirname } from 'path'
+import { isSafeMode } from '../../utils/envUtils.js'
 import {
   getKeybindingsPath,
   isKeybindingCustomizationEnabled,
@@ -7,6 +8,7 @@ import {
 import { generateKeybindingsTemplate } from '../../keybindings/template.js'
 import { getErrnoCode } from '../../utils/errors.js'
 import { editFileInEditor } from '../../utils/promptEditor.js'
+import { getSafeModeOffHint } from '../../utils/safeModeHint.js'
 
 export async function call(): Promise<{ type: 'text'; value: string }> {
   if (!isKeybindingCustomizationEnabled()) {
@@ -44,10 +46,15 @@ export async function call(): Promise<{ type: 'text'; value: string }> {
       value: `${fileExists ? 'Opened' : 'Created'} ${keybindingsPath}. Could not open in editor: ${result.error}`,
     }
   }
+  // Official 2.1.169 safe mode: the file opens fine, but custom keybindings
+  // stay unloaded for this session (bundle `ukf`).
+  const safeModeNote = isSafeMode()
+    ? ` (Safe mode: custom keybindings are disabled this session — changes take effect after you ${getSafeModeOffHint()}.)`
+    : ''
   return {
     type: 'text',
     value: fileExists
-      ? `Opened ${keybindingsPath} in your editor.`
-      : `Created ${keybindingsPath} with template. Opened in your editor.`,
+      ? `Opened ${keybindingsPath} in your editor.${safeModeNote}`
+      : `Created ${keybindingsPath} with template. Opened in your editor.${safeModeNote}`,
   }
 }

@@ -522,6 +522,25 @@ export type Tool<
   backfillObservableInput?(input: Record<string, unknown>): void
 
   /**
+   * Repair malformed model-emitted input before Zod validation runs. Called
+   * with the raw tool_use input; returns the repaired input plus a
+   * `shapeClass` tag describing the repairs applied (joined with '+'), or
+   * null when the input needs no repair / is not repairable. On repair, Zod
+   * validates the repaired input instead and `tengu_tool_input_coerced`
+   * records the outcome.
+   */
+  coerceInput?(
+    input: Record<string, unknown>,
+  ): { input: Record<string, unknown>; shapeClass: string } | null
+
+  /**
+   * Extra model-facing steer appended (after "\n\n") to this tool's
+   * InputValidationError message. Receives the raw (pre-coercion) input.
+   * Return null for no steer.
+   */
+  validationErrorSteer?(input: Record<string, unknown>): string | null
+
+  /**
    * Determines if this tool is allowed to run with this input in the current context.
    * It informs the model of why the tool use failed, and does not directly display any UI.
    * @param input

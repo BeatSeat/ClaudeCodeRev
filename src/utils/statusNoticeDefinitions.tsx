@@ -17,6 +17,9 @@ import {
   getAuthTokenSource,
   isClaudeAISubscriber,
 } from './auth.js'
+import { getSettingsForSource } from './settings/settings.js'
+import { isSafeMode } from './envUtils.js'
+import { getSafeModeReEnableHint } from './safeModeHint.js'
 import type { AgentDefinitionsResult } from '../tools/AgentTool/loadAgentsDir.js'
 import {
   getAgentDescriptionsTotalTokens,

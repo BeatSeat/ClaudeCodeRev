@@ -48,10 +48,14 @@ import {
   dedupClaudeAiMcpServers,
   shouldSuppressClaudeAiMcps,
   filterMcpServersByPolicy,
+  filterDynamicMcpConfigsByPolicy,
   getClaudeCodeMcpConfigs,
+  isMcpServerAllowedByPolicy,
+  isMcpServerBlockedByPolicy,
   isMcpServerDisabled,
   setMcpServerEnabled,
 } from 'src/services/mcp/config.js'
+import { plural } from 'src/utils/stringUtils.js'
 import type { AppState } from 'src/state/AppState.js'
 import type { PluginError } from 'src/types/plugin.js'
 import { logForDebugging } from 'src/utils/debug.js'
@@ -205,6 +209,7 @@ export function useManageMCPConnections(
     }
   }, [setAppState])
   const { addNotification } = useNotifications()
+  const lastBlockedPolicyRef = useRef<string | null>(null)
 
   // Batched MCP state updates: queue individual server updates and flush them
   // in a single setAppState call via setTimeout. Using a time-based window
@@ -258,6 +263,37 @@ export function useManageMCPConnections(
         const existingClientIndex = mcp.clients.findIndex(
           c => c.name === client.name,
         )
+
+        if (
+          client.type === 'connected' &&
+          isMcpServerBlockedByPolicy(client.name, client.config)
+        ) {
+          client.client.onclose = undefined
+          clearServerCache(client.name, client.config).catch(() => {})
+          if (existingClientIndex === -1) {
+            continue
+          }
+          mcp = {
+            ...mcp,
+            clients: mcp.clients.map(c =>
+              c.name === client.name
+                ? {
+                    name: client.name,
+                    type: 'failed' as const,
+                    config: client.config,
+                    error: 'Blocked by enterprise managed policy',
+                  }
+                : c,
+            ),
+            tools: reject(mcp.tools, t => t.name?.startsWith(prefix)),
+            commands: reject(mcp.commands, c =>
+              commandBelongsToServer(c, client.name),
+            ),
+            resources: omit(mcp.resources, client.name),
+            resourceTemplates: omit(mcp.resourceTemplates, client.name),
+          }
+          continue
+        }
 
         const updatedClients =
           existingClientIndex === -1
@@ -412,6 +448,21 @@ export function useManageMCPConnections(
                       `Server disabled during reconnection, stopping retry`,
                     )
                     reconnectTimersRef.current.delete(client.name)
+                    return
+                  }
+
+                  if (isMcpServerBlockedByPolicy(client.name, client.config)) {
+                    logMCPDebug(
+                      client.name,
+                      `Server blocked by managed policy during reconnection, stopping retry`,
+                    )
+                    reconnectTimersRef.current.delete(client.name)
+                    updateServer({
+                      name: client.name,
+                      type: 'failed',
+                      config: client.config,
+                      error: 'Blocked by enterprise managed policy',
+                    })
                     return
                   }
 
@@ -826,7 +877,36 @@ export function useManageMCPConnections(
       const { servers: existingConfigs, errors: mcpErrors } = isStrictMcpConfig
         ? { servers: {}, errors: [] }
         : await getClaudeCodeMcpConfigs(dynamicMcpConfig)
-      const configs = { ...existingConfigs, ...dynamicMcpConfig }
+      const { configs: allowedDynamicMcpConfig, blocked } =
+        filterDynamicMcpConfigsByPolicy(dynamicMcpConfig)
+      const configs = { ...existingConfigs, ...allowedDynamicMcpConfig }
+
+      if (blocked.length > 0) {
+        blocked.sort()
+        logForDebugging(
+          `MCP servers blocked by managed policy at connect time: ${blocked.join(', ')}`,
+          { level: 'warn' },
+        )
+        const blockedKey = blocked.join(',')
+        if (lastBlockedPolicyRef.current !== blockedKey) {
+          lastBlockedPolicyRef.current = blockedKey
+          addNotification({
+            key: 'mcp-blocked-policy',
+            color: 'warning',
+            priority: 'high',
+            text: `MCP ${plural(blocked.length, 'server')} blocked by enterprise policy`,
+            timeoutMs: 12000,
+          })
+          for (const name of blocked) {
+            const cfg = dynamicMcpConfig?.[name]
+            if (cfg) {
+              clearServerCache(name, cfg).catch(() => {})
+            }
+          }
+        }
+      } else {
+        lastBlockedPolicyRef.current = null
+      }
 
       // Add MCP errors to plugin errors for UI visibility (deduplicated)
       addErrorsToAppState(setAppState, mcpErrors)
@@ -1155,6 +1235,12 @@ export function useManageMCPConnections(
         throw new Error(`MCP server ${serverName} not found`)
       }
 
+      if (isMcpServerBlockedByPolicy(serverName, client.config)) {
+        throw new Error(
+          `MCP server ${serverName} is blocked by enterprise managed policy`,
+        )
+      }
+
       // Cancel any pending automatic reconnection attempt
       const existingTimer = reconnectTimersRef.current.get(serverName)
       if (existingTimer) {
@@ -1209,6 +1295,12 @@ export function useManageMCPConnections(
           config: client.config,
         })
       } else {
+        if (isMcpServerBlockedByPolicy(serverName, client.config)) {
+          throw new Error(
+            `MCP server ${serverName} is blocked by enterprise managed policy`,
+          )
+        }
+
         // Enabling: persist enabled state to disk first
         setMcpServerEnabled(serverName, true)
 

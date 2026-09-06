@@ -1,4 +1,5 @@
 import { resetSdkInitState } from '../../bootstrap/state.js'
+import { isSafeMode } from '../envUtils.js'
 import { isRestrictedToPluginOnly } from '../settings/pluginOnlyPolicy.js'
 // Import as module object so spyOn works in tests (direct imports bypass spies)
 import * as settingsModule from '../settings/settings.js'
@@ -13,6 +14,8 @@ let initialHooksConfig: HooksSettings | null = null
  * If disableAllHooks is set in policySettings, no hooks are returned.
  * If disableAllHooks is set in non-managed settings, only managed hooks are returned
  * (non-managed settings cannot disable managed hooks).
+ * Safe mode: settings-file hooks are suspended — only managed (policy) hooks
+ * still run (Official 2.1.169 `QG6`).
  * Otherwise, returns merged hooks from all sources (backwards compatible).
  */
 function getHooksFromAllowedSources(): HooksSettings {
@@ -23,8 +26,10 @@ function getHooksFromAllowedSources(): HooksSettings {
     return {}
   }
 
-  // If allowManagedHooksOnly is set in managed settings, only use managed hooks
-  if (policySettings?.allowManagedHooksOnly === true) {
+  // If allowManagedHooksOnly is set in managed settings, only use managed hooks.
+  // Safe mode counts as managed-only: settings-file hooks are suspended and
+  // will not run this session (managed policy hooks still apply).
+  if (policySettings?.allowManagedHooksOnly === true || isSafeMode()) {
     return policySettings.hooks ?? {}
   }
 
@@ -55,11 +60,27 @@ function getHooksFromAllowedSources(): HooksSettings {
 /**
  * Check if only managed hooks should run.
  * This is true when:
+ * - safe mode is active (settings-file hooks suspended, managed hooks still
+ *   run) — Official 2.1.169 `OJ`: `C9() || V6H()`, OR
  * - policySettings has allowManagedHooksOnly: true, OR
  * - disableAllHooks is set in non-managed settings (non-managed settings
  *   cannot disable managed hooks, so they effectively become managed-only)
  */
 export function shouldAllowManagedHooksOnly(): boolean {
+  // Official 2.1.169: safe mode forces managed-only hook execution.
+  if (isSafeMode()) {
+    return true
+  }
+  return shouldAllowManagedHooksOnlyByPolicy()
+}
+
+/**
+ * Policy-only managed-hooks check (Official 2.1.169 `V6H`) — same as
+ * shouldAllowManagedHooksOnly() minus the safe-mode forced term. Session
+ * hooks (created by /goal, agents, and skills) still run in safe mode, so
+ * their gating uses this function instead.
+ */
+export function shouldAllowManagedHooksOnlyByPolicy(): boolean {
   const policySettings = settingsModule.getSettingsForSource('policySettings')
   if (policySettings?.allowManagedHooksOnly === true) {
     return true
