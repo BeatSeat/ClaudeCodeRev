@@ -1,0 +1,166 @@
+{
+  "version": "2.1.172",
+  "from": "2.1.170",
+  "astdiff": "0.98951",
+  "contract": "astdiff genuine-structural + added-product (changelog is classification only)",
+  "coverage": "restore-work/diffs/2.1.172-astdiff-coverage.md",
+  "scout": "restore-work/diffs/2.1.172-changelog-scout.md",
+  "items": [
+    {
+      "item": "Sub-agents can now spawn their own sub-agents (up to 5 levels deep)",
+      "status": "located",
+      "evidence": "Official a75 removes Agent from ALL_AGENT_DISALLOWED_TOOLS. Kd6/m27=5: async Agent if (gz()?.depth??0)<5 then teammate exception. gz/ec + LocalAgentTask spawnDepth. TS: constants/tools.ts, agentToolUtils.ts, agentContext.ts, AgentTool.tsx, resumeAgent.ts, inProcessRunner.ts, LocalAgentTask.tsx."
+    },
+    {
+      "item": "Amazon Bedrock now reads the AWS region from ~/.aws config files when AWS_REGION isn't set, matching AWS SDK precedence; /status shows where the region came from",
+      "status": "located",
+      "evidence": "Official VkH/_76/OU/WUq/f76/QR1/w34. Sync WUq reads env/PUq/default; only OU() primes smithy loadConfig+NODE_REGION_CONFIG_FILE_OPTIONS (empty env selector). Cache key AWS_CONFIG_FILE|AWS_SHARED_CREDENTIALS_FILE|AWS_PROFILE. TS: envUtils.ts, status.tsx, client.ts, bedrock.ts, bedrockUpgrade.ts. No new top-level AWS dep."
+    },
+    {
+      "item": "Added a search bar when browsing a marketplace's plugins in /plugin",
+      "status": "located",
+      "evidence": "Official nH9+Ak+XG vs 170 bs4. Filter name/displayName/description; empty No plugins match. Discover/Manage already had Ak. TS: BrowseMarketplace.tsx + PluginSettings onSearchModeChange."
+    },
+    {
+      "item": "Added model attribute to the claude_code.lines_of_code.count OTEL metric",
+      "status": "located",
+      "evidence": "Official nE$(patch, model, newFileContent?). Callers FileWrite/FileEdit pass message.model. TS: diff.ts, FileWriteTool.ts, FileEditTool.ts, bootstrap/state.ts locCounter description."
+    },
+    {
+      "item": "Fixed sessions using 1M context without usage credits getting permanently stuck — the session now automatically compacts back under the standard context limit",
+      "status": "partial",
+      "evidence": "Official YFH/kr8/f1q/I07 + tengu_1m_credits_clamp_activated on 429. Helpers landed in bootstrap/state.ts + errors.ts. Consumer a_5 viaCreditsBoundary is gen-stub reactiveCompact.ts — not invented."
+    },
+    {
+      "item": "Fixed a repeating \"an image in the conversation could not be processed and was removed\" error when the conversation contained multiple images",
+      "status": "partial",
+      "evidence": "Official hT→sT + eg4 + healsDistinctCarrier 0→5 (set when vd4 matches on createApiError). TS normalizeMessagesForAPI is 166-era vs even 170 hT (no nested tool_result strip / attachment pipeline). Not rewritten this hop — would backfill 170. Do not invent sT."
+    },
+    {
+      "item": "Fixed the agents view keeping a session under Working with a busy spinner for up to 30 seconds after the worker replied",
+      "status": "shared-logic",
+      "evidence": "No unique tokens. 170 hBf=30000 / 172 pQf=30000 in teammate helpers. TS PANEL_GRACE_MS=30_000 already present."
+    },
+    {
+      "item": "Fixed background agents potentially reading another directory's project settings (.mcp.json approvals, trust) when dispatched onto a pre-warmed worker",
+      "status": "shared-logic",
+      "evidence": "No isolation string. .mcp.json 55→58. Not locatable from unique tokens. Do not invent a settings-isolation patch."
+    },
+    {
+      "item": "Fixed background-session attach failing with EAUTH for sessions started on an older version after the daemon auto-updated",
+      "status": "partial",
+      "evidence": "Official PZA case attach + OHH timingSafeEqual. 170 rejected missing key; 172 allows legacy via peerUid, mismatch → EAUTH. TS supervisor.ts control-line handler has no case attach. Do not invent the rest of PZA."
+    },
+    {
+      "item": "Fixed a background sub-agent staying stuck as \"active\" in the agent panel after a nested agent it spawned was stopped",
+      "status": "shared-logic",
+      "evidence": "No unique stop-token. ownerAgentId/parentAgent count growth is nested-agent plumbing without a function tied to stuck-active."
+    },
+    {
+      "item": "Fixed /model suggestions in the claude agents dispatch input rendering with a misleading slash prefix and showing models disabled for your org",
+      "status": "partial",
+      "evidence": "Official Cm9/LDA/XDA exist in the 172 bundle. Recovered FleetView is table chrome only — no typeahead parent. Not invented."
+    },
+    {
+      "item": "Fixed availableModels restrictions not being applied to subagent model overrides, the agent dispatch model picker, and the advisor model",
+      "status": "located",
+      "evidence": "Official r3+tW; He/Tg6 getAgentModel warn+inherit; ga7 options gated; tS8/q6q/$6q spawnMultiAgent; kt7/TN$ advisor. Warn strings verbatim."
+    },
+    {
+      "item": "Fixed availableModels allowlists hiding the /model picker's Opus and Sonnet 1M rows when entries use version-specific IDs like claude-opus-4-8",
+      "status": "located",
+      "evidence": "Official tW strip /\\[1m\\]$/i then r3 on list/input/j68. rDH 100% leftover."
+    },
+    {
+      "item": "Fixed the /model picker on Bedrock offering models the provider doesn't serve — selecting one silently switched the session model and lit the selection marker on multiple rows",
+      "status": "shared-logic",
+      "evidence": "Official h5H 100% 170→172. PAYG 3P still has no i_H parent. Not rewritten."
+    },
+    {
+      "item": "Fixed model IDs getting a doubled 1M-context suffix (e.g. [1M][1m]) when ANTHROPIC_DEFAULT_OPUS_MODEL already includes one",
+      "status": "located",
+      "evidence": "Official iD$ ensureSingle1mSuffix used by Jv/tG/g7."
+    },
+    {
+      "item": "Fixed opusplan model setting not shipping with 1M context in plan mode for entitled users; the opusplan[1m] workaround now also correctly switches to Opus in plan mode",
+      "status": "located",
+      "evidence": "Official Jv: opusplan OR opusplan[1m] → iD$(opus). opusplan[1m] not in official nNH MODEL_ALIASES. g7 strips [1m] then matches opusplan."
+    },
+    {
+      "item": "Fixed WebFetch(domain:*.example.com) wildcard domain rules never matching subdomains in allow, deny, and ask position, and file permission rules with mid-pattern wildcards (e.g. Read(secrets-*/config.json)) being rejected at startup",
+      "status": "located",
+      "evidence": "Official Ay8/o6f/DL4/JL4 replace Map.get; domain:*.example.com matches subdomains not apex. C96 removes mid-pattern * reject; file :* still rejected. TS: WebFetchTool.ts, permissionValidation.ts."
+    },
+    {
+      "item": "Fixed up-arrow prompt history showing the main agent's prompts while a subagent's chat tab is open",
+      "status": "located",
+      "evidence": "Official Kv9 6th arg + SfA extract user prompts from viewed non-leader task; skip disk getHistory(); reset on viewingAgentTaskId. TS: useArrowKeyHistory.tsx, PromptInput.tsx."
+    },
+    {
+      "item": "Fixed memory recall not finding mounted team memory stores (CLAUDE_MEMORY_STORES) in remote sessions",
+      "status": "located",
+      "evidence": "Official H2$/Su_/Ru_: stores present and no user+rw → team-stores prompt. u58→qXH 100% is catch-up scope/promptIndex not the 172 delta. TS: memdir.ts loadMemoryPrompt, teamMemPrompts.ts, memoryStores.ts catch-up."
+    },
+    {
+      "item": "Fixed workflow validation rejecting scripts whose prompt strings or comments merely mention Date.now()/Math.random()",
+      "status": "located",
+      "evidence": "Official 172 eZ4 TS AST walk (acorn vendored). 170 eZ4 is an unrelated class. _W4→KG4 false pair. TS: WorkflowTool.ts workflowScriptUsesBannedNondeterminism."
+    },
+    {
+      "item": "Disable mouse tracking on Windows consoles that don't fully support it",
+      "status": "located",
+      "evidence": "Official REH: bg session → on; CLAUDE_CODE_DISABLE_MOUSE if set; C77.isWslWithUnrecognizedWindowsHost → off; else on. Not blanket win32. Not windowsConsoleSupportsVirtualTerminalSequences. TS: fullscreen.ts, env.ts."
+    },
+    {
+      "item": "Fixed the /plugin marketplace list losing its cursor after backing out of a long plugin list, and Esc from the plugin browser returning to the wrong tab",
+      "status": "shared-logic",
+      "evidence": "No unique strings. Rides nH9 filtered pagination + onSearchModeChange into existing PluginSettings childSearchActive (Discover/Manage wired in 170)."
+    },
+    {
+      "item": "Improved performance in long conversations by removing redundant message normalization and avoiding full message-history transforms when streaming tool-use state is unchanged",
+      "status": "shared-logic",
+      "evidence": "skipNormalize is vendor URN. messagesForAPI 6→6. Not landable from strings."
+    },
+    {
+      "item": "Reduced idle CPU usage: /goal status chip no longer re-renders the terminal at 5 Hz while idle, and fewer UI re-renders while subagents run in parallel",
+      "status": "partial",
+      "evidence": "Official 170 hG9 useInterval(200); 172 FV9 useAnimationTimer(200) keepAlive:false. No \" /goal active\" chip in TS. Overlay already 1 Hz. Do not invent FV9."
+    },
+    {
+      "item": "Improved Claude in Chrome tool loading: browser tools now load in a single batched call instead of one per tool",
+      "status": "located",
+      "evidence": "Official uF4 one comma-separated select: ToolSearch. TS: claudeInChrome/prompt.ts."
+    },
+    {
+      "item": "Improved the non-interactive Usage Policy refusal message to suggest starting a new session or changing your model",
+      "status": "located",
+      "evidence": "Official j9$ (170 wI8). Cyber/biology when E48; non-int closer Try rephrasing the request in a new session or change your model. 172 LxK is unrelated OTEL. TS: errors.ts getErrorMessageIfRefusal."
+    },
+    {
+      "item": "/code-review now keeps the ultra option visible when you're not signed in to claude.ai, with an explanation that the cloud review requires a claude.ai account",
+      "status": "located",
+      "evidence": "Official Ad6/i$$/hQ/z28/z3A/Y3A. Keep |ultra on i$$(); caveat/z28 when !hQ(). TS: ultrareviewEnabled.ts, simplify.ts."
+    },
+    {
+      "item": "Shortened the Remote Control footer indicator to \"/rc active\" and hid it on narrow terminals",
+      "status": "located",
+      "evidence": "Official ok8 labels /rc failed|reconnecting|active|connecting…. Hide columns>=60 (ELq) in FN9, not kE() entitlement, not Tj4=150 shimmer. TS: bridgeStatusUtil.ts, PromptInputFooter.tsx."
+    },
+    {
+      "item": "Stopped promoting /loop in remote sessions, where pending loops don't keep the container alive",
+      "status": "located",
+      "evidence": "Official loop-command-nudge.isRelevant adds yQ() first. TS: tipRegistry.ts. Bundled loop.ts cloud-first skip is not this tip."
+    },
+    {
+      "item": "[VSCode] Fixed PowerShell tool calls rendering as raw JSON instead of a proper command display and permission dialog, and stripped ANSI escape codes from displayed shell output",
+      "status": "absent-in-bundle",
+      "evidence": "VS Code extension pack, not this CLI tree."
+    },
+    {
+      "item": "astdiff: CLAUDE_CODE_DISABLE_ARTIFACT + settings disableArtifact",
+      "status": "located",
+      "evidence": "Official DZ1 SAFE_ENV_VARS + settings schema. Env+schema only. No Artifact tool HtH/B27/F27 invented."
+    }
+  ],
+  "notes": "Typecheck delta vs fresh 2.1.170 HEAD worktree baseline: empty. QR1 inlines official NODE_REGION_CONFIG_FILE_OPTIONS {preferredFile:\"credentials\"} because @smithy/config-resolver is not hoisted; loadConfig still dynamic-imports @smithy/node-config-provider (already a Bedrock transitive). No new package.json AWS/smithy dep. sT/healsDistinctCarrier, PZA attach, FV9 goal chip, a_5 viaCreditsBoundary, Cm9 FleetView typeahead, agents-view 30s/isolation/stuck-active, and message-normalization skip are classified not invented. opusplan[1m] is not in MODEL_ALIASES (official nNH omits it). HelpV2 landing-brief false-maps not rewritten. No 2.1.173+ product. Inventory refresh under .cursor/skills is unrelated and must stay out of the hop commit."
+}

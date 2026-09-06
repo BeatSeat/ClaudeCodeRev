@@ -7,6 +7,9 @@ export type MemoryStoreEntry = {
   path: string
   mode: 'rw' | 'ro'
   mount: string
+  /** Official 2.1.170 `Ku_` / 2.1.172 `qXH` — default `"team"`. */
+  scope: 'user' | 'team'
+  promptIndex?: string
 }
 
 const MOUNT_MESSAGE = 'mount must match /^[A-Za-z0-9_-]+$/'
@@ -27,17 +30,36 @@ const storePathSchema = lazySchema(() =>
   }),
 )
 
+/** Official 2.1.172 `IV6`. */
+function isSafePromptIndex(value: string): boolean {
+  if (value.length === 0) {
+    return false
+  }
+  return value
+    .split('/')
+    .every(segment => /^[A-Za-z0-9._-]+$/.test(segment) && segment !== '.' && segment !== '..')
+}
+
 const storeEntrySchema = lazySchema(() =>
   z.union([
     storePathSchema(),
     z.object({
       path: storePathSchema(),
       mode: z.enum(['rw', 'ro']).default('rw'),
+      scope: z.enum(['user', 'team']).default('team'),
       mount: z
         .string()
         .min(1)
         .refine(value => /^[A-Za-z0-9_-]+$/.test(value), {
           message: MOUNT_MESSAGE,
+        })
+        .optional(),
+      promptIndex: z
+        .string()
+        .min(1)
+        .refine(isSafePromptIndex, {
+          message:
+            'promptIndex segments must match [A-Za-z0-9._-]+ and must not be . or ..',
         })
         .optional(),
     }),
@@ -79,14 +101,33 @@ export function parseClaudeMemoryStores(): MemoryStoreEntry[] | null {
   }
   const stores: MemoryStoreEntry[] = []
   const mounts = new Set<string>()
+  let hasUserScope = false
   for (const entry of result.data) {
-    const spec = typeof entry === 'string' ? { path: entry, mode: 'rw' as const } : entry
+    const spec =
+      typeof entry === 'string'
+        ? { path: entry, mode: 'rw' as const, scope: 'team' as const }
+        : entry
     const mount = spec.mount ?? deriveMemoryStoreMount(spec.path)
     if (mounts.has(mount)) {
       throw new Error(`CLAUDE_MEMORY_STORES has duplicate mount: ${mount}`)
     }
     mounts.add(mount)
-    stores.push({ path: spec.path, mode: spec.mode, mount })
+    if (spec.scope === 'user') {
+      if (hasUserScope) {
+        throw new Error('CLAUDE_MEMORY_STORES has more than one scope:"user" entry')
+      }
+      hasUserScope = true
+    }
+    stores.push({
+      path: spec.path,
+      mode: spec.mode,
+      scope: spec.scope,
+      mount,
+      ...(spec.promptIndex !== undefined && { promptIndex: spec.promptIndex }),
+    })
+  }
+  if (stores.length === 0) {
+    return null
   }
   logForDebugging(
     `memory-stores: parsed ${stores.length} store(s): ` +
@@ -94,4 +135,13 @@ export function parseClaudeMemoryStores(): MemoryStoreEntry[] | null {
     { level: 'debug' },
   )
   return stores
+}
+
+/** Official 2.1.172 `Ru_` — swallow parse errors for prompt assembly. */
+export function tryParseClaudeMemoryStores(): MemoryStoreEntry[] | null {
+  try {
+    return parseClaudeMemoryStores()
+  } catch {
+    return null
+  }
 }

@@ -6,7 +6,73 @@ import { FOOTER_TEMPORARY_STATUS_TIMEOUT } from '../components/PromptInput/Notif
 import { getHistory } from '../history.js'
 import { Text } from '../ink.js'
 import type { PromptInputMode } from '../types/textInputTypes.js'
+import { TEAMMATE_MESSAGE_TAG } from '../constants/xml.js'
+import type { Message } from '../types/message.js'
 import type { HistoryEntry, PastedContent } from '../utils/config.js'
+import {
+  CANCEL_MESSAGE,
+  INTERRUPT_MESSAGE,
+  INTERRUPT_MESSAGE_FOR_TOOL_USE,
+  NO_RESPONSE_REQUESTED,
+  REJECT_MESSAGE,
+  getUserMessageText,
+} from '../utils/messages.js'
+
+const SUBAGENT_HISTORY_MAX_CHARS = 100_000
+
+const SKIPPED_HISTORY_USER_TEXTS = new Set([
+  INTERRUPT_MESSAGE,
+  INTERRUPT_MESSAGE_FOR_TOOL_USE,
+  CANCEL_MESSAGE,
+  REJECT_MESSAGE,
+  NO_RESPONSE_REQUESTED,
+])
+
+/** Official 2.1.172 `$OH`. */
+function isSkippedHistoryUserMessage(message: Message): boolean {
+  if (
+    message.type === 'progress' ||
+    message.type === 'attachment' ||
+    message.type === 'system'
+  ) {
+    return false
+  }
+  if (message.type !== 'user') return false
+  const content = message.message.content
+  return (
+    Array.isArray(content) &&
+    content[0]?.type === 'text' &&
+    SKIPPED_HISTORY_USER_TEXTS.has(content[0].text)
+  )
+}
+
+/** Official 2.1.172 `p7$`. */
+function isTeammateMessageHistoryText(text: string): boolean {
+  return text.startsWith(`<${TEAMMATE_MESSAGE_TAG} `)
+}
+
+/** Official 2.1.172 `SfA`. */
+export function extractSubagentHistory(messages: Message[]): HistoryEntry[] {
+  const entries: HistoryEntry[] = []
+  for (let i = messages.length - 1; i >= 0; i--) {
+    const message = messages[i]
+    if (
+      message.type === 'user' &&
+      !message.isMeta &&
+      !isSkippedHistoryUserMessage(message)
+    ) {
+      const text = getUserMessageText(message)
+      if (
+        text?.trim() &&
+        !isTeammateMessageHistoryText(text) &&
+        text.length <= SUBAGENT_HISTORY_MAX_CHARS
+      ) {
+        entries.push({ display: text, pastedContents: {} })
+      }
+    }
+  }
+  return entries
+}
 
 export type HistoryMode = PromptInputMode
 
@@ -81,6 +147,7 @@ export function useArrowKeyHistory(
   pastedContents: Record<number, PastedContent>,
   setCursorOffset?: (offset: number) => void,
   currentMode?: HistoryMode,
+  overrideHistory?: HistoryEntry[],
 ): {
   historyIndex: number
   setHistoryIndex: (index: number) => void
@@ -114,11 +181,13 @@ export function useArrowKeyHistory(
   const currentInputRef = useRef(currentInput)
   const pastedContentsRef = useRef(pastedContents)
   const currentModeRef = useRef(currentMode)
+  const overrideHistoryRef = useRef(overrideHistory)
 
   // Keep refs in sync with props (synchronous update on each render)
   currentInputRef.current = currentInput
   pastedContentsRef.current = pastedContents
   currentModeRef.current = currentMode
+  overrideHistoryRef.current = overrideHistory
 
   const setInputWithCursor = useCallback(
     (
@@ -202,8 +271,12 @@ export function useArrowKeyHistory(
         historyIndexRef.current = 0
       }
 
-      // Load more entries if needed
-      if (historyCache.current.length < neededCount) {
+      const override = overrideHistoryRef.current
+      if (override) {
+        historyCache.current = modeFilter
+          ? override.filter(entry => getModeFromInput(entry.display) === modeFilter)
+          : override
+      } else if (historyCache.current.length < neededCount) {
         // Batches concurrent requests - rapid keypresses share a single disk read
         const entries = await loadHistoryEntries(neededCount, modeFilter)
         // Only update cache if we loaded more than currently cached

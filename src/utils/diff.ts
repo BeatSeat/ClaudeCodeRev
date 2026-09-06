@@ -41,13 +41,12 @@ function unescapeFromDiff(s: string): string {
 }
 
 /**
- * Count lines added and removed in a patch and update the total
- * For new files, pass the content string as the second parameter
- * @param patch Array of diff hunks
- * @param newFileContent Optional content string for new files
+ * Official 2.1.172 `nE$(H,$,q)` — count lines added/removed and attribute
+ * the OTEL `model` on each increment.
  */
 export function countLinesChanged(
   patch: StructuredPatchHunk[],
+  model: string | undefined,
   newFileContent?: string,
 ): void {
   let numAdditions = 0
@@ -69,8 +68,8 @@ export function countLinesChanged(
 
   addToTotalLinesChanged(numAdditions, numRemovals)
 
-  getLocCounter()?.add(numAdditions, { type: 'added' })
-  getLocCounter()?.add(numRemovals, { type: 'removed' })
+  getLocCounter()?.add(numAdditions, { type: 'added', model })
+  getLocCounter()?.add(numRemovals, { type: 'removed', model })
 
   logEvent('tengu_file_changed', {
     lines_added: numAdditions,

@@ -9,6 +9,7 @@ import { FileWriteTool } from './tools/FileWriteTool/FileWriteTool.js'
 import { GlobTool } from './tools/GlobTool/GlobTool.js'
 import { NotebookEditTool } from './tools/NotebookEditTool/NotebookEditTool.js'
 import { WebFetchTool } from './tools/WebFetchTool/WebFetchTool.js'
+import { ArtifactTool } from './tools/ArtifactTool/ArtifactTool.js'
 import { TaskStopTool } from './tools/TaskStopTool/TaskStopTool.js'
 import { BriefTool } from './tools/BriefTool/BriefTool.js'
 import { ShareOnboardingGuideTool } from './tools/ShareOnboardingGuideTool/ShareOnboardingGuideTool.js'
@@ -213,6 +214,9 @@ export function getAllBaseTools(): Tools {
     FileWriteTool,
     NotebookEditTool,
     WebFetchTool,
+    // Official 2.1.172 (G2) — artifact publish. Gated by isArtifactToolEnabled
+    // (isEnabled), so it only surfaces when tengu_cobalt_plinth + entitlement.
+    ArtifactTool,
     TodoWriteTool,
     WebSearchTool,
     TaskStopTool,

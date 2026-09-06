@@ -38,8 +38,6 @@ export const ALL_AGENT_DISALLOWED_TOOLS = new Set([
   TASK_OUTPUT_TOOL_NAME,
   EXIT_PLAN_MODE_V2_TOOL_NAME,
   ENTER_PLAN_MODE_TOOL_NAME,
-  // Allow Agent tool for agents when user is ant (enables nested agents)
-  ...(process.env.USER_TYPE === 'ant' ? [] : [AGENT_TOOL_NAME]),
   ASK_USER_QUESTION_TOOL_NAME,
   TASK_STOP_TOOL_NAME,
   // Official 2.1.132: WaitForMcpServers is excluded from agent tool pools
@@ -93,7 +91,7 @@ export const IN_PROCESS_TEAMMATE_ALLOWED_TOOLS = new Set([
 
 /*
  * BLOCKED FOR ASYNC AGENTS:
- * - AgentTool: Blocked to prevent recursion
+ * - AgentTool: Allowed when spawn depth < MAX_NESTED_ASYNC_AGENT_DEPTH (official `m27=5`).
  * - TaskOutputTool: Blocked to prevent recursion
  * - ExitPlanModeTool: Plan mode is a main thread abstraction.
  * - TaskStopTool: Requires access to main thread task state.

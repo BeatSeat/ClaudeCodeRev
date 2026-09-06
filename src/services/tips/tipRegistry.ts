@@ -10,7 +10,10 @@ import { shouldOfferTerminalSetup } from '../../commands/terminalSetup/terminalS
 import { getDesktopUpsellConfig } from '../../components/DesktopUpsell/DesktopUpsellStartup.js'
 import { color } from '../../components/design-system/color.js'
 import { isAgentsFleetEnabled } from '../../components/FleetView/fleetGate.js'
-import { getIsNonInteractiveSession } from '../../bootstrap/state.js'
+import {
+  getIsNonInteractiveSession,
+  getIsRemoteMode,
+} from '../../bootstrap/state.js'
 import { shouldShowOverageCreditUpsell } from '../../components/LogoV2/OverageCreditUpsell.js'
 import { getShortcutDisplay } from '../../keybindings/shortcutFormat.js'
 import { isKairosCronEnabled } from '../../tools/ScheduleCronTool/prompt.js'
@@ -19,6 +22,7 @@ import {
   isClaudeAISubscriber,
   isMaxSubscriber,
 } from '../../utils/auth.js'
+import { isEnvTruthy } from '../../utils/envUtils.js'
 import { countConcurrentSessions } from '../../utils/concurrentSessions.js'
 import { getGlobalConfig } from '../../utils/config.js'
 import {
@@ -50,6 +54,7 @@ import {
   getMarketplacePluginSuggestionTips,
   isMarketplacePluginRelevant,
 } from '../../utils/plugins/pluginSuggestionTips.js'
+import { getDisusedPlugins } from '../../utils/plugins/pluginDisuseTips.js'
 import {
   getCurrentSessionAgentColor,
   isCustomTitleEnabled,
@@ -81,6 +86,18 @@ async function hasUserDefined(kind: 'skills' | 'agents'): Promise<boolean> {
 }
 
 const isDesktopInstalledCached = memoize(isDesktopInstalled)
+
+// Official 2.1.172 (G3) `TLH` — in-memory set of disuse-tip plugin ids
+// recently shown, used by `dj7` to avoid re-showing the same plugin. The
+// write-side flush to `recentDisuseTipPlugins` (bundle `gj7`) is driven by the
+// tip-show flow, which is not part of the G3 cluster, so this stays an
+// in-memory read-only set (a disuse tip never re-shows within a process run).
+const recentlyShownDisusePluginIds = new Set<string>()
+
+/** Official 2.1.172 `dj7` — `TLH.has(pluginId)`. */
+function isDisuseTipRecentlyShown(pluginId: string): boolean {
+  return recentlyShownDisusePluginIds.has(pluginId)
+}
 
 const externalTips: Tip[] = [
   {
@@ -637,6 +654,12 @@ const externalTips: Tip[] = [
     },
     cooldownSessions: 3,
     isRelevant: async () => {
+      if (
+        isEnvTruthy(process.env.CLAUDE_CODE_REMOTE) ||
+        getIsRemoteMode()
+      ) {
+        return false
+      }
       if (!is1PApiCustomer()) return false
       if (!isKairosCronEnabled()) return false
       return (
@@ -645,6 +668,25 @@ const externalTips: Tip[] = [
           'off',
         ) !== 'off'
       )
+    },
+  },
+  {
+    // Official 2.1.172 (G3) — re-engage an idle user-installed marketplace
+    // plugin. Relevance = `iWq()` returned a plugin that hasn't already been
+    // tipped (`dj7`); content = a `/plugin` review callout.
+    id: 'plugin-disuse-review',
+    content: async ctx => {
+      const suggestion = color('suggestion', ctx.theme)
+      const disused = await getDisusedPlugins()
+      const target = disused.find(p => !isDisuseTipRecentlyShown(p.pluginId))
+      return target
+        ? `${suggestion('/plugin')} review may have a plugin you no longer use — you haven't used "${target.name}" in ${target.daysSinceLastUse} days`
+        : 'You have plugins you haven\'t used recently — consider reviewing with /plugin'
+    },
+    cooldownSessions: 5,
+    isRelevant: async () => {
+      const disused = await getDisusedPlugins()
+      return disused.some(p => !isDisuseTipRecentlyShown(p.pluginId))
     },
   },
   {

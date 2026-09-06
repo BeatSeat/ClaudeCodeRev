@@ -28,7 +28,7 @@ import { getAgentContext } from '../../utils/agentContext.js'
 import { isDebugToStdErr, logForDebugging } from '../../utils/debug.js'
 import { getFeatureValue_CACHED_MAY_BE_STALE } from '../analytics/growthbook.js'
 import {
-  getAWSRegion,
+  resolveAWSRegion,
   getVertexRegionForModel,
   isEnvDefinedFalsy,
   isEnvTruthy,
@@ -184,7 +184,7 @@ export async function getAnthropicClient({
           AnthropicBedrockMantle?: typeof bedrockSdk.AnthropicBedrock
         }
       ).AnthropicBedrockMantle ?? bedrockSdk.AnthropicBedrock
-    const awsRegion = getAWSRegion()
+    const awsRegion = await resolveAWSRegion()
     const mantleBaseURL =
       process.env.ANTHROPIC_BEDROCK_MANTLE_BASE_URL ??
       (awsRegion
@@ -240,7 +240,7 @@ export async function getAnthropicClient({
       model === getSmallFastModel() &&
       process.env.ANTHROPIC_SMALL_FAST_MODEL_AWS_REGION
         ? process.env.ANTHROPIC_SMALL_FAST_MODEL_AWS_REGION
-        : getAWSRegion()
+        : await resolveAWSRegion()
 
     const skipBedrockAuth = isEnvTruthy(
       process.env.CLAUDE_CODE_SKIP_BEDROCK_AUTH,

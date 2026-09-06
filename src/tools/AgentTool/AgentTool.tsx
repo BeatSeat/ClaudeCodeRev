@@ -1035,6 +1035,7 @@ export const AgentTool = buildTool({
         // For subagents from main REPL: undefined (no parent session)
         parentSessionId: getParentSessionId(),
         parentAgentId: getAgentContext()?.agentId,
+        depth: (getAgentContext()?.depth ?? 0) + 1,
         agentType: 'subagent' as const,
         subagentName: selectedAgent.agentType,
         isBuiltIn: isBuiltInAgent(selectedAgent),
@@ -1104,6 +1105,7 @@ export const AgentTool = buildTool({
         // For subagents from main REPL: undefined (no parent session)
         parentSessionId: getParentSessionId(),
         parentAgentId: getAgentContext()?.agentId,
+        depth: (getAgentContext()?.depth ?? 0) + 1,
         agentType: 'subagent' as const,
         subagentName: selectedAgent.agentType,
         isBuiltIn: isBuiltInAgent(selectedAgent),

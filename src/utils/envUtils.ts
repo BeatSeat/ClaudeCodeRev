@@ -153,12 +153,113 @@ export function parseEnvVars(
   return parsedEnv
 }
 
+/** Official 2.1.172 `VkH`. */
+function defaultAWSRegion(): string {
+  return process.env.AWS_REGION || process.env.AWS_DEFAULT_REGION || 'us-east-1'
+}
+
+/** Official 2.1.172 `_76` — cache key for shared-config region reads. */
+function awsSharedConfigCacheKey(): string {
+  return `${process.env.AWS_CONFIG_FILE ?? ''}|${process.env.AWS_SHARED_CREDENTIALS_FILE ?? ''}|${process.env.AWS_PROFILE ?? ''}`
+}
+
+const awsRegionFromSharedConfigCache = new Map<string, string | undefined>()
+
 /**
- * Get the AWS region with fallback to default
- * Matches the Anthropic Bedrock SDK's region behavior
+ * Official 2.1.172 `QR1` — read `region` from ~/.aws config files only
+ * (env selector is empty). Primes `PUq`. Dynamic-import
+ * `@smithy/node-config-provider` (already hoisted via Bedrock).
+ */
+const loadAWSRegionFromSharedConfig = memoize(async (): Promise<
+  string | undefined
+> => {
+  const key = awsSharedConfigCacheKey()
+  let region: string | undefined
+  try {
+    // Official QR1 dynamic-imports @smithy/config-resolver for
+    // NODE_REGION_CONFIG_FILE_OPTIONS. That package is not hoisted here;
+    // the exported value is `{ preferredFile: "credentials" }`.
+    const [nodeConfigProvider] = await Promise.all([
+      import('@smithy/node-config-provider') as Promise<{
+        loadConfig?: (...args: unknown[]) => () => Promise<string | undefined>
+        default?: {
+          loadConfig?: (...args: unknown[]) => () => Promise<string | undefined>
+        }
+      }>,
+    ])
+    const loadConfig =
+      nodeConfigProvider.loadConfig ?? nodeConfigProvider.default?.loadConfig
+    const fileOptions = { preferredFile: 'credentials' }
+    if (!loadConfig) {
+      region = undefined
+    } else {
+      const loaded = await loadConfig(
+        {
+          environmentVariableSelector: () => {
+            return
+          },
+          configFileSelector: (profile: { region?: string }) => profile.region,
+          default: () => {
+            return
+          },
+        },
+        fileOptions,
+      )()
+      region = loaded?.trim() || undefined
+    }
+  } catch {
+    region = undefined
+  }
+  awsRegionFromSharedConfigCache.set(key, region)
+  return region
+}, awsSharedConfigCacheKey)
+
+/**
+ * Official 2.1.172 `OU` — async region, primes shared-config cache.
+ */
+export async function resolveAWSRegion(): Promise<string> {
+  const fromEnv = process.env.AWS_REGION || process.env.AWS_DEFAULT_REGION
+  if (fromEnv) return fromEnv
+  return (await loadAWSRegionFromSharedConfig()) || defaultAWSRegion()
+}
+
+export type AWSRegionSource = 'env' | 'shared-config' | 'default'
+
+/**
+ * Official 2.1.172 `f76` — sync snapshot. Does not prime `QR1`.
+ */
+export function getAWSRegionInfo(): {
+  region: string
+  source: AWSRegionSource
+} {
+  const fromEnv = process.env.AWS_REGION || process.env.AWS_DEFAULT_REGION
+  if (fromEnv) return { region: fromEnv, source: 'env' }
+  const cached = awsRegionFromSharedConfigCache.get(awsSharedConfigCacheKey())
+  if (cached) return { region: cached, source: 'shared-config' }
+  return { region: defaultAWSRegion(), source: 'default' }
+}
+
+/**
+ * Official 2.1.172 `WUq` — sync region (env, then primed cache, then default).
  */
 export function getAWSRegion(): string {
-  return process.env.AWS_REGION || process.env.AWS_DEFAULT_REGION || 'us-east-1'
+  return getAWSRegionInfo().region
+}
+
+/**
+ * Official 2.1.172 `w34` — /status formatter. Default branch fire-and-forgets `OU()`.
+ */
+export function formatAWSRegionForStatus(): string {
+  const { region, source } = getAWSRegionInfo()
+  switch (source) {
+    case 'env':
+      return region
+    case 'shared-config':
+      return `${region} (from AWS config)`
+    case 'default':
+      void resolveAWSRegion()
+      return `${region} (default \u2014 set AWS_REGION or add a region to your AWS config)`
+  }
 }
 
 /**

@@ -37,6 +37,7 @@ import {
 } from '../../tasks/LocalAgentTask/LocalAgentTask.js'
 import { asAgentId } from '../../types/ids.js'
 import type { Message as MessageType } from '../../types/message.js'
+import { getAgentContext } from '../../utils/agentContext.js'
 import { isAgentSwarmsEnabled } from '../../utils/agentSwarmsEnabled.js'
 import { logForDebugging } from '../../utils/debug.js'
 import { isInProtectedNamespace } from '../../utils/envUtils.js'
@@ -59,6 +60,9 @@ import { getTokenCountFromUsage } from '../../utils/tokens.js'
 import { EXIT_PLAN_MODE_V2_TOOL_NAME } from '../ExitPlanModeTool/constants.js'
 import { AGENT_TOOL_NAME, LEGACY_AGENT_TOOL_NAME } from './constants.js'
 import type { AgentDefinition } from './loadAgentsDir.js'
+
+/** Official 2.1.172 `m27` — async Agent spawn cap (`Kd6`: depth < 5). */
+export const MAX_NESTED_ASYNC_AGENT_DEPTH = 5
 export type ResolvedAgentTools = {
   hasWildcard: boolean
   validTools: string[]
@@ -98,6 +102,13 @@ export function filterToolsForAgent({
       return false
     }
     if (isAsync && !ASYNC_AGENT_ALLOWED_TOOLS.has(tool.name)) {
+      // Official 2.1.172 `Kd6` / `m27=5`: nested Agent before the teammate exception.
+      if (
+        toolMatchesName(tool, AGENT_TOOL_NAME) &&
+        (getAgentContext()?.depth ?? 0) < MAX_NESTED_ASYNC_AGENT_DEPTH
+      ) {
+        return true
+      }
       if (isAgentSwarmsEnabled() && isInProcessTeammate()) {
         // Allow AgentTool for in-process teammates to spawn sync subagents.
         // Validation in AgentTool.call() prevents background agents and teammate spawning.

@@ -2,6 +2,14 @@ export const BASE_CHROME_PROMPT = `# Claude in Chrome browser automation
 
 You have access to browser automation tools (mcp__claude-in-chrome__*) for interacting with web pages in Chrome. Follow these guidelines for effective browser automation.
 
+## Loading deferred tools
+
+If the mcp__claude-in-chrome__* tools are deferred (must be loaded via ToolSearch before use), load every tool you expect to need in ONE ToolSearch call — the select query accepts a comma-separated list — never one call per tool. Start with the core set:
+
+ToolSearch with query "select:mcp__claude-in-chrome__tabs_context_mcp,mcp__claude-in-chrome__navigate,mcp__claude-in-chrome__computer,mcp__claude-in-chrome__read_page,mcp__claude-in-chrome__tabs_create_mcp"
+
+Add task-specific tools to the same call when the task obviously needs them: read_console_messages / read_network_requests for debugging, form_input for forms, gif_creator for recordings, javascript_tool for page scripting.
+
 ## GIF recording
 
 When performing multi-step browser interactions that the user may want to review or share, use mcp__claude-in-chrome__gif_creator to record them.
@@ -50,15 +58,14 @@ Never reuse tab IDs from a previous/other session. Follow these guidelines:
  * These instruct the model to load chrome tools via ToolSearch before using them.
  * Only injected when tool search is actually enabled (not just optimistically possible).
  */
-export const CHROME_TOOL_SEARCH_INSTRUCTIONS = `**IMPORTANT: Before using any chrome browser tools, you MUST first load them using ToolSearch.**
+export const CHROME_TOOL_SEARCH_INSTRUCTIONS = `**IMPORTANT: If the Chrome browser tools are deferred (must be loaded via ToolSearch before use), load them with ToolSearch before calling them, and batch every tool you expect to need into ONE ToolSearch call (the select query accepts a comma-separated list). Do NOT load tools one at a time; each separate ToolSearch call wastes a full round-trip.**
 
-Chrome browser tools are MCP tools that require loading before use. Before calling any mcp__claude-in-chrome__* tool:
-1. Use ToolSearch with \`select:mcp__claude-in-chrome__<tool_name>\` to load the specific tool
-2. Then call the tool
+Start a browser task whose tools are not yet loaded with a single call loading the core set:
 
-For example, to get tab context:
-1. First: ToolSearch with query "select:mcp__claude-in-chrome__tabs_context_mcp"
-2. Then: Call mcp__claude-in-chrome__tabs_context_mcp`
+ToolSearch with query "select:mcp__claude-in-chrome__tabs_context_mcp,mcp__claude-in-chrome__navigate,mcp__claude-in-chrome__computer,mcp__claude-in-chrome__read_page,mcp__claude-in-chrome__tabs_create_mcp"
+
+Add task-specific tools to the same call when the task obviously needs them: read_console_messages / read_network_requests for debugging, form_input for forms, gif_creator for recordings, javascript_tool for page scripting. Only issue a second ToolSearch if the task later needs a tool you did not anticipate.
+`
 
 /**
  * Get the base chrome system prompt (without tool search instructions).

@@ -1,7 +1,7 @@
 import { logEvent } from '../../services/analytics/index.js'
 import { refreshAndGetAwsCredentials } from '../auth.js'
 import { logForDebugging } from '../debug.js'
-import { getAWSRegion, isEnvTruthy } from '../envUtils.js'
+import { isEnvTruthy, resolveAWSRegion } from '../envUtils.js'
 import { getProxyFetchOptions } from '../proxy.js'
 import {
   ALL_MODEL_CONFIGS,
@@ -127,7 +127,7 @@ export async function probeBedrockModel(
     const awsRegion =
       tier === 'haiku' && process.env.ANTHROPIC_SMALL_FAST_MODEL_AWS_REGION
         ? process.env.ANTHROPIC_SMALL_FAST_MODEL_AWS_REGION
-        : getAWSRegion()
+        : await resolveAWSRegion()
     const args = {
       awsRegion,
       maxRetries: 0,

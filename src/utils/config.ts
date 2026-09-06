@@ -542,6 +542,11 @@ export type GlobalConfig = {
 
   // Skill usage tracking for autocomplete ranking
   skillUsage?: Record<string, { usageCount: number; lastUsedAt: number }>
+  // Official 2.1.172 (tengu_slate_fern): per-plugin recency so the
+  // "installed-but-idle" review tip can surface plugins unused for N days /
+  // sessions. Read by getDisusedPlugins(); written by the (not-yet-ported)
+  // plugin-usage recorder.
+  pluginUsage?: Record<string, { usageCount: number; lastUsedAt: number; lastUsedNumStartups: number }>
   // Official marketplace auto-install tracking
   officialMarketplaceAutoInstallAttempted?: boolean // Whether auto-install was attempted
   officialMarketplaceAutoInstalled?: boolean // Whether auto-install succeeded
