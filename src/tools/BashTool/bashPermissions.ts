@@ -1938,9 +1938,21 @@ function filterCdCwdSubcommands(
   const astCommandsByIdx: (SimpleCommand | undefined)[] = []
   for (let i = 0; i < rawSubcommands.length; i++) {
     const cmd = rawSubcommands[i]!
-    if (cmd === `cd ${cwd}` || cmd === `cd ${cwdMingw}`) continue
+    const ast = astCommands?.[i]
+    if (
+      (cmd === `cd ${cwd}` || cmd === `cd ${cwdMingw}`) &&
+      ast !== undefined &&
+      ast.argv.length === 2 &&
+      ast.argv[0] === 'cd' &&
+      ast.envVars.length === 0 &&
+      ast.redirects.length === 0 &&
+      !/[*?[\]]/.test(ast.argv[1] ?? '') &&
+      !(ast.argv[1]?.includes('__CMDSUB_OUTPUT__') || ast.argv[1]?.includes('__TRACKED_VAR__'))
+    ) {
+      continue
+    }
     subcommands.push(cmd)
-    astCommandsByIdx.push(astCommands?.[i])
+    astCommandsByIdx.push(ast)
   }
   return { subcommands, astCommandsByIdx }
 }

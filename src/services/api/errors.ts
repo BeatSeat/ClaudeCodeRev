@@ -1472,9 +1472,38 @@ const REFUSAL_MYTHOS_REFINE_NOTE =
 /** Official 2.1.173 `XX$` (172 `DX$`). */
 const REFUSAL_MYTHOS_CAPABILITY_NOTE = `They may flag safe, normal content as well. ${REFUSAL_MYTHOS_REFINE_NOTE}`
 
-/** Official 2.1.173 `sDH`. */
+/** Official 2.1.173 `sDH` / 181 `Utt`. */
 function isCyberOrBioRefusalCategory(category: unknown): boolean {
   return category === 'cyber' || category === 'bio'
+}
+
+/** Official 181 `GNi`. */
+function isFrontierOrExtractionRefusalCategory(category: unknown): boolean {
+  return category === 'frontier_llm' || category === 'reasoning_extraction'
+}
+
+/** Official 181 `jtt`. */
+function normalizeRefusalCategory(category: unknown): string {
+  if (
+    isCyberOrBioRefusalCategory(category) ||
+    isFrontierOrExtractionRefusalCategory(category)
+  ) {
+    return category as string
+  }
+  return 'other'
+}
+
+const CYBER_EXEMPTION_FORM_FALLBACK = 'https://claude.com/form/cyber-use-case'
+const MAX_EXEMPTION_URL_LENGTH = 400
+
+/** Official 181 `UNi`. */
+function extractCyberExemptionUrl(explanation?: string | null): string {
+  const match = explanation
+    ?.match(/https:\/\/claude\.com\/form\/\S+/)?.[0]
+    ?.replace(/[.,;:!?)]+$/, '')
+  return match && match.length <= MAX_EXEMPTION_URL_LENGTH
+    ? match
+    : CYBER_EXEMPTION_FORM_FALLBACK
 }
 
 /**
@@ -1501,7 +1530,7 @@ function hasCyberBiologyRefusalCopy(model: string): boolean {
   return false
 }
 
-/** Official 2.1.172 `j9$` (170 `wI8`). */
+/** Official 2.1.172 `j9$` / 181 `_Ue`. */
 export function getErrorMessageIfRefusal(
   stopReason: BetaStopReason | null,
   model: string,
@@ -1533,10 +1562,7 @@ export function getErrorMessageIfRefusal(
     has_explanation: Boolean(explanation),
     ...(typeof category === 'string'
       ? {
-          // Official 2.1.173 `J9$`: `sDH(category) ? category : "other"`.
-          category: (isCyberOrBioRefusalCategory(category)
-            ? category
-            : 'other') as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
+          category: normalizeRefusalCategory(category) as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
         }
       : {}),
     request_id:
@@ -1569,13 +1595,21 @@ export function getErrorMessageIfRefusal(
     // categories on a fallback-capable model use the generic session-flag copy.
     const safetyLead = isCyberOrBioRefusalCategory(category)
       ? `${display} has safety measures that flag messages on most cybersecurity or biology topics (https://www.anthropic.com/legal/aup). ${REFUSAL_MYTHOS_CAPABILITY_NOTE}`
-      : `${display} has measures that flagged something in this session (https://www.anthropic.com/legal/aup). This sometimes happens with safe, normal conversations. ${REFUSAL_MYTHOS_REFINE_NOTE}`
+      : `${display} has safety measures that flagged something in this session (https://www.anthropic.com/legal/aup). This sometimes happens with safe, normal conversations. ${REFUSAL_MYTHOS_REFINE_NOTE}`
     content = `${API_ERROR_MESSAGE_PREFIX}: ${safetyLead} Claude Code can't respond to this request with ${display}.\n\n${closer}\n\n${learnMore}`
   } else {
     const closer = nonInteractive
       ? newSessionCloser
       : 'Please double press esc to edit your last message or start a new session for Claude Code to assist with a different task.'
-    content = `${API_ERROR_MESSAGE_PREFIX}: Claude Code is unable to respond to this request, which appears to violate our Usage Policy (https://www.anthropic.com/legal/aup).${explanationSuffix} ${closer}`
+    if (category === 'cyber' && isFirstPartyApiFamily()) {
+      const learnMore = nonInteractive
+        ? `Learn more: ${REFUSAL_LEARN_MORE_URL}`
+        : REFUSAL_FEEDBACK_HINT
+      const display = model ? renderModelName(model) : 'This model'
+      content = `${API_ERROR_MESSAGE_PREFIX}: ${display} has safety measures that flagged this message for a cybersecurity topic. If your work requires this access, you can apply for an exemption: ${extractCyberExemptionUrl(explanation)}\n\n${closer}\n\n${learnMore}`
+    } else {
+      content = `${API_ERROR_MESSAGE_PREFIX}: Claude Code is unable to respond to this request, which appears to violate our Usage Policy (https://www.anthropic.com/legal/aup).${explanationSuffix} ${closer}`
+    }
   }
 
   const requestIdSuffix = requestId ? `\n\nRequest ID: ${requestId}` : ''

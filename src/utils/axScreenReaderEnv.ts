@@ -1,24 +1,61 @@
 /**
- * Official 2.1.179 `ULH` / `Ui_` — screen-reader spawn-env stub.
+ * Official 2.1.181 screen-reader detection and spawn-env support.
  *
- * `ULH(){return{}}` is spread into respawn envs (tui switch, /update,
- * agents select). `Ui_="tengu_ax_screen_reader"` is defined and unread —
- * GrowthBook flag name reserved for a future a11y path. Neighbor
- * `Zz7`/`Gz7` remain `isEnabled(){return!1}` (do not invent a working
- * screen reader).
+ * Checks `--ax-screen-reader` CLI flag, `CLAUDE_AX_SCREEN_READER` env var,
+ * and `axScreenReader` setting from user config.
  */
+import { getInitialSettings } from './settings/settings.js'
 
-/** Official 2.1.179 `Ui_`. */
 export const TENGU_AX_SCREEN_READER = 'tengu_ax_screen_reader'
 
-/**
- * Official 2.1.179 `ULH` — empty env overlay for CLI respawns.
- * Call sites: `...getAxScreenReaderSpawnEnv()` on spawn `env`.
- *
- * The `process.env[Ui_]` probe keeps the unread flag name in the production
- * bundle (official retains `Ui_` via the T() module graph).
- */
+type GateFn = (flag: string, defaultValue: boolean) => boolean
+let gateOverride: GateFn | null = null
+
+export function setAxScreenReaderGateOverride(
+  fn: GateFn | null,
+): GateFn | null {
+  const prev = gateOverride
+  gateOverride = fn
+  return prev
+}
+
+class AxScreenReaderManager {
+  #enabled: boolean | undefined
+
+  isEnabled(): boolean {
+    if (this.#enabled !== undefined) return this.#enabled
+    let candidate: boolean | undefined
+    if (process.argv.includes('--ax-screen-reader')) {
+      candidate = true
+    } else {
+      const envVal = process.env.CLAUDE_AX_SCREEN_READER
+      candidate =
+        envVal !== undefined
+          ? envVal === '1' || envVal === 'true'
+          : (getInitialSettings() as any).axScreenReader === true
+    }
+    if (!candidate) {
+      this.#enabled = false
+      return false
+    }
+    this.#enabled = gateOverride?.(TENGU_AX_SCREEN_READER, true) ?? true
+    return this.#enabled
+  }
+
+  reset(): void {
+    this.#enabled = undefined
+  }
+}
+
+export const axScreenReader = new AxScreenReaderManager()
+
+export function isAxScreenReaderEnabled(): boolean {
+  return axScreenReader.isEnabled()
+}
+
 export function getAxScreenReaderSpawnEnv(): Record<string, string> {
-  void process.env[TENGU_AX_SCREEN_READER]
+  if (axScreenReader.isEnabled()) {
+    return { CLAUDE_AX_SCREEN_READER: '1' }
+  }
   return {}
 }

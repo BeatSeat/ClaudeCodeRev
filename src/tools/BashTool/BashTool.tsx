@@ -730,6 +730,20 @@ export const BashTool = buildTool({
   // 30K chars - tool result persistence threshold
   maxResultSizeChars: 30_000,
   strict: true,
+  coerceInput(input: unknown) {
+    if (typeof input !== 'object' || input === null || Array.isArray(input)) return null
+    const t = { ...(input as Record<string, unknown>) }
+    const coerced: string[] = []
+    if ('timeout_ms' in t && !('timeout' in t)) {
+      const r = t.timeout_ms
+      if (typeof r === 'number' || (typeof r === 'string' && /^\d+$/.test(r))) {
+        t.timeout = Number(r)
+        coerced.push('timeout_ms')
+      }
+      delete t.timeout_ms
+    }
+    return coerced.length ? { input: t, shapeClass: coerced.join(',') } : null
+  },
   async description({ description }) {
     return description || 'Run shell command'
   },

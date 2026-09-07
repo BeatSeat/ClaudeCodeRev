@@ -397,6 +397,8 @@ export type SubagentContextOverrides = {
    * state reconstructed from the resumed sidechain so the same results
    * are re-replaced (prompt cache stability). */
   contentReplacementState?: ContentReplacementState
+  agentContext?: any
+  teammateContext?: any
 }
 
 /**
@@ -538,6 +540,7 @@ export function createSubagentContext(
     // UI callbacks - undefined for subagents (can't control parent UI)
     addNotification: undefined,
     setToolJSX: undefined,
+    onRetryStatus: undefined,
     setStreamMode: undefined,
     setSDKStatus: undefined,
     openMessageSelector: undefined,
@@ -548,6 +551,8 @@ export function createSubagentContext(
     // Generate new agentId for subagents (each subagent should have its own ID)
     agentId: overrides?.agentId ?? createAgentId(),
     agentType: overrides?.agentType,
+    agentContext: overrides?.agentContext ?? parentContext.agentContext,
+    teammateContext: overrides?.teammateContext ?? parentContext.teammateContext,
 
     // Create new query tracking chain for subagent with incremented depth
     queryTracking: {

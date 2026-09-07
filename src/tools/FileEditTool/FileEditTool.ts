@@ -122,6 +122,33 @@ export const FileEditTool = buildTool({
   searchHint: 'modify file contents in place',
   maxResultSizeChars: 100_000,
   strict: true,
+  coerceInput(input: unknown) {
+    if (typeof input !== 'object' || input === null || Array.isArray(input)) return null
+    const t = { ...(input as Record<string, unknown>) }
+    const coerced: string[] = []
+    if ('replace_name' in t) {
+      const r = t.replace_name
+      if (!('replace_all' in t)) t.replace_all = r === true || r === 'true'
+      delete t.replace_name
+      coerced.push('alias_replace_name')
+    }
+    if ('path' in t && !('file_path' in t) && typeof t.path === 'string') {
+      t.file_path = t.path
+      delete t.path
+      coerced.push('path')
+    }
+    if ('old_str' in t && !('old_string' in t) && typeof t.old_str === 'string') {
+      t.old_string = t.old_str
+      delete t.old_str
+      coerced.push('old_str')
+    }
+    if ('new_str' in t && !('new_string' in t) && typeof t.new_str === 'string') {
+      t.new_string = t.new_str
+      delete t.new_str
+      coerced.push('new_str')
+    }
+    return coerced.length ? { input: t, shapeClass: coerced.join(',') } : null
+  },
   async description() {
     return 'A tool for editing files'
   },

@@ -200,6 +200,10 @@ export type ClaudeAILimits = {
   /** Official 2.1.170 `overageInUse` from `anthropic-ratelimit-unified-overage-in-use`. */
   overageInUse?: boolean
   surpassedThreshold?: number
+  overagePeriodMonthly?: { utilization: number } | unknown
+  errorCode?: 'credits_required'
+  canUserPurchaseCredits?: boolean
+  hasChargeableSavedPaymentMethod?: boolean
 }
 
 // Exported for testing only
@@ -259,15 +263,27 @@ export function addFableUsageCreditListener(listener: () => void): () => void {
 }
 
 export function emitStatusChange(limits: ClaudeAILimits) {
+  const previousLimits = currentLimits
   currentLimits = limits
   statusListeners.forEach(listener => listener(limits))
-  const hoursTillReset = Math.round(
-    (limits.resetsAt ? limits.resetsAt - Date.now() / 1000 : 0) / (60 * 60),
-  )
+
+  const { overagePeriodMonthly: _prevOverage, ...prevRest } = previousLimits
+  const { overagePeriodMonthly: _currOverage, ...currRest } = limits
+  if (isEqual(prevRest, currRest)) return
+
+  const hoursTillReset =
+    Math.round(
+      ((limits.resetsAt ? limits.resetsAt - Date.now() / 1000 : 0) / 3600) * 10,
+    ) / 10
 
   logEvent('tengu_claudeai_limits_status_changed', {
     status:
       limits.status as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
+    previousStatus:
+      previousLimits.status as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
+    rateLimitType:
+      limits.rateLimitType as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
+    isUsingOverage: limits.isUsingOverage,
     unifiedRateLimitFallbackAvailable: limits.unifiedRateLimitFallbackAvailable,
     hoursTillReset,
   })
@@ -572,6 +588,20 @@ export function extractQuotaStatusFromHeaders(
   }
 }
 
+function extractCreditsRequiredDetails(error: any): Partial<ClaudeAILimits> {
+  const details = error?.error?.error?.details
+  if (details?.error_code !== 'credits_required') return {}
+  return {
+    errorCode: 'credits_required',
+    ...(typeof details.can_user_purchase_credits === 'boolean' && {
+      canUserPurchaseCredits: details.can_user_purchase_credits,
+    }),
+    ...(typeof details.has_chargeable_saved_payment_method === 'boolean' && {
+      hasChargeableSavedPaymentMethod: details.has_chargeable_saved_payment_method,
+    }),
+  }
+}
+
 export function extractQuotaStatusFromError(error: APIError): void {
   if (
     !shouldProcessRateLimits(isClaudeAISubscriber()) ||
@@ -593,6 +623,7 @@ export function extractQuotaStatusFromError(error: APIError): void {
     }
     // For errors, always set status to rejected even if headers are not present.
     newLimits.status = 'rejected'
+    Object.assign(newLimits, extractCreditsRequiredDetails(error))
 
     if (!isEqual(currentLimits, newLimits)) {
       emitStatusChange(newLimits)

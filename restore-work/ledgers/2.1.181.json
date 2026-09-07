@@ -1,0 +1,30 @@
+{
+  "version": "2.1.181",
+  "from": "2.1.179",
+  "astdiff": "0.98748",
+  "contract": "astdiff genuine-structural + added-product (explore reports; changelog not used)",
+  "coverage": "restore-work/diffs/2.1.181-landing-brief.md",
+  "scout": "restore-work/diffs/2.1.181-explore-added-a.md",
+  "domainLandings": [
+    "restore-work/diffs/2.1.181-core-landing.md",
+    "restore-work/diffs/2.1.181-tools-landing.md",
+    "restore-work/diffs/2.1.181-services-landing.md"
+  ],
+  "items": [
+    {
+      "item": "astdiff Core: keybindings app:toggleReplTab, forkedAgent context overrides (MFn), stepwise UNC symlink resolver (nor), bash AST error expansion and redirect validation (WDt/Gae), bridge-kick & continuation DCE",
+      "status": "located",
+      "evidence": "schema.ts app:toggleReplTab; forkedAgent.ts agentContext/teammateContext; fsOperations.ts resolveUncSymlinkStepwise; ast.ts hasErrorExpansion & redirect regex check; dropped bridge-kick.ts and formatSalvageContinuationReminder"
+    },
+    {
+      "item": "astdiff Tools: writeTextContent on-disk size verification, coerceInput aliases (BashTool timeout_ms D7a, FileEditTool KKa, FileReadTool QQa), unparsed tool input (UNPARSED_TOOL_INPUT/JSON_PARSE), consecutive validation failure hint (tengu_tool_consecutive_validation_failures), filterCdCwdSubcommands AST hardening",
+      "status": "located",
+      "evidence": "file.ts on-disk size check; BashTool coerceInput timeout_ms; FileEditTool coerceInput; FileReadTool coerceInput; toolInput.ts & AssistantToolUseMessage input failed to parse; toolExecution.ts buildConsecutiveValidationFailureHint; bashPermissions.ts filterCdCwdSubcommands"
+    },
+    {
+      "item": "astdiff Services: credits_required 429 retry check (G_f), rate limit details parsing (zTd), overagePeriodMonthly status change filter (XPt), refusal category normalization (jtt) & cyber exemption URL formatting (UNi), config command metadata, axScreenReader detection",
+      "status": "located",
+      "evidence": "withRetry.ts credits_required check; claudeAiLimits.ts zTd & XPt status change filter; coreSchemas.ts & mappers.ts rate limit fields; errors.ts normalizeRefusalCategory & extractCyberExemptionUrl; config/index.ts argumentHint; axScreenReaderEnv.ts AxScreenReaderManager"
+    }
+  ]
+}

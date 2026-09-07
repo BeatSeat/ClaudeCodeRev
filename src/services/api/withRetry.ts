@@ -954,6 +954,20 @@ function shouldRetry(error: APIError): boolean {
     return false
   }
 
+  if (
+    error.status === 429 &&
+    ((error as any).error?.error?.details?.error_code === 'credits_required' ||
+      error.message?.toLowerCase().includes('usage credits are required') ||
+      error.message?.toLowerCase().includes('extra usage is required'))
+  ) {
+    const reason = error.headers?.get?.(
+      'anthropic-ratelimit-unified-overage-disabled-reason',
+    )
+    if (reason !== 'fetch_error' && reason !== 'org_level_disabled_until') {
+      return false
+    }
+  }
+
   // Persistent mode: 429/529 always retryable, bypass subscriber gates and
   // x-should-retry header.
   if (isPersistentRetryEnabled() && isTransientCapacityError(error)) {

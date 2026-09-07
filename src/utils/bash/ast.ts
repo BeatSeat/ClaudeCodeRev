@@ -501,6 +501,14 @@ export function parseForSecurityFromAst(
   return walkProgram(root)
 }
 
+function hasErrorExpansion(node: Node): boolean {
+  if (node.type === 'ERROR' && node.text.startsWith('${')) return true
+  for (const child of node.children) {
+    if (child && hasErrorExpansion(child)) return true
+  }
+  return false
+}
+
 function walkProgram(root: Node): ParseForSecurityResult {
   // ERROR-node check folded into collectCommands — any unhandled node type
   // (including ERROR) falls through to tooComplex() in the default branch.
@@ -514,7 +522,12 @@ function walkProgram(root: Node): ParseForSecurityResult {
   const varScope = new Map<string, string>()
   const bareAssignmentNames: string[] = []
   const err = collectCommands(root, commands, varScope, bareAssignmentNames)
-  if (err) return err
+  if (err) {
+    if (err.kind === 'too-complex' && err.nodeType !== 'ERROR' && hasErrorExpansion(root)) {
+      return { ...err, nodeType: 'ERROR' }
+    }
+    return err
+  }
   return { kind: 'simple', commands, bareAssignmentNames }
 }
 
@@ -1221,6 +1234,14 @@ function walkFileRedirect(
     return {
       kind: 'too-complex',
       reason: 'Unrecognized redirect shape',
+      nodeType: node.type,
+    }
+  }
+  if (op === '>&' && !/^[A-Za-z0-9./_-]+$/.test(target)) {
+    return {
+      kind: 'too-complex',
+      reason:
+        'bash `>&` applies a second word-expansion pass to its target — path cannot be statically validated',
       nodeType: node.type,
     }
   }

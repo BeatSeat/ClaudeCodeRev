@@ -245,6 +245,7 @@ export type ToolUseContext = {
   pushApiMetricsEntry?: (ttftMs: number) => void
   setStreamMode?: (mode: SpinnerMode) => void
   onCompactProgress?: (event: CompactProgressEvent) => void
+  onRetryStatus?: (status: any) => void
   setSDKStatus?: (status: SDKStatus) => void
   openMessageSelector?: () => void
   updateFileHistoryState: (
@@ -262,6 +263,8 @@ export type ToolUseContext = {
   resetTerminalTitle?: () => void
   agentId?: AgentId // Only set for subagents; use getSessionId() for session ID. Hooks use this to distinguish subagent calls.
   agentType?: string // Subagent type name. For the main thread's --agent type, hooks fall back to getMainThreadAgentType().
+  agentContext?: any
+  teammateContext?: any
   /** When true, canUseTool must always be called even when hooks auto-approve.
    *  Used by speculation for overlay file path rewriting. */
   requireCanUseTool?: boolean

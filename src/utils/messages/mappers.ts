@@ -248,8 +248,23 @@ export function toSDKRateLimitInfo(
     ...(limits.isUsingOverage !== undefined && {
       isUsingOverage: limits.isUsingOverage,
     }),
+    ...(limits.overageInUse !== undefined && {
+      overageInUse: limits.overageInUse,
+    }),
     ...(limits.surpassedThreshold !== undefined && {
       surpassedThreshold: limits.surpassedThreshold,
+    }),
+    ...(limits.overagePeriodMonthly !== undefined && {
+      overagePeriodMonthly: limits.overagePeriodMonthly as any,
+    }),
+    ...(limits.errorCode !== undefined && {
+      errorCode: limits.errorCode,
+    }),
+    ...(limits.canUserPurchaseCredits !== undefined && {
+      canUserPurchaseCredits: limits.canUserPurchaseCredits,
+    }),
+    ...(limits.hasChargeableSavedPaymentMethod !== undefined && {
+      hasChargeableSavedPaymentMethod: limits.hasChargeableSavedPaymentMethod,
     }),
   }
 }
