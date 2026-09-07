@@ -3303,7 +3303,7 @@ function runHeadlessStreaming(
   // Used when localhost is not reachable (e.g., browser-based IDEs).
   const oauthCallbackSubmitters = new Map<
     string,
-    (callbackUrl: string) => void
+    (callbackUrl: string) => boolean
   >()
   // Track servers where the manual callback was actually invoked (so the
   // automatic reconnect path knows to skip — the extension will reconnect).

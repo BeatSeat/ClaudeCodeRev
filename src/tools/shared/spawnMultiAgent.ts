@@ -38,6 +38,7 @@ import {
   getBackendByType,
   isInProcessEnabled,
   markInProcessFallback,
+  notifyTeammateAutoFallback,
   resetBackendDetection,
 } from '../../utils/swarm/backends/registry.js'
 import { getTeammateModeFromSnapshot } from '../../utils/swarm/backends/teammateModeSnapshot.js'
@@ -1147,6 +1148,15 @@ async function handleSpawn(
     // Record the fallback so isInProcessEnabled() reflects the actual mode
     // (fixes banner and other UI that would otherwise show tmux attach commands).
     markInProcessFallback()
+    // Official WFp: once-only warning with iTerm2/tmux force-mode hints.
+    // Bundle passes the tool onProgress/notification dispatcher; this tree
+    // maps that to ToolUseContext.addNotification (same as AgentTool MCP
+    // blocked / ExitPlanMode gate fallback).
+    notifyTeammateAutoFallback(
+      context.addNotification
+        ? event => context.addNotification?.(event.notification)
+        : undefined,
+    )
     return handleSpawnInProcess(input, context)
   }
 

@@ -6080,6 +6080,28 @@ async function run(): Promise<CommanderCommand> {
     })
 
   mcp
+    .command('login <name>')
+    .description(
+      'Authenticate with an MCP server (HTTP, SSE, or claude.ai connector)',
+    )
+    .option(
+      '--no-browser',
+      'Print the authorization URL instead of opening a browser (for SSH/headless sessions — paste the redirect URL back when prompted)',
+    )
+    .action(async (name: string, options: { browser?: boolean }) => {
+      const { mcpLoginHandler } = await import('./cli/handlers/mcp.js')
+      await mcpLoginHandler(name, options)
+    })
+
+  mcp
+    .command('logout <name>')
+    .description('Clear stored OAuth credentials for an MCP server')
+    .action(async (name: string) => {
+      const { mcpLogoutHandler } = await import('./cli/handlers/mcp.js')
+      await mcpLogoutHandler(name)
+    })
+
+  mcp
     .command('add-json <name> <json>')
     .description('Add an MCP server (stdio or SSE) with a JSON string')
     .option(
@@ -7387,7 +7409,7 @@ type TeammateOptions = {
   agentColor?: string
   planModeRequired?: boolean
   parentSessionId?: string
-  teammateMode?: 'auto' | 'tmux' | 'in-process'
+  teammateMode?: 'auto' | 'tmux' | 'iterm2' | 'in-process'
   agentType?: string
 }
 
@@ -7414,6 +7436,7 @@ function extractTeammateOptions(options: unknown): TeammateOptions {
     teammateMode:
       teammateMode === 'auto' ||
       teammateMode === 'tmux' ||
+      teammateMode === 'iterm2' ||
       teammateMode === 'in-process'
         ? teammateMode
         : undefined,

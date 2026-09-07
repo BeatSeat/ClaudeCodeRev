@@ -26,7 +26,10 @@ import type { WorkflowProgressEvent } from '../../tasks/LocalWorkflowTask/LocalW
 import type { AssistantMessage } from '../../types/message.js'
 import { getCwd, runWithCwd } from '../../utils/cwd.js'
 import { logForDebugging } from '../../utils/debug.js'
-import { isENOENT } from '../../utils/errors.js'
+import {
+  isENOENT,
+  TelemetrySafeError_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
+} from '../../utils/errors.js'
 import { execFileNoThrowWithCwd } from '../../utils/execFileNoThrow.js'
 import { getBranch, gitExe } from '../../utils/git.js'
 import { addFunctionHook, clearSessionHooks } from '../../utils/hooks/sessionHooks.js'
@@ -69,6 +72,8 @@ const WORKFLOW_LOG_CAP = 1000
 const WORKFLOW_STALL_MS = 180_000
 /** Official 2.1.153 `EK4`. */
 const WORKFLOW_STALL_RETRIES = 5
+/** Official 2.1.186 `ABp` — default StructuredOutput validation retry cap. */
+const MAX_STRUCTURED_OUTPUT_RETRIES_DEFAULT = 5
 /** Official 2.1.153 `hK4`. */
 const WORKFLOW_AGENT_CAP = 1000
 /** Official 2.1.153 `NK4`. */
@@ -1229,6 +1234,12 @@ You are running in an isolated git worktree at ${worktree.worktreePath} (a separ
           )
         }
       }
+      const inProgressToolUseIds = new Set<string>()
+      const maybeRearmStall = () => {
+        if (inProgressToolUseIds.size === 0 && stallTimer === undefined) {
+          armStall()
+        }
+      }
       const onQueryProgress = () => {
         const now = Date.now()
         if (now - lastProgressAt < minGap) {
@@ -1277,7 +1288,14 @@ You are running in an isolated git worktree at ${worktree.worktreePath} (a separ
       let turnTokens = 0
       let turnToolCalls = 0
       let structuredAttempts = 0
+      let structuredOutputFailures = 0
       let lastStructuredInput: unknown
+      const pendingStructuredOutputIds = new Set<string>()
+      const maxStructuredOutputRetries = parseInt(
+        process.env.MAX_STRUCTURED_OUTPUT_RETRIES ||
+          String(MAX_STRUCTURED_OUTPUT_RETRIES_DEFAULT),
+        10,
+      )
       const turnStarted = Date.now()
       const parent = getAgentContext()
       const workflowAgentContext = {
@@ -1324,6 +1342,61 @@ You are running in an isolated git worktree at ${worktree.worktreePath} (a separ
             structured = message.attachment.data
             continue
           }
+          // Official 2.1.185+: clear in-progress ids so stall can re-arm.
+          if (
+            (message as { type?: string }).type ===
+            'set_in_progress_tool_use_ids'
+          ) {
+            const ev = message as unknown as {
+              op?: { action?: string; ids?: string[] }
+            }
+            if (ev.op?.action === 'remove' && Array.isArray(ev.op.ids)) {
+              for (const id of ev.op.ids) {
+                inProgressToolUseIds.delete(id)
+              }
+              maybeRearmStall()
+            }
+            continue
+          }
+          if (message.type === 'user') {
+            const content = message.message.content
+            if (Array.isArray(content)) {
+              for (const block of content) {
+                if (
+                  typeof block === 'object' &&
+                  block !== null &&
+                  (block as { type?: string }).type === 'tool_result'
+                ) {
+                  const result = block as {
+                    tool_use_id?: string
+                    is_error?: boolean
+                  }
+                  if (result.tool_use_id) {
+                    inProgressToolUseIds.delete(result.tool_use_id)
+                    // Official 2.1.186: count StructuredOutput validation failures.
+                    if (
+                      pendingStructuredOutputIds.delete(result.tool_use_id) &&
+                      result.is_error
+                    ) {
+                      structuredOutputFailures++
+                    }
+                  }
+                }
+              }
+              maybeRearmStall()
+              if (
+                structuredOutputFailures > 0 &&
+                structuredOutputFailures >= maxStructuredOutputRetries &&
+                structured === undefined
+              ) {
+                throw new TelemetrySafeError_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS(
+                  `agent({schema}): StructuredOutput retry cap (${maxStructuredOutputRetries}) exceeded — ${structuredOutputFailures} failed ${plural(structuredOutputFailures, 'call')} with no valid output`,
+                  'Workflow agent({schema}) StructuredOutput retry cap exceeded',
+                )
+              }
+            }
+            continue
+          }
           if (message.type === 'assistant') {
             lastAssistant = message
             turnTokens = getTokenCountFromUsage(message.message.usage)
@@ -1333,11 +1406,13 @@ You are running in an isolated git worktree at ${worktree.worktreePath} (a separ
                 continue
               }
               toolUses++
+              inProgressToolUseIds.add(block.id)
               lastToolName = block.name
               lastToolSummary = toolInputSummary(block.input) || undefined
               if (block.name === SYNTHETIC_OUTPUT_TOOL_NAME) {
                 structuredAttempts++
                 lastStructuredInput = block.input
+                pendingStructuredOutputIds.add(block.id)
               }
             }
             turnToolCalls += toolUses

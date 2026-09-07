@@ -54,6 +54,11 @@ let cachedPaneBackendExecutor: TeammateExecutor | null = null
 let inProcessFallbackActive = false
 
 /**
+ * Once-only guard for the teammate auto-fallback notification (official Pja).
+ */
+let teammateAutoFallbackNotified = false
+
+/**
  * Placeholder for TmuxBackend - will be replaced with actual implementation.
  * This allows the registry to compile before the backend implementations exist.
  */
@@ -146,6 +151,40 @@ export async function detectAndGetBackend(): Promise<BackendDetectionResult> {
   }
 
   logForDebugging('[BackendRegistry] Starting backend detection...')
+
+  // Official 2.1.186: if teammateMode is explicitly set to "iterm2",
+  // require being inside iTerm2 with the it2 CLI available.
+  const mode = getTeammateModeFromSnapshot()
+  if (mode === 'iterm2') {
+    if (!isInITerm2()) {
+      logForDebugging(
+        '[BackendRegistry] ERROR: teammateMode=iterm2 but not inside iTerm2',
+      )
+      throw new Error(
+        'teammateMode is set to "iterm2" but this session is not running inside iTerm2. Launch Claude from iTerm2, or change teammateMode in settings.',
+      )
+    }
+    const it2Available = await isIt2CliAvailable()
+    if (!it2Available) {
+      logForDebugging(
+        '[BackendRegistry] ERROR: teammateMode=iterm2 but it2 CLI not available',
+      )
+      throw new Error(
+        'teammateMode is set to "iterm2" but the it2 CLI is not reachable. Install it with `pip install it2` and enable the Python API in iTerm2 (Preferences > General > Magic > Enable Python API).',
+      )
+    }
+    logForDebugging(
+      '[BackendRegistry] Selected: iterm2 (explicit teammateMode)',
+    )
+    const backend = createITermBackend()
+    cachedBackend = backend
+    cachedDetectionResult = {
+      backend,
+      isNative: true,
+      needsIt2Setup: false,
+    }
+    return cachedDetectionResult
+  }
 
   // Check all environment conditions upfront for logging
   const insideTmux = await isInsideTmux()
@@ -329,10 +368,43 @@ export function markInProcessFallback(): void {
 }
 
 /**
+ * Official WFp: once-only UI notification when auto mode cannot open a
+ * teammate pane and falls back to in-process. `notify` matches the bundle
+ * dispatcher shape (`{type:"notification", notification}`); callers typically
+ * adapt `ToolUseContext.addNotification`.
+ */
+export function notifyTeammateAutoFallback(
+  notify?: (event: {
+    type: 'notification'
+    notification: {
+      key: string
+      text: string
+      color: 'warning'
+      priority: 'high'
+    }
+  }) => void,
+): void {
+  if (teammateAutoFallbackNotified) return
+  teammateAutoFallbackNotified = true
+  const hint = isInITerm2()
+    ? 'To force iTerm2 panes, set teammateMode: "iterm2" in settings and enable the iTerm2 Python API (Preferences > General > Magic).'
+    : 'To use terminal panes, set teammateMode: "tmux" in settings.'
+  notify?.({
+    type: 'notification',
+    notification: {
+      key: 'teammate-auto-fallback',
+      text: `Couldn't open a teammate pane — running in-process instead. ${hint}`,
+      color: 'warning',
+      priority: 'high',
+    },
+  })
+}
+
+/**
  * Gets the teammate mode for this session.
  * Returns the session snapshot captured at startup, ignoring runtime config changes.
  */
-function getTeammateMode(): 'auto' | 'tmux' | 'in-process' {
+function getTeammateMode(): 'auto' | 'tmux' | 'iterm2' | 'in-process' {
   return getTeammateModeFromSnapshot()
 }
 
@@ -363,7 +435,7 @@ export function isInProcessEnabled(): boolean {
   let enabled: boolean
   if (mode === 'in-process') {
     enabled = true
-  } else if (mode === 'tmux') {
+  } else if (mode === 'tmux' || mode === 'iterm2') {
     enabled = false
   } else {
     // 'auto' mode - if a prior spawn fell back to in-process because no pane

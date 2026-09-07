@@ -10,7 +10,7 @@ import { logForDebugging } from '../../../utils/debug.js'
 import { getUserIntentSetting } from '../../../utils/settings/userIntent.js'
 import { logError } from '../../../utils/log.js'
 
-export type TeammateMode = 'auto' | 'tmux' | 'in-process'
+export type TeammateMode = 'auto' | 'tmux' | 'iterm2' | 'in-process'
 
 // Module-level variable to hold the captured mode at startup
 let initialTeammateMode: TeammateMode | null = null
