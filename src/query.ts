@@ -114,7 +114,7 @@ import { queryCheckpoint } from './utils/queryProfiler.js'
 import { runTools } from './services/tools/toolOrchestration.js'
 import { applyToolResultBudget } from './utils/toolResultStorage.js'
 import { recordContentReplacement } from './utils/sessionStorage.js'
-import { handleStopHooks } from './query/stopHooks.js'
+import { handleStopHooks, handleToolEndTurn } from './query/stopHooks.js'
 import { buildQueryConfig } from './query/config.js'
 import { productionDeps, type QueryDeps } from './query/deps.js'
 import type { Terminal, Continue } from './query/transitions.js'
@@ -125,6 +125,10 @@ import {
   incrementBudgetContinuationCount,
 } from './bootstrap/state.js'
 import { createBudgetTracker, checkTokenBudget } from './query/tokenBudget.js'
+import {
+  getToolResultEndTurnSource,
+  type ToolResultEndTurnSource,
+} from './utils/toolResultEndTurn.js'
 import { count } from './utils/array.js'
 import { isHumanTurn } from './utils/messagePredicates.js'
 
@@ -1683,6 +1687,7 @@ async function* queryLoop(
 
     let shouldPreventContinuation = false
     let toolDeferred = false
+    let endTurnSource: ToolResultEndTurnSource | false = false
     let updatedToolUseContext = toolUseContext
 
     queryCheckpoint('query_tool_execution_start')
@@ -1721,6 +1726,11 @@ async function* queryLoop(
           update.message.attachment.type === 'hook_deferred_tool'
         ) {
           toolDeferred = true
+        }
+
+        const maybeEndTurn = getToolResultEndTurnSource(update.message)
+        if (maybeEndTurn) {
+          endTurnSource = maybeEndTurn
         }
 
         toolResults.push(
@@ -1853,6 +1863,28 @@ async function* queryLoop(
     // If a hook indicated to prevent continuation, stop here
     if (shouldPreventContinuation) {
       return { reason: 'hook_stopped' }
+    }
+
+    // Official 2.1.187 — StructuredOutput / MCP claude/endTurn: end turn without
+    // model re-invoke (PostToolBatch + Stop hooks run but blocks are discarded).
+    if (endTurnSource) {
+      yield* handleToolEndTurn({
+        endTurnSource,
+        messagesForQuery,
+        assistantMessages,
+        toolResults,
+        toolUseBlocks,
+        systemPrompt,
+        userContext,
+        systemContext,
+        toolUseContext,
+        updatedToolUseContext,
+        querySource,
+        stopHookActive,
+        queryChainIdForAnalytics,
+        queryDepth: queryTracking.depth,
+      })
+      return { type: 'terminal', reason: 'completed' }
     }
 
     if (tracking?.compacted) {

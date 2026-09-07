@@ -224,12 +224,13 @@ export async function resumeAgentBackground({
     contentReplacementState: resumedReplacementState,
   }
 
-  // Official 2.1.172 resume: `depth:D??(gz()?.depth??0)+1` where D is task.spawnDepth.
+  // Official 2.1.187 resume: task.spawnDepth ?? meta.spawnDepth ?? parent+1
+  // (bundle `(rc(b)?b.spawnDepth:y?.spawnDepth)??v4(i.agentContext)+1`).
   const existingTask = toolUseContext.getAppState().tasks[agentId]
   const spawnDepth =
-    isLocalAgentTask(existingTask) && existingTask.spawnDepth !== undefined
+    (isLocalAgentTask(existingTask) && existingTask.spawnDepth !== undefined
       ? existingTask.spawnDepth
-      : (getAgentContext()?.depth ?? 0) + 1
+      : meta?.spawnDepth) ?? (getAgentContext()?.depth ?? 0) + 1
 
   // Skip name-registry write — original entry persists from the initial spawn
   const agentBackgroundTask = registerAsyncAgent({

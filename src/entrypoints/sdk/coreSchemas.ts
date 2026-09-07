@@ -364,6 +364,7 @@ export const HOOK_EVENTS = [
   'PreToolUse',
   'PostToolUse',
   'PostToolUseFailure',
+  'PostToolBatch',
   'Notification',
   'UserPromptSubmit',
   'UserPromptExpansion',
@@ -476,6 +477,22 @@ export const PostToolUseFailureHookInputSchema = lazySchema(() =>
         .describe(
           'Tool execution time in milliseconds. Excludes permission-prompt and hook time.',
         ),
+    }),
+  ),
+)
+
+export const PostToolBatchHookInputSchema = lazySchema(() =>
+  BaseHookInputSchema().and(
+    z.object({
+      hook_event_name: z.literal('PostToolBatch'),
+      tool_calls: z.array(
+        z.object({
+          tool_name: z.string(),
+          tool_input: z.unknown(),
+          tool_use_id: z.string(),
+          tool_response: z.unknown().optional(),
+        }),
+      ),
     }),
   ),
 )
@@ -929,6 +946,7 @@ export const HookInputSchema = lazySchema(() =>
     PreToolUseHookInputSchema(),
     PostToolUseHookInputSchema(),
     PostToolUseFailureHookInputSchema(),
+    PostToolBatchHookInputSchema(),
     PermissionDeniedHookInputSchema(),
     NotificationHookInputSchema(),
     UserPromptSubmitHookInputSchema(),

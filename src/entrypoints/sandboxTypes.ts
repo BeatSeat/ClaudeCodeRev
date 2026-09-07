@@ -106,6 +106,59 @@ export const SandboxFilesystemConfigSchema = lazySchema(() =>
     .optional(),
 )
 
+
+/**
+ * Credentials configuration schema for sandbox.
+ */
+export const SandboxCredentialsConfigSchema = lazySchema(() =>
+  z
+    .object({
+      files: z
+        .array(
+          z.object({
+            path: z
+              .string()
+              .min(1)
+              .describe(
+                'Path to a credential file or directory. Same resolution as sandbox.filesystem.* paths: absolute, ~ expanded, or relative to the settings file root.',
+              ),
+            mode: z
+              .literal('deny')
+              .describe(
+                'Access mode for this path. Only `deny` is supported.',
+              ),
+          }),
+        )
+        .optional()
+        .describe(
+          'Credential files or directories to protect. `deny` blocks reads inside the sandbox.',
+        ),
+      envVars: z
+        .array(
+          z.object({
+            name: z
+              .string()
+              .regex(
+                /^[A-Za-z_][A-Za-z0-9_]*$/,
+                'Environment variable name must start with a letter or underscore and contain only letters, digits, and underscores',
+              )
+              .describe('Environment variable name.'),
+            mode: z
+              .literal('deny')
+              .describe(
+                'Access mode for this environment variable. Only `deny` is supported.',
+              ),
+          }),
+        )
+        .optional()
+        .describe(
+          'Environment variables to protect. `deny` unsets the variable for sandboxed commands.',
+        ),
+    })
+    .optional(),
+)
+
+
 /**
  * Sandbox settings schema.
  */
@@ -141,6 +194,7 @@ export const SandboxSettingsSchema = lazySchema(() =>
         ),
       network: SandboxNetworkConfigSchema(),
       filesystem: SandboxFilesystemConfigSchema(),
+      credentials: SandboxCredentialsConfigSchema(),
       ignoreViolations: z.record(z.string(), z.array(z.string())).optional(),
       enableWeakerNestedSandbox: z.boolean().optional(),
       enableWeakerNetworkIsolation: z
@@ -188,6 +242,9 @@ export const SandboxSettingsSchema = lazySchema(() =>
 export type SandboxSettings = z.infer<ReturnType<typeof SandboxSettingsSchema>>
 export type SandboxNetworkConfig = NonNullable<
   z.infer<ReturnType<typeof SandboxNetworkConfigSchema>>
+>
+export type SandboxCredentialsConfig = NonNullable<
+  z.infer<ReturnType<typeof SandboxCredentialsConfigSchema>>
 >
 export type SandboxFilesystemConfig = NonNullable<
   z.infer<ReturnType<typeof SandboxFilesystemConfigSchema>>

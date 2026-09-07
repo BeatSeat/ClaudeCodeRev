@@ -54,7 +54,7 @@ import {
   getMarketplacePluginSuggestionTips,
   isMarketplacePluginRelevant,
 } from '../../utils/plugins/pluginSuggestionTips.js'
-import { getDisusedPlugins } from '../../utils/plugins/pluginDisuseTips.js'
+import { getDisusedPlugins } from '../../utils/plugins/pluginDisuse.js'
 import {
   getCurrentSessionAgentColor,
   isCustomTitleEnabled,
@@ -86,18 +86,6 @@ async function hasUserDefined(kind: 'skills' | 'agents'): Promise<boolean> {
 }
 
 const isDesktopInstalledCached = memoize(isDesktopInstalled)
-
-// Official 2.1.172 (G3) `TLH` — in-memory set of disuse-tip plugin ids
-// recently shown, used by `dj7` to avoid re-showing the same plugin. The
-// write-side flush to `recentDisuseTipPlugins` (bundle `gj7`) is driven by the
-// tip-show flow, which is not part of the G3 cluster, so this stays an
-// in-memory read-only set (a disuse tip never re-shows within a process run).
-const recentlyShownDisusePluginIds = new Set<string>()
-
-/** Official 2.1.172 `dj7` — `TLH.has(pluginId)`. */
-function isDisuseTipRecentlyShown(pluginId: string): boolean {
-  return recentlyShownDisusePluginIds.has(pluginId)
-}
 
 const externalTips: Tip[] = [
   {
@@ -673,23 +661,20 @@ const externalTips: Tip[] = [
     },
   },
   {
-    // Official 2.1.172 (G3) — re-engage an idle user-installed marketplace
-    // plugin. Relevance = `iWq()` returned a plugin that hasn't already been
-    // tipped (`dj7`); content = a `/plugin` review callout.
     id: 'plugin-disuse-review',
+    providerAgnostic: true,
     content: async ctx => {
-      const suggestion = color('suggestion', ctx.theme)
+      const blue = color('suggestion', ctx.theme)
       const disused = await getDisusedPlugins()
-      const target = disused.find(p => !isDisuseTipRecentlyShown(p.pluginId))
-      return target
-        ? `${suggestion('/plugin')} review may have a plugin you no longer use — you haven't used "${target.name}" in ${target.daysSinceLastUse} days`
-        : 'You have plugins you haven\'t used recently — consider reviewing with /plugin'
+      const first = disused[0]
+      if (!first) return ''
+      if (disused.length === 1) {
+        return `You haven't used the ${chalk.bold(first.name)} plugin in a while. It still adds startup and context cost — review it with ${blue('/plugin')}`
+      }
+      return `You have ${disused.length} plugins you haven't used in a while. They still add startup and context cost — review them with ${blue('/plugin')}`
     },
-    cooldownSessions: 5,
-    isRelevant: async () => {
-      const disused = await getDisusedPlugins()
-      return disused.some(p => !isDisuseTipRecentlyShown(p.pluginId))
-    },
+    cooldownSessions: 30,
+    isRelevant: async () => (await getDisusedPlugins()).length > 0,
   },
   {
     id: 'guest-passes',

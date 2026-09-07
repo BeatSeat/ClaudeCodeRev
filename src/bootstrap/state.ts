@@ -78,7 +78,7 @@ type State = {
   sdkAgentProgressSummariesEnabled: boolean
   userMsgOptIn: boolean
   searchToolsOptIn: boolean
-  // Official 2.1.90 G8.memoryToggledOff — session /toggle-memory latch
+  // Official 2.1.90 G8.memoryToggledOff — session /pause-memory latch
   memoryToggledOff: boolean
   clientType: string
   sessionSource: string | undefined

@@ -1,7 +1,8 @@
 import figures from 'figures'
 import type { ReactNode } from 'react'
-import React from 'react'
+import React, { useState } from 'react'
 import { useDeclaredCursor } from '../../ink/hooks/use-declared-cursor.js'
+import type { ClickEvent } from '../../ink/events/click-event.js'
 import { Box, Text } from '../../ink.js'
 
 type ListItemProps = {
@@ -60,6 +61,17 @@ type ListItemProps = {
    * @default true
    */
   declareCursor?: boolean
+
+  /**
+   * Official 2.1.187 — mouse click handler (fullscreen / SGR mouse).
+   * When set, hovering shows a dim pointer and clicks select the item.
+   */
+  onClick?: (event: ClickEvent) => void
+
+  /**
+   * Optional hover change callback (true on enter, false on leave).
+   */
+  onHoverChange?: (hovered: boolean) => void
 }
 
 /**
@@ -70,36 +82,7 @@ type ListItemProps = {
  * - Checkmark indicator (✓) for selected items
  * - Scroll indicators (↓↑) for truncated lists
  * - Color states for focus/selection
- *
- * @example
- * // Basic usage in a selection list
- * {options.map((option, i) => (
- *   <ListItem
- *     key={option.id}
- *     isFocused={focusIndex === i}
- *     isSelected={selectedId === option.id}
- *   >
- *     {option.label}
- *   </ListItem>
- * ))}
- *
- * @example
- * // With scroll indicators
- * <ListItem isFocused={false} showScrollUp>First visible item</ListItem>
- * ...
- * <ListItem isFocused={false} showScrollDown>Last visible item</ListItem>
- *
- * @example
- * // With description
- * <ListItem isFocused isSelected={false} description="Secondary text here">
- *   Primary text
- * </ListItem>
- *
- * @example
- * // Custom children styling (styled=false)
- * <ListItem isFocused styled={false}>
- *   <Text color="claude">Custom styled content</Text>
- * </ListItem>
+ * - Mouse click / hover (official 2.1.187) when onClick is provided
  */
 export function ListItem({
   isFocused,
@@ -111,8 +94,19 @@ export function ListItem({
   styled = true,
   disabled = false,
   declareCursor,
+  onClick,
+  onHoverChange,
 }: ListItemProps): React.ReactNode {
-  // Determine which indicator to show
+  const [hovered, setHovered] = useState(false)
+  const clickable = !disabled && onClick !== undefined
+  const hoverable = !disabled && (onClick !== undefined || onHoverChange !== undefined)
+
+  function handleHoverChange(next: boolean): void {
+    setHovered(next)
+    onHoverChange?.(next)
+  }
+
+  // Determine which indicator to show (official 2.1.187 `uvd`)
   function renderIndicator(): ReactNode {
     if (disabled) {
       return <Text> </Text>
@@ -128,6 +122,10 @@ export function ListItem({
 
     if (showScrollUp) {
       return <Text dimColor>{figures.arrowUp}</Text>
+    }
+
+    if (hovered && clickable) {
+      return <Text dimColor>{figures.pointer}</Text>
     }
 
     return <Text> </Text>
@@ -166,9 +164,15 @@ export function ListItem({
   })
 
   return (
-    <Box ref={cursorRef} flexDirection="column">
+    <Box
+      ref={cursorRef}
+      flexDirection="column"
+      onClick={clickable ? onClick : undefined}
+      onMouseEnter={hoverable ? () => handleHoverChange(true) : undefined}
+      onMouseLeave={hoverable ? () => handleHoverChange(false) : undefined}
+    >
       <Box flexDirection="row" gap={1}>
-        {renderIndicator()}
+        <Box flexShrink={0}>{renderIndicator()}</Box>
         {styled ? (
           <Text color={textColor} dimColor={disabled}>
             {children}

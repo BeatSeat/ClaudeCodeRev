@@ -91,3 +91,24 @@ const SAFE_YOLO_ALLOWLISTED_TOOLS = new Set([
 export function isAutoModeAllowlistedTool(toolName: string): boolean {
   return SAFE_YOLO_ALLOWLISTED_TOOLS.has(toolName)
 }
+
+// Official 2.1.187: Claude in Chrome MCP tool-name prefixes (bundle `gQn`).
+// Both the canonical server name and its spaced variant emit tools under
+// these two prefixes; the auto-mode classifier floor matches on either.
+const CHROME_MCP_TOOL_NAME_PREFIXES = [
+  'mcp__claude-in-chrome__',
+  'mcp__Claude_in_Chrome__',
+]
+
+/**
+ * Official 2.1.187 Qkf — true when a tool name is a Claude in Chrome MCP tool.
+ * Feeds the Chrome MCP auto-mode classifier floor: a Chrome MCP tool call may
+ * be auto-approved by the classifier (skip the allowlist/prompt floor) only
+ * when `chromeClassifierFloorEnabled && canAutoClassifierRun` and the tool is
+ * a Chrome MCP tool AND a Chrome domain is already allowlisted.
+ */
+export function isChromeMcpToolName(toolName: string): boolean {
+  return CHROME_MCP_TOOL_NAME_PREFIXES.some(prefix =>
+    toolName.startsWith(prefix),
+  )
+}

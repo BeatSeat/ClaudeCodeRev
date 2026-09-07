@@ -265,7 +265,7 @@ export function createAutoMemCanUseTool(memoryDir: string): CanUseToolFn {
     if (getMemoryToggledOff()) {
       return denyAutoMemTool(
         tool,
-        'Memory is toggled off. Run /toggle-memory to re-enable automemory.',
+        'Memory is paused. Run /pause-memory to resume automemory.',
       )
     }
 

@@ -1781,10 +1781,10 @@ export function checkEditableInternalPath(
       return {
         behavior: 'deny',
         message:
-          'Cannot write to memory while it is toggled off. Run /toggle-memory to re-enable automemory.',
+          'Cannot write to memory while it is paused. Run /pause-memory to resume automemory.',
         decisionReason: {
           type: 'other',
-          reason: 'memory access blocked by /toggle-memory',
+          reason: 'memory access blocked by /pause-memory',
         },
       }
     }
@@ -1948,10 +1948,10 @@ export function checkReadableInternalPath(
       return {
         behavior: 'deny',
         message:
-          'Cannot read memory while it is toggled off. Run /toggle-memory to re-enable automemory.',
+          'Cannot read memory while it is paused. Run /pause-memory to resume automemory.',
         decisionReason: {
           type: 'other',
-          reason: 'memory access blocked by /toggle-memory',
+          reason: 'memory access blocked by /pause-memory',
         },
       }
     }

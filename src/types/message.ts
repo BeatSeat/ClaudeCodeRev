@@ -70,6 +70,8 @@ export type UserMessage = MessageBase & {
   isCompactSummary?: boolean
   toolUseResult?: unknown
   mcpMeta?: unknown
+  /** Official 2.1.187 — StructuredOutput (and similar) ends the turn without model re-invoke */
+  toolEndsTurn?: boolean
   imagePasteIds?: number[]
   sourceToolAssistantUUID?: string
   permissionMode?: string

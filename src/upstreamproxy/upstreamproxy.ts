@@ -22,6 +22,7 @@
 import { mkdir, readFile, unlink, writeFile } from 'fs/promises'
 import { homedir } from 'os'
 import { join } from 'path'
+import { execFile } from 'child_process'
 import { registerCleanup } from '../utils/cleanupRegistry.js'
 import { logForDebugging } from '../utils/debug.js'
 import { isEnvTruthy } from '../utils/envUtils.js'
@@ -32,6 +33,30 @@ export const SESSION_TOKEN_PATH = '/run/ccr/session_token'
 const SYSTEM_CA_BUNDLE = '/etc/ssl/certs/ca-certificates.crt'
 /** Official 2.1.178 `oR9`. */
 const AGENT_PROXY_PATH = '/v1/code/agent-proxy'
+
+/**
+ * Official 2.1.187 `zPf` — default OS trust-store install targets for the
+ * agent-proxy CA. Install is fire-and-forget so Remote session start is not
+ * blocked (~2.7s) on `update-ca-certificates` / `update-ca-trust`.
+ */
+const DEFAULT_SYSTEM_TRUST_TARGETS: SystemTrustTarget[] = [
+  {
+    dir: '/usr/local/share/ca-certificates',
+    name: 'ccr-agent-proxy.crt',
+    refresh: ['update-ca-certificates'],
+  },
+  {
+    dir: '/etc/pki/ca-trust/source/anchors',
+    name: 'ccr-agent-proxy.crt',
+    refresh: ['update-ca-trust', 'extract'],
+  },
+]
+
+type SystemTrustTarget = {
+  dir: string
+  name: string
+  refresh: string[]
+}
 
 // Hosts the proxy must NOT intercept. Covers loopback, RFC1918, the IMDS
 // range, and the package registries + GitHub that CCR containers already
@@ -84,6 +109,8 @@ export async function initUpstreamProxy(opts?: {
   caBundlePath?: string
   ccrBaseUrl?: string
   awsConfigPath?: string
+  /** Official 2.1.187 — override system-trust install targets (tests). */
+  systemTrustTargets?: SystemTrustTarget[]
 }): Promise<UpstreamProxyState> {
   if (!isEnvTruthy(process.env.CLAUDE_CODE_REMOTE)) {
     return state
@@ -125,12 +152,12 @@ export async function initUpstreamProxy(opts?: {
   const caBundlePath =
     opts?.caBundlePath ?? join(homedir(), '.ccr', 'ca-bundle.crt')
 
-  const caOk = await downloadCaBundle(
+  const ccrCa = await downloadCaBundle(
     baseUrl,
     opts?.systemCaPath ?? SYSTEM_CA_BUNDLE,
     caBundlePath,
   )
-  if (!caOk) return state
+  if (!ccrCa) return state
 
   // Official 2.1.89 luY: disable AWS S3 payload signing so the MITM proxy
   // can inspect SigV4 traffic. wx = do not clobber an existing config.
@@ -144,6 +171,13 @@ export async function initUpstreamProxy(opts?: {
     registerCleanup(async () => relay.stop())
     state = { enabled: true, port: relay.port, caBundlePath }
     logForDebugging(`[agent-proxy] enabled on 127.0.0.1:${relay.port}`)
+    // Official 2.1.187 — system-trust install is fire-and-forget (not awaited
+    // on the CA-download critical path). 186 awaited it inside ca-cert fetch
+    // (~2.7s of update-ca-certificates blocking Remote session start).
+    void installAgentProxyCaToSystemTrust(
+      ccrCa,
+      opts?.systemTrustTargets ?? DEFAULT_SYSTEM_TRUST_TARGETS,
+    ).catch(() => {})
     // Only unlink after the listener is up: if CA download or listen()
     // fails, a supervisor restart can retry with the token still on disk.
     await unlink(tokenPath).catch(() => {
@@ -282,7 +316,7 @@ async function downloadCaBundle(
   baseUrl: string,
   systemCaPath: string,
   outPath: string,
-): Promise<boolean> {
+): Promise<string | null> {
   try {
     // eslint-disable-next-line eslint-plugin-n/no-unsupported-features/node-builtins
     const resp = await fetch(`${baseUrl}${AGENT_PROXY_PATH}/ca-cert`, {
@@ -295,18 +329,67 @@ async function downloadCaBundle(
         `[agent-proxy] ca-cert fetch ${resp.status}; proxy disabled`,
         { level: 'warn' },
       )
-      return false
+      return null
     }
     const ccrCa = await resp.text()
     const systemCa = await readFile(systemCaPath, 'utf8').catch(() => '')
     await mkdir(join(outPath, '..'), { recursive: true })
     await writeFile(outPath, systemCa + '\n' + ccrCa, 'utf8')
-    return true
+    // Official 2.1.187: do NOT await system-trust install here (186 did via
+    // L8l inside WMf). Caller fires installAgentProxyCaToSystemTrust async.
+    return ccrCa
   } catch (err) {
     logForDebugging(
       `[agent-proxy] ca-cert download failed: ${err instanceof Error ? err.message : String(err)}; proxy disabled`,
       { level: 'warn' },
     )
-    return false
+    return null
+  }
+}
+
+/**
+ * Official 2.1.187 `R8l` — write the agent-proxy CA into an OS trust store and
+ * refresh. Shared strings with 186; 187 only changes the call site to not
+ * block Remote session start.
+ */
+async function installAgentProxyCaToSystemTrust(
+  ccrCa: string,
+  targets: SystemTrustTarget[],
+): Promise<void> {
+  for (const { dir, name, refresh } of targets) {
+    try {
+      await writeFile(join(dir, name), ccrCa, 'utf8')
+      const exitCode = await new Promise<number>(resolve => {
+        execFile(
+          refresh[0]!,
+          refresh.slice(1),
+          { timeout: 10_000, cwd: '/' },
+          err => {
+            if (!err) {
+              resolve(0)
+              return
+            }
+            // ENOENT → command missing (treat as 127 like the bundle)
+            resolve(getErrnoCode(err) === 'ENOENT' ? 127 : 1)
+          },
+        )
+      })
+      if (exitCode === 0) {
+        logForDebugging(
+          `[agent-proxy] CA installed to system trust via ${refresh[0]}`,
+        )
+        return
+      }
+      logForDebugging(
+        `[agent-proxy] ${refresh[0]} exited ${exitCode}; falling back to env-var trust`,
+        { level: 'warn' },
+      )
+    } catch (err) {
+      if (getErrnoCode(err) === 'ENOENT') continue
+      logForDebugging(
+        `[agent-proxy] system trust install via ${dir} failed: ${err instanceof Error ? err.message : String(err)}`,
+        { level: 'warn' },
+      )
+    }
   }
 }

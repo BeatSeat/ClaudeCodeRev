@@ -605,6 +605,7 @@ export function createUserMessage({
   summarizeMetadata,
   toolUseResult,
   mcpMeta,
+  toolEndsTurn,
   uuid,
   timestamp,
   imagePasteIds,
@@ -623,6 +624,8 @@ export function createUserMessage({
     _meta?: Record<string, unknown>
     structuredContent?: Record<string, unknown>
   }
+  /** Official 2.1.187 — tool result ends the turn (no model re-invoke) */
+  toolEndsTurn?: boolean
   uuid?: UUID | string
   timestamp?: string
   imagePasteIds?: number[]
@@ -653,6 +656,7 @@ export function createUserMessage({
     timestamp: timestamp ?? new Date().toISOString(),
     toolUseResult,
     mcpMeta,
+    toolEndsTurn,
     imagePasteIds,
     sourceToolAssistantUUID,
     permissionMode,

@@ -13,7 +13,7 @@ import type {
   ToolPermissionRulesBySource,
 } from '../../Tool.js'
 import { getCwd } from '../cwd.js'
-import { isEnvTruthy } from '../envUtils.js'
+import { isEnvDefinedFalsy, isEnvTruthy } from '../envUtils.js'
 import { isSubprocessEnvScrubEnabled } from '../subprocessEnv.js'
 import type { SettingSource } from '../settings/constants.js'
 import { SETTING_SOURCES } from '../settings/constants.js'
@@ -1086,7 +1086,7 @@ export function parseToolListFromCLI(tools: string[]): string[] {
   return result
 }
 
-/** Official 2.1.147 `DfA`: bg children restore the /toggle-memory latch. */
+/** Official 2.1.147 `DfA`: bg children restore the /pause-memory latch. */
 export function applyBgMemoryToggledOff(): void {
   if (
     process.env.CLAUDE_BG_MEMORY_TOGGLED_OFF === '1' &&
@@ -1116,7 +1116,7 @@ export async function initializeToolPermissionContext({
   dangerousPermissions: DangerousPermissionInfo[]
   overlyBroadBashPermissions: DangerousPermissionInfo[]
 }> {
-  // Official 2.1.147 `gK9`: restore /toggle-memory before building context.
+  // Official 2.1.147 `gK9`: restore /pause-memory before building context.
   applyBgMemoryToggledOff()
 
   // Parse comma-separated allowed and disallowed tools if provided
@@ -1273,8 +1273,25 @@ export async function initializeToolPermissionContext({
       alwaysAskRules: {},
       isBypassPermissionsModeAvailable,
       ...(feature('TRANSCRIPT_CLASSIFIER')
-        ? { isAutoModeAvailable: isAutoModeGateEnabled() }
+        ? {
+            isAutoModeAvailable: isAutoModeGateEnabled(),
+            // Official 2.1.187: `canAutoClassifierRun` mirrors the auto-mode
+            // gate (bundle sets both from `lw()`).
+            canAutoClassifierRun: isAutoModeGateEnabled(),
+          }
         : {}),
+      // Official 2.1.187 `chromeClassifierFloorEnabled`:
+      // `CLAUDE_CHROME_CLASSIFIER_FLOOR` (triBool env) ?? gate
+      // `tengu_cowork_chrome_automode_default` (default false). The triBool
+      // env only participates when it is explicitly set (truthy OR falsy);
+      // unset falls through to the GrowthBook gate.
+      chromeClassifierFloorEnabled: isEnvTruthy(
+        process.env.CLAUDE_CHROME_CLASSIFIER_FLOOR,
+      ) ||
+      (!isEnvDefinedFalsy(process.env.CLAUDE_CHROME_CLASSIFIER_FLOOR) &&
+        checkStatsigFeatureGate_CACHED_MAY_BE_STALE(
+          'tengu_cowork_chrome_automode_default',
+        )),
     },
     rulesFromDisk,
   )

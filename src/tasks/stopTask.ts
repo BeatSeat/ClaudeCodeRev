@@ -20,6 +20,8 @@ export class StopTaskError extends Error {
 type StopTaskContext = {
   getAppState: () => AppState
   setAppState: (f: (prev: AppState) => AppState) => void
+  /** Official 2.1.187: who initiated the stop (`parent` = TaskStop/Claude). */
+  killedBy?: 'user' | 'parent' | 'system'
 }
 
 type StopTaskResult = {
@@ -39,7 +41,7 @@ export async function stopTask(
   taskId: string,
   context: StopTaskContext,
 ): Promise<StopTaskResult> {
-  const { getAppState, setAppState } = context
+  const { getAppState, setAppState, killedBy = 'user' } = context
   const appState = getAppState()
   const task = appState.tasks?.[taskId] as TaskStateBase | undefined
 
@@ -60,6 +62,29 @@ export async function stopTask(
       `Unsupported task type: ${task.type}`,
       'unsupported_type',
     )
+  }
+
+  // Stamp killedBy on local_agent tasks before kill so AbortError notification
+  // paths can attribute "stopped by Claude" vs "stopped by user".
+  if (task.type === 'local_agent') {
+    setAppState(prev => {
+      const prevTask = prev.tasks[taskId]
+      // TaskState union includes stubs without `type` (e.g. MonitorMcpTaskState)
+      if (
+        !prevTask ||
+        !('type' in prevTask) ||
+        prevTask.type !== 'local_agent'
+      ) {
+        return prev
+      }
+      return {
+        ...prev,
+        tasks: {
+          ...prev.tasks,
+          [taskId]: { ...prevTask, killedBy },
+        },
+      }
+    })
   }
 
   await taskImpl.kill(taskId, setAppState)

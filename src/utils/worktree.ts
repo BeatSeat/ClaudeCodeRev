@@ -20,7 +20,7 @@ import { ownProcStart, pidStartMatchesAsync } from '../daemon/bg/procStart.js'
 import { getBgSpawnProviderEnv } from './swarm/spawnUtils.js'
 import { logForDebugging } from './debug.js'
 import { isProcessRunning } from './genericProcessUtils.js'
-import { errorMessage, getErrnoCode } from './errors.js'
+import { errorMessage, getErrnoCode, isENOENT } from './errors.js'
 import { execFileNoThrow, execFileNoThrowWithCwd } from './execFileNoThrow.js'
 import { parseGitConfigValue } from './git/gitConfigParser.js'
 import {
@@ -40,6 +40,7 @@ import {
   executeWorktreeCreateHook,
   executeWorktreeRemoveHook,
   hasWorktreeCreateHook,
+  hasWorktreeRemoveHook,
 } from './hooks.js'
 import { containsPathTraversal } from './path.js'
 import { getPlatform } from './platform.js'
@@ -914,6 +915,25 @@ async function readWorktreeGitdirPointer(
   }
 }
 
+/** Official 2.1.187 `TGl` — lock reason written by createAgentWorktree. */
+const AGENT_WORKTREE_LOCK_REASON_RE =
+  /^claude agent .+ \(pid (\d+)(?: start (.+))?\)$/
+
+/**
+ * Official 2.1.187 `vGl` — true when the lock reason names another live
+ * Claude Code agent process (same pid-start match as enter-worktree).
+ */
+async function isAgentWorktreeLockHeld(lockReason: string): Promise<boolean> {
+  const match = lockReason.match(AGENT_WORKTREE_LOCK_REASON_RE)
+  if (!match) return false
+  const lockPid = Number(match[1])
+  return (
+    lockPid !== process.pid &&
+    isProcessRunning(lockPid) &&
+    (await pidStartMatchesAsync(lockPid, match[2]))
+  )
+}
+
 /** Official 2.1.157 `kLH` — unlock so a later dirty abort leaves the tree unlocked. */
 async function unlockAgentWorktree(
   worktreePath: string,
@@ -1084,20 +1104,11 @@ export async function resolveExistingWorktree(
       `Cannot enter worktree: ${pathInput} is marked prunable by git (its directory or administrative files are missing or broken).`,
     )
   }
-  const lockMatch = match.lockReason?.match(
-    /^claude agent .+ \(pid (\d+)(?: start (.+))?\)$/,
-  )
-  if (lockMatch) {
-    const lockPid = Number(lockMatch[1])
-    if (
-      lockPid !== process.pid &&
-      isProcessRunning(lockPid) &&
-      (await pidStartMatchesAsync(lockPid, lockMatch[2]))
-    ) {
-      throw new Error(
-        `Cannot enter worktree: ${pathInput} belongs to another running Claude Code agent (locked: ${match.lockReason}). Wait for that agent to finish or choose a different worktree.`,
-      )
-    }
+  const lockMatch = match.lockReason?.match(AGENT_WORKTREE_LOCK_REASON_RE)
+  if (lockMatch && (await isAgentWorktreeLockHeld(match.lockReason!))) {
+    throw new Error(
+      `Cannot enter worktree: ${pathInput} belongs to another running Claude Code agent (locked: ${match.lockReason}). Wait for that agent to finish or choose a different worktree.`,
+    )
   }
   return { worktreePath: targetPath, worktreeBranch: match.worktreeBranch }
 }
@@ -1254,9 +1265,9 @@ export async function keepWorktree(): Promise<void> {
   }
 }
 
-export async function cleanupWorktree(): Promise<void> {
+export async function cleanupWorktree(): Promise<boolean> {
   if (!currentWorktreeSession) {
-    return
+    return true
   }
 
   try {
@@ -1272,35 +1283,87 @@ export async function cleanupWorktree(): Promise<void> {
       )
     }
 
+    // Official 2.1.187 `aft`: entering an existing worktree only clears session.
+    if (currentWorktreeSession.enteredExisting) {
+      currentWorktreeSession = null
+      saveCurrentProjectConfig(current => ({
+        ...current,
+        activeWorktreeSession: undefined,
+      }))
+      return true
+    }
+
+    let hookRemoved = false
     if (hookBased) {
       // Hook-based worktree: delegate cleanup to WorktreeRemove hook
-      const hookRan = await executeWorktreeRemoveHook(worktreePath)
-      if (hookRan) {
+      hookRemoved = await executeWorktreeRemoveHook(worktreePath)
+      if (hookRemoved) {
         logForDebugging(`Removed hook-based worktree at: ${worktreePath}`)
-      } else {
+      } else if (hasWorktreeRemoveHook()) {
+        // Official 2.1.187: hooks configured but did not remove — keep path.
         logForDebugging(
-          `No WorktreeRemove hook configured, hook-based worktree left at: ${worktreePath}`,
+          `WorktreeRemove hook did not remove worktree, kept at: ${worktreePath}`,
           { level: 'warn' },
         )
-      }
-    } else {
-      // Git-based worktree: use git worktree remove.
-      // Explicit cwd: process.chdir above does NOT update getCwd() (the state
-      // CWD that execFileNoThrow defaults to). If the model cd'd to a non-repo
-      // dir, the bare execFileNoThrow variant would fail silently here.
-      const { code: removeCode, stderr: removeError } =
-        await execFileNoThrowWithCwd(
-          gitExe(),
-          ['worktree', 'remove', '--force', worktreePath],
-          { cwd: originalCwd },
-        )
-
-      if (removeCode !== 0) {
-        logForDebugging(`Failed to remove linked worktree: ${removeError}`, {
-          level: 'error',
-        })
+        currentWorktreeSession = null
+        saveCurrentProjectConfig(current => ({
+          ...current,
+          activeWorktreeSession: undefined,
+        }))
+        return false
       } else {
-        logForDebugging(`Removed linked worktree at: ${worktreePath}`)
+        logForDebugging(
+          `No WorktreeRemove hook configured; falling back to git worktree remove for: ${worktreePath}`,
+        )
+      }
+    }
+
+    if (!hookRemoved) {
+      // Official 2.1.187: on Windows, skip git remove when a hook-based path is
+      // no longer registered (reparse-only / already gone from git).
+      let skipGitRemove = false
+      if (hookBased && getPlatform() === 'windows') {
+        skipGitRemove = true
+        const targetReal = await realpath(worktreePath).catch(() => worktreePath)
+        for (const entry of await listGitWorktrees(originalCwd).catch(
+          () => [] as ListedWorktree[],
+        )) {
+          if (
+            targetReal ===
+            (await realpath(entry.worktreePath).catch(() => entry.worktreePath))
+          ) {
+            skipGitRemove = false
+            break
+          }
+        }
+      }
+      if (!skipGitRemove) {
+        const { code: removeCode, stderr: removeError } =
+          await execFileNoThrowWithCwd(
+            gitExe(),
+            ['worktree', 'remove', '--force', worktreePath],
+            { cwd: originalCwd },
+          )
+
+        if (removeCode !== 0) {
+          const stillExists = await stat(worktreePath)
+            .then(() => true)
+            .catch(() => false)
+          if (stillExists) {
+            logForDebugging(
+              `Failed to remove linked worktree, kept ${worktreePath}: ${removeError.trim()}`,
+              { level: 'warn' },
+            )
+            currentWorktreeSession = null
+            saveCurrentProjectConfig(current => ({
+              ...current,
+              activeWorktreeSession: undefined,
+            }))
+            return false
+          }
+        } else {
+          logForDebugging(`Removed linked worktree at: ${worktreePath}`)
+        }
       }
     }
 
@@ -1336,10 +1399,12 @@ export async function cleanupWorktree(): Promise<void> {
     }
 
     logForDebugging('Linked worktree cleaned up completely')
+    return true
   } catch (error) {
     logForDebugging(`Error cleaning up worktree: ${error}`, {
       level: 'error',
     })
+    return false
   }
 }
 
@@ -1724,7 +1789,8 @@ export async function cleanupStaleAgentWorktrees(
   try {
     entries = await readdir(dir)
   } catch {
-    return 0
+    // Official 2.1.187: still scan leaked git registrations below.
+    entries = []
   }
 
   const cutoffMs = cutoffDate.getTime()
@@ -1757,16 +1823,61 @@ export async function cleanupStaleAgentWorktrees(
     }
 
     if (
-      await removeAgentWorktree(worktreePath, worktreeBranchName(slug), gitRoot)
+      await removeAgentWorktree(
+        worktreePath,
+        worktreeBranchName(slug),
+        gitRoot,
+        false,
+        'stale_cleanup',
+      )
     ) {
       removed++
     }
   }
 
+  // Official 2.1.187: clear leaked `.git/worktrees/` registrations whose
+  // checkout dir is gone and whose lock no longer names a live agent.
+  const registered = await listGitWorktrees(gitRoot).catch(() => [])
+  for (const entry of registered) {
+    const slug = basename(entry.worktreePath)
+    if (!EPHEMERAL_WORKTREE_PATTERNS.some(p => p.test(slug))) {
+      continue
+    }
+    if (currentPath === entry.worktreePath) {
+      continue
+    }
+    if (entry.lockReason === undefined) {
+      continue
+    }
+    try {
+      await stat(entry.worktreePath)
+      continue // directory still exists — not a leaked registration
+    } catch (err) {
+      if (!isENOENT(err)) continue
+    }
+    // Skip if lock reason is not ours, or the locking agent is still alive.
+    if (
+      !AGENT_WORKTREE_LOCK_REASON_RE.test(entry.lockReason) ||
+      (await isAgentWorktreeLockHeld(entry.lockReason))
+    ) {
+      continue
+    }
+    await unlockAgentWorktree(entry.worktreePath, gitRoot)
+    const { code } = await execFileNoThrowWithCwd(
+      gitExe(),
+      ['worktree', 'remove', '--force', entry.worktreePath],
+      { cwd: gitRoot },
+    )
+    if (code === 0) {
+      removed++
+    }
+  }
+
+  // Official 2.1.187: always prune (comma-op before the removed>0 log).
+  await execFileNoThrowWithCwd(gitExe(), ['worktree', 'prune'], {
+    cwd: gitRoot,
+  })
   if (removed > 0) {
-    await execFileNoThrowWithCwd(gitExe(), ['worktree', 'prune'], {
-      cwd: gitRoot,
-    })
     logForDebugging(
       `cleanupStaleAgentWorktrees: removed ${removed} stale worktree(s)`,
     )

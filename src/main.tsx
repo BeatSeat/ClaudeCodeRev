@@ -5877,6 +5877,16 @@ async function run(): Promise<CommanderCommand> {
       ),
     )
   }
+
+  // Official 2.1.187: surface --bg/--background in --help (CHANGELOG #16).
+  if (feature('BG_SESSIONS')) {
+    program.addOption(
+      new Option(
+        '--bg, --background',
+        'Start the session as a background agent and return immediately (manage with `claude agents`)',
+      ),
+    )
+  }
   if (feature('KAIROS')) {
     program.addOption(
       new Option(

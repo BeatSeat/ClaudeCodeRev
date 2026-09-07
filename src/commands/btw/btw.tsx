@@ -2,13 +2,16 @@ import * as React from 'react'
 import { useEffect, useRef, useState } from 'react'
 import { useInterval } from 'usehooks-ts'
 import type { CommandResultDisplay } from '../../commands.js'
+import { Byline } from '../../components/design-system/Byline.js'
+import { KeyboardShortcutHint } from '../../components/design-system/KeyboardShortcutHint.js'
 import { Markdown } from '../../components/Markdown.js'
 import { SpinnerGlyph } from '../../components/Spinner/SpinnerGlyph.js'
-import { DOWN_ARROW, UP_ARROW } from '../../constants/figures.js'
 import { getSystemPrompt } from '../../constants/prompts.js'
 import { useModalOrTerminalSize } from '../../context/modalContext.js'
 import { getSystemContext, getUserContext } from '../../context.js'
+import { useTimeout } from '../../hooks/useTimeout.js'
 import { useTerminalSize } from '../../hooks/useTerminalSize.js'
+import { setClipboard } from '../../ink/termio/osc.js'
 import ScrollBox, {
   type ScrollBoxHandle,
 } from '../../ink/components/ScrollBox.js'
@@ -27,6 +30,12 @@ import { getMessagesAfterCompactBoundary } from '../../utils/messages.js'
 import type { ProcessUserInputContext } from '../../utils/processUserInput/processUserInput.js'
 import { runSideQuestion } from '../../utils/sideQuestion.js'
 import { asSystemPrompt } from '../../utils/systemPromptType.js'
+import { truncateToWidth } from '../../utils/truncate.js'
+import {
+  type BtwHistoryEntry,
+  getBtwHistory,
+  setBtwHistory,
+} from './btwHistory.js'
 
 type BtwComponentProps = {
   question: string
@@ -37,9 +46,15 @@ type BtwComponentProps = {
   ) => void
 }
 
+/** Official 2.1.187 `Kjp` / `jjp` / `vul` / `wul`. */
 const CHROME_ROWS = 5
 const OUTER_CHROME_ROWS = 6
 const SCROLL_LINES = 3
+const HISTORY_VISIBLE = 5
+
+function truncateBtwLine(text: string, maxWidth: number): string {
+  return truncateToWidth(text.replace(/\s+/g, ' ').trim(), maxWidth)
+}
 
 function BtwSideQuestion({
   question,
@@ -47,15 +62,34 @@ function BtwSideQuestion({
   onDone,
 }: BtwComponentProps): React.ReactNode {
   const [response, setResponse] = useState<string | null>(null)
+  const [synthetic, setSynthetic] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [frame, setFrame] = useState(0)
+  const [history, setHistory] = useState<BtwHistoryEntry[]>(() => getBtwHistory())
+  const historyRef = useRef(history)
+  historyRef.current = history
+  const viewingIndexRef = useRef<number | null>(null)
+  const [viewingIndex, setViewingIndex] = useState<number | null>(null)
   const scrollRef = useRef<ScrollBoxHandle>(null)
-  const { rows } = useModalOrTerminalSize(useTerminalSize())
+  const [copyFlash, setCopyFlash] = useState(0)
+  const copiedExpired = useTimeout(2000, copyFlash)
+  const showCopied = copyFlash > 0 && !copiedExpired
+  const { rows, columns } = useModalOrTerminalSize(useTerminalSize())
 
-  // Animate spinner while loading
   useInterval(() => setFrame(f => f + 1), response || error ? null : 80)
 
+  function resetViewToLive(): void {
+    viewingIndexRef.current = null
+    setViewingIndex(null)
+    scrollRef.current?.scrollTo(0)
+  }
+
   function handleKeyDown(e: KeyboardEvent): void {
+    const displayedResponse =
+      viewingIndexRef.current !== null
+        ? historyRef.current[viewingIndexRef.current]?.response
+        : response
+
     if (
       e.key === 'escape' ||
       e.key === 'return' ||
@@ -66,6 +100,44 @@ function BtwSideQuestion({
       onDone(undefined, { display: 'skip' })
       return
     }
+
+    if (e.key === 'left' || e.key === 'right') {
+      e.preventDefault()
+      const len = historyRef.current.length
+      if (len === 0) return
+      const minIdx = Math.max(0, len - HISTORY_VISIBLE)
+      const from = viewingIndexRef.current ?? len
+      const next = Math.max(
+        minIdx,
+        Math.min(len, from + (e.key === 'left' ? -1 : 1)),
+      )
+      if (next === from) return
+      viewingIndexRef.current = next === len ? null : next
+      setViewingIndex(viewingIndexRef.current)
+      scrollRef.current?.scrollTo(0)
+      return
+    }
+
+    if (e.key === 'x' && historyRef.current.length > 0) {
+      e.preventDefault()
+      setBtwHistory(
+        response && !synthetic ? [{ question, response }] : [],
+      )
+      historyRef.current = []
+      setHistory([])
+      resetViewToLive()
+      return
+    }
+
+    if (e.key === 'c' && !e.ctrl && !e.meta && displayedResponse) {
+      e.preventDefault()
+      void setClipboard(displayedResponse).then(raw => {
+        if (raw) process.stdout.write(raw)
+      })
+      setCopyFlash(n => n + 1)
+      return
+    }
+
     if (e.key === 'up' || (e.ctrl && e.key === 'p')) {
       e.preventDefault()
       scrollRef.current?.scrollBy(-SCROLL_LINES)
@@ -86,13 +158,20 @@ function BtwSideQuestion({
 
         if (!abortController.signal.aborted) {
           if (result.response) {
+            resetViewToLive()
             setResponse(result.response)
+            setSynthetic(result.synthetic)
+            // Do NOT refresh history from store here — e6n/aHo already
+            // appended the current Q&A for the *next* /btw open; the in-
+            // session list stays as prior entries only (official UI).
           } else {
+            resetViewToLive()
             setError('No response received')
           }
         }
       } catch (err) {
         if (!abortController.signal.aborted) {
+          resetViewToLive()
           setError(errorMessage(err) || 'Failed to get response')
         }
       }
@@ -105,7 +184,17 @@ function BtwSideQuestion({
     }
   }, [question, context])
 
-  const maxContentHeight = Math.max(5, rows - CHROME_ROWS - OUTER_CHROME_ROWS)
+  const visibleHistory = history.slice(-HISTORY_VISIBLE)
+  const earlierCount = history.length - visibleHistory.length
+  const viewingEntry =
+    viewingIndex !== null ? history[viewingIndex] ?? null : null
+  const historyRows =
+    visibleHistory.length + (earlierCount > 0 ? 1 : 0)
+  const questionWidth = Math.max(20, columns - 7)
+  const maxContentHeight = Math.max(
+    5,
+    rows - CHROME_ROWS - OUTER_CHROME_ROWS - historyRows,
+  )
 
   return (
     <Box
@@ -116,34 +205,83 @@ function BtwSideQuestion({
       autoFocus
       onKeyDown={handleKeyDown}
     >
+      {earlierCount > 0 && (
+        <Text dimColor>
+          (+{earlierCount} earlier /btw)
+        </Text>
+      )}
+      {visibleHistory.map((entry, i) => {
+        const absoluteIndex = earlierCount + i
+        return (
+          <Text
+            key={absoluteIndex}
+            dimColor={viewingIndex !== absoluteIndex}
+            bold={viewingIndex === absoluteIndex}
+          >
+            /btw {truncateBtwLine(entry.question, questionWidth)}
+          </Text>
+        )
+      })}
       <Box>
-        <Text color="warning" bold>
+        <Text
+          color={viewingEntry ? undefined : 'warning'}
+          bold={!viewingEntry}
+          dimColor={!!viewingEntry}
+        >
           /btw{' '}
         </Text>
-        <Text dimColor>{question}</Text>
+        <Text dimColor>{truncateBtwLine(question, questionWidth)}</Text>
       </Box>
       <Box marginTop={1} marginLeft={2} maxHeight={maxContentHeight}>
-        <ScrollBox ref={scrollRef} flexDirection="column" flexGrow={1}>
-          {error ? (
+        <ScrollBox
+          ref={scrollRef}
+          flexDirection="column"
+          flexGrow={1}
+          stickyScroll={false}
+        >
+          {viewingEntry ? (
+            <Markdown>{viewingEntry.response}</Markdown>
+          ) : error ? (
             <Text color="error">{error}</Text>
           ) : response ? (
             <Markdown>{response}</Markdown>
           ) : (
             <Box>
               <SpinnerGlyph frame={frame} messageColor="warning" />
-              <Text color="warning">Answering...</Text>
+              <Text color="warning">Answering…</Text>
             </Box>
           )}
         </ScrollBox>
       </Box>
-      {(response || error) && (
-        <Box marginTop={1}>
-          <Text dimColor>
-            {UP_ARROW}/{DOWN_ARROW} to scroll · Space, Enter, or Escape to
-            dismiss
-          </Text>
-        </Box>
-      )}
+      <Box marginTop={1}>
+        <Text dimColor>
+          <Byline>
+            {history.length > 0 ? (
+              <KeyboardShortcutHint
+                chord={['left', 'right']}
+                action="switch"
+              />
+            ) : (
+              (viewingEntry || response || error) && (
+                <KeyboardShortcutHint
+                  chord={['up', 'down']}
+                  action="scroll"
+                />
+              )
+            )}
+            {(viewingEntry || response) &&
+              (showCopied ? (
+                <Text color="success">Copied to clipboard</Text>
+              ) : (
+                <KeyboardShortcutHint chord="c" action="copy" />
+              ))}
+            {history.length > 0 && (
+              <KeyboardShortcutHint chord="x" action="clear history" />
+            )}
+            <KeyboardShortcutHint chord="escape" action="close" />
+          </Byline>
+        </Text>
+      </Box>
     </Box>
   )
 }

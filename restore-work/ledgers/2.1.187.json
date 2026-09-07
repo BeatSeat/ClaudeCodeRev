@@ -1,0 +1,98 @@
+{
+  "version": "2.1.187",
+  "from": "2.1.186",
+  "astdiff": "fingerprint+classify (acorn-based; shcv/astdiff fails on using syntax)",
+  "analysis": "/tmp/classify-187.json",
+  "contract": "astdiff genuine-structural + added-product (fingerprint/classify; changelog not used for landing)",
+  "fingerprintCounts": {
+    "unchanged": 44629,
+    "rename-only": 25937,
+    "small-edit": 190,
+    "rewrite": 324,
+    "added": 281,
+    "removed": 55
+  },
+  "genuineChanges": [
+    "sandbox.credentials settings schema + managed catch + runtime merge",
+    "toggle-memory → pause-memory command rename",
+    "MCP tool idle timeout for remote servers",
+    "StructuredOutput/MCP end-turn no model re-invoke (PostToolBatch discard)",
+    "no-text-turn resume/-p classification in print.ts",
+    "install-github-app optional Actions setup step",
+    "agent stop notification finished/stopped wording + killedBy"
+  ],
+  "metadataNoise": "Most of 281 added / 324 rewrite / 190 small-edit rows are minified variable renames, embed macros, or deep runtime infrastructure not cleanly separable into src-level changes.",
+  "items": [
+    {
+      "item": "sandbox.credentials setting: block sandboxed commands from reading credential files and secret env vars",
+      "status": "located",
+      "evidence": "Schema SandboxCredentialsConfigSchema + ManagedSettingsSchema catch path sandbox.credentials (\"credentials block was dropped…\"). Runtime merge in sandbox-adapter convertToSandboxRuntimeConfig. No separable deny/unset enforcement helper in cli.js beyond passing credentials to sandbox-runtime; npm @anthropic-ai/sandbox-runtime@0.0.44 has no credentials field — enforcement remains package-side absent."
+    },
+    {
+      "item": "pause-memory: command renamed from toggle-memory with new copy and aliases",
+      "status": "located",
+      "evidence": "Official 2.1.187 hnf at bundle: {type:'local', name:'pause-memory', aliases:['memory-pause','toggle-memory'], description:'Pause automemory for this session'}. mnf call returns 'Memory paused for this session...' / 'Memory resumed...'. Landed: renamed src/commands/toggle-memory/ → pause-memory/, updated copy, added aliases."
+    },
+    {
+      "item": "MCP tool idle timeout for remote servers (CLAUDE_CODE_MCP_TOOL_IDLE_TIMEOUT)",
+      "status": "located",
+      "evidence": "Official 2.1.187 VYd at bundle offset ~6863191: checks qYd set (http/sse/ws/claudeai-proxy), reads env var (default 300000), aborts after no response/progress. Landed in src/services/mcp/client.ts with getMcpToolIdleTimeoutMs and idle watchdog in callMCPTool."
+    },
+    {
+      "item": "org-configured model restrictions applied to model picker, --model, /model, ANTHROPIC_MODEL",
+      "status": "partial",
+      "evidence": "formatModelRestrictedWarning present; full picker entitlement wiring still deeper than this backfill."
+    },
+    {
+      "item": "Mouse click support in select menus in fullscreen mode",
+      "status": "shared-logic",
+      "evidence": "CustomSelect/select.tsx has 1 rewrite and use-select-input has mouse event handling changes. Deep fullscreen-mode mouse infrastructure exists in the bundle (Vet function checking CLAUDE_CODE_DISABLE_MOUSE) but is not present in current tree."
+    },
+    {
+      "item": "--resume fix when -p produced no text turns",
+      "status": "located",
+      "evidence": "Unique: no-text-turn 1→2, source===\"no-text-turn\" 0→1, detail===\"\" 0→1. Tree product: noTextTurnClassification + shouldSkipEmptyNoTextTurnSummary (cEo empty-detail skip) + considerNoTextTurnAfterEmptyPrintResult in print.ts. Full fqt.classifiedToPostTurnSummary / onClassified classifier engine still absent — ledger located for the subset that exists in tree shape."
+    },
+    {
+      "item": "structured-output: MCP end-turn / no model re-invoke after StructuredOutput success",
+      "status": "located",
+      "evidence": "Official V8p/uEo: PostToolBatch block discarded + MCP end-turn discard logs; SyntheticOutput endsTurn; handleToolEndTurn in query.ts/stopHooks.ts; toolResultEndTurn helpers."
+    },
+    {
+      "item": "install-github-app: GitHub Actions workflow setup optional after app install",
+      "status": "located",
+      "evidence": "SetupActionsPromptStep after install-app; options Set up GitHub Actions workflows / Skip for now…; SuccessStep appOnlyInstall. Verbatim 187 Mbl strings."
+    },
+    {
+      "item": "/btw arrow navigation through earlier answers",
+      "status": "partial",
+      "evidence": "btw.tsx has 2 rewrites (skeleton changed, strings same). Full side-question history tracking with arrow navigation requires significant UI state changes."
+    },
+    {
+      "item": "HelpV2 massive UI updates",
+      "status": "shared-logic",
+      "evidence": "HelpV2.tsx has 30 rewrites + 27 small edits. Multiple help view sections updated. Requires extensive file-by-file review and landing."
+    },
+    {
+      "item": "Agent stop notifications wording improvement ('finished'/'stopped' instead of 'came to rest')",
+      "status": "located",
+      "evidence": "LocalAgentTask enqueueAgentNotification finished/failed/was stopped by Claude|user; killedBy attribution through stopTask/TaskStopTool."
+    },
+    {
+      "item": "Worktree leaked registration cleanup",
+      "status": "shared-logic",
+      "evidence": "src/utils/worktree.ts has 1 rewrite and 1 small edit. Deep worktree management runtime change."
+    },
+    {
+      "item": "Various other runtime bug fixes (Korean paste, Remote start, /update, channel connections, subagent depth)",
+      "status": "partial",
+      "evidence": "Landed unique products: pendingByteEvents (0→6) CJK paste UTF-8 reassembly in parse-keypress.ts; macCmdClickArrivesWithoutSgrModifierBit (0→2) Ghostty Cmd+click; Subagent nesting limit / subagent_depth_cap (0→1) + meta.spawnDepth resume; agent-proxy system trust fire-and-forget (R8l off CA await path). Absent/inseparable: /update Remote trust, bg jobs stuck working, channel drop after agents view, /share Esc during upload — no 0→N unique strings, shared-logic only."
+    },
+    {
+      "item": "/plugin cleanup suggestions for unused plugins",
+      "status": "shared-logic",
+      "evidence": "ManagePlugins.tsx has 2 small edits. Requires UI text changes in plugin management dialog."
+    }
+  ],
+  "notes": "Rebase backfill (2026-09-08): completed previously missed astdiff/CHANGELOG product for end-turn, no-text-turn, install-github-app optional workflow, credentials catch/merge, stop wording — in addition to original pause-memory / MCP idle timeout / credentials schema. Remain-bugs wave: landed pendingByteEvents CJK paste, Ghostty macCmdClick, subagent_depth_cap + spawnDepth meta resume, agent-proxy system-trust async. Residual: org model picker deep wiring, HelpV2 mass rewrite, /btw arrows, plugin unused cleanup, sandbox-runtime credentials enforcement, /update trust + channel + share Esc + bg working (absent unique product)."
+}

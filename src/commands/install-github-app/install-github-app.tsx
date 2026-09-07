@@ -24,9 +24,10 @@ import { ErrorStep } from './ErrorStep.js'
 import { ExistingWorkflowStep } from './ExistingWorkflowStep.js'
 import { InstallAppStep } from './InstallAppStep.js'
 import { OAuthFlowStep } from './OAuthFlowStep.js'
+import { SetupActionsPromptStep } from './SetupActionsPromptStep.js'
 import { SuccessStep } from './SuccessStep.js'
 import { setupGitHubActions } from './setupGitHubActions.js'
-import type { State, Warning, Workflow } from './types.js'
+import type { State, Warning } from './types.js'
 import { WarningsStep } from './WarningsStep.js'
 
 const INITIAL_STATE: State = {
@@ -42,9 +43,10 @@ const INITIAL_STATE: State = {
   secretName: 'ANTHROPIC_API_KEY',
   useExistingSecret: true,
   workflowExists: false,
-  selectedWorkflows: ['claude', 'claude-review'] as Workflow[],
+  selectedWorkflows: ['claude', 'claude-review'],
   selectedApiKeyOption: 'new' as 'existing' | 'new' | 'oauth',
   authType: 'api_key',
+  appOnlyInstall: false,
 }
 
 function InstallGitHubApp(props: {
@@ -443,11 +445,7 @@ function InstallGitHubApp(props: {
       logEvent('tengu_install_github_app_step_completed', {
         step: 'install-app' as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
       })
-      if (state.workflowExists) {
-        setState(prev => ({ ...prev, step: 'check-existing-workflow' }))
-      } else {
-        setState(prev => ({ ...prev, step: 'select-workflows' }))
-      }
+      setState(prev => ({ ...prev, step: 'setup-actions-prompt' }))
     } else if (state.step === 'check-existing-workflow') {
       return
     } else if (state.step === 'select-workflows') {
@@ -604,6 +602,27 @@ function InstallGitHubApp(props: {
     }))
   }
 
+  const handleSetupActionsPrompt = (choice: 'setup' | 'skip') => {
+    logEvent('tengu_install_github_app_step_completed', {
+      step: 'setup-actions-prompt' as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
+      action:
+        choice as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
+    })
+    if (choice === 'skip') {
+      setState(prev => ({
+        ...prev,
+        step: 'success',
+        appOnlyInstall: true,
+      }))
+      return
+    }
+    if (state.workflowExists) {
+      setState(prev => ({ ...prev, step: 'check-existing-workflow' }))
+    } else {
+      setState(prev => ({ ...prev, step: 'select-workflows' }))
+    }
+  }
+
   const handleWorkflowAction = async (action: 'update' | 'skip' | 'exit') => {
     if (action === 'exit') {
       props.onDone('Installation cancelled by user')
@@ -634,7 +653,9 @@ function InstallGitHubApp(props: {
     }
     props.onDone(
       state.step === 'success'
-        ? 'GitHub Actions setup complete!'
+        ? state.appOnlyInstall
+          ? 'GitHub App installed!'
+          : 'GitHub Actions setup complete!'
         : state.error
           ? `Couldn't install GitHub App: ${state.error}\nFor manual setup instructions, see: ${GITHUB_ACTION_SETUP_DOCS_URL}`
           : `GitHub App installation failed\nFor manual setup instructions, see: ${GITHUB_ACTION_SETUP_DOCS_URL}`,
@@ -664,6 +685,13 @@ function InstallGitHubApp(props: {
         <InstallAppStep
           repoUrl={state.selectedRepoName}
           onSubmit={handleSubmit}
+        />
+      )
+    case 'setup-actions-prompt':
+      return (
+        <SetupActionsPromptStep
+          onSelect={handleSetupActionsPrompt}
+          onCancel={() => props.onDone('Installation cancelled by user')}
         />
       )
     case 'check-existing-workflow':
@@ -718,6 +746,7 @@ function InstallGitHubApp(props: {
             useExistingSecret={state.useExistingSecret}
             secretName={state.secretName}
             skipWorkflow={state.workflowAction === 'skip'}
+            appOnlyInstall={state.appOnlyInstall}
           />
         </Box>
       )

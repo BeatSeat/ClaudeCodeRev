@@ -8,6 +8,7 @@ import {
 import type { SettingsJson } from '../settings/types.js'
 import { logForDebugging } from '../debug.js'
 import { parseUserSpecifiedModel, resolveModelAliasEnvFree } from './model.js'
+import { isModelDeniedByEntitlement } from './modelAccessEntitlement.js'
 
 export const MODEL_ALIASES_AND_VARIANTS = [
   'sonnet',
@@ -307,6 +308,10 @@ export function isModelAllowed(
         return false
       }
     } catch {
+      return false
+    }
+    // Official 2.1.187 `Ua`/`Y1e` — entitlement deny before availableModels.
+    if (isModelDeniedByEntitlement(model)) {
       return false
     }
   }

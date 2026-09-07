@@ -9,7 +9,12 @@ import {
   isEnvDefinedFalsy,
   isEnvTruthy,
 } from '../utils/envUtils.js'
-import { PASTE_END, PASTE_START } from './termio/csi.js'
+import {
+  FOCUS_IN,
+  FOCUS_OUT,
+  PASTE_END,
+  PASTE_START,
+} from './termio/csi.js'
 import { createTokenizer, type Tokenizer } from './termio/tokenize.js'
 
 /**
@@ -161,6 +166,66 @@ const XTVERSION_RE = /^\x1bP>\|(.*?)(?:\x07|\x1b\\)$/s
 // Button 32=left-drag (0x20 | motion-bit). Plain 0/1/2 = left/mid/right click.
 // eslint-disable-next-line no-control-regex
 const SGR_MOUSE_RE = /^\x1b\[<(\d+);(\d+);(\d+)([Mm])$/
+// X10 mouse wheel / full X10 — skip inside paste (official 187 `bhd`/`dIi`)
+// eslint-disable-next-line no-control-regex
+const X10_MOUSE_WHEEL_RE = /^\x1b\[M[\x60-\x7f][\x20-\uffff]{2}$/
+// eslint-disable-next-line no-control-regex
+const X10_MOUSE_RE = /^\x1b\[M[\x20-\x7f][\x20-\uffff]{2}$/
+
+/**
+ * Official 2.1.187 `uIi` — CSI u / modifyOtherKeys delivering a single high
+ * byte (128–255) with no modifiers. Terminals that paste CJK as per-byte
+ * extended-key events hit this path; bytes must be reassembled as UTF-8.
+ */
+function extractExtendedKeyHighByte(sequence: string): number | undefined {
+  let codepoint: number | undefined
+  let modifier: number | undefined
+  let match = CSI_U_RE.exec(sequence)
+  if (match) {
+    codepoint = parseInt(match[1]!, 10)
+    modifier = match[2] === undefined ? undefined : parseInt(match[2], 10)
+  } else {
+    match = MODIFY_OTHER_KEYS_RE.exec(sequence)
+    if (match) {
+      modifier = parseInt(match[1]!, 10)
+      codepoint = parseInt(match[2]!, 10)
+    }
+  }
+  if (codepoint === undefined || codepoint < 128 || codepoint > 255) {
+    return undefined
+  }
+  if (modifier !== undefined && modifier !== 1) return undefined
+  return codepoint
+}
+
+/**
+ * Official 2.1.187 `_hd` / 186 `Zfd` — map a CSI u / modifyOtherKeys sequence
+ * to its codepoint character for paste buffer contents.
+ */
+function sequenceToPasteText(sequence: string): string {
+  let match = CSI_U_RE.exec(sequence)
+  let codepoint = match ? parseInt(match[1]!, 10) : undefined
+  if (codepoint === undefined) {
+    match = MODIFY_OTHER_KEYS_RE.exec(sequence)
+    if (match) codepoint = parseInt(match[2]!, 10)
+  }
+  if (codepoint !== undefined && codepoint <= 0x10ffff) {
+    return String.fromCodePoint(codepoint)
+  }
+  return sequence
+}
+
+/** Official 2.1.187 `pIi` — ignore focus/mouse sequences inside paste. */
+function shouldSkipSequenceInPaste(sequence: string): boolean {
+  return (
+    sequence === FOCUS_IN ||
+    sequence === FOCUS_OUT ||
+    SGR_MOUSE_RE.test(sequence) ||
+    X10_MOUSE_WHEEL_RE.test(sequence)
+  )
+}
+
+type PendingByteEvent = { seq: string; byte: number }
 
 function createPasteKey(content: string): ParsedKey {
   return {
@@ -281,6 +346,8 @@ export type KeyParseState = {
   mode: 'NORMAL' | 'IN_PASTE'
   incomplete: string
   pasteBuffer: string
+  /** Official 2.1.187 — UTF-8 byte reassembly for per-byte extended-key paste. */
+  pendingByteEvents: PendingByteEvent[]
   // Internal tokenizer instance
   _tokenizer?: Tokenizer
 }
@@ -289,6 +356,7 @@ export const INITIAL_STATE: KeyParseState = {
   mode: 'NORMAL',
   incomplete: '',
   pasteBuffer: '',
+  pendingByteEvents: [],
 }
 
 function inputToString(input: Buffer | string): string {
@@ -325,13 +393,65 @@ export function parseMultipleKeypresses(
   const keys: ParsedInput[] = []
   let inPaste = prevState.mode === 'IN_PASTE'
   let pasteBuffer = prevState.pasteBuffer
+  // Official 2.1.187 `pendingByteEvents` — reassemble UTF-8 from per-byte
+  // extended-key (CSI u) events so Korean/CJK paste is not mojibake.
+  let pendingByteEvents = [...(prevState.pendingByteEvents ?? [])]
+
+  const emitPendingByte = (ev: PendingByteEvent): void => {
+    if (inPaste) {
+      pasteBuffer += String.fromCharCode(ev.byte)
+    } else {
+      keys.push(parseKeypress(ev.seq))
+    }
+  }
+
+  const flushPendingBytes = (): void => {
+    for (const ev of pendingByteEvents) emitPendingByte(ev)
+    pendingByteEvents = []
+  }
+
+  const absorbHighByte = (seq: string, byte: number): void => {
+    if (pendingByteEvents.length === 0) {
+      // UTF-8 lead bytes that start a 2–4 byte sequence
+      if (byte >= 194 && byte <= 244) {
+        pendingByteEvents = [{ seq, byte }]
+        return
+      }
+      emitPendingByte({ seq, byte })
+      return
+    }
+    if (byte >= 128 && byte <= 191) {
+      pendingByteEvents = [...pendingByteEvents, { seq, byte }]
+      const lead = pendingByteEvents[0]!.byte
+      const needed = lead <= 223 ? 2 : lead <= 239 ? 3 : 4
+      if (pendingByteEvents.length < needed) return
+      const batch = pendingByteEvents
+      pendingByteEvents = []
+      const decoded = Buffer.from(batch.map(e => e.byte)).toString('utf8')
+      if (
+        [...decoded].length !== 1 ||
+        Buffer.byteLength(decoded, 'utf8') !== batch.length
+      ) {
+        for (const ev of batch) emitPendingByte(ev)
+      } else if (inPaste) {
+        pasteBuffer += decoded
+      } else {
+        keys.push(parseKeypress(decoded))
+      }
+      return
+    }
+    flushPendingBytes()
+    absorbHighByte(seq, byte)
+  }
 
   for (const token of tokens) {
     if (token.type === 'sequence') {
       if (token.value === PASTE_START) {
+        flushPendingBytes()
         inPaste = true
         pasteBuffer = ''
       } else if (token.value === PASTE_END) {
+        flushPendingBytes()
         // Always emit a paste key, even for empty pastes. This allows
         // downstream handlers to detect empty pastes (e.g., for clipboard
         // image handling on macOS). The paste content may be empty string.
@@ -339,22 +459,48 @@ export function parseMultipleKeypresses(
         inPaste = false
         pasteBuffer = ''
       } else if (inPaste) {
-        // Sequences inside paste are treated as literal text
-        pasteBuffer += token.value
+        if (shouldSkipSequenceInPaste(token.value)) continue
+        const highByte = extractExtendedKeyHighByte(token.value)
+        if (highByte !== undefined) {
+          absorbHighByte(token.value, highByte)
+          continue
+        }
+        // Non-byte sequences inside paste: flush incomplete UTF-8, then
+        // map CSI u codepoints to characters (official `_hd`).
+        if (
+          !parseTerminalResponse(token.value) &&
+          !X10_MOUSE_RE.test(token.value)
+        ) {
+          flushPendingBytes()
+        }
+        pasteBuffer += sequenceToPasteText(token.value)
       } else {
+        const highByte = extractExtendedKeyHighByte(token.value)
+        if (highByte !== undefined) {
+          absorbHighByte(token.value, highByte)
+          continue
+        }
         const response = parseTerminalResponse(token.value)
         if (response) {
           keys.push({ kind: 'response', sequence: token.value, response })
-        } else {
-          const mouse = parseMouseEvent(token.value)
-          if (mouse) {
-            keys.push(mouse)
-          } else {
-            keys.push(parseKeypress(token.value))
-          }
+          continue
         }
+        const mouse = parseMouseEvent(token.value)
+        if (mouse) {
+          keys.push(mouse)
+          continue
+        }
+        if (
+          token.value === FOCUS_OUT ||
+          (!shouldSkipSequenceInPaste(token.value) &&
+            !X10_MOUSE_RE.test(token.value))
+        ) {
+          flushPendingBytes()
+        }
+        keys.push(parseKeypress(token.value))
       }
     } else if (token.type === 'text') {
+      flushPendingBytes()
       if (inPaste) {
         pasteBuffer += token.value
       } else if (
@@ -381,6 +527,8 @@ export function parseMultipleKeypresses(
     }
   }
 
+  if (isFlush) flushPendingBytes()
+
   // If flushing and still in paste mode, emit what we have
   if (isFlush && inPaste && pasteBuffer) {
     keys.push(createPasteKey(pasteBuffer))
@@ -393,6 +541,7 @@ export function parseMultipleKeypresses(
     mode: inPaste ? 'IN_PASTE' : 'NORMAL',
     incomplete: tokenizer.buffer(),
     pasteBuffer,
+    pendingByteEvents,
     _tokenizer: tokenizer,
   }
 

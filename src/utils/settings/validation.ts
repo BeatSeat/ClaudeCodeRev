@@ -5,6 +5,10 @@ import { jsonParse } from '../slowOperations.js'
 import { plural } from '../stringUtils.js'
 import { validatePermissionRule } from './permissionValidation.js'
 import { generateSettingsJSONSchema } from './schemaOutput.js'
+import {
+  SandboxCredentialsConfigSchema,
+  SandboxSettingsSchema,
+} from '../../entrypoints/sandboxTypes.js'
 import type { SettingsJson } from './types.js'
 import {
   AllowedMcpServerEntrySchema,
@@ -550,6 +554,27 @@ export function ManagedSettingsSchema(
     // Official 2.1.166 `tmq` returns `[]` here verbatim (zod catch value).
     return [] as unknown as string | undefined
   })
+  // Official 2.1.187: nested catch on sandbox.credentials so a bad credentials
+  // block is dropped without discarding the rest of sandbox; message is
+  // verbatim from the managed-settings catch reporter.
+  shape.sandbox = SandboxSettingsSchema()
+    .extend({
+      credentials: SandboxCredentialsConfigSchema().catch(ctx => {
+        report({
+          path: 'sandbox.credentials',
+          message: `${ctx.error.issues[0]?.message ?? 'Failed schema validation'}. The credentials block was dropped; no credential protection is applied until it is fixed.`,
+        })
+        return undefined
+      }),
+    })
+    .optional()
+    .catch(ctx => {
+      report({
+        path: 'sandbox',
+        message: `${ctx.error.issues[0]?.message ?? 'Failed schema validation'}. This field was ignored.`,
+      })
+      return undefined
+    })
   return z
     .object(shape)
     .passthrough()

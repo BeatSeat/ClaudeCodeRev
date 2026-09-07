@@ -38,6 +38,7 @@ export const HOOK_EVENTS = [
   'PreToolUse',
   'PostToolUse',
   'PostToolUseFailure',
+  'PostToolBatch',
   'Notification',
   'UserPromptSubmit',
   'UserPromptExpansion',

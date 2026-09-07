@@ -320,6 +320,11 @@ export type AgentMetadata = {
    * resumed agent's notification can show the original description instead
    * of a placeholder. Optional — older metadata files lack this field. */
   description?: string
+  /**
+   * Official 2.1.187 — spawn depth persisted for resume so nested agents
+   * restore their original depth (and still count toward the depth cap).
+   */
+  spawnDepth?: number
 }
 
 /**
