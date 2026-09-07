@@ -214,7 +214,7 @@ interface RetryOptions {
   onError?: (error: unknown) => Promise<string | undefined | void>
   /**
    * Official 2.1.181: receives stall/retry status updates so the UI can show
-   * "No response from API · Retrying in" or retry countdown inline.
+   * "Waiting for API response" or retry countdown inline (not as a system msg).
    */
   onRetryStatus?: (status: RetryStatus) => void
 }
