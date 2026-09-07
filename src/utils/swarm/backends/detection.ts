@@ -68,6 +68,15 @@ export function getLeaderPaneId(): string | null {
 }
 
 /**
+ * Gets the user's tmux socket path from TMUX env var captured at module load.
+ * Returns null if not running inside tmux. Official 2.1.183 `lBn`.
+ */
+export function getUserTmuxSocket(): string | null {
+  if (!ORIGINAL_USER_TMUX) return null
+  return ORIGINAL_USER_TMUX.split(',')[0] || null
+}
+
+/**
  * Checks if tmux is available on the system (installed and in PATH).
  */
 export async function isTmuxAvailable(): Promise<boolean> {

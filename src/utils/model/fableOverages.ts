@@ -205,3 +205,16 @@ export function getFable5LaunchShowSnapshot(): string | false {
     permanentAccess: isFablePermanentAccess(),
   })
 }
+
+/**
+ * Official 2.1.183 `hBi` / 187 `rWi` — extra usage is disabled at the org
+ * level (specifically `org_level_disabled` or `overage_not_provisioned`).
+ * Narrower than `isExtraUsageEnabled()` in check1mAccess which checks all
+ * reason values. Used by the Fable picker-dim gate.
+ */
+export function isExtraUsageOrgDisabled(): boolean {
+  const reason = getGlobalConfig().cachedExtraUsageDisabledReason
+  return (
+    reason === 'org_level_disabled' || reason === 'overage_not_provisioned'
+  )
+}

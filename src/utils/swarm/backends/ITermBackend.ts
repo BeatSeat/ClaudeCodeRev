@@ -1,9 +1,19 @@
 import type { AgentColorName } from '../../../tools/AgentTool/agentColorManager.js'
 import { logForDebugging } from '../../../utils/debug.js'
 import { execFileNoThrow } from '../../../utils/execFileNoThrow.js'
+import {
+  logEvent,
+  type AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
+} from '../../../services/analytics/index.js'
 import { IT2_COMMAND, isInITerm2, isIt2CliAvailable } from './detection.js'
 import { registerITermBackend } from './registry.js'
-import type { CreatePaneResult, PaneBackend, PaneId } from './types.js'
+import {
+  assertNoControlChars,
+  SwarmPaneError,
+  type CreatePaneResult,
+  type PaneBackend,
+  type PaneId,
+} from './types.js'
 
 // Track session IDs for teammates
 const teammateSessionIds: string[] = []
@@ -202,7 +212,7 @@ export class ITermBackend implements PaneBackend {
             }
             // Target is alive or we can't tell — don't corrupt state, surface the error.
           }
-          throw new Error(
+          throw new SwarmPaneError(
             `Failed to create iTerm2 split pane: ${splitResult.stderr}`,
           )
         }
@@ -247,17 +257,24 @@ export class ITermBackend implements PaneBackend {
     command: string,
     _useExternalSession?: boolean,
   ): Promise<void> {
-    // Use it2 session run to execute command (adds newline automatically)
-    // Always use -s flag to target specific session - this ensures the command
-    // goes to the right pane even if user switches windows
-    const args = paneId
-      ? ['session', 'run', '-s', paneId, command]
-      : ['session', 'run', command]
-
-    const result = await runIt2(args)
+    try {
+      assertNoControlChars(command)
+    } catch (s) {
+      logEvent('tengu_feature_bad', {
+        feature_name:
+          'swarm_pane_spawn' as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
+        error_code:
+          'swarm_pane_command_control_chars' as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
+      })
+      throw s
+    }
+    const sessionArgs = paneId ? ['-s', paneId] : []
+    // Discard any existing line buffer in the target pane before running command (Ctrl+U)
+    await runIt2(['session', 'send', ...sessionArgs, '\x15'])
+    const result = await runIt2(['session', 'run', ...sessionArgs, command])
 
     if (result.code !== 0) {
-      throw new Error(
+      throw new SwarmPaneError(
         `Failed to send command to iTerm2 pane ${paneId}: ${result.stderr}`,
       )
     }
