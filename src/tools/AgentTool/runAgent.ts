@@ -50,6 +50,7 @@ import type {
   UserMessage,
 } from '../../types/message.js'
 import { createAttachmentMessage } from '../../utils/attachments.js'
+import { getAgentContext } from '../../utils/agentContext.js'
 import { AbortError } from '../../utils/errors.js'
 import { getDisplayPath } from '../../utils/file.js'
 import {
@@ -868,6 +869,10 @@ export async function* runAgent({
     agentType: agentDefinition.agentType,
     ...(worktreePath && { worktreePath }),
     ...(description && { description }),
+    // Official 2.1.187 — persist spawn depth for resume restore
+    ...(getAgentContext() !== undefined && {
+      spawnDepth: getAgentContext()?.depth ?? 0,
+    }),
   }).catch(_err => logForDebugging(`Failed to write agent metadata: ${_err}`))
 
   // Track the last recorded message UUID for parent chain continuity

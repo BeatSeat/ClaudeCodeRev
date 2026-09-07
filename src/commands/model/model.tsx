@@ -21,21 +21,14 @@ import {
   isFastModeEnabled,
   isFastModeSupportedByModel,
 } from '../../utils/fastMode.js'
-import { MODEL_ALIASES } from '../../utils/model/aliases.js'
-import {
-  checkOpus1mAccess,
-  checkSonnet1mAccess,
-} from '../../utils/model/check1mAccess.js'
 import {
   getDefaultMainLoopModelSetting,
-  isOpus1mMergeEnabled,
   parseUserSpecifiedModel,
   renderDefaultModelSetting,
   renderModelName,
 } from '../../utils/model/model.js'
 import { persistModelAsDefault } from '../../utils/model/persistModelDefault.js'
-import { isModelAllowed } from '../../utils/model/modelAllowlist.js'
-import { validateModel } from '../../utils/model/validateModel.js'
+import { validateModelSwitch } from '../../utils/model/validateModelSwitch.js'
 import {
   getRelativeSettingsFilePathForSource,
   getSettingsForSource,
@@ -237,65 +230,16 @@ function SetModelAndClose({
 }): React.ReactNode {
   const isFastMode = useAppState(s => s.fastMode)
   const setAppState = useSetAppState()
-  const model = args === 'default' ? null : args
 
   React.useEffect(() => {
     async function handleModelChange(): Promise<void> {
-      if (model && !isModelAllowed(model)) {
-        onDone(
-          `Model '${model}' is not available. Your organization restricts model selection.`,
-          { display: 'system' },
-        )
+      // Official 2.1.187 `I9t` — entitlement + allowlist + 1M + API validate
+      const result = await validateModelSwitch(args)
+      if (result.ok === false) {
+        onDone(result.message, { display: 'system' })
         return
       }
-
-      // @[MODEL LAUNCH]: Update check for 1M access.
-      if (model && isOpus1mUnavailable(model)) {
-        onDone(
-          `Opus 4.6 with 1M context is not available for your account. Learn more: https://code.claude.com/docs/en/model-config#extended-context-with-1m`,
-          { display: 'system' },
-        )
-        return
-      }
-
-      if (model && isSonnet1mUnavailable(model)) {
-        onDone(
-          `Sonnet 4.6 with 1M context is not available for your account. Learn more: https://code.claude.com/docs/en/model-config#extended-context-with-1m`,
-          { display: 'system' },
-        )
-        return
-      }
-
-      // Skip validation for default model
-      if (!model) {
-        setModel(null)
-        return
-      }
-
-      // Skip validation for known aliases - they're predefined and should work
-      if (isKnownAlias(model)) {
-        setModel(model)
-        return
-      }
-
-      // Validate and set custom model
-      try {
-        // Don't use parseUserSpecifiedModel for non-aliases since it lowercases the input
-        // and model names are case-sensitive
-        const { valid, error } = await validateModel(model)
-
-        if (valid) {
-          setModel(model)
-        } else {
-          onDone(error || `Model '${model}' not found`, {
-            display: 'system',
-          })
-        }
-      } catch (error) {
-        onDone(`Failed to validate model: ${(error as Error).message}`, {
-          display: 'system',
-        })
-      }
+      setModel(result.model)
     }
 
     function setModel(modelValue: string | null): void {
@@ -337,35 +281,9 @@ function SetModelAndClose({
     }
 
     void handleModelChange()
-  }, [model, onDone, setAppState])
+  }, [args, isFastMode, onDone, setAppState])
 
   return null
-}
-
-function isKnownAlias(model: string): boolean {
-  return (MODEL_ALIASES as readonly string[]).includes(
-    model.toLowerCase().trim(),
-  )
-}
-
-function isOpus1mUnavailable(model: string): boolean {
-  const m = model.toLowerCase()
-  return (
-    !checkOpus1mAccess() &&
-    !isOpus1mMergeEnabled() &&
-    m.includes('opus') &&
-    m.includes('[1m]')
-  )
-}
-
-function isSonnet1mUnavailable(model: string): boolean {
-  const m = model.toLowerCase()
-  // Warn about Sonnet and Sonnet 4.6, but not Sonnet 4.5 since that had
-  // a different access criteria.
-  return (
-    !checkSonnet1mAccess() &&
-    (m.includes('sonnet[1m]') || m.includes('sonnet-4-6[1m]'))
-  )
 }
 
 function ShowModelAndClose({

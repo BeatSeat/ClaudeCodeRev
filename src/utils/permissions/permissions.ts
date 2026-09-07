@@ -615,7 +615,30 @@ export const hasPermissionsToUseTool: CanUseToolFn = async (
   if (result.behavior === 'ask') {
     const appState = context.getAppState()
 
-    if (appState.toolPermissionContext.mode === 'dontAsk') {
+    // Official 2.1.187: Chrome MCP auto-mode classifier floor (bundle `p`).
+    // When the floor is on and the auto-mode classifier may run, a Chrome MCP
+    // tool call whose domain is already allowlisted may be approved by the
+    // classifier — even in `dontAsk` mode (which otherwise hard-denies).
+    // `chromeDomainAllowed` is reported by the Claude in Chrome MCP tool in its
+    // permission metadata; the rule check is the always-allow fallback.
+    const chromeDomainAllowed = (
+      result.metadata?.command as unknown as
+        | { chrome?: { domainAllowed?: boolean } }
+        | undefined
+    )?.chrome?.domainAllowed
+    const chromeFloorApproved =
+      appState.toolPermissionContext.chromeClassifierFloorEnabled === true &&
+      appState.toolPermissionContext.canAutoClassifierRun === true &&
+      (classifierDecisionModule?.isChromeMcpToolName(
+        getToolNameForPermissionCheck(tool),
+      ) ?? false) &&
+      (chromeDomainAllowed === true ||
+        toolAlwaysAllowedRule(appState.toolPermissionContext, tool) !== null)
+
+    if (
+      appState.toolPermissionContext.mode === 'dontAsk' &&
+      !chromeFloorApproved
+    ) {
       return {
         behavior: 'deny',
         decisionReason: {
@@ -626,12 +649,15 @@ export const hasPermissionsToUseTool: CanUseToolFn = async (
       }
     }
     // Apply auto mode: use AI classifier instead of prompting user
-    // Check this BEFORE shouldAvoidPermissionPrompts so classifiers work in headless mode
+    // Check this BEFORE shouldAvoidPermissionPrompts so classifiers work in headless mode.
+    // Official 2.1.187: the Chrome floor (`chromeFloorApproved`) also runs the
+    // classifier (bundle `if (FWl(u) || p)`).
     if (
       feature('TRANSCRIPT_CLASSIFIER') &&
       (appState.toolPermissionContext.mode === 'auto' ||
         (appState.toolPermissionContext.mode === 'plan' &&
-          (autoModeStateModule?.isAutoModeActive() ?? false)))
+          (autoModeStateModule?.isAutoModeActive() ?? false)) ||
+        chromeFloorApproved)
     ) {
       // Non-classifier-approvable safetyCheck decisions stay immune to ALL
       // auto-approve paths: the acceptEdits fast-path, the safe-tool allowlist,
@@ -1393,7 +1419,17 @@ async function hasPermissionsToUseToolInner(
     appState.toolPermissionContext,
     tool,
   )
-  if (alwaysAllowedRule) {
+  // Official 2.1.187: when the Chrome MCP classifier floor is on, an allow
+  // rule for a Claude in Chrome MCP tool must NOT short-circuit the auto-mode
+  // classifier — the floor stays on so the classifier can still block a
+  // dangerous domain action. (bundle `if (m && !(ctx.chromeClassifierFloorEnabled
+  // === true && isChromeMcpToolName(name))) return {allow, rule:m}`).
+  const chromeFloorBypass =
+    appState.toolPermissionContext.chromeClassifierFloorEnabled === true &&
+    (classifierDecisionModule?.isChromeMcpToolName(
+      getToolNameForPermissionCheck(tool),
+    ) ?? false)
+  if (alwaysAllowedRule && !chromeFloorBypass) {
     return {
       behavior: 'allow',
       updatedInput: getUpdatedInputOrFallback(toolPermissionResult, input),

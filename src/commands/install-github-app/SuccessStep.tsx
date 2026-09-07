@@ -6,6 +6,7 @@ type SuccessStepProps = {
   useExistingSecret: boolean
   secretName: string
   skipWorkflow?: boolean
+  appOnlyInstall?: boolean
 }
 
 export function SuccessStep({
@@ -13,7 +14,32 @@ export function SuccessStep({
   useExistingSecret,
   secretName,
   skipWorkflow = false,
+  appOnlyInstall = false,
 }: SuccessStepProps): React.ReactNode {
+  if (appOnlyInstall) {
+    return (
+      <>
+        <Box flexDirection="column" borderStyle="round" paddingX={1}>
+          <Box marginBottom={1}>
+            <Text bold>Install GitHub App</Text>
+            <Text dimColor>Success</Text>
+          </Box>
+          <Text color="success">✓ GitHub App installed</Text>
+          <Box marginTop={1}>
+            <Text>
+              {
+                'Run /install-github-app again anytime to set up GitHub Actions workflows.'
+              }
+            </Text>
+          </Box>
+        </Box>
+        <Box marginLeft={3}>
+          <Text dimColor>Press any key to exit</Text>
+        </Box>
+      </>
+    )
+  }
+
   return (
     <>
       <Box flexDirection="column" borderStyle="round" paddingX={1}>

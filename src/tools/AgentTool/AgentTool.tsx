@@ -110,6 +110,7 @@ import {
   extractPartialResult,
   finalizeAgentTool,
   getLastToolUseName,
+  MAX_NESTED_ASYNC_AGENT_DEPTH,
   runAsyncAgentLifecycle,
 } from './agentToolUtils.js'
 import { GENERAL_PURPOSE_AGENT } from './built-in/generalPurposeAgent.js'
@@ -417,6 +418,24 @@ export const AgentTool = buildTool({
   ) {
     const startTime = Date.now()
     const model = isCoordinatorMode() ? undefined : modelParam
+
+    // Official 2.1.187 — hard depth cap before spawn (analytics `subagent_depth_cap`).
+    // FilterToolsForAgent already hides Agent at depth>=5; this guards call sites
+    // that still invoke the tool (forks count toward the cap via depth+1).
+    const currentDepth = getAgentContext()?.depth ?? 0
+    if (currentDepth >= MAX_NESTED_ASYNC_AGENT_DEPTH) {
+      logEvent('tengu_feature_bad', {
+        feature_name:
+          'subagent_launch' as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
+        error_code:
+          'subagent_depth_cap' as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
+      })
+      const err = new Error(
+        `Subagent nesting limit reached (depth ${currentDepth} of ${MAX_NESTED_ASYNC_AGENT_DEPTH}). Complete this task directly using your tools instead of spawning another agent.`,
+      )
+      err.name = 'AgentPreconditionError'
+      throw err
+    }
 
     // Get app state for permission mode and agent filtering
     const appState = toolUseContext.getAppState()
@@ -1004,6 +1023,14 @@ export const AgentTool = buildTool({
           void writeAgentMetadata(asAgentId(earlyAgentId), {
             agentType: selectedAgent.agentType,
             description,
+            ...(getAgentContext() !== undefined && {
+              // Official 2.1.187: worktree-cleanup metadata records the child
+              // depth (parent + 1), matching bundle `spawnDepth:J` where
+              // J = v4(c.agentContext)+1. Consistent with the async-register
+              // write below so resume restores the depth that counts toward
+              // subagent_depth_cap.
+              spawnDepth: (getAgentContext()?.depth ?? 0) + 1,
+            }),
           }).catch(_err =>
             logForDebugging(`Failed to clear worktree metadata: ${_err}`),
           )
@@ -1026,6 +1053,8 @@ export const AgentTool = buildTool({
         // survive when the user presses ESC to cancel the main thread.
         // They are killed explicitly via chat:killAgents.
         toolUseId: toolUseContext.toolUseId,
+        // Official 2.1.187 — forks count toward depth (parent depth + 1)
+        spawnDepth: (getAgentContext()?.depth ?? 0) + 1,
       })
 
       // Register name → agentId for SendMessage routing. Post-registerAsyncAgent

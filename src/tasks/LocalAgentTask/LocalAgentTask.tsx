@@ -199,6 +199,11 @@ export type LocalAgentTaskState = TaskStateBase & {
   evictAfter?: number
   /** Official 2.1.172 `spawnDepth` — `t7$` / `mh4`. */
   spawnDepth?: number
+  /**
+   * Official 2.1.187 `killedBy` — who stopped a killed agent (`parent` =
+   * TaskStop/Claude, `user` = user cancel). Drives stop-notification wording.
+   */
+  killedBy?: 'user' | 'parent' | 'system'
 }
 
 export function isLocalAgentTask(task: unknown): task is LocalAgentTaskState {
@@ -279,6 +284,7 @@ export function enqueueAgentNotification({
   toolUseId,
   worktreePath,
   worktreeBranch,
+  killedBy,
 }: {
   taskId: string
   description: string
@@ -294,16 +300,22 @@ export function enqueueAgentNotification({
   toolUseId?: string
   worktreePath?: string
   worktreeBranch?: string
+  /** Official 2.1.187 attribution for killed agents. */
+  killedBy?: 'user' | 'parent' | 'system'
 }): void {
   // Atomically check and set notified flag to prevent duplicate notifications.
   // If the task was already marked as notified (e.g., by TaskStopTool), skip
   // enqueueing to avoid sending redundant messages to the model.
   let shouldEnqueue = false
+  let resolvedKilledBy = killedBy
   updateTaskState<LocalAgentTaskState>(taskId, setAppState, task => {
     if (task.notified) {
       return task
     }
     shouldEnqueue = true
+    if (status === 'killed' && resolvedKilledBy === undefined) {
+      resolvedKilledBy = task.killedBy
+    }
     return {
       ...task,
       notified: true,
@@ -319,12 +331,18 @@ export function enqueueAgentNotification({
   // preserved; only the pre-computed response is discarded.
   abortSpeculation(setAppState)
 
+  // Official 2.1.187: finished/failed/stopped (+ killedBy attribution) replaces
+  // earlier "came to rest" wording.
   const summary =
     status === 'completed'
-      ? `Agent "${description}" completed`
+      ? `Agent "${description}" finished`
       : status === 'failed'
         ? `Agent "${description}" failed: ${error || 'Unknown error'}`
-        : `Agent "${description}" was stopped`
+        : resolvedKilledBy === 'parent'
+          ? `Agent "${description}" was stopped by Claude`
+          : resolvedKilledBy === 'user'
+            ? `Agent "${description}" was stopped by user`
+            : `Agent "${description}" was stopped`
 
   const outputPath = getTaskOutputPath(taskId)
   const toolUseIdLine = toolUseId
@@ -365,8 +383,13 @@ export const LocalAgentTask: Task = {
 
 /**
  * Kill an agent task. No-op if already killed/completed.
+ * Official 2.1.187: `killedBy` defaults to `"user"` (matches bundle `u_e`).
  */
-export function killAsyncAgent(taskId: string, setAppState: SetAppState): void {
+export function killAsyncAgent(
+  taskId: string,
+  setAppState: SetAppState,
+  killedBy: 'user' | 'parent' | 'system' = 'user',
+): void {
   let killed = false
   updateTaskState<LocalAgentTaskState>(taskId, setAppState, task => {
     if (task.status !== 'running') {
@@ -378,6 +401,7 @@ export function killAsyncAgent(taskId: string, setAppState: SetAppState): void {
     return {
       ...task,
       status: 'killed',
+      killedBy: task.killedBy ?? killedBy,
       endTime: Date.now(),
       evictAfter: task.retain ? undefined : Date.now() + PANEL_GRACE_MS,
       abortController: undefined,

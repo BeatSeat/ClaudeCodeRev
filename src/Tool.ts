@@ -131,6 +131,20 @@ export type ToolPermissionContext = DeepImmutable<{
   alwaysAskRules: ToolPermissionRulesBySource
   isBypassPermissionsModeAvailable: boolean
   isAutoModeAvailable?: boolean
+  /**
+   * Official 2.1.187: mirrors `isAutoModeAvailable` (auto mode gate enabled).
+   * Gates whether the auto-mode classifier may run for Chrome MCP tools — the
+   * Chrome classifier floor only fires when this is also true.
+   */
+  canAutoClassifierRun?: boolean
+  /**
+   * Official 2.1.187: Chrome MCP auto-mode classifier floor switch.
+   * Env `CLAUDE_CHROME_CLASSIFIER_FLOOR` (triBool) ?? gate
+   * `tengu_cowork_chrome_automode_default` (default false). When true, an
+   * allow rule for a Chrome MCP tool no longer short-circuits the auto-mode
+   * classifier (the floor stays on so the classifier can still block).
+   */
+  chromeClassifierFloorEnabled?: boolean
   strippedDangerousRules?: ToolPermissionRulesBySource
   /** When true, permission prompts are auto-denied (e.g., background agents that can't show UI) */
   shouldAvoidPermissionPrompts?: boolean
@@ -369,6 +383,11 @@ export type ToolResult<T> = {
     _meta?: Record<string, unknown>
     structuredContent?: Record<string, unknown>
   }
+  /**
+   * Official 2.1.187 — when true, the query loop ends the turn after this
+   * tool_result (PostToolBatch + Stop hooks run but cannot re-invoke the model).
+   */
+  endsTurn?: boolean
   /** Official 2.1.157 EnterWorktree pinned-cwd arm — isolate this agent's cwd. */
   contextLayers?: ToolResultContextLayer[]
 }

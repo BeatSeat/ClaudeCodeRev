@@ -4126,6 +4126,45 @@ export async function* executePostToolUseFailureHooks<ToolInput>(
   })
 }
 
+/**
+ * Official 2.1.x `imt` — run PostToolBatch hooks after a tool batch completes.
+ */
+export async function* executePostToolBatchHooks(
+  toolCalls: Array<{
+    tool_name: string
+    tool_input: unknown
+    tool_use_id: string
+    tool_response?: unknown
+  }>,
+  toolUseID: string,
+  toolUseContext: ToolUseContext,
+  permissionMode?: string,
+  signal?: AbortSignal,
+  timeoutMs: number = TOOL_HOOK_EXECUTION_TIMEOUT_MS,
+): AsyncGenerator<AggregatedHookResult> {
+  const appState = toolUseContext.getAppState()
+  const sessionId = toolUseContext.agentId ?? getSessionId()
+  if (!hasHookForEvent('PostToolBatch' as HookEvent, appState, sessionId)) {
+    return
+  }
+
+  const hookInput = {
+    ...createBaseHookInput(permissionMode, undefined, toolUseContext),
+    hook_event_name: 'PostToolBatch' as const,
+    tool_calls: toolCalls,
+  }
+
+  // PostToolBatchHookInput exists in coreSchemas but may not yet be in the
+  // generated HookInput union — bridge via unknown.
+  yield* executeHooks({
+    hookInput: hookInput as unknown as HookInput,
+    toolUseID,
+    signal,
+    timeoutMs,
+    toolUseContext,
+  })
+}
+
 export async function* executePermissionDeniedHooks<ToolInput>(
   toolName: string,
   toolUseID: string,
@@ -5681,6 +5720,33 @@ export async function executeWorktreeCreateHook(
 
   const worktreePath = successfulResult.output.trim()
   return { worktreePath }
+}
+
+/**
+ * Official 2.1.187 `t3r` — whether any WorktreeRemove hook is configured
+ * (mirrors hasWorktreeCreateHook).
+ */
+export function hasWorktreeRemoveHook(): boolean {
+  if (isCustomizationDisabled('hooks')) return false
+  const snapshotHooks = getHooksConfigFromSnapshot()?.['WorktreeRemove']
+  if (snapshotHooks && snapshotHooks.length > 0) return true
+  if (!shouldAllowManagedHooksOnly()) {
+    const mainThreadHooks = getMainThreadAgentHooks()?.['WorktreeRemove']
+    if (mainThreadHooks && mainThreadHooks.length > 0) return true
+  }
+  const registeredHooks = getRegisteredHooks()?.['WorktreeRemove']
+  if (!registeredHooks || registeredHooks.length === 0) return false
+  const managedOnly = shouldAllowManagedHooksOnly()
+  const policyEnabledPluginIds =
+    managedOnly && !isSafeMode() ? getForceEnabledManagedPluginIds() : null
+  return registeredHooks.some(
+    matcher =>
+      !(
+        managedOnly &&
+        'pluginRoot' in matcher &&
+        !policyEnabledPluginIds?.has(matcher.pluginId)
+      ),
+  )
 }
 
 /**

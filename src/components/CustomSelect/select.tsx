@@ -276,6 +276,14 @@ export function Select<T>({
     focusValue: defaultFocusValue,
   })
 
+  // Official 2.1.187 `fvd`/`ue` — click → onChange unless disabled.
+  const optionClickHandler = (option: OptionWithDescription<T>) =>
+    isDisabled || disableSelection === true || option.disabled === true
+      ? undefined
+      : () => {
+          state.onChange?.(option.value)
+        }
+
   useSelectInput({
     isDisabled,
     disableSelection: disableSelection || (hideIndexes ? 'numeric' : false),
@@ -420,6 +428,7 @@ export function Select<T>({
                 isSelected={isSelected}
                 shouldShowDownArrow={areMoreOptionsBelow && isLastVisibleOption}
                 shouldShowUpArrow={areMoreOptionsAbove && isFirstVisibleOption}
+                onClick={optionClickHandler(option)}
               >
                 <Text dimColor={isOptionDisabled} color={optionColor}>
                   {label}
@@ -551,6 +560,7 @@ export function Select<T>({
                 isSelected={isSelected}
                 shouldShowDownArrow={areMoreOptionsBelow && isLastVisibleOption}
                 shouldShowUpArrow={areMoreOptionsAbove && isFirstVisibleOption}
+                onClick={optionClickHandler(option)}
               >
                 <>
                   {!hideIndexes && (
@@ -681,6 +691,7 @@ export function Select<T>({
             <TwoColumnRow
               key={String(data.option.value)}
               isFocused={data.isFocused}
+              onClick={optionClickHandler(data.option)}
             >
               {/* Label part - no gap, handle spacing explicitly */}
               <Box flexDirection="row" flexShrink={0}>
@@ -853,6 +864,7 @@ export function Select<T>({
             isSelected={isSelected}
             shouldShowDownArrow={areMoreOptionsBelow && isLastVisibleOption}
             shouldShowUpArrow={areMoreOptionsAbove && isFirstVisibleOption}
+            onClick={optionClickHandler(option)}
           >
             <Box flexDirection="row" flexShrink={0}>
               {!hideIndexes && (
@@ -913,11 +925,14 @@ export function Select<T>({
 // the other Select layouts, this one doesn't render through SelectOption →
 // ListItem, so it declares the native cursor directly. Parks the cursor
 // on the pointer indicator so screen readers / magnifiers track focus.
+// Official 2.1.187: onClick selects the option in fullscreen mouse mode.
 function TwoColumnRow({
   isFocused,
+  onClick,
   children,
 }: {
   isFocused: boolean
+  onClick?: () => void
   children: ReactNode
 }): React.ReactNode {
   const cursorRef = useDeclaredCursor({
@@ -926,7 +941,11 @@ function TwoColumnRow({
     active: isFocused,
   })
   return (
-    <Box ref={cursorRef} flexDirection="row">
+    <Box
+      ref={cursorRef}
+      flexDirection="row"
+      onClick={onClick}
+    >
       {children}
     </Box>
   )

@@ -1,4 +1,5 @@
 import React, { type ReactNode } from 'react'
+import type { ClickEvent } from '../../ink/events/click-event.js'
 import { ListItem } from '../design-system/ListItem.js'
 
 export type SelectOptionProps = {
@@ -37,6 +38,11 @@ export type SelectOptionProps = {
    * Set false when a child declares its own cursor (e.g. BaseTextInput).
    */
   readonly declareCursor?: boolean
+
+  /**
+   * Official 2.1.187 — mouse click selects this option in fullscreen.
+   */
+  readonly onClick?: (event: ClickEvent) => void
 }
 
 export function SelectOption({
@@ -47,6 +53,7 @@ export function SelectOption({
   shouldShowDownArrow,
   shouldShowUpArrow,
   declareCursor,
+  onClick,
 }: SelectOptionProps): React.ReactNode {
   return (
     <ListItem
@@ -57,6 +64,7 @@ export function SelectOption({
       showScrollUp={shouldShowUpArrow}
       styled={false}
       declareCursor={declareCursor}
+      onClick={onClick}
     >
       {children}
     </ListItem>

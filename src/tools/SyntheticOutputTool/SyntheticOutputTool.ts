@@ -57,10 +57,12 @@ export const SyntheticOutputTool = buildTool({
     return outputSchema()
   },
   async call(input) {
-    // The tool just validates and returns the input as the structured output
+    // The tool just validates and returns the input as the structured output.
+    // Official 2.1.187: endsTurn so the query loop does not re-invoke the model.
     return {
       data: 'Structured output provided successfully',
       structured_output: input,
+      endsTurn: true,
     }
   },
   async checkPermissions(input): Promise<PermissionResult> {
@@ -153,6 +155,7 @@ function buildSyntheticOutputTool(
           return {
             data: 'Structured output provided successfully',
             structured_output: input,
+            endsTurn: true,
           }
         },
       },

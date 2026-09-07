@@ -1,4 +1,5 @@
 import { feature } from 'bun:bundle'
+import { randomUUID } from 'crypto'
 import { getShortcutDisplay } from '../keybindings/shortcutFormat.js'
 import { isExtractModeActive } from '../memdir/paths.js'
 import {
@@ -21,6 +22,7 @@ import { logForDebugging } from '../utils/debug.js'
 import { errorMessage } from '../utils/errors.js'
 import type { REPLHookContext } from '../utils/hooks/postSamplingHooks.js'
 import {
+  executePostToolBatchHooks,
   executeStopHooks,
   executeTaskCompletedHooks,
   executeTeammateIdleHooks,
@@ -28,6 +30,7 @@ import {
   getTaskCompletedHookMessage,
   getTeammateIdleHookMessage,
 } from '../utils/hooks.js'
+import { logError } from '../utils/log.js'
 import {
   createStopHookSummaryMessage,
   createSystemMessage,
@@ -55,11 +58,37 @@ import {
 } from '../commands/goal/goal-core.js'
 import { executeAutoDream } from '../services/autoDream/autoDream.js'
 import { executePromptSuggestion } from '../services/PromptSuggestion/promptSuggestion.js'
+import { isBgSession } from '../utils/concurrentSessions.js'
 import { isBareMode, isEnvDefinedFalsy } from '../utils/envUtils.js'
 import {
   createCacheSafeParams,
   saveCacheSafeParams,
 } from '../utils/forkedAgent.js'
+import {
+  getClassifierSessionKey,
+  getOrCreateClassifierJobState,
+  markTurnAborted,
+} from '../jobs/classifier.js'
+
+/**
+ * Official 2.1.187 `qce` — on MCP meta end-turn, mark the bg classifier turn
+ * aborted (tempo → idle). Guard mirrors the bundle exactly.
+ */
+function notifyMcpMetaTurnAborted(
+  toolUseContext: ToolUseContext,
+  querySource: QuerySource,
+): void {
+  const state = getOrCreateClassifierJobState()
+  if (
+    !state ||
+    !isBgSession() ||
+    !querySource.startsWith('repl_main_thread') ||
+    toolUseContext.agentId
+  ) {
+    return
+  }
+  markTurnAborted(state, getClassifierSessionKey())
+}
 
 type StopHookResult = {
   blockingErrors: Message[]
@@ -492,5 +521,294 @@ export async function* handleStopHooks(
       'warning',
     )
     return { blockingErrors: [], preventContinuation: false }
+  }
+}
+
+export type EndTurnSource = 'tool' | 'mcp_meta' | undefined
+
+/**
+ * Official 2.1.187 `uEo` — stop hooks after a turn that will not re-invoke the
+ * model (tool/MCP end-turn or loop tick). Blocking / preventContinuation from
+ * Stop hooks is discarded with an end-turn log instead of continuing the loop.
+ */
+export async function* handleEndTurnStopHooks(
+  messagesForQuery: Message[],
+  assistantMessages: AssistantMessage[],
+  toolResults: Message[],
+  systemPrompt: SystemPrompt,
+  userContext: { [k: string]: string },
+  systemContext: { [k: string]: string },
+  toolUseContext: ToolUseContext,
+  querySource: QuerySource,
+  stopHookActive: boolean | undefined,
+  endTurnSource?: EndTurnSource,
+): AsyncGenerator<
+  | StreamEvent
+  | RequestStartEvent
+  | Message
+  | TombstoneMessage
+  | ToolUseSummaryMessage
+> {
+  const allMessages = [
+    ...messagesForQuery,
+    ...assistantMessages,
+    ...toolResults,
+  ]
+  if (querySource.startsWith('repl_main_thread') || querySource === 'sdk') {
+    saveCacheSafeParams(
+      createCacheSafeParams({
+        messages: allMessages,
+        systemPrompt,
+        userContext,
+        systemContext,
+        toolUseContext,
+        querySource,
+      }),
+    )
+  }
+
+  if (!toolUseContext.agentId && feature('CHICAGO_MCP')) {
+    try {
+      const { cleanupComputerUseAfterTurn } = await import(
+        '../utils/computerUse/cleanup.js'
+      )
+      await cleanupComputerUseAfterTurn(toolUseContext)
+    } catch {
+      // Failures are silent — dogfooding cleanup
+    }
+  }
+
+  const hookStartTime = Date.now()
+  try {
+    const appState = toolUseContext.getAppState()
+    const permissionMode = appState.toolPermissionContext.mode
+    const generator = executeStopHooks(
+      permissionMode,
+      toolUseContext.abortController.signal,
+      undefined,
+      stopHookActive ?? false,
+      toolUseContext.agentId,
+      toolUseContext,
+      allMessages,
+      toolUseContext.agentType,
+    )
+
+    const hookErrors: string[] = []
+    for await (const result of generator) {
+      if (result.message) {
+        yield result.message
+        // HookResultMessage.type is 'hook_result' in stubs; runtime yields
+        // attachment-shaped messages. Use a structural cast like the
+        // end-turn path needs without duplicating pre-existing narrow errors.
+        const msg = result.message as {
+          type?: string
+          attachment?: {
+            hookEvent?: string
+            type?: string
+            stderr?: string
+            exitCode?: number
+            content?: string
+          }
+        }
+        if (msg.type === 'attachment' && msg.attachment) {
+          const attachment = msg.attachment
+          if (
+            attachment.hookEvent === 'Stop' ||
+            attachment.hookEvent === 'SubagentStop'
+          ) {
+            if (attachment.type === 'hook_non_blocking_error') {
+              hookErrors.push(
+                attachment.stderr || `Exit code ${attachment.exitCode}`,
+              )
+            } else if (attachment.type === 'hook_error_during_execution') {
+              hookErrors.push(attachment.content ?? '')
+            }
+          }
+        }
+      }
+      if (result.blockingError || result.preventContinuation) {
+        logForDebugging(
+          `[end-turn] Stop hook block discarded (turn ended by ${
+            endTurnSource === 'tool'
+              ? 'tool result'
+              : endTurnSource === 'mcp_meta'
+                ? 'MCP end-turn'
+                : 'loop tick'
+          }, no model re-invoke): ${
+            result.blockingError?.blockingError ??
+            result.stopReason ??
+            'preventContinuation'
+          }`,
+        )
+      }
+    }
+    if (hookErrors.length > 0) {
+      const expandShortcut = getShortcutDisplay(
+        'app:toggleTranscript',
+        'Global',
+        'ctrl+o',
+      )
+      toolUseContext.addNotification?.({
+        key: 'stop-hook-error',
+        text: `Stop hook error occurred \u00b7 ${expandShortcut} to see`,
+        priority: 'immediate',
+      })
+    }
+  } catch (error) {
+    logEvent('tengu_stop_hook_error', {
+      duration: Date.now() - hookStartTime,
+      queryChainId: toolUseContext.queryTracking
+        ?.chainId as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
+      queryDepth: toolUseContext.queryTracking?.depth,
+    })
+    yield createSystemMessage(
+      `Stop hook failed: ${errorMessage(error)}`,
+      'warning',
+    )
+  }
+}
+
+/**
+ * Official 2.1.187 `V8p` — after a tool/MCP result ends the turn: run
+ * PostToolBatch (discarding blocks), then end-turn Stop hooks (also discarding).
+ * Does not re-invoke the model.
+ */
+export async function* handleToolEndTurn({
+  endTurnSource,
+  messagesForQuery,
+  assistantMessages,
+  toolResults,
+  toolUseBlocks,
+  systemPrompt,
+  userContext,
+  systemContext,
+  toolUseContext,
+  updatedToolUseContext,
+  querySource,
+  stopHookActive,
+  queryChainIdForAnalytics,
+  queryDepth,
+}: {
+  endTurnSource: 'tool' | 'mcp_meta'
+  messagesForQuery: Message[]
+  assistantMessages: AssistantMessage[]
+  toolResults: Message[]
+  toolUseBlocks: Array<{
+    name: string
+    input: unknown
+    id: string
+  }>
+  systemPrompt: SystemPrompt
+  userContext: { [k: string]: string }
+  systemContext: { [k: string]: string }
+  toolUseContext: ToolUseContext
+  updatedToolUseContext: ToolUseContext
+  querySource: QuerySource
+  stopHookActive?: boolean
+  queryChainIdForAnalytics: AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS
+  queryDepth: number
+}): AsyncGenerator<
+  | StreamEvent
+  | RequestStartEvent
+  | Message
+  | TombstoneMessage
+  | ToolUseSummaryMessage
+> {
+  try {
+    logEvent('tengu_mcp_tool_result_ended_turn', {
+      queryChainId: queryChainIdForAnalytics,
+      queryDepth,
+      source:
+        endTurnSource as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
+    })
+    // Official 2.1.187 `qce` after tengu_mcp_tool_result_ended_turn
+    if (endTurnSource === 'mcp_meta') {
+      notifyMcpMetaTurnAborted(toolUseContext, querySource)
+    }
+
+    const toolResultById = new Map<string, unknown>()
+    for (const msg of toolResults) {
+      if (msg.type === 'user' && Array.isArray(msg.message.content)) {
+        for (const block of msg.message.content) {
+          if (block.type === 'tool_result') {
+            toolResultById.set(block.tool_use_id, block.content)
+          }
+        }
+      }
+    }
+
+    const appState = updatedToolUseContext.getAppState()
+    const permissionMode = appState.toolPermissionContext.mode
+    const hookToolUseID = `hook-${randomUUID()}`
+    for await (const result of executePostToolBatchHooks(
+      toolUseBlocks.map(block => ({
+        tool_name: block.name,
+        tool_input: block.input,
+        tool_use_id: block.id,
+        tool_response: toolResultById.get(block.id),
+      })),
+      hookToolUseID,
+      updatedToolUseContext,
+      permissionMode,
+      updatedToolUseContext.abortController.signal,
+    )) {
+      if (result.message) {
+        yield result.message
+      }
+      if (result.blockingError || result.preventContinuation) {
+        logForDebugging(
+          `[end-turn] PostToolBatch block discarded (turn ended by ${
+            endTurnSource === 'tool' ? 'tool result' : 'MCP end-turn'
+          }, no model re-invoke): ${
+            result.blockingError?.blockingError ??
+            result.stopReason ??
+            'preventContinuation'
+          }`,
+        )
+      }
+    }
+
+    if (updatedToolUseContext.abortController.signal.aborted) {
+      if (!updatedToolUseContext.agentId && feature('CHICAGO_MCP')) {
+        try {
+          const { cleanupComputerUseAfterTurn } = await import(
+            '../utils/computerUse/cleanup.js'
+          )
+          await cleanupComputerUseAfterTurn(updatedToolUseContext)
+        } catch {
+          // silent
+        }
+      }
+      if (
+        updatedToolUseContext.abortController.signal.reason !== 'interrupt'
+      ) {
+        yield createUserInterruptionMessage({
+          toolUse: false,
+        })
+      }
+    }
+
+    yield* handleEndTurnStopHooks(
+      messagesForQuery,
+      assistantMessages,
+      toolResults,
+      systemPrompt,
+      userContext,
+      systemContext,
+      toolUseContext,
+      querySource,
+      stopHookActive,
+      endTurnSource,
+    )
+  } catch (error) {
+    if (
+      error &&
+      typeof error === 'object' &&
+      'name' in error &&
+      error.name === 'AbortError'
+    ) {
+      return
+    }
+    logError(error)
   }
 }

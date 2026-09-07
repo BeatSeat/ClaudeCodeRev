@@ -441,6 +441,11 @@ export type ToolPermissionContext = {
   readonly alwaysDenyRules: ToolPermissionRulesBySource
   readonly alwaysAskRules: ToolPermissionRulesBySource
   readonly isBypassPermissionsModeAvailable: boolean
+  readonly isAutoModeAvailable?: boolean
+  /** Official 2.1.187: mirrors isAutoModeAvailable; gates the Chrome MCP classifier floor. */
+  readonly canAutoClassifierRun?: boolean
+  /** Official 2.1.187: Chrome MCP auto-mode classifier floor switch (env ?? gate). */
+  readonly chromeClassifierFloorEnabled?: boolean
   readonly strippedDangerousRules?: ToolPermissionRulesBySource
   readonly shouldAvoidPermissionPrompts?: boolean
   readonly awaitAutomatedChecksBeforeDialog?: boolean

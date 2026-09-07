@@ -641,6 +641,21 @@ export type GlobalConfig = {
   // Per-model USD rates fetched during bootstrap (official 2.1.97).
   additionalModelCostsCache?: Record<string, ModelCosts>
 
+  /**
+   * Official 2.1.187 `modelAccessCache` — bootstrap `model_access` rows
+   * (`apiName` + `entitled`). Used by entitlement deny on model switch.
+   */
+  modelAccessCache?: Array<{ apiName: string; entitled: boolean }>
+
+  /**
+   * Official plugin usage ledger for disuse tips (`pluginUsage[pluginId]`).
+   * Seeded when plugins enable; updated on skill/command activation.
+   */
+  pluginUsage?: Record<
+    string,
+    { usageCount: number; lastUsedAt: number; lastUsedNumStartups: number }
+  >
+
   // Disk cache for /api/claude_code/organizations/metrics_enabled.
   // Org-level settings change rarely; persisting across processes avoids a
   // cold API call on every `claude -p` invocation.

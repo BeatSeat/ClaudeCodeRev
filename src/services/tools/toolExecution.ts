@@ -99,6 +99,7 @@ import {
   createUserMessage,
   withMemoryCorrectionHint,
 } from '../../utils/messages.js'
+import { mcpMetaForToolResultMessage } from '../../utils/toolResultEndTurn.js'
 import type {
   PermissionDecisionReason,
   PermissionResult,
@@ -1781,6 +1782,8 @@ async function checkPermissionsAndCallTool(
     const hookResults = []
     const toolContextModifier = result.contextModifier
     const mcpMeta = result.mcpMeta
+    // Official 2.1.187 — StructuredOutput (and similar) end the turn
+    const endsTurn = result.endsTurn
 
     async function addToolResult(
       toolUseResult: unknown,
@@ -1844,7 +1847,8 @@ async function checkPermissionsAndCallTool(
             toolUseContext.agentId && !toolUseContext.preserveToolUseResults
               ? undefined
               : toolUseResult,
-          mcpMeta: toolUseContext.agentId ? undefined : mcpMeta,
+          mcpMeta: mcpMetaForToolResultMessage(toolUseContext.agentId, mcpMeta),
+          toolEndsTurn: endsTurn,
           sourceToolAssistantUUID: assistantMessage.uuid,
         }),
         contextModifier: toolContextModifier
@@ -2119,12 +2123,13 @@ async function checkPermissionsAndCallTool(
             },
           ],
           toolUseResult: `Error: ${content}`,
-          mcpMeta: toolUseContext.agentId
-            ? undefined
-            : error instanceof
-                McpToolCallError_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS
+          mcpMeta: mcpMetaForToolResultMessage(
+            toolUseContext.agentId,
+            error instanceof
+              McpToolCallError_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS
               ? error.mcpMeta
               : undefined,
+          ),
           sourceToolAssistantUUID: assistantMessage.uuid,
         }),
       },

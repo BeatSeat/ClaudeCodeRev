@@ -242,6 +242,37 @@ function getMcpToolTimeoutMs(): number {
   )
 }
 
+/**
+ * Remote MCP server transport types that get idle-timeout enforcement.
+ * Official 2.1.187 `qYd`: http/sse/ws/claudeai-proxy.
+ */
+const REMOTE_MCP_IDLE_TIMEOUT_TYPES = new Set([
+  'http',
+  'sse',
+  'ws',
+  'claudeai-proxy',
+])
+
+/**
+ * Default idle timeout for remote MCP tool calls (5 minutes).
+ * Official 2.1.187 `WYd`.
+ */
+const DEFAULT_MCP_IDLE_TIMEOUT_MS = 300_000
+
+/**
+ * Gets the idle timeout for remote MCP tool calls in milliseconds.
+ * Official 2.1.187 `VYd`. Returns 0 for non-remote types or when
+ * CLAUDE_CODE_MCP_TOOL_IDLE_TIMEOUT is set to 0 (disabled).
+ */
+function getMcpToolIdleTimeoutMs(configType: string | undefined): number {
+  if (!configType || !REMOTE_MCP_IDLE_TIMEOUT_TYPES.has(configType)) return 0
+  const envVal = process.env.CLAUDE_CODE_MCP_TOOL_IDLE_TIMEOUT
+  const t = envVal ? parseInt(envVal, 10) : DEFAULT_MCP_IDLE_TIMEOUT_MS
+  if (t <= 0) return 0
+  // Clamp between 1s and the per-request timeout
+  return Math.min(Math.max(t, 1000), getMcpToolTimeoutMs())
+}
+
 import { isClaudeInChromeMCPServer } from '../../utils/claudeInChrome/common.js'
 
 // Lazy: toolRendering.tsx pulls React/ink; only needed when Claude-in-Chrome MCP server is connected
@@ -3514,6 +3545,7 @@ async function callMCPTool({
 }> {
   const toolStartTime = Date.now()
   let progressInterval: NodeJS.Timeout | undefined
+  let idleTimeoutId: NodeJS.Timeout | undefined
   const callWatchdog: MCPCallWatchdog = { armedAt: 0 }
   transportErrorState?.activeCallWatchdogs.add(callWatchdog)
 
@@ -3556,6 +3588,34 @@ async function callMCPTool({
     const timeoutMs = getMcpToolTimeoutMs()
     let timeoutId: NodeJS.Timeout | undefined
 
+    // Official 2.1.187: remote MCP idle watchdog — abort if the server
+    // sends no response or progress within the idle timeout.
+    const idleTimeoutMs = getMcpToolIdleTimeoutMs(config.type)
+    let lastActivityMs = Date.now()
+    let rejectIdle: ((error: Error) => void) | undefined
+
+    const idleTimeoutPromise = idleTimeoutMs > 0
+      ? new Promise<never>((_, reject) => {
+          rejectIdle = reject
+          const checkIdle = (): void => {
+            const elapsedMs = Date.now() - lastActivityMs
+            if (elapsedMs >= idleTimeoutMs) {
+              const idleSeconds = Math.floor(idleTimeoutMs / 1000)
+              reject(
+                new TelemetrySafeError_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS(
+                  `MCP server "${name}" tool "${tool}" sent no response or progress for ${idleSeconds}s; aborting. ` +
+                    `Set CLAUDE_CODE_MCP_TOOL_IDLE_TIMEOUT (ms) higher or to 0 if this tool is expected to run silently for longer.`,
+                  'MCP tool idle timeout',
+                ),
+              )
+              return
+            }
+            idleTimeoutId = setTimeout(checkIdle, Math.min(idleTimeoutMs - elapsedMs, 30000))
+          }
+          checkIdle()
+        })
+      : undefined
+
     const timeoutPromise = new Promise<never>((_, reject) => {
       timeoutId = setTimeout(
         (reject, name, tool, timeoutMs) => {
@@ -3574,45 +3634,60 @@ async function callMCPTool({
       )
     })
 
-    const result = await Promise.race([
-      client.callTool(
-        {
-          name: tool,
-          arguments: args,
-          _meta: meta,
+    // Combine promises. Use a wrapper to maintain typing while allowing conditional idle timeout.
+    const callPromise = client.callTool(
+      {
+        name: tool,
+        arguments: args,
+        _meta: meta,
+      },
+      CallToolResultSchema,
+      {
+        signal,
+        timeout: timeoutMs,
+        onprogress: sdkProgress => {
+          callWatchdog.armedAt = 0
+          lastActivityMs = Date.now()
+          if (onProgress) {
+            onProgress({
+              type: 'mcp_progress',
+              status: 'progress',
+              serverName: name,
+              toolName: tool,
+              progress: sdkProgress.progress,
+              total: sdkProgress.total,
+              progressMessage: sdkProgress.message,
+            })
+          }
         },
-        CallToolResultSchema,
-        {
-          signal,
-          timeout: timeoutMs,
-          onprogress: sdkProgress => {
-            callWatchdog.armedAt = 0
-            if (onProgress) {
-              onProgress({
-                type: 'mcp_progress',
-                status: 'progress',
-                serverName: name,
-                toolName: tool,
-                progress: sdkProgress.progress,
-                total: sdkProgress.total,
-                progressMessage: sdkProgress.message,
-              })
-            }
-          },
-        },
-      ),
+      },
+    )
+    const racePromises: Promise<unknown>[] = [
+      callPromise,
       timeoutPromise,
       transportLostPromise,
-    ]).finally(() => {
+    ]
+    if (idleTimeoutPromise) {
+      racePromises.push(idleTimeoutPromise)
+    }
+    let result: Awaited<ReturnType<typeof client.callTool>>
+    try {
+      result = (await Promise.race(racePromises)) as Awaited<
+        ReturnType<typeof client.callTool>
+      >
+    } finally {
       if (timeoutId) {
         clearTimeout(timeoutId)
+      }
+      if (idleTimeoutId) {
+        clearTimeout(idleTimeoutId)
       }
       if (progressInterval !== undefined) {
         clearInterval(progressInterval)
         progressInterval = undefined
       }
       transportErrorState?.activeCallWatchdogs.delete(callWatchdog)
-    })
+    }
 
     if ('isError' in result && result.isError) {
       let errorDetails = 'Unknown error'
@@ -3677,6 +3752,9 @@ async function callMCPTool({
     // Clear intervals on error
     if (progressInterval !== undefined) {
       clearInterval(progressInterval)
+    }
+    if (idleTimeoutId) {
+      clearTimeout(idleTimeoutId)
     }
     transportErrorState?.activeCallWatchdogs.delete(callWatchdog)
 

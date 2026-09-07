@@ -117,6 +117,7 @@ export const TaskStopTool = buildTool({
     const result = await stopTask(id, {
       getAppState,
       setAppState,
+      killedBy: 'parent',
     })
 
     return {

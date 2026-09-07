@@ -164,6 +164,17 @@ export function isXtermJs(): boolean {
   return xtversionName?.startsWith('xterm.js') ?? false
 }
 
+/**
+ * Official 2.1.187 `macCmdClickArrivesWithoutSgrModifierBit` — Ghostty on macOS
+ * delivers Cmd+click without the SGR meta/super modifier bits, so hyperlink
+ * open must treat unmodified clicks as Cmd+click there.
+ */
+export function macCmdClickArrivesWithoutSgrModifierBit(
+  proc: NodeJS.Process = process,
+): boolean {
+  return proc.platform === 'darwin' && proc.env.TERM_PROGRAM === 'ghostty'
+}
+
 // Terminals known to correctly implement the Kitty keyboard protocol
 // (CSI >1u) and/or xterm modifyOtherKeys (CSI >4;2m) for ctrl+shift+<letter>
 // disambiguation. We previously enabled unconditionally (#23350), assuming

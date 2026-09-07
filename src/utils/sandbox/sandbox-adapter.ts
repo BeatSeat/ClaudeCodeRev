@@ -54,6 +54,7 @@ import {
 } from '../settings/settings.js'
 import type { SettingsJson } from '../settings/types.js'
 import { whichSync } from '../which.js'
+import type { SandboxCredentialsConfig } from '../../entrypoints/sandboxTypes.js'
 
 /** Official 2.1.133 `i1$`. */
 export function getManagedSandboxBwrapPath(): string | undefined {
@@ -505,6 +506,30 @@ export function convertToSandboxRuntimeConfig(
       }
     }
   }
+
+  // Official 2.1.187: merge sandbox.credentials from every settings source
+  // (paths resolved like sandbox.filesystem.*). Runtime applies deny files as
+  // denyRead and deny env vars as unset — requires a sandbox-runtime that
+  // understands `credentials` (bundled 187+; npm 0.0.44 does not yet).
+  const credFiles: NonNullable<SandboxCredentialsConfig['files']> = []
+  const credEnvVars: NonNullable<SandboxCredentialsConfig['envVars']> = []
+  let sawCredentials = false
+  for (const source of SETTING_SOURCES) {
+    const creds = getSettingsForSource(source)?.sandbox?.credentials
+    if (!creds) continue
+    sawCredentials = true
+    for (const file of creds.files ?? []) {
+      credFiles.push({
+        ...file,
+        path: resolveSandboxFilesystemPath(file.path, source),
+      })
+    }
+    credEnvVars.push(...(creds.envVars ?? []))
+  }
+  const credentials: SandboxCredentialsConfig | undefined = sawCredentials
+    ? { files: credFiles, envVars: credEnvVars }
+    : undefined
+
   // Ripgrep config for sandbox. User settings take priority; otherwise pass our rg.
   // In embedded mode (argv0='rg' dispatch), sandbox-runtime spawns with argv0 set.
   const { rgPath, rgArgs, argv0 } = ripgrepCommand()
@@ -534,13 +559,14 @@ export function convertToSandboxRuntimeConfig(
       allowWrite,
       denyWrite,
     },
+    ...(credentials ? { credentials } : {}),
     ignoreViolations: settings.sandbox?.ignoreViolations,
     enableWeakerNestedSandbox: settings.sandbox?.enableWeakerNestedSandbox,
     enableWeakerNetworkIsolation:
       settings.sandbox?.enableWeakerNetworkIsolation,
     ripgrep: ripgrepConfig,
     seccomp: getEmbeddedApplySeccompConfig(),
-  }
+  } as SandboxRuntimeConfig
 }
 
 // ============================================================================

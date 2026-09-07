@@ -37,6 +37,20 @@ const bootstrapResponseSchema = lazySchema(() =>
       )
       .nullish(),
     additional_model_costs: z.record(z.unknown()).nullish(),
+    // Official 2.1.187 `model_access` → `modelAccessCache`
+    model_access: z
+      .array(
+        z
+          .object({
+            api_name: z.string(),
+            entitled: z.boolean(),
+          })
+          .transform(({ api_name, entitled }) => ({
+            apiName: api_name,
+            entitled,
+          })),
+      )
+      .nullish(),
   }),
 )
 
@@ -134,13 +148,15 @@ export async function fetchBootstrapData(): Promise<void> {
     const additionalModelCosts =
       (response.additional_model_costs as Record<string, ModelCosts> | null) ??
       {}
+    const modelAccess = response.model_access ?? []
 
     // Only persist if data actually changed — avoids a config write on every startup.
     const config = getGlobalConfig()
     if (
       isEqual(config.clientDataCache, clientData) &&
       isEqual(config.additionalModelOptionsCache, additionalModelOptions) &&
-      isEqual(config.additionalModelCostsCache, additionalModelCosts)
+      isEqual(config.additionalModelCostsCache, additionalModelCosts) &&
+      isEqual(config.modelAccessCache ?? [], modelAccess)
     ) {
       logForDebugging('[Bootstrap] Cache unchanged, skipping write')
       return
@@ -152,6 +168,7 @@ export async function fetchBootstrapData(): Promise<void> {
       clientDataCache: clientData,
       additionalModelOptionsCache: additionalModelOptions,
       additionalModelCostsCache: additionalModelCosts,
+      modelAccessCache: modelAccess,
     }))
   } catch (error) {
     logError(error)

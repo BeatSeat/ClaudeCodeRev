@@ -27,6 +27,7 @@ import {
 import {
   DECSTBM_SUPPORTED,
   isXtermJs,
+  macCmdClickArrivesWithoutSgrModifierBit,
   setDec2026Supported,
   setXtversionName,
   supportsExtendedKeys,
@@ -858,7 +859,14 @@ export function handleMouseEvent(app: App, m: ParsedMouse): void {
       // own link-opening; Cmd+click is the native UX there anyway.
       // TERM_PROGRAM is the sync fast-path; isXtermJs() is the XTVERSION
       // probe result (catches SSH + non-VS Code embedders like Hyper).
-      if (url && process.env.TERM_PROGRAM !== 'vscode' && !isXtermJs()) {
+      // Official 2.1.187: require SGR meta/ctrl (button&24) OR Ghostty macOS
+      // where Cmd arrives without the modifier bit.
+      if (
+        url &&
+        ((m.button & 24) !== 0 || macCmdClickArrivesWithoutSgrModifierBit()) &&
+        process.env.TERM_PROGRAM !== 'vscode' &&
+        !isXtermJs()
+      ) {
         // Clear any prior pending timer — clicking a second link
         // supersedes the first (only the latest click opens).
         if (app.pendingHyperlinkTimer) {

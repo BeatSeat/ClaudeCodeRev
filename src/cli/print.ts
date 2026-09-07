@@ -2644,6 +2644,23 @@ function runHeadlessStreaming(
                   output.enqueue(event)
                 }
 
+                // Official 2.1.187 — empty -p/resume result text: run no-text-turn
+                // classification + cEo skip gate (full fqt classifier absent).
+                // Read fields via a structural cast so we do not narrow `message`
+                // away from StdoutMessage for the enqueue/hold-back paths below.
+                {
+                  const resultMsg = message as {
+                    subtype?: string
+                    result?: unknown
+                  }
+                  if (
+                    resultMsg.subtype === 'success' &&
+                    resultMsg.result === ''
+                  ) {
+                    considerNoTextTurnAfterEmptyPrintResult()
+                  }
+                }
+
                 // Official 2.1.179 hold-back (`e61` || `G&&byq`):
                 // only when input is closed — either local_agent/local_workflow
                 // still running (backgrounded), or terminal agent-result
@@ -6439,4 +6456,80 @@ export async function reconcileMcpServers(
     response: { added, removed, errors },
     newState,
   }
+}
+
+/**
+ * Official 2.1.187 — classification produced when a turn (resume/-p) has new
+ * assistant messages but no extractable model text. Used by post_turn_summary.
+ */
+export function noTextTurnClassification(prev: {
+  state?: string
+  detail?: string
+  needs?: unknown
+  lastResultNeeds?: unknown
+}): {
+  state: string
+  tempo: 'blocked' | 'idle'
+  detail: string
+  needs: unknown
+  output: Record<string, never>
+  source: 'no-text-turn'
+} {
+  const state = prev.state || 'working'
+  return {
+    state,
+    tempo: state === 'blocked' ? 'blocked' : 'idle',
+    detail: prev.detail ?? '',
+    needs:
+      state === 'blocked' ? (prev.needs ?? prev.lastResultNeeds) : undefined,
+    output: {},
+    source: 'no-text-turn',
+  }
+}
+
+/**
+ * Official 2.1.187 `cEo` onClassified guard — skip emitting post_turn_summary
+ * for empty no-text-turn classifications (resume/-p with no model text).
+ */
+export function shouldSkipEmptyNoTextTurnSummary(classified: {
+  source?: string
+  detail?: string
+}): boolean {
+  return classified.source === 'no-text-turn' && classified.detail === ''
+}
+
+/**
+ * Official 2.1.187 `cEo` onClassified write gate — apply the empty no-text-turn
+ * skip before writing session metadata. Returns false when emission was skipped.
+ *
+ * Gap: the full `fqt` classifier (detectSurfaces / engineFor /
+ * classifiedToPostTurnSummary) is not in this tree. Callers pass an already-built
+ * summary payload; this only enforces the 187 empty-detail skip.
+ */
+function emitPostTurnSummaryFromClassification(
+  classified: { source?: string; detail?: string },
+  summary: unknown,
+): boolean {
+  if (shouldSkipEmptyNoTextTurnSummary(classified)) {
+    return false
+  }
+  notifySessionMetadataChanged({ post_turn_summary: summary })
+  return true
+}
+
+/**
+ * Nearest -p / resume mount without inventing `fqt`/`cEo`: when a successful
+ * print-mode result has empty model text, build a no-text-turn classification.
+ * With empty detail the 187 guard skips emission (the resume/-p fix). Restoring
+ * prev.state / needs / lastResult and PostTurnSummary field mapping still needs
+ * the classifier subsystem.
+ */
+function considerNoTextTurnAfterEmptyPrintResult(): void {
+  const classified = noTextTurnClassification({})
+  emitPostTurnSummaryFromClassification(classified, {
+    status_category:
+      classified.state === 'blocked' ? 'blocked' : 'completed',
+    status_detail: classified.detail,
+    needs_action: '',
+  })
 }

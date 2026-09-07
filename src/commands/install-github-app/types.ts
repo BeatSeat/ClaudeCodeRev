@@ -1,6 +1,47 @@
-// @generated-stub — missing from sourcemap, see scripts/gen-stubs.ts
-// Type definitions inferred from codebase usage patterns
+// Type definitions inferred from install-github-app wizard usage
 
-export type Workflow = { name: string; path: string; content: string }
-export type Warning = { message: string; severity: 'info' | 'warning' | 'error' }
-export type State = { step: number; workflows: Workflow[]; warnings: Warning[] }
+export type Workflow = 'claude' | 'claude-review'
+
+export type Warning = {
+  title: string
+  message: string
+  instructions: string[]
+}
+
+export type InstallGitHubAppStep =
+  | 'check-gh'
+  | 'warnings'
+  | 'choose-repo'
+  | 'install-app'
+  | 'setup-actions-prompt'
+  | 'check-existing-workflow'
+  | 'select-workflows'
+  | 'check-existing-secret'
+  | 'api-key'
+  | 'oauth-flow'
+  | 'creating'
+  | 'success'
+  | 'error'
+
+export type State = {
+  step: InstallGitHubAppStep
+  selectedRepoName: string
+  currentRepo: string
+  useCurrentRepo: boolean
+  apiKeyOrOAuthToken: string
+  useExistingKey: boolean
+  currentWorkflowInstallStep: number
+  warnings: Warning[]
+  secretExists: boolean
+  secretName: string
+  useExistingSecret: boolean
+  workflowExists: boolean
+  selectedWorkflows: Workflow[]
+  selectedApiKeyOption: 'existing' | 'new' | 'oauth'
+  authType: 'api_key' | 'oauth_token'
+  appOnlyInstall: boolean
+  workflowAction?: 'update' | 'skip' | 'exit'
+  error?: string
+  errorReason?: string
+  errorInstructions?: string[]
+}

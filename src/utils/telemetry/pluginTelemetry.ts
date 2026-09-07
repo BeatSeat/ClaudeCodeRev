@@ -27,6 +27,7 @@ import {
   isOfficialMarketplaceName,
   parsePluginIdentifier,
 } from '../plugins/pluginIdentifier.js'
+import { saveGlobalConfig } from '../config.js'
 
 // builtinPlugins.ts:BUILTIN_MARKETPLACE_NAME — inlined to avoid the cycle
 // through commands.js. Marketplace schemas.ts enforces 'builtin' is reserved.
@@ -193,8 +194,10 @@ export function logPluginsEnabledForSession(
   managedNames: Set<string> | null,
   seedDirs: string[],
 ): void {
+  const seedIds: string[] = []
   for (const plugin of plugins) {
     const { marketplace } = parsePluginIdentifier(plugin.repository)
+    seedIds.push(plugin.repository)
 
     logEvent('tengu_plugin_enabled_for_session', {
       _PROTO_plugin_name:
@@ -219,6 +222,23 @@ export function logPluginsEnabledForSession(
         version: plugin.manifest
           .version as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
       }),
+    })
+  }
+  // Official 2.1.187 `Dwn` — seed pluginUsage for disuse tips
+  if (seedIds.length > 0) {
+    const now = Date.now()
+    saveGlobalConfig(current => {
+      const missing = seedIds.filter(id => !current.pluginUsage?.[id])
+      if (missing.length === 0) return current
+      const pluginUsage = { ...current.pluginUsage }
+      for (const id of missing) {
+        pluginUsage[id] = {
+          usageCount: 0,
+          lastUsedAt: now,
+          lastUsedNumStartups: current.numStartups,
+        }
+      }
+      return { ...current, pluginUsage }
     })
   }
 }
