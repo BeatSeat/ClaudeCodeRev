@@ -1,29 +1,7 @@
 {
   "version": "2.1.179",
   "from": "2.1.178",
-  "astdiff": {
-    "version": "2.1.179",
-    "from": "2.1.178",
-    "from_bundle": "/root/projects/ClaudeCodeRev/restore-work/artifacts/cometix/2.1.178/cli.js",
-    "to_bundle": "/root/projects/ClaudeCodeRev/restore-work/artifacts/cometix/2.1.179/cli.js",
-    "from_sha256": "160b2003d8553fb51392f2e339df768160938129675a6d597dec4c174b651988",
-    "to_sha256": "c824ca95fbf87187045bec4d04b5602f2b5032664c7e91a37a643a375f41eb6e",
-    "method": "astdiff-v0.2.0+tree-sitter0.25",
-    "parser": "tree-sitter 0.25 / tree-sitter-javascript 0.25",
-    "similarity": 99.6,
-    "matched_declarations": 26461,
-    "total_declarations_from": 26550,
-    "total_declarations_to": 26580,
-    "change_total": 11696,
-    "added": 119,
-    "removed": 89,
-    "structural": 11460,
-    "string_only": 28,
-    "command": "astdiff /root/projects/ClaudeCodeRev/restore-work/artifacts/cometix/2.1.178/cli.js /root/projects/ClaudeCodeRev/restore-work/artifacts/cometix/2.1.179/cli.js --format json",
-    "full_json": "/root/projects/Zhiman/projects/ccr-swarm/integration/astdiff-full/using/2.1.179.json",
-    "elapsed_seconds": 17.2,
-    "generated_at": "2026-11-14T15:10:13Z"
-  },
+  "astdiff": "0.99515",
   "contract": "astdiff genuine-structural + added-product (explore reports; changelog is classification only)",
   "coverage": "restore-work/diffs/2.1.179-landing-brief.md",
   "scout": "restore-work/diffs/2.1.179-explore-added-a.md",
@@ -37,12 +15,12 @@
     {
       "item": "Fixed mid-stream connection drops: partial responses are now preserved instead of showing a raw error, and the spinner no longer gets stuck at \"running tool\"",
       "status": "absent-in-bundle",
-      "evidence": "No unique 178→179 mid-stream preserve / spinner-stuck token in explore land-candidates. Not invented."
+      "evidence": "No unique 178\u2192179 mid-stream preserve / spinner-stuck token in explore land-candidates. Not invented."
     },
     {
       "item": "Fixed mouse-wheel scrolling in WSL2 under Windows Terminal and VS Code (regression in 2.1.172)",
       "status": "partial",
-      "evidence": "Core landed AltGr `CLAUDE_CODE_ALTGR_AS_TEXT` / WT_SESSION (`t$5`) in parse-keypress.ts — adjacent terminal input. Dedicated WSL2 wheel scroll helper not a land-candidate in explore; WY7→vw7 dropped WSL-unrecognized-host mouse gate."
+      "evidence": "Core landed AltGr `CLAUDE_CODE_ALTGR_AS_TEXT` / WT_SESSION (`t$5`) in parse-keypress.ts \u2014 adjacent terminal input. Dedicated WSL2 wheel scroll helper not a land-candidate in explore; WY7\u2192vw7 dropped WSL-unrecognized-host mouse gate."
     },
     {
       "item": "Fixed a sandbox denyRead/allowRead glob over a large directory tree making the Bash tool description enormous and the session unusable on Linux",
@@ -52,10 +30,10 @@
     {
       "item": "Fixed the feedback survey capturing a single-digit reply as a session rating immediately after a turn completes",
       "status": "absent-in-bundle",
-      "evidence": "No unique survey/single-digit rating token 0→N in explore land-candidates. Not invented."
+      "evidence": "No unique survey/single-digit rating token 0\u2192N in explore land-candidates. Not invented."
     },
     {
-      "item": "Fixed the welcome screen stacking multiple promotional banners — at most one promo now shows per session",
+      "item": "Fixed the welcome screen stacking multiple promotional banners \u2014 at most one promo now shows per session",
       "status": "partial",
       "evidence": "S4H/c74 useOnceFire + guest-passes / fable5-launch / subscription-switch once-fire. fotw-nudge / fullscreen-downsell / status-slot registry skipped (no hosts). Lw9/ltf company announcement picker + cache."
     },

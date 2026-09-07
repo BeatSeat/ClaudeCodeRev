@@ -16,7 +16,13 @@ import { logEvent } from 'src/services/analytics/index.js'
 import { getFeatureValue_CACHED_MAY_BE_STALE } from '../services/analytics/growthbook.js'
 import { getCwd } from '../utils/cwd.js'
 import { logForDebugging } from './debug.js'
-import { getErrnoCode, isEISDIR, isENOENT, isFsInaccessible } from './errors.js'
+import {
+  getErrnoCode,
+  isEISDIR,
+  isENOENT,
+  isFsInaccessible,
+  TelemetrySafeError_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
+} from './errors.js'
 import {
   detectEncodingForResolvedPath,
   detectLineEndingsForString,
@@ -86,7 +92,7 @@ export function writeTextContent(
   content: string,
   encoding: BufferEncoding,
   endings: LineEndingType,
-): void {
+): number {
   let toWrite = content
   if (endings === 'CRLF') {
     // Normalize any existing CRLF to LF first so a new_string that already
@@ -95,6 +101,15 @@ export function writeTextContent(
   }
 
   writeFileSyncAndFlush_DEPRECATED(filePath, toWrite, { encoding })
+  const expectedSize = Buffer.byteLength(toWrite, encoding)
+  const stat = getFsImplementation().statSync(filePath)
+  if (stat.size !== expectedSize) {
+    throw new TelemetrySafeError_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS(
+      `Write verification failed: ${filePath} is ${stat.size} bytes on disk, expected ${expectedSize}. The filesystem may have silently truncated the write (network drive / cloud sync).`,
+      'writeTextContent: on-disk size mismatch after write',
+    )
+  }
+  return Math.floor(stat.mtimeMs)
 }
 
 export function detectFileEncoding(filePath: string): BufferEncoding {

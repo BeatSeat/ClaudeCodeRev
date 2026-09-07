@@ -4,7 +4,8 @@ const config = {
   aliases: ['settings'],
   type: 'local-jsx',
   name: 'config',
-  description: 'Change settings: hooks, permissions, environment variables',
+  description: 'Open settings',
+  argumentHint: '[key=value]',
   load: () => import('./config.js'),
 } satisfies Command
 

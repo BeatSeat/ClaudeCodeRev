@@ -40,7 +40,7 @@ import {
 import { hasExcludeDefaultSpinnerTips } from '../services/tips/tipRegistry.js'
 import { useAnimationFrame } from '../ink.js'
 import { getGlobalConfig } from '../utils/config.js'
-export type { SpinnerMode } from './Spinner/index.js'
+export type { RetryStatus, SpinnerMode } from './Spinner/index.js'
 
 const DEFAULT_CHARACTERS = getDefaultCharacters()
 

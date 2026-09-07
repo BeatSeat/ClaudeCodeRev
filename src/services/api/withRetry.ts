@@ -6,6 +6,7 @@ import {
   APIUserAbortError,
 } from '@anthropic-ai/sdk'
 import type { QuerySource } from 'src/constants/querySource.js'
+import type { RetryStatus } from 'src/components/Spinner/index.js'
 import type { SystemAPIErrorMessage } from 'src/types/message.js'
 import { isAwsCredentialsProviderError } from 'src/utils/aws.js'
 import {
@@ -211,6 +212,11 @@ interface RetryOptions {
    * key) after mutating request state — e.g. strip an oversized history image.
    */
   onError?: (error: unknown) => Promise<string | undefined | void>
+  /**
+   * Official 2.1.181: receives stall/retry status updates so the UI can show
+   * "No response from API · Retrying in" or retry countdown inline.
+   */
+  onRetryStatus?: (status: RetryStatus) => void
 }
 
 export class CannotRetryError extends Error {
@@ -304,6 +310,8 @@ export async function* withRetry<T>(
   ) => Promise<T>,
   options: RetryOptions,
 ): AsyncGenerator<SystemAPIErrorMessage, T> {
+  /** Whether onRetryStatus has been invoked for the current retry cycle. */
+  let retryStatusActive = false
   const maxRetries = getMaxRetries(options)
   const retryContext: RetryContext = {
     model: options.model,
@@ -315,6 +323,7 @@ export async function* withRetry<T>(
   let lastError: unknown
   let persistentAttempt = 0
   const onErrorKeys = new Set<string>()
+  try {
   for (let attempt = 1; attempt <= maxRetries + 1; attempt++) {
     if (options.signal?.aborted) {
       throw new APIUserAbortError()
@@ -741,6 +750,15 @@ export async function* withRetry<T>(
         while (remaining > 0) {
           if (options.signal?.aborted) throw new APIUserAbortError()
           if (error instanceof APIError) {
+            retryStatusActive = true
+            options.onRetryStatus?.({
+              kind: 'retrying',
+              error,
+              attempt: reportedAttempt,
+              maxRetries,
+              retryInMs: remaining,
+              deadline: Date.now() + remaining,
+            })
             yield createSystemAPIErrorMessage(
               error,
               remaining,
@@ -757,6 +775,15 @@ export async function* withRetry<T>(
         if (attempt >= maxRetries) attempt = maxRetries
       } else {
         if (error instanceof APIError) {
+          retryStatusActive = true
+          options.onRetryStatus?.({
+            kind: 'retrying',
+            error,
+            attempt,
+            maxRetries,
+            retryInMs: delayMs,
+            deadline: Date.now() + delayMs,
+          })
           yield createSystemAPIErrorMessage(error, delayMs, attempt, maxRetries)
         }
         await sleep(delayMs, options.signal, { abortError })
@@ -765,6 +792,14 @@ export async function* withRetry<T>(
   }
 
   throw new CannotRetryError(lastError, retryContext)
+  } finally {
+    // Clear inline retry-status overlay when the retry cycle ends (success,
+    // exhaustion, or abort).
+    if (retryStatusActive) {
+      retryStatusActive = false
+      options.onRetryStatus?.(null)
+    }
+  }
 }
 
 function getRetryAfter(error: unknown): string | null {
@@ -974,6 +1009,20 @@ function shouldRetry(error: APIError): boolean {
   // Never retry mock errors - they're from /mock-limits command for testing
   if (isMockRateLimitError(error)) {
     return false
+  }
+
+  if (
+    error.status === 429 &&
+    ((error as any).error?.error?.details?.error_code === 'credits_required' ||
+      error.message?.toLowerCase().includes('usage credits are required') ||
+      error.message?.toLowerCase().includes('extra usage is required'))
+  ) {
+    const reason = error.headers?.get?.(
+      'anthropic-ratelimit-unified-overage-disabled-reason',
+    )
+    if (reason !== 'fetch_error' && reason !== 'org_level_disabled_until') {
+      return false
+    }
   }
 
   // Persistent mode: 429/529 always retryable, bypass subscriber gates and

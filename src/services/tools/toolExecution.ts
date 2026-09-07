@@ -38,6 +38,11 @@ import {
 } from '../../Tool.js'
 import type { BashToolInput } from '../../tools/BashTool/BashTool.js'
 import { startSpeculativeClassifierCheck } from '../../tools/BashTool/bashPermissions.js'
+import {
+  UNPARSED_TOOL_INPUT,
+  isUnparsedToolInput,
+  type UnparsedToolInput,
+} from '../../utils/toolInput.js'
 import { BASH_TOOL_NAME } from '../../tools/BashTool/toolName.js'
 import {
   allocateBashRerunAlias,
@@ -682,6 +687,77 @@ export function buildSchemaNotSentHint(
   )
 }
 
+function extractToolResultText(toolResult: { content?: unknown }): string {
+  const content = toolResult.content
+  if (typeof content === 'string') return content
+  if (Array.isArray(content)) {
+    return content
+      .map(n => (n && typeof n === 'object' && 'text' in n ? String((n as { text?: unknown }).text ?? '') : ''))
+      .join('')
+  }
+  return ''
+}
+
+function buildToolUseIdToNameMap(messages: Message[]): Map<string, string> {
+  const map = new Map<string, string>()
+  for (const msg of messages) {
+    if (msg?.type !== 'assistant' || !Array.isArray(msg.message?.content)) continue
+    for (const block of msg.message.content) {
+      if (
+        block &&
+        typeof block === 'object' &&
+        'type' in block &&
+        block.type === 'tool_use' &&
+        typeof (block as { id?: unknown }).id === 'string' &&
+        typeof (block as { name?: unknown }).name === 'string'
+      ) {
+        map.set((block as { id: string }).id, (block as { name: string }).name)
+      }
+    }
+  }
+  return map
+}
+
+function buildConsecutiveValidationFailureHint(
+  toolName: string,
+  inputSchema: z.ZodTypeAny,
+  messages: Message[],
+): string | null {
+  try {
+    const idToName = buildToolUseIdToNameMap(messages)
+    let consecutiveFailures = 0
+    for (let s = messages.length - 1; s >= 0; s--) {
+      const i = messages[s]
+      if (i?.type !== 'user' || !Array.isArray(i.message?.content)) continue
+      for (const a of i.message.content) {
+        if (!a || typeof a !== 'object' || !('type' in a) || a.type !== 'tool_result') continue
+        if (
+          a.is_error === true &&
+          extractToolResultText(a).includes('InputValidationError') &&
+          typeof a.tool_use_id === 'string' &&
+          idToName.get(a.tool_use_id) === toolName
+        ) {
+          consecutiveFailures++
+          if (consecutiveFailures >= 3) {
+            let schemaStr: string
+            try {
+              schemaStr = jsonStringify(z.toJSONSchema(inputSchema))
+            } catch {
+              return null
+            }
+            return `\n\nThis call has now failed validation ${consecutiveFailures} times in a row. The ${toolName} tool's input schema is: ${schemaStr}. Match the parameter names and types exactly on the next attempt.`
+          }
+        } else {
+          return null
+        }
+      }
+    }
+    return null
+  } catch {
+    return null
+  }
+}
+
 async function checkPermissionsAndCallTool(
   tool: Tool,
   toolUseID: string,
@@ -757,6 +833,41 @@ async function checkPermissionsAndCallTool(
     resolvedInput = { ...rest, command: resolved.command }
   }
 
+  if (isUnparsedToolInput(resolvedInput)) {
+    const { raw, len } = (resolvedInput as UnparsedToolInput)[UNPARSED_TOOL_INPUT]
+    const preview = raw.slice(0, 200)
+    const errorText = `${tool.name} was called with input that could not be parsed as JSON.\nYou sent (first ${preview.length} of ${len} bytes): ${preview}\nCommon causes: unescaped backslashes in file paths (use / or \\\\), unescaped control characters, or truncated output. Retry with valid JSON.`
+    logEvent('tengu_tool_use_error', {
+      error: 'InputValidationError' as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
+      errorCode: 'JSON_PARSE' as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
+      messageID: messageId as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
+      toolName: sanitizeToolNameForAnalytics(tool.name),
+      isMcp: tool.isMcp ?? false,
+      toolInputSizeBytes: len,
+      queryChainId: toolUseContext.queryTracking?.chainId as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
+      queryDepth: toolUseContext.queryTracking?.depth,
+      ...(mcpServerType && { mcpServerType: mcpServerType as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS }),
+      ...(mcpServerBaseUrl && { mcpServerBaseUrl: mcpServerBaseUrl as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS }),
+      ...(requestId && { requestId: requestId as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS }),
+    })
+    return [
+      {
+        message: createUserMessage({
+          content: [
+            {
+              type: 'tool_result',
+              content: `<tool_use_error>${errorText}</tool_use_error>`,
+              is_error: true,
+              tool_use_id: toolUseID,
+            },
+          ],
+          toolUseResult: `Error: ${tool.name} input could not be parsed as JSON`,
+          sourceToolAssistantUUID: assistantMessage.uuid as any,
+        }),
+      },
+    ]
+  }
+
   // Official 2.1.169: tools may repair malformed model-emitted input before
   // Zod validation; the outcome is recorded in tengu_tool_input_coerced.
   let coerced: {
@@ -800,6 +911,19 @@ async function checkPermissionsAndCallTool(
         isMcp: tool.isMcp ?? false,
       })
       errorContent += schemaHint
+    } else {
+      const consecutiveHint = buildConsecutiveValidationFailureHint(
+        tool.name,
+        tool.inputSchema,
+        toolUseContext.messages,
+      )
+      if (consecutiveHint !== null) {
+        logEvent('tengu_tool_consecutive_validation_failures', {
+          toolName: sanitizeToolNameForAnalytics(tool.name),
+          isMcp: tool.isMcp ?? false,
+        })
+        errorContent += consecutiveHint
+      }
     }
 
     logForDebugging(
