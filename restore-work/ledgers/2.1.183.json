@@ -1,0 +1,30 @@
+{
+  "version": "2.1.183",
+  "from": "2.1.181",
+  "astdiff": "0.99256",
+  "contract": "astdiff genuine-structural + added-product (explore reports; changelog not used)",
+  "coverage": "restore-work/diffs/2.1.183-landing-brief.md",
+  "scout": "restore-work/diffs/2.1.183-explore-added.md",
+  "domainLandings": [
+    "restore-work/diffs/2.1.183-core-landing.md",
+    "restore-work/diffs/2.1.183-tools-landing.md",
+    "restore-work/diffs/2.1.183-services-landing.md"
+  ],
+  "items": [
+    {
+      "item": "astdiff Core: arrow key history non-human origin filter (FLf), PowerShell quote Unicode single-quote guard (M3f), subagent background shell timeout with monitor guard and notification order (KYa/Z0e/B4n), subagent transcript compaction boundary filter (cLe)",
+      "status": "located",
+      "evidence": "useArrowKeyHistory.tsx !(message.origin && (message.origin as any).kind !== 'human'); terminalLauncher.ts psQuote Unicode curly rejection; LocalShellTask.tsx startSubagentShellTimeout helper wired to spawnShellTask and backgroundTask; sessionStorage.ts getAgentTranscript compact_boundary skip"
+    },
+    {
+      "item": "astdiff Tools: SwarmPaneError and control character validation (sF/fDa/mDa/Slt), TmuxBackend respawnPaneWithCommand atomic respawn (a3n), ITermBackend Ctrl+U buffer discard (Udo), in-process spawn discriminated union result (Tlt/sqa), separate window respawn and iterm setup cancellation telemetry (EDp/SDp)",
+      "status": "located",
+      "evidence": "types.ts SwarmPaneError & assertNoControlChars; TmuxBackend.ts respawnPaneWithCommand & sendCommandToPane; ITermBackend.ts sendCommandToPane \\x15 discard; spawnInProcess.ts & spawnMultiAgent.ts & InProcessBackend.ts ok/identity/taskId return union and separate window respawn"
+    },
+    {
+      "item": "astdiff Services & UI: plugin suggestion tips filesRead signal matching with picomatch (U9n), frontend-design-plugin contextual suggestion tip in-place update (zZl/eI)",
+      "status": "located",
+      "evidence": "pluginSuggestionTips.ts PluginSuggestionSignals filesRead & isMarketplacePluginRelevant matching; tipRegistry.ts frontend-design-plugin tip updated in place with priority: 1, providerAgnostic: true, filesRead: ['**/*.html', '**/*.css', '**/*.htm']"
+    }
+  ]
+}

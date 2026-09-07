@@ -143,6 +143,41 @@ The command is likely blocked on an interactive prompt. Kill this task and re-ru
   }
 }
 
+const SUBAGENT_BG_SHELL_MAX_MS_DEFAULT = 3_600_000 // 1 hour
+
+/** Official 2.1.183 `KYa`: subagent background shell timeout. */
+function startSubagentShellTimeout(
+  taskId: string,
+  description: string,
+  setAppState: SetAppState,
+  toolUseId?: string,
+  kind?: BashTaskKind,
+  agentId?: AgentId,
+): () => void {
+  if (agentId === undefined || kind === 'monitor') return () => {}
+  const timeoutMs =
+    parseInt(process.env.CLAUDE_SUBAGENT_BG_SHELL_MAX_MS || '', 10) ||
+    SUBAGENT_BG_SHELL_MAX_MS_DEFAULT
+  const timer = setTimeout(() => {
+    enqueueShellNotification(
+      taskId,
+      description,
+      'killed',
+      undefined,
+      setAppState,
+      toolUseId,
+      kind,
+      agentId,
+    )
+    killTask(taskId, setAppState)
+  }, timeoutMs)
+  timer.unref?.()
+
+  return () => {
+    clearTimeout(timer)
+  }
+}
+
 function enqueueShellNotification(
   taskId: string,
   description: string,
@@ -274,9 +309,18 @@ export async function spawnShellTask(
     toolUseId,
     agentId,
   )
+  const cancelSubagentTimeout = startSubagentShellTimeout(
+    taskId,
+    description,
+    setAppState,
+    toolUseId,
+    kind,
+    agentId,
+  )
 
   void shellCommand.result.then(async result => {
     cancelStallWatchdog()
+    cancelSubagentTimeout()
     await flushAndCleanup(shellCommand)
     let wasKilled = false
 
@@ -399,10 +443,19 @@ function backgroundTask(
     toolUseId,
     agentId,
   )
+  const cancelSubagentTimeout = startSubagentShellTimeout(
+    taskId,
+    description,
+    setAppState,
+    toolUseId,
+    kind,
+    agentId,
+  )
 
   // Set up result handler
   void shellCommand.result.then(async result => {
     cancelStallWatchdog()
+    cancelSubagentTimeout()
     await flushAndCleanup(shellCommand)
     let wasKilled = false
     let cleanupFn: (() => void) | undefined

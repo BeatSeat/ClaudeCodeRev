@@ -534,7 +534,12 @@ function appleScriptQuote(s: string): string {
  * strings interpret `n `t `" etc. and can be escaped out of.
  */
 function psQuote(s: string): string {
-  return `'${s.replace(/'/g, "''")}'`
+  if (/[\u2018\u2019\u201A\u201B]/.test(s)) {
+    throw new Error(
+      'Cannot safely quote a Unicode single-quote variant (U+2018-U+201B) in a PowerShell path; install Windows Terminal (wt.exe).',
+    )
+  }
+  return `'${s.replaceAll('"', '').replaceAll("'", "''")}'`
 }
 
 /**

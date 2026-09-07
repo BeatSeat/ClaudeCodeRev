@@ -31,6 +31,33 @@ export type CreatePaneResult = {
   isFirstTeammate: boolean
 }
 
+/** Official 2.1.183 `sF`: SwarmPaneError for terminal pane operation failures. */
+export class SwarmPaneError extends Error {
+  constructor(message: string) {
+    super(message)
+    this.name = 'SwarmPaneError'
+  }
+}
+
+/** Official 2.1.183 `fDa`: regex matching any Unicode control character. */
+export const CONTROL_CHAR_REGEX = /\p{Cc}/u
+
+/** Official 2.1.183 `mDa`: checks whether a string contains control characters. */
+export function hasControlChars(str: string): boolean {
+  return CONTROL_CHAR_REGEX.test(str)
+}
+
+/** Official 2.1.183 `Slt`: refuses commands containing control characters. */
+export function assertNoControlChars(str: string): void {
+  const match = CONTROL_CHAR_REGEX.exec(str)
+  if (match) {
+    const code = match[0].codePointAt(0)
+    throw new SwarmPaneError(
+      `Refusing to send command containing control character U+${(code ?? 0).toString(16).padStart(4, '0').toUpperCase()} to terminal pane`,
+    )
+  }
+}
+
 /**
  * Interface for pane management backends.
  * Abstracts operations for creating and managing terminal panes

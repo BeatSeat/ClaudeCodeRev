@@ -31,6 +31,11 @@ import {
   registerTask,
   STOPPED_DISPLAY_MS,
 } from '../task/framework.js'
+import {
+  logEvent,
+  type AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
+} from '../../services/analytics/index.js'
+import type { AgentColorName } from '../../tools/AgentTool/agentColorManager.js'
 import { createTeammateContext } from '../teammateContext.js'
 import {
   isPerfettoTracingEnabled,
@@ -54,37 +59,38 @@ export type SpawnContext = {
  * Configuration for spawning an in-process teammate.
  */
 export type InProcessSpawnConfig = {
-  /** Display name for the teammate, e.g., "researcher" */
   name: string
-  /** Team this teammate belongs to */
   teamName: string
-  /** Initial prompt/task for the teammate */
   prompt: string
-  /** Optional UI color for the teammate */
-  color?: string
-  /** Whether teammate must enter plan mode before implementing */
-  planModeRequired: boolean
-  /** Optional model override for this teammate */
+  color: AgentColorName
+  planModeRequired?: boolean
   model?: string
 }
 
 /**
- * Result from spawning an in-process teammate.
+ * Result from spawning an in-process teammate. Official 2.1.183 `Tlt`.
  */
-export type InProcessSpawnOutput = {
-  /** Whether spawn was successful */
-  success: boolean
-  /** Full agent ID (format: "name@team") */
-  agentId: string
-  /** Task ID for tracking in AppState */
-  taskId?: string
-  /** AbortController for this teammate (linked to parent) */
-  abortController?: AbortController
-  /** Teammate context for AsyncLocalStorage */
-  teammateContext?: ReturnType<typeof createTeammateContext>
-  /** Error message if spawn failed */
-  error?: string
-}
+export type InProcessSpawnOutput =
+  | {
+      ok: true
+      success: true
+      agentId: string
+      identity: TeammateIdentity
+      taskId: string
+      abortController: AbortController
+      teammateContext: ReturnType<typeof createTeammateContext>
+      error?: never
+    }
+  | {
+      ok: false
+      success: false
+      agentId: string
+      error: string
+      identity?: never
+      taskId?: never
+      abortController?: never
+      teammateContext?: never
+    }
 
 /**
  * Spawns an in-process teammate.
@@ -188,10 +194,16 @@ export async function spawnInProcessTeammate(
     logForDebugging(
       `[spawnInProcessTeammate] Registered ${agentId} in AppState`,
     )
+    logEvent('tengu_feature_ok', {
+      feature_name:
+        'swarm_in_process_spawn' as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
+    })
 
     return {
+      ok: true,
       success: true,
       agentId,
+      identity,
       taskId,
       abortController,
       teammateContext,
@@ -202,7 +214,14 @@ export async function spawnInProcessTeammate(
     logForDebugging(
       `[spawnInProcessTeammate] Failed to spawn ${agentId}: ${errorMessage}`,
     )
+    logEvent('tengu_feature_bad', {
+      feature_name:
+        'swarm_in_process_spawn' as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
+      error_code:
+        'spawn_failed' as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
+    })
     return {
+      ok: false,
       success: false,
       agentId,
       error: errorMessage,
@@ -231,7 +250,7 @@ export function killInProcessTeammate(
 
   setAppState((prev: AppState) => {
     const task = prev.tasks[taskId]
-    if (!task || task.type !== 'in_process_teammate') {
+    if (!task || (task as any).type !== 'in_process_teammate') {
       return prev
     }
 

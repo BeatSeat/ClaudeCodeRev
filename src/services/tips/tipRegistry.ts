@@ -510,14 +510,16 @@ const externalTips: Tip[] = [
   },
   {
     id: 'frontend-design-plugin',
+    priority: 1,
+    providerAgnostic: true,
     content: async ctx => {
-      const blue = color('suggestion', ctx.theme)
-      return `Working with HTML/CSS? Install the frontend-design plugin:\n${blue(`/plugin install frontend-design@${OFFICIAL_MARKETPLACE_NAME}`)}`
+      const suggestion = color('suggestion', ctx.theme)
+      return `Working with HTML/CSS? Install the frontend-design plugin:\n${suggestion(`/plugin install frontend-design@${OFFICIAL_MARKETPLACE_NAME}`)}`
     },
     cooldownSessions: 3,
-    isRelevant: async context =>
-      isMarketplacePluginRelevant('frontend-design', context, {
-        filePath: /\.(html|css|htm)$/i,
+    isRelevant: async ctx =>
+      isMarketplacePluginRelevant('frontend-design', ctx, {
+        filesRead: ['**/*.html', '**/*.css', '**/*.htm'],
       }),
   },
   {

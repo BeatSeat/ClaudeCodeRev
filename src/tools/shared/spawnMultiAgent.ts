@@ -22,6 +22,10 @@ import { quote } from '../../utils/bash/shellQuote.js'
 import { isInBundledMode } from '../../utils/bundledMode.js'
 import { getGlobalConfig } from '../../utils/config.js'
 import { getCwd } from '../../utils/cwd.js'
+import {
+  logEvent,
+  type AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
+} from '../../services/analytics/index.js'
 import { logForDebugging } from '../../utils/debug.js'
 import { errorMessage } from '../../utils/errors.js'
 import { execFileNoThrow } from '../../utils/execFileNoThrow.js'
@@ -37,8 +41,13 @@ import {
   resetBackendDetection,
 } from '../../utils/swarm/backends/registry.js'
 import { getTeammateModeFromSnapshot } from '../../utils/swarm/backends/teammateModeSnapshot.js'
-import type { BackendType } from '../../utils/swarm/backends/types.js'
-import { isPaneBackend } from '../../utils/swarm/backends/types.js'
+import { respawnPaneWithCommand } from '../../utils/swarm/backends/TmuxBackend.js'
+import {
+  assertNoControlChars,
+  SwarmPaneError,
+  type BackendType,
+  isPaneBackend,
+} from '../../utils/swarm/backends/types.js'
 import {
   SWARM_SESSION_NAME,
   TEAM_LEAD_NAME,
@@ -433,7 +442,15 @@ async function handleSpawnSplitPane(
     context.setToolJSX(null)
 
     if (setupResult === 'cancelled') {
-      throw new Error('Teammate spawn cancelled - iTerm2 setup required')
+      logEvent('tengu_feature_bad', {
+        feature_name:
+          'subagent_launch' as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
+        error_code:
+          'subagent_teammate_iterm_cancelled' as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
+      })
+      throw new SwarmPaneError(
+        'Teammate spawn cancelled - iTerm2 setup required',
+      )
     }
 
     // If they installed it2 or chose tmux, clear cached detection and re-fetch
@@ -714,19 +731,28 @@ async function handleSpawnSeparateWindow(
   const envStr = buildInheritedEnvVars()
   const spawnCommand = `cd ${quote([workingDir])} && env ${envStr} ${quote([binaryPath])} ${teammateArgs}${flagsStr}`
 
-  // Send the command to the new window
-  const sendKeysResult = await execFileNoThrow(TMUX_COMMAND, [
-    'send-keys',
-    '-t',
-    `${SWARM_SESSION_NAME}:${windowName}`,
-    spawnCommand,
-    'Enter',
-  ])
+  try {
+    assertNoControlChars(spawnCommand)
+  } catch (err) {
+    logEvent('tengu_feature_bad', {
+      feature_name:
+        'subagent_launch' as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
+      error_code:
+        'subagent_teammate_control_chars' as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
+    })
+    throw err
+  }
 
-  if (sendKeysResult.code !== 0) {
-    throw new Error(
-      `Failed to send command to tmux window: ${sendKeysResult.stderr}`,
-    )
+  try {
+    await respawnPaneWithCommand([], paneId, spawnCommand)
+  } catch (err) {
+    logEvent('tengu_feature_bad', {
+      feature_name:
+        'subagent_launch' as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
+      error_code:
+        'subagent_teammate_tmux_respawn_failed' as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
+    })
+    throw err
   }
 
   // Track the teammate in AppState's teamContext
@@ -961,44 +987,37 @@ async function handleSpawnInProcess(
 
   const result = await spawnInProcessTeammate(config, context)
 
-  if (!result.success) {
-    throw new Error(result.error ?? 'Failed to spawn in-process teammate')
+  if (!result.ok) {
+    logEvent('tengu_feature_bad', {
+      feature_name:
+        'subagent_launch' as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
+      error_code:
+        'subagent_teammate_inprocess_failed' as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
+    })
+    logForDebugging(`[handleSpawnInProcess] spawn failed: ${result.error}`)
+    throw new Error('Failed to spawn in-process teammate')
   }
-
-  // Debug: log what spawn returned
-  logForDebugging(
-    `[handleSpawnInProcess] spawn result: taskId=${result.taskId}, hasContext=${!!result.teammateContext}, hasAbort=${!!result.abortController}`,
-  )
 
   // Start the agent execution loop (fire-and-forget)
-  if (result.taskId && result.teammateContext && result.abortController) {
-    startInProcessTeammate({
-      identity: {
-        agentId: teammateId,
-        agentName: sanitizedName,
-        teamName,
-        color: teammateColor,
-        planModeRequired: plan_mode_required ?? false,
-        parentSessionId: result.teammateContext.parentSessionId,
-      },
-      taskId: result.taskId,
-      prompt,
-      description: input.description,
-      model,
-      agentDefinition,
-      teammateContext: result.teammateContext,
-      // Strip messages: the teammate never reads toolUseContext.messages
-      // (it builds its own history via allMessages in inProcessRunner).
-      // Passing the parent's full conversation here would pin it for the
-      // teammate's lifetime, surviving /clear and auto-compact.
-      toolUseContext: { ...context, messages: [] },
-      abortController: result.abortController,
-      invokingRequestId: input.invokingRequestId,
-    })
-    logForDebugging(
-      `[handleSpawnInProcess] Started agent execution for ${teammateId}`,
-    )
-  }
+  startInProcessTeammate({
+    identity: result.identity,
+    taskId: result.taskId,
+    prompt,
+    description: input.description,
+    model,
+    agentDefinition,
+    teammateContext: result.teammateContext,
+    // Strip messages: the teammate never reads toolUseContext.messages
+    // (it builds its own history via allMessages in inProcessRunner).
+    // Passing the parent's full conversation here would pin it for the
+    // teammate's lifetime, surviving /clear and auto-compact.
+    toolUseContext: { ...context, messages: [] },
+    abortController: result.abortController,
+    invokingRequestId: input.invokingRequestId,
+  })
+  logForDebugging(
+    `[handleSpawnInProcess] Started agent execution for ${teammateId}`,
+  )
 
   // Track the teammate in AppState's teamContext
   // Auto-register leader if spawning without prior spawnTeam call
