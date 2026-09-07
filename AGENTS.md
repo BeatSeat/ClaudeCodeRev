@@ -39,6 +39,7 @@ There is **no test suite and no linter**. Verification = typecheck delta (below)
 - **Feature flags:** production build ships most experimental flags OFF (see `FEATURE_FLAGS` in `scripts/build.ts`); `--dev` turns all on and overrides are possible via `FEATURE_*` env vars.
 - **Restore inputs:** official npm 2.1.113+ has no analyzable JS (thin installer) — use Cometix platform packages for 2.1.113+ per SKILL.md "Version path". Never improvise the walk order or skip hops.
 - **Commit message for a landed hop:** `restore: align TypeScript tree with official <ver>`. A hop is not commit-eligible until the ledger is written and the pre-commit parallel review wave reports clean (main-agent-only review does not count).
+- **Hop commits must match their astdiff — rebase, don't annotate.** When any hop is found (during a later hop, review, or audit) to have missed genuine structural changes from its official bundle diff, fix it by rewriting that hop's commit via `git rebase -i`: fold the missing code into the hop where it belongs (matching that version's state — not later versions), adjust subsequent hops as needed, and force-push. Never paper over a gap with a standalone `feat:`/`fix:` commit on top of the restore chain, and never leave a gap documented only in a ledger `notes` field when the code should be in the correct hop commit.
 - `undefined/` and `restore-work/scratch/` are untracked junk/work areas — leave them out of commits.
 
 ## Sensitive areas

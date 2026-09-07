@@ -75,6 +75,7 @@ Copy this checklist and keep it updated:
 - [ ] 7. Launch a second wave of parallel subagents to audit landed TS vs astdiff + CHANGELOG (read-only review)
 - [ ] 8. Main agent resolves every blocking review finding. If any reviewer is FAIL / silent / unresponsive, do not commit — retry the review wave
 - [ ] 9. Update package.json version and git commit: `restore: align TypeScript tree with official <ver>`
+- [ ] 10. If the hop surfaces a gap from an earlier hop (feature existed in the bundle at an earlier version but wasn't landed), **rebase** the earlier hop to include the missing code instead of deferring — see §4 "Pre-existing gap" handling
 ```
 
 ### 1. Artifacts
@@ -155,7 +156,16 @@ Four landing habits that this walk keeps needing:
 3. **Trace the value end to end.** A new field on a result type is only real once a producer sets it and a consumer reads it. Follow the plumbing in the bundle before declaring the row landed.
 4. **Ast-only product that the CHANGELOG omits still counts** when it lives in a function you are already touching. Land it and say so in the ledger `notes` — do not let it silently ride along.
 
-When landing surfaces a **pre-existing gap from an earlier hop**, record it in the ledger `notes` and move on. Do not expand the hop's scope to backfill it.
+When landing surfaces a **pre-existing gap from an earlier hop** (a feature that exists in the official bundle at version N but was never landed into the TS tree at that hop), the correct action is to **directly rebase the git history**:
+
+1. Identify the hop where the gap should have been landed (usually the version where the feature first appears in the official bundle).
+2. Use `git rebase -i` to stop at that hop, land the missing code (matching the official bundle's structure for *that* version — e.g. old text/thresholds before later versions changed them), amend the hop's commit.
+3. Replay all subsequent hops on top, resolving any conflicts from the backfill.
+4. If the gap spans multiple hops with evolving behavior (e.g. text changed between 181→185), split the code so each hop's commit reflects its own version's state.
+5. Never paper over a gap with a standalone `feat:` commit on top of the restore chain — that breaks the one-hop-per-commit contract and leaves the tree in a state that does not correspond to any single official version.
+6. When a new hop is landing, if it discovers that an earlier hop's code was not faithful to its astdiff, **do not defer** — immediately plan the rebase to correct the earlier hop, then continue.
+
+The commit message for a corrected hop stays `restore: align TypeScript tree with official <ver>` — the hop commit must be a faithful snapshot of that single official version.
 
 ### 5. Gates & Verification
 
@@ -223,3 +233,4 @@ Landing subagents fail on long hops (`deadline_exceeded`, decrypt errors). The h
 7. **Every version must build.** `bun run build` green, and the hop's unique tokens present in `dist/cli.js`. A hop that does not build is not a hop.
 8. Never invent behavior the bundle does not contain. If the changelog implies a platform variant (a Linux equivalent of a Windows fix, say) and the bundle has no such code, land the official body as-is and note the asymmetry. Copy strings are verbatim from the bundle, never paraphrased.
 9. Never treat CRLF churn as a change. This tree's working copy is line-ending noisy — use `git diff --ignore-all-space --stat` to find the real diff before reviewing or committing.
+10. **A hop commit that does not match its astdiff must be rebased, not annotated.** If any hop is found (during a later hop, review, or audit) to have missed genuine structural changes from its official bundle diff, fix it by rewriting that hop's commit via git rebase — fold the missing code into the hop where it belongs, adjust subsequent hops as needed, and force-push. Never leave a gap documented in a ledger `notes` field when the code could and should be in the correct hop commit.
