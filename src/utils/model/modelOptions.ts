@@ -4,6 +4,7 @@ import {
   isClaudeAISubscriber,
   isMaxSubscriber,
   isTeamPremiumSubscriber,
+  isTeamSubscriber,
 } from '../auth.js'
 import { getModelStrings } from './modelStrings.js'
 import {
@@ -20,6 +21,7 @@ import {
   isFirstPartyApiFamily,
 } from './providers.js'
 import { isModelAllowed } from './modelAllowlist.js'
+import { hasClaudeAiBillingAccess } from '../billing.js'
 import {
   getCanonicalName,
   getClaudeAiUserDefaultModelDescription,
@@ -51,6 +53,7 @@ import {
   getFable5LaunchConfig,
   isFableOverageRequired,
   isFablePermanentAccess,
+  isExtraUsageOrgDisabled,
 } from './fableOverages.js'
 import { getModelErrorOverridePickerHint } from './modelErrorOverrides.js'
 
@@ -226,6 +229,40 @@ function applyModelErrorOverrideHint(option: ModelOption): ModelOption {
 /** Official 2.1.170 `PJ$`. */
 function isFablePickerValue(value: string): boolean {
   return value === 'fable' || value === 'fable[1m]' || modelIdIncludesFable(value)
+}
+
+/**
+ * Official 2.1.183 `Kwd` (187 `A$d`) — dim Fable rows in the picker when
+ * overage is required, the account is not permanently accessible, is a team
+ * subscriber without billing access, and extra usage is disabled at the org
+ * level. Disables the row and replaces the description with a constant
+ * "contact your admin" hint.
+ */
+function dimFablePickerCredits(options: ModelOption[]): ModelOption[] {
+  if (
+    !isFableOverageRequired() ||
+    isFablePermanentAccess() ||
+    !isTeamSubscriber() ||
+    hasClaudeAiBillingAccess() ||
+    !isExtraUsageOrgDisabled()
+  ) {
+    return options
+  }
+  return options.map(option => {
+    if (
+      option.disabled === true ||
+      typeof option.value !== 'string' ||
+      !isFablePickerValue(option.value)
+    ) {
+      return option
+    }
+    return {
+      ...option,
+      disabled: true,
+      label: 'Fable (disabled)',
+      description: `${option.description} — contact your admin to turn on usage credits`,
+    }
+  })
 }
 
 /** Official 2.1.170 `AxK`. */
@@ -809,11 +846,12 @@ function filterModelOptionsByAllowlist(options: ModelOption[]): ModelOption[] {
           opt.value === null ||
           (opt.value !== null && isModelAllowed(opt.value)),
       )
-  // Official 2.1.178 `oy_` + `MW$` `dcK`: annotate Fable copy, then disable
-  // rows that have a model-error-overrides hint (disabled rows last).
-  const annotated = allowed
-    .map(annotateFablePickerOverage)
-    .map(applyModelErrorOverrideHint)
+  // Official 2.1.178 `oy_` + 183 `Kwd` + `MW$` `dcK`: annotate Fable copy,
+  // dim credits-only Fable rows (183), then disable rows that have a
+  // model-error-overrides hint (disabled rows last).
+  const annotated = dimFablePickerCredits(
+    allowed.map(annotateFablePickerOverage),
+  ).map(applyModelErrorOverrideHint)
   const disabled = annotated.filter(opt => opt.disabled === true)
   if (disabled.length === 0) return annotated
   return [...annotated.filter(opt => opt.disabled !== true), ...disabled]

@@ -12,12 +12,56 @@ import {
   TMUX_COMMAND,
 } from '../constants.js'
 import {
+  logEvent,
+  type AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
+} from '../../../services/analytics/index.js'
+import {
   getLeaderPaneId,
+  getUserTmuxSocket,
   isInsideTmux as isInsideTmuxFromDetection,
   isTmuxAvailable,
 } from './detection.js'
 import { registerTmuxBackend } from './registry.js'
-import type { CreatePaneResult, PaneBackend, PaneId } from './types.js'
+import {
+  assertNoControlChars,
+  SwarmPaneError,
+  type CreatePaneResult,
+  type PaneBackend,
+  type PaneId,
+} from './types.js'
+
+/**
+ * Official 2.1.183 `a3n`: sets remain-on-exit failed and respawns pane with command.
+ */
+export async function respawnPaneWithCommand(
+  socketArgs: string[],
+  paneId: string,
+  command: string,
+): Promise<void> {
+  await execFileNoThrow(TMUX_COMMAND, [
+    ...socketArgs,
+    'set-option',
+    '-p',
+    '-t',
+    paneId,
+    'remain-on-exit',
+    'failed',
+  ])
+  const result = await execFileNoThrow(TMUX_COMMAND, [
+    ...socketArgs,
+    'respawn-pane',
+    '-k',
+    '-t',
+    paneId,
+    '--',
+    command,
+  ])
+  if (result.code !== 0) {
+    throw new SwarmPaneError(
+      `Failed to send command to pane ${paneId}: ${result.stderr}`,
+    )
+  }
+}
 
 
 // Lock mechanism to prevent race conditions when spawning teammates in parallel
@@ -142,22 +186,29 @@ export class TmuxBackend implements PaneBackend {
     }
   }
 
-  /**
-   * Sends a command to a specific pane.
-   */
   async sendCommandToPane(
     paneId: PaneId,
     command: string,
     useExternalSession = false,
   ): Promise<void> {
-    const runTmux = useExternalSession ? runTmuxInSwarm : runTmuxInUserSession
-    const result = await runTmux(['send-keys', '-t', paneId, command, 'Enter'])
-
-    if (result.code !== 0) {
-      throw new Error(
-        `Failed to send command to pane ${paneId}: ${result.stderr}`,
-      )
+    try {
+      assertNoControlChars(command)
+    } catch (s) {
+      logEvent('tengu_feature_bad', {
+        feature_name:
+          'swarm_pane_spawn' as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
+        error_code:
+          'swarm_pane_command_control_chars' as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
+      })
+      throw s
     }
+    const userSocket = getUserTmuxSocket()
+    const socketArgs = useExternalSession
+      ? ['-L', getSwarmSocketName()]
+      : userSocket
+        ? ['-S', userSocket]
+        : []
+    await respawnPaneWithCommand(socketArgs, paneId, command)
   }
 
   /**

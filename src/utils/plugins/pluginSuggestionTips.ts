@@ -8,6 +8,7 @@
  */
 
 import isEqual from 'lodash-es/isEqual.js'
+import picomatch from 'picomatch'
 import { color } from '../../components/design-system/color.js'
 import type { Tip, TipContext } from '../../services/tips/types.js'
 import { logForDebugging } from '../debug.js'
@@ -36,6 +37,8 @@ export type PluginSuggestionSignals = {
   cli?: string[]
   hosts?: string[]
   filePath?: RegExp
+  filesRead?: string[]
+  cwd?: string[]
   manifestDep?: Array<{ file: RegExp; pattern: RegExp }>
 }
 
@@ -262,6 +265,20 @@ export async function isMarketplacePluginRelevant(
   const readFiles = readFileState ? cacheKeys(readFileState) : []
   if (signals.filePath && readFiles.some(fp => signals.filePath!.test(fp))) {
     return true
+  }
+  if (signals.filesRead?.length && readFiles.length > 0) {
+    if (
+      readFiles
+        .map(fp => fp.replaceAll('\\', '/'))
+        .some(fp =>
+          picomatch.isMatch(fp, signals.filesRead!, {
+            nocase: true,
+            dot: true,
+          }),
+        )
+    ) {
+      return true
+    }
   }
   if (signals.manifestDep && readFileState && readFiles.length > 0) {
     const hit = await withTimeout(

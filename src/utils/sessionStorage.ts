@@ -4915,7 +4915,13 @@ export async function getAgentTranscript(agentId: AgentId): Promise<{
     const parentUuids = new Set(agentMessages.map(msg => msg.parentUuid))
     const leafMessage = findLatestMessage(
       agentMessages,
-      msg => !parentUuids.has(msg.uuid),
+      msg =>
+        !parentUuids.has(msg.uuid) &&
+        !(
+          msg.type === 'system' &&
+          'subtype' in msg &&
+          (msg as any).subtype === 'compact_boundary'
+        ),
     )
 
     if (!leafMessage) {

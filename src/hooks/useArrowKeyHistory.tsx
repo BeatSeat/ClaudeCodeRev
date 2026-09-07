@@ -59,6 +59,12 @@ export function extractSubagentHistory(messages: Message[]): HistoryEntry[] {
     if (
       message.type === 'user' &&
       !message.isMeta &&
+      !(
+        message.origin &&
+        typeof message.origin === 'object' &&
+        'kind' in message.origin &&
+        (message.origin as any).kind !== 'human'
+      ) &&
       !isSkippedHistoryUserMessage(message)
     ) {
       const text = getUserMessageText(message)
