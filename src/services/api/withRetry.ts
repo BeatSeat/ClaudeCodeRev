@@ -64,6 +64,7 @@ import { extractConnectionErrorDetails } from './errorUtils.js'
 const abortError = () => new APIUserAbortError()
 
 const DEFAULT_MAX_RETRIES = 10
+const MAX_RETRIES_CAP = 15 // Official 2.1.186: CLAUDE_CODE_MAX_RETRIES caps at 15
 const FLOOR_OUTPUT_TOKENS = 3000
 const MAX_529_RETRIES = 3
 export const BASE_DELAY_MS = 500
@@ -1112,10 +1113,23 @@ function shouldRetry(error: APIError): boolean {
   return false
 }
 
+let maxRetriesCapWarned = false
+
 export function getDefaultMaxRetries(): number {
   if (process.env.CLAUDE_CODE_MAX_RETRIES) {
     const parsed = parseInt(process.env.CLAUDE_CODE_MAX_RETRIES, 10)
     if (Number.isFinite(parsed) && parsed >= 0) {
+      // Official 2.1.186: CLAUDE_CODE_MAX_RETRIES caps at 15.
+      // For unattended sessions, use CLAUDE_CODE_RETRY_WATCHDOG instead.
+      if (parsed > MAX_RETRIES_CAP) {
+        if (!maxRetriesCapWarned) {
+          maxRetriesCapWarned = true
+          logForDebugging(
+            `CLAUDE_CODE_MAX_RETRIES=${parsed} clamped to ${MAX_RETRIES_CAP}`,
+          )
+        }
+        return MAX_RETRIES_CAP
+      }
       return parsed
     }
   }

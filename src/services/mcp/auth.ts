@@ -889,12 +889,55 @@ async function performMCPXaaAuth(
   }
 }
 
-/** Official 2.1.162 `dV4` — Anthropic-hosted connectors reject local OAuth. */
+/** Official 2.1.162 `dV4` / 2.1.186 `Soa` — Anthropic-hosted connectors reject local OAuth. */
 const HOSTED_MCP_LOCAL_OAUTH_BLOCKED_HOSTS = [
   'microsoft365.mcp.claude.com',
   'gmail.mcp.claude.com',
   'gcal.mcp.claude.com',
 ]
+
+function normalizeMcpHostname(hostname: string): string {
+  return hostname.toLowerCase().replace(/\.$/, '')
+}
+
+/**
+ * Official 2.1.186 `c8d`/`Aoa` — hosts blocked from local OAuth.
+ * (GB override `tengu_mcp_local_oauth_blocked_hosts` omitted here to avoid
+ * pulling growthbook into auth.ts's import cycle; defaults match `Soa`.)
+ */
+export function isAnthropicHostedMcpUrl(url: string | undefined): boolean {
+  if (!url) return false
+  try {
+    const host = normalizeMcpHostname(new URL(url).hostname)
+    return new Set(
+      HOSTED_MCP_LOCAL_OAUTH_BLOCKED_HOSTS.map(normalizeMcpHostname),
+    ).has(host)
+  } catch {
+    return false
+  }
+}
+
+/**
+ * Official 2.1.186 `Hoa` — user-facing Anthropic-hosted block / logout copy.
+ */
+export function getAnthropicHostedMcpMessage(
+  serverName: string,
+  opts: { scope?: string } = {},
+): string {
+  const base =
+    `"${serverName}" is Anthropic-hosted and doesn't support local OAuth. ` +
+    'Connect it via Settings \u2192 Connectors on claude.ai (requires ' +
+    '`claude login`), then it\'ll be available here automatically.'
+  const safeName = /^\w[\w.@-]*$/.test(serverName)
+  const removeCmd =
+    safeName &&
+    (opts.scope === 'local' ||
+      opts.scope === 'project' ||
+      opts.scope === 'user')
+      ? `claude mcp remove ${serverName}`
+      : null
+  return removeCmd ? `${base} Remove the stale entry with: \`${removeCmd}\`` : base
+}
 
 export async function performMCPOAuthFlow(
   serverName: string,
@@ -905,15 +948,15 @@ export async function performMCPOAuthFlow(
     skipBrowserOpen?: boolean
     redirectUri?: string
     onWaitingForCallback?: (
-      submit: (callbackUrl: string) => void,
+      submit: (callbackUrl: string) => boolean,
       port: number,
       state: string,
     ) => void
   },
 ): Promise<void> {
   try {
-    const hostedHost = new URL(serverConfig.url).hostname
-    if (HOSTED_MCP_LOCAL_OAUTH_BLOCKED_HOSTS.includes(hostedHost)) {
+    if (isAnthropicHostedMcpUrl(serverConfig.url)) {
+      const hostedHost = new URL(serverConfig.url).hostname
       logEvent('tengu_mcp_local_oauth_blocked_hosts', {
         hostname:
           hostedHost as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
@@ -1133,14 +1176,28 @@ export async function performMCPOAuthFlow(
 
       // Allow manual callback URL paste for remote/browser-based environments
       // where localhost is not reachable from the user's browser.
+      // Official 2.1.186: submit returns boolean — true accepted/rejected with
+      // error, false means "not a callback URL, let the user try again".
       if (options?.onWaitingForCallback) {
         options.onWaitingForCallback(
-          (callbackUrl: string) => {
+          (callbackUrl: string): boolean => {
             try {
               const parsed = new URL(callbackUrl)
               const code = parsed.searchParams.get('code')
               const state = parsed.searchParams.get('state')
               const error = parsed.searchParams.get('error')
+
+              if (!code && !error) {
+                return false
+              }
+
+              if (state !== oauthState) {
+                cleanup()
+                rejectOnce(
+                  new Error('OAuth state mismatch - possible CSRF attack'),
+                )
+                return true
+              }
 
               if (error) {
                 const errorDescription =
@@ -1149,20 +1206,11 @@ export async function performMCPOAuthFlow(
                 rejectOnce(
                   new Error(`OAuth error: ${error} - ${errorDescription}`),
                 )
-                return
+                return true
               }
 
               if (!code) {
-                // Not a valid callback URL, ignore so the user can try again
-                return
-              }
-
-              if (state !== oauthState) {
-                cleanup()
-                rejectOnce(
-                  new Error('OAuth state mismatch - possible CSRF attack'),
-                )
-                return
+                return false
               }
 
               logMCPDebug(
@@ -1171,8 +1219,9 @@ export async function performMCPOAuthFlow(
               )
               cleanup()
               resolveOnce(code)
+              return true
             } catch {
-              // Invalid URL, ignore so the user can try again
+              return false
             }
           },
           port,

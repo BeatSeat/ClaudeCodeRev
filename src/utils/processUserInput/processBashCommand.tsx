@@ -20,6 +20,7 @@ import {
 } from '../messages.js'
 import { resolveDefaultShell } from '../shell/resolveDefaultShell.js'
 import { isPowerShellToolEnabled } from '../shell/shellToolUtils.js'
+import { getInitialSettings } from '../settings/settings.js'
 import { processToolResultBlock } from '../toolResultStorage.js'
 import { escapeXml } from '../xml.js'
 import type { ProcessUserInputContext } from './processUserInput.js'
@@ -42,7 +43,11 @@ export async function processBashCommand(
   const usePowerShell =
     isPowerShellToolEnabled() && resolveDefaultShell() === 'powershell'
 
-  logEvent('tengu_input_bash', { powershell: usePowerShell })
+  // Official 2.1.186: whether Claude should respond after the ! command runs.
+  // Default true — when true, shouldQuery becomes true so Claude processes the output.
+  const respond = getInitialSettings().respondToBashCommands ?? true
+
+  logEvent('tengu_input_bash', { powershell: usePowerShell, respond })
 
   const userMessage = createUserMessage({
     content: prepareUserContent({
@@ -152,20 +157,27 @@ export async function processBashCommand(
       typeof mapped.content === 'string'
         ? mapped.content
         : escapeXml(data.stdout)
+    const respondNow =
+      respond &&
+      !data.interrupted &&
+      !data.backgroundTaskId &&
+      !context.abortController?.signal.aborted
     return {
       messages: [
-        createSyntheticUserCaveatMessage(),
+        ...(respondNow ? [] : [createSyntheticUserCaveatMessage()]),
         userMessage,
         ...attachmentMessages,
         createUserMessage({
           content: `<bash-stdout>${stdout}</bash-stdout><bash-stderr>${escapeXml(stderr)}</bash-stderr>`,
         }),
       ],
-      shouldQuery: false,
+      shouldQuery: respondNow,
     }
   } catch (e) {
     if (e instanceof ShellError) {
       if (e.interrupted) {
+        // Interrupted commands always block auto-response — the user explicitly
+        // cancelled. (Official 2.1.186 ZMf interrupted branch)
         return {
           messages: [
             createSyntheticUserCaveatMessage(),
@@ -176,28 +188,30 @@ export async function processBashCommand(
           shouldQuery: false,
         }
       }
+      const respondNow = respond && !context.abortController?.signal.aborted
       return {
         messages: [
-          createSyntheticUserCaveatMessage(),
+          ...(respondNow ? [] : [createSyntheticUserCaveatMessage()]),
           userMessage,
           ...attachmentMessages,
           createUserMessage({
             content: `<bash-stdout>${escapeXml(e.stdout)}</bash-stdout><bash-stderr>${escapeXml(e.stderr)}</bash-stderr>`,
           }),
         ],
-        shouldQuery: false,
+        shouldQuery: respondNow,
       }
     }
+    const respondNow = respond && !context.abortController?.signal.aborted
     return {
       messages: [
-        createSyntheticUserCaveatMessage(),
+        ...(respondNow ? [] : [createSyntheticUserCaveatMessage()]),
         userMessage,
         ...attachmentMessages,
         createUserMessage({
           content: `<bash-stderr>Command failed: ${escapeXml(errorMessage(e))}</bash-stderr>`,
         }),
       ],
-      shouldQuery: false,
+      shouldQuery: respondNow,
     }
   } finally {
     setToolJSX(null)

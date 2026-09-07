@@ -406,8 +406,8 @@ export function clearMcpAuthCache(): void {
   })
 }
 
-/** Official 2.1.120 Gu7 — drop one needs-auth entry after a successful connect. */
-function clearMcpAuthCacheEntry(serverId: string): void {
+/** Official 2.1.120 Gu7 / 2.1.186 `ENt` — drop one needs-auth entry after auth. */
+export function clearMcpAuthCacheEntry(serverId: string): Promise<void> {
   writeChain = writeChain
     .then(async () => {
       const cache = await getMcpAuthCache()
@@ -421,6 +421,7 @@ function clearMcpAuthCacheEntry(serverId: string): void {
     .catch(() => {
       // Best-effort cache write
     })
+  return writeChain
 }
 
 /**

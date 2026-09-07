@@ -1232,12 +1232,13 @@ export function Config({
               value:
                 getUserIntentSetting('teammateMode', 'in-process') ??
                 'in-process',
-              options: ['auto', 'tmux', 'in-process'],
+              options: ['auto', 'tmux', 'iterm2', 'in-process'],
               type: 'enum' as const,
               onChange(mode: string) {
                 if (
                   mode !== 'auto' &&
                   mode !== 'tmux' &&
+                  mode !== 'iterm2' &&
                   mode !== 'in-process'
                 ) {
                   return

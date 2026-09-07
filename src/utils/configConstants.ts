@@ -16,6 +16,7 @@ export const EDITOR_MODES = ['normal', 'vim'] as const
 
 // Valid teammate modes for spawning
 // 'tmux' = traditional tmux-based teammates
+// 'iterm2' = teammates in native iTerm2 panes (requires it2 CLI + Python API)
 // 'in-process' = in-process teammates running in same process
 // 'auto' = automatically choose based on context (default)
-export const TEAMMATE_MODES = ['auto', 'tmux', 'in-process'] as const
+export const TEAMMATE_MODES = ['auto', 'tmux', 'iterm2', 'in-process'] as const
