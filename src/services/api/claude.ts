@@ -772,7 +772,8 @@ export type Options = {
   // (query.ts decrements across the agentic loop).
   taskBudget?: { total: number; remaining?: number }
   /** Official 2.1.181: reports stall/retry status so the UI can show inline
-   *  "No response from API · Retrying in" / retry countdown during stream stalls. */
+   *  "Waiting for API response" / retry countdown during stream stalls.
+   *  185: deadline threshold raised from 10s to 20s. */
   onRetryStatus?: (status: RetryStatus) => void
 }
 
@@ -2155,10 +2156,11 @@ async function* queryModel(
     )
     const STREAM_IDLE_TIMEOUT_MS = getStreamIdleTimeoutMs()
     const STREAM_IDLE_WARNING_MS = STREAM_IDLE_TIMEOUT_MS / 2
-    // Official 2.1.181: stall notification threshold — fires onRetryStatus
-    // ({kind:"stalled"}) when no chunks arrive so the UI shows an inline
-    // "No response from API · Retrying in …" countdown after 10s.
-    const STALL_NOTIFY_MS = 10_000
+    // Official 2.1.181 (intro) → 2.1.185: stall notification threshold — fires
+    // onRetryStatus ({kind:"stalled"}) when no chunks arrive so the UI shows
+    // an inline "Waiting for API response · will retry in …" countdown.
+    // 181 used 10s; 185 raised it to 20s.
+    const STALL_NOTIFY_MS = 20_000
     let streamIdleAborted = false
     // performance.now() snapshot when watchdog fires, for measuring abort propagation delay
     let streamWatchdogFiredAt: number | null = null

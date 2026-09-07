@@ -1,0 +1,25 @@
+{
+  "version": "2.1.185",
+  "from": "2.1.183",
+  "astdiff": "0.99995",
+  "contract": "astdiff genuine-structural + added-product (fingerprint/classify; changelog not used for landing)",
+  "analysis": "restore-work/diffs/2.1.185-classify.json",
+  "genuineChanges": [
+    "src/utils/betas.ts getAllModelBetas (official NRr): thinking_token_count beta gate swapped from statsig tengu_chert_bezel flag to provider===\"firstParty\"",
+    "stream-stall hint UI (official yoo): 'No response from API · Retrying in …' -> 'Waiting for API response · will retry in …' (CHANGELOG sole item; also 20s vs 10s trigger)"
+  ],
+  "metadataNoise": "129 of 131 flagged rewrite/small-edit rows are spurious: they embed the VERSION 2.1.185 / BUILD_TIME 2026-06-20T06:38:30Z / GIT_SHA 9d0bb50 macros and differ only because build metadata changed. do-not-land.",
+  "items": [
+    {
+      "item": "astdiff Services: getAllModelBetas thinking_token_count gate tengu_chert_bezel -> firstParty (official NRr predicate; Lun=BS('thinking_token_count','thinking-token-count-2026-05-13'))",
+      "status": "located",
+      "evidence": "183 'if(Lun&&s&&xIt(e)&&ct(\"tengu_chert_bezel\",!1))t.push(Lun)' vs 185 'if(Lun&&s&&xIt(e)&&xr()===\"firstParty\")t.push(Lun)'; tengu_chert_bezel count 1->0 in bundle; landed THINKING_TOKEN_COUNT_BETA_HEADER + firstParty gate in src/utils/betas.ts"
+    },
+    {
+      "item": "CHANGELOG: stream-stall hint reads 'Waiting for API response · will retry in …' instead of 'No response from API · Retrying in …'; triggers after 20s not 10s",
+      "status": "located",
+      "evidence": "bundle yoo offset 8439680 text change confirmed; landed STALL_NOTIFY_MS 10_000 -> 20_000 in src/services/api/claude.ts; comment updated to reflect Waiting for API response text. Stall infrastructure (onRetryStatus, RetryStatus type) was restored in 2.1.181 hop; 185 only tweaks threshold and text."
+    }
+  ],
+  "notes": "185 raises stall threshold from 10s to 20s (landed in claude.ts). Stall infra was properly folded into 2.1.181 hop. betas.ts landing verified (token thinking-token-count-2026-05-13 in dist; typecheck delta empty; build green)."
+}

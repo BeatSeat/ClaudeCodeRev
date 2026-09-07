@@ -16,6 +16,7 @@ import {
   REDACT_THINKING_BETA_HEADER,
   STRUCTURED_OUTPUTS_BETA_HEADER,
   SUMMARIZE_CONNECTOR_TEXT_BETA_HEADER,
+  THINKING_TOKEN_COUNT_BETA_HEADER,
   TOKEN_EFFICIENT_TOOLS_BETA_HEADER,
   TOOL_SEARCH_BETA_HEADER_1P,
   TOOL_SEARCH_BETA_HEADER_3P,
@@ -354,6 +355,19 @@ export const getAllModelBetas = memoize((model: string): string[] => {
     getInitialSettings().showThinkingSummaries !== true
   ) {
     betaHeaders.push(REDACT_THINKING_BETA_HEADER)
+  }
+  // Official 2.1.185 (astdiff Lun): thinking-token-count beta. 2.1.183 pushed it
+  // when the tengu_chert_bezel statsig flag was set; 2.1.185 replaced that flag
+  // with a firstParty provider check (xr()==="firstParty"), keeping the
+  // includeFirstPartyOnlyBetas + modelSupportsISP gates from the surrounding
+  // beta block. Backfilled from the official bundle (it predates this hop).
+  if (
+    THINKING_TOKEN_COUNT_BETA_HEADER &&
+    includeFirstPartyOnlyBetas &&
+    modelSupportsISP(model) &&
+    provider === 'firstParty'
+  ) {
+    betaHeaders.push(THINKING_TOKEN_COUNT_BETA_HEADER)
   }
 
   // POC: server-side connector-text summarization (anti-distillation). The
