@@ -348,6 +348,35 @@ export const FileReadTool = buildTool({
   // file the model reads back with Read is circular — never persist.
   maxResultSizeChars: Infinity,
   strict: true,
+  coerceInput(input: unknown) {
+    if (typeof input !== 'object' || input === null || Array.isArray(input)) return null
+    const t = { ...(input as Record<string, unknown>) }
+    const coerced: string[] = []
+    function parseNum(e: unknown): number | undefined {
+      if (typeof e === 'number') return Number.isFinite(e) ? e : undefined
+      if (typeof e === 'string' && /^[-+]?\d+$/.test(e.trim())) return Number(e)
+      return undefined
+    }
+    const r = parseNum(t.offset)
+    if (r !== undefined && r < 0) {
+      delete t.offset
+      coerced.push('offset_neg')
+    }
+    const o = parseNum(t.limit)
+    if (o !== undefined && o <= 0) {
+      delete t.limit
+      coerced.push('limit_dropped')
+    }
+    if ('length' in t) {
+      const s = parseNum(t.length)
+      if (!('limit' in t) && s !== undefined && s > 0) {
+        t.limit = s
+      }
+      delete t.length
+      coerced.push('length')
+    }
+    return coerced.length ? { input: t, shapeClass: coerced.join(',') } : null
+  },
   async description() {
     return DESCRIPTION
   },

@@ -16,6 +16,7 @@ import {
 import type { ProgressMessage } from '../../types/message.js'
 import { useIsClassifierChecking } from '../../utils/classifierApprovalsHook.js'
 import { logError } from '../../utils/log.js'
+import { isUnparsedToolInput } from '../../utils/toolInput.js'
 import type { buildMessageLookups } from '../../utils/messages.js'
 import { MessageResponse } from '../MessageResponse.js'
 import { useSelectedMessageBg } from '../messageActions.js'
@@ -244,6 +245,9 @@ function renderToolUseMessage(
     commands,
   }: { theme: ThemeName; verbose: boolean; commands: Command[] },
 ): React.ReactNode {
+  if (isUnparsedToolInput(input)) {
+    return 'input failed to parse'
+  }
   try {
     const parsed = tool.inputSchema.safeParse(input)
     if (!parsed.success) {

@@ -1561,11 +1561,22 @@ export const SDKRateLimitInfoSchema = lazySchema(() =>
           'org_service_level_disabled',
           'org_service_zero_credit_limit',
           'no_limits_configured',
+          'fetch_error',
           'unknown',
         ])
         .optional(),
       isUsingOverage: z.boolean().optional(),
+      overageInUse: z.boolean().optional(),
       surpassedThreshold: z.number().optional(),
+      overagePeriodMonthly: z
+        .object({ utilization: z.number() })
+        .optional()
+        .describe(
+          '@internal Monthly service spend-cap telemetry for the Claude-in-Slack surface (CLAUDE_IN_SLACK_V2): utilization is fraction-of-cap.',
+        ),
+      errorCode: z.enum(['credits_required']).optional(),
+      canUserPurchaseCredits: z.boolean().optional(),
+      hasChargeableSavedPaymentMethod: z.boolean().optional(),
     })
     .describe('Rate limit information for claude.ai subscription users.'),
 )

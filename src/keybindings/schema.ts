@@ -75,6 +75,7 @@ export const KEYBINDING_ACTIONS = [
   'app:toggleTodos',
   'app:toggleTranscript',
   'app:toggleBrief',
+  'app:toggleReplTab',
   'app:toggleTerminal',
   'app:redraw',
   'app:globalSearch',

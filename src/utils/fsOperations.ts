@@ -135,14 +135,76 @@ export type FsOperations = {
  * @param filePath The path to resolve
  * @returns Object containing the resolved path and whether it was a symlink
  */
+function isUncPath(path: string): boolean {
+  return /^[\\/]{2}/.test(path)
+}
+
+function isWslPath(path: string): boolean {
+  return /^[\\/]{2}wsl(\$|\.localhost)[\\/]/i.test(path)
+}
+
+/**
+ * Official 2.1.181 `nor` — stepwise symlink resolver detecting non-WSL UNC symlink targets.
+ */
+export function resolveUncSymlinkStepwise(
+  fsImpl: FsOperations,
+  targetPath: string,
+): string | undefined {
+  if (isUncPath(targetPath) && !isWslPath(targetPath)) return
+  const resolved = nodePath.resolve(targetPath)
+  const root = nodePath.parse(resolved).root
+  let current = root
+  const segments = resolved.slice(root.length).split(/[\\/]+/).filter(Boolean)
+  let depth = 0
+  const maxDepth = 64
+  while (segments.length > 0 && depth < maxDepth) {
+    const nextPath = nodePath.join(current, segments[0])
+    let st: fs.Stats
+    try {
+      st = fsImpl.lstatSync(nextPath)
+    } catch {
+      return
+    }
+    if (!st.isSymbolicLink()) {
+      segments.shift()
+      current = nextPath
+      continue
+    }
+    depth++
+    let linkTarget: string
+    try {
+      linkTarget = fsImpl.readlinkSync(nextPath)
+    } catch {
+      return
+    }
+    const resolvedTarget = nodePath.isAbsolute(linkTarget)
+      ? linkTarget
+      : nodePath.resolve(current, linkTarget)
+    if (isUncPath(resolvedTarget) && !isWslPath(resolvedTarget)) {
+      segments.shift()
+      return segments.length === 0 ? resolvedTarget : nodePath.join(resolvedTarget, ...segments)
+    }
+    segments.shift()
+    const p = nodePath.parse(resolvedTarget).root || nodePath.sep
+    current = p
+    segments.unshift(...resolvedTarget.slice(p.length).split(/[\\/]+/).filter(Boolean))
+  }
+  return
+}
+
 export function safeResolvePath(
   fs: FsOperations,
   filePath: string,
 ): { resolvedPath: string; isSymlink: boolean; isCanonical: boolean } {
   // Block UNC paths before any filesystem access to prevent network
   // requests (DNS/SMB) during validation on Windows
-  if (filePath.startsWith('//') || filePath.startsWith('\\\\')) {
+  if (isUncPath(filePath) && !isWslPath(filePath)) {
     return { resolvedPath: filePath, isSymlink: false, isCanonical: false }
+  }
+
+  const uncSymlink = resolveUncSymlinkStepwise(fs, filePath)
+  if (uncSymlink !== undefined) {
+    return { resolvedPath: uncSymlink, isSymlink: true, isCanonical: false }
   }
 
   try {
@@ -216,6 +278,11 @@ export function resolveDeepestExistingAncestorSync(
   fs: FsOperations,
   absolutePath: string,
 ): string | undefined {
+  const uncSymlink = resolveUncSymlinkStepwise(fs, absolutePath)
+  if (uncSymlink !== undefined) {
+    return uncSymlink
+  }
+
   let dir = absolutePath
   const segments: string[] = []
   // Walk up using lstat (cheap, O(1)) to find the first existing component.
@@ -303,7 +370,13 @@ export function getPathsForPermissionCheck(inputPath: string): string[] {
 
   // Block UNC paths before any filesystem access to prevent network
   // requests (DNS/SMB) during validation on Windows
-  if (path.startsWith('//') || path.startsWith('\\\\')) {
+  if (isUncPath(path) && !isWslPath(path)) {
+    return Array.from(pathSet)
+  }
+
+  const uncSymlink = resolveUncSymlinkStepwise(fsImpl, path)
+  if (uncSymlink !== undefined) {
+    pathSet.add(uncSymlink)
     return Array.from(pathSet)
   }
 

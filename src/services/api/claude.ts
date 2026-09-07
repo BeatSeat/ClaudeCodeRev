@@ -42,6 +42,7 @@ import {
   type ConnectorTextDelta,
   isConnectorTextBlock,
 } from '../../types/connectorText.js'
+import type { RetryStatus } from '../../components/Spinner/index.js'
 import type {
   AssistantMessage,
   Message,
@@ -770,6 +771,9 @@ export type Options = {
   // so the model can pace itself. `remaining` is computed by the caller
   // (query.ts decrements across the agentic loop).
   taskBudget?: { total: number; remaining?: number }
+  /** Official 2.1.181: reports stall/retry status so the UI can show inline
+   *  "No response from API · Retrying in" / retry countdown during stream stalls. */
+  onRetryStatus?: (status: RetryStatus) => void
 }
 
 export async function queryModelWithoutStreaming({
@@ -898,6 +902,7 @@ export async function* executeNonStreamingRequest(
     signal: AbortSignal
     initialConsecutive529Errors?: number
     querySource?: QuerySource
+    onRetryStatus?: (status: RetryStatus) => void
   },
   paramsFromContext: (context: RetryContext) => BetaMessageStreamParams,
   onAttempt: (attempt: number, start: number, maxOutputTokens: number) => void,
@@ -972,6 +977,7 @@ export async function* executeNonStreamingRequest(
       initialConsecutive529Errors: retryOptions.initialConsecutive529Errors,
       querySource: retryOptions.querySource,
       isNonStreamingRequest: true,
+      onRetryStatus: retryOptions.onRetryStatus,
       onError: async error => {
         const foundryRetry = getFoundryCapabilityRetry(
           error,
@@ -2051,6 +2057,7 @@ async function* queryModel(
         ...(isFastModeEnabled() ? { fastMode: isFastMode } : false),
         signal,
         querySource: options.querySource,
+        onRetryStatus: options.onRetryStatus,
         onError: async error => {
           // Official 2.1.117 J$7 + Dn6: 400 "Advisor tool result content
           // could not be processed" → strip advisor blocks and retry.
@@ -2148,11 +2155,22 @@ async function* queryModel(
     )
     const STREAM_IDLE_TIMEOUT_MS = getStreamIdleTimeoutMs()
     const STREAM_IDLE_WARNING_MS = STREAM_IDLE_TIMEOUT_MS / 2
+    // Official 2.1.181: stall notification threshold — fires onRetryStatus
+    // ({kind:"stalled"}) when no chunks arrive so the UI shows an inline
+    // "No response from API · Retrying in …" countdown after 10s.
+    const STALL_NOTIFY_MS = 10_000
     let streamIdleAborted = false
     // performance.now() snapshot when watchdog fires, for measuring abort propagation delay
     let streamWatchdogFiredAt: number | null = null
     let streamIdleWarningTimer: ReturnType<typeof setTimeout> | null = null
     let streamIdleTimer: ReturnType<typeof setTimeout> | null = null
+    let stallNotifyTimer: ReturnType<typeof setTimeout> | null = null
+    let stallNotifyActive = false
+    // Timestamp when the current stall-notification period began.
+    let stallNotifyStartedAt: number | null = null
+    // Last chunk-received performance.now() from the current watchdog period,
+    // used to detect whether data arrived since the timer was armed.
+    let lastChunkAt: number | null = null
     function clearStreamIdleTimers(): void {
       if (streamIdleWarningTimer !== null) {
         clearTimeout(streamIdleWarningTimer)
@@ -2162,8 +2180,18 @@ async function* queryModel(
         clearTimeout(streamIdleTimer)
         streamIdleTimer = null
       }
+      if (stallNotifyTimer !== null) {
+        clearTimeout(stallNotifyTimer)
+        stallNotifyTimer = null
+      }
+      if (stallNotifyActive) {
+        stallNotifyActive = false
+        options.onRetryStatus?.(null)
+      }
     }
     function resetStreamIdleTimer(): void {
+      const now = performance.now()
+      lastChunkAt = now
       clearStreamIdleTimers()
       if (!streamWatchdogEnabled) {
         return
@@ -2197,6 +2225,22 @@ async function* queryModel(
         })
         releaseStreamResources()
       }, STREAM_IDLE_TIMEOUT_MS)
+      // Stall notification: arm only if a consumer is wired for onRetryStatus
+      // and this watchdog period started at the current time (i.e. this is
+      // the reset after the latest chunk).
+      if (options.onRetryStatus && !streamIdleAborted) {
+        const periodStart = now
+        stallNotifyTimer = setTimeout(() => {
+          // If another chunk arrived since we armed, this period is moot.
+          if (lastChunkAt !== null && lastChunkAt > periodStart) return
+          stallNotifyActive = true
+          options.onRetryStatus?.({
+            kind: 'stalled',
+            deadline: Date.now() + STALL_NOTIFY_MS,
+          })
+        }, STALL_NOTIFY_MS)
+        stallNotifyTimer.unref?.()
+      }
     }
     resetStreamIdleTimer()
 
