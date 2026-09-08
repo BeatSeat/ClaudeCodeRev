@@ -1,0 +1,45 @@
+{
+  "version": "2.1.190",
+  "from": "2.1.187",
+  "astdiff": "0.99949",
+  "contract": "astdiff struct-real (line 1813 Fable pairs, sim 0.67-0.94) + product-token deltas; changelog (1 blanket line) not used",
+  "coverage": "restore-work/diffs/2.1.190-landing-brief.md",
+  "changelogScout": "restore-work/diffs/2.1.190-changelog-scout.md",
+  "items": [
+    {
+      "item": "astdiff Services/UI: Fable overage helper split (187 pV/LQ -> 190 yae + uge) with new enabled===false guard on the config branch",
+      "status": "located",
+      "evidence": "187 bundle pV = overageConsent||planEnd||sessionFlag; 190 yae = enabled!==false?(overageConsent||planEnd):false, uge = yae()||sessionFlag (bundle 5120717). Landed: fableOverages.ts isFableOverageConfig (yae) + isFableOverageRequired (uge). All 190 uge/yae call sites with tree counterparts mapped: notice+snapshot keep isFableOverageRequired (=uge, direct pV successor); builder+dim use isFableOverageConfig (=yae). Bundle sites without tree counterpart (rate-limit desc, overage reason, model-allowlist, fable-switch dialog) stay absent."
+    },
+    {
+      "item": "astdiff Services/UI: Fable5 picker builder copy change (187 cKr/tZ6 -> 190 cKr): plan-limits 'Included with your plan until' branch removed, 'Draws from usage credits' -> 'Requires usage credits' gated on yae",
+      "status": "located",
+      "evidence": "187 cKr: !fO()?(pV()?Draws:planUntil); 190 cKr: !QN()&&yae()?Requires (bundle 5125250). Copy delta 'Draws from usage credits' 12->7, 'Requires usage credits' 0->2, 'Included with your plan until' 1->0. Landed: modelOptions.ts getFable5Option uses isFablePermanentAccess+isFableOverageConfig with 'Requires usage credits'. dist token 'Requires usage credits' = 1."
+    },
+    {
+      "item": "astdiff Services/UI: Fable annotate pass removed (187 E$d/oy_ -> 190 removed-product) and dropped from the options chain",
+      "status": "located",
+      "evidence": "removed-product.tsv i=8610 'Removed function E$d'; 'Uses your limits' 2->0; startsWith(\"Uses your limits\") 1->0; 190 insert path (rot) has no annotate call; 190 Y$t chain = D$d(n).map(override) with no annotate (bundle 5132723). Landed: annotateFablePickerOverage deleted from modelOptions.ts; chain is dimFablePickerCredits(allowed).map(applyModelErrorOverrideHint). Unused imports (formatPlanLimitsEndDate, getFable5LaunchConfig, isTeamSubscriber) removed."
+    },
+    {
+      "item": "astdiff Services/UI: Fable picker-dim rewire (183 Kwd / 187 A$d -> 190 D$d): +tengu_saffron_picker_dim gate, drops team check, overage term -> uge()||_ae(), constant 'contact your admin' suffix -> conditional 'requires usage credits'",
+      "status": "located",
+      "evidence": "187 A$d gate !pV()||fO()||!TBr()||Iv()||!rWi(), const suffix; 190 D$d gate !sWi()||QN()||rA()||!iWi()||!(uge()||_ae()), suffix yae()?\"\":\" \\u2014 requires usage credits\" (bundle 5135474). Copy 'contact your admin to turn on usage credits' 1->0, 'requires usage credits' 5->8. Landed: dimFablePickerCredits uses isSaffronPickerDimEnabled+isFablePermanentAccess+hasClaudeAiBillingAccess+isExtraUsageOrgDisabled+!(isFableOverageRequired()||isCreditsOnlyTier()) with conditional suffix. dist: 'Fable (disabled)'=1, 'contact your admin...'=0."
+    },
+    {
+      "item": "astdiff Services: new saffron gates (added-product line2 1813): tengu_saffron_picker_dim (sWi, default false) + tengu_saffron_credits_only_tiers (h$d, zod string[] schema, default [enterprise], warn on unparseable) + g$d/_ae tier predicates",
+      "status": "located",
+      "evidence": "187 bundles: both gate names 0; 190: picker_dim 0->1, credits_only 0->2, 'unparseable value, using default' 0->1. 190 h$d uses z.array(z.string()).safeParse + warn log (bundle 5120954); g$d = enterprise&&!usageBased; _ae = g$d||tiers.includes(tier) (bundle 5121230). Landed: fableOverages.ts isSaffronPickerDimEnabled, getCreditsOnlyTiers (z.array(z.string()) schema + logForDebugging warn), isEnterpriseNonUsageBased, isCreditsOnlyTier. dist tokens: both gates = 1, warn string = 1."
+    },
+    {
+      "item": "astdiff Services: g4a extra-usage/Fable-switch dialog (added-product line2 2308) + Cpo ExtraUsageDialog component",
+      "status": "absent-in-bundle-for-tree",
+      "evidence": "190 g4a: if(oA(gs())&&yae()&&!_ae())RIe(); dialog copy 'Switch to Fable 5?'/'No, keep my current model'/'extra-usage-for-paid-claude-plans' all 0 tree matches -> no tree counterpart for the Fable switch/extra-usage dialog subsystem; correctly not landed (tree is a partial recovery; landing would invent structure the tree never had). Recorded as absent-in-tree, not a gap."
+    },
+    {
+      "item": "CHANGELOG: 'Bug fixes and reliability improvements' (1 blanket line)",
+      "status": "shared-logic",
+      "evidence": "Blanket line with no unique tokens; the concrete 187->190 surface is the ast-only Fable restructure above. No changelog-driven landing (astdiff-driven per contract)."
+    }
+  ]
+}

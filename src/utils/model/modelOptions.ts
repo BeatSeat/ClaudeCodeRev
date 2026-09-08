@@ -4,7 +4,6 @@ import {
   isClaudeAISubscriber,
   isMaxSubscriber,
   isTeamPremiumSubscriber,
-  isTeamSubscriber,
 } from '../auth.js'
 import { getModelStrings } from './modelStrings.js'
 import {
@@ -49,11 +48,12 @@ import { getGatewayModelOptions } from './gatewayModels.js'
 import { ALL_MODEL_CONFIGS } from './configs.js'
 import { logForDebugging } from '../debug.js'
 import {
-  formatPlanLimitsEndDate,
-  getFable5LaunchConfig,
   isFableOverageRequired,
+  isFableOverageConfig,
   isFablePermanentAccess,
   isExtraUsageOrgDisabled,
+  isSaffronPickerDimEnabled,
+  isCreditsOnlyTier,
 } from './fableOverages.js'
 import { getModelErrorOverridePickerHint } from './modelErrorOverrides.js'
 
@@ -152,22 +152,18 @@ function getCustomFableOption(): ModelOption | undefined {
   }
 }
 
-/** Official 2.1.178 `tZ6` (170 `SD6`). */
+/**
+ * Official 2.1.190 `cKr` (187 `tZ6`/178 `tZ6`) — Fable picker row. The 190
+ * form drops the plan-limits "Included with your plan until" branch and the
+ * "Draws from usage credits" copy, replacing it with "Requires usage
+ * credits" gated on config-overage (`yae`).
+ */
 function getFable5Option(): ModelOption {
   const is3P = !isFirstPartyApiFamily()
   let description =
     'Fable 5 · Most capable for your hardest and longest-running tasks'
-  if (!isFablePermanentAccess()) {
-    if (isFableOverageRequired()) {
-      description += ' · Draws from usage credits'
-    } else {
-      const until = formatPlanLimitsEndDate(
-        getFable5LaunchConfig().planLimitsEndDate,
-      )
-      if (until !== undefined) {
-        description += ` · Included with your plan until ${until}`
-      }
-    }
+  if (!isFablePermanentAccess() && isFableOverageConfig()) {
+    description += ' · Requires usage credits'
   }
   return {
     value: is3P ? getModelStrings().fable5 : 'fable',
@@ -176,32 +172,6 @@ function getFable5Option(): ModelOption {
     descriptionForModel:
       'Fable 5 - most capable for your hardest and longest-running tasks',
   }
-}
-
-/**
- * Official 2.1.178 `oy_` — keep cached/known Fable rows in sync with
- * overage vs plan-limits copy.
- */
-function annotateFablePickerOverage(option: ModelOption): ModelOption {
-  if (
-    option.value === null ||
-    typeof option.value !== 'string' ||
-    !isFablePickerValue(option.value) ||
-    isFablePermanentAccess() ||
-    option.disabled === true
-  ) {
-    return option
-  }
-  const overage = isFableOverageRequired()
-  const parts = (option.description ?? '').split(' · ').filter(part =>
-    overage
-      ? !part.startsWith('Uses your limits')
-      : part !== 'Draws from usage credits',
-  )
-  if (overage && !parts.includes('Draws from usage credits')) {
-    parts.push('Draws from usage credits')
-  }
-  return { ...option, description: parts.filter(Boolean).join(' · ') }
 }
 
 /**
@@ -232,19 +202,19 @@ function isFablePickerValue(value: string): boolean {
 }
 
 /**
- * Official 2.1.183 `Kwd` (187 `A$d`) — dim Fable rows in the picker when
- * overage is required, the account is not permanently accessible, is a team
- * subscriber without billing access, and extra usage is disabled at the org
- * level. Disables the row and replaces the description with a constant
- * "contact your admin" hint.
+ * Official 2.1.190 `D$d` (183 `Kwd` / 187 `A$d`) — dim Fable rows in the
+ * picker. The 190 form is gated on the `tengu_saffron_picker_dim` gate,
+ * drops the 183 team-subscriber check, and fires on full overage (`uge`) OR
+ * a credits-only tier (`_ae`); the disabled-row suffix is appended only when
+ * config-overage is off.
  */
 function dimFablePickerCredits(options: ModelOption[]): ModelOption[] {
   if (
-    !isFableOverageRequired() ||
+    !isSaffronPickerDimEnabled() ||
     isFablePermanentAccess() ||
-    !isTeamSubscriber() ||
     hasClaudeAiBillingAccess() ||
-    !isExtraUsageOrgDisabled()
+    !isExtraUsageOrgDisabled() ||
+    !(isFableOverageRequired() || isCreditsOnlyTier())
   ) {
     return options
   }
@@ -256,11 +226,12 @@ function dimFablePickerCredits(options: ModelOption[]): ModelOption[] {
     ) {
       return option
     }
+    const suffix = isFableOverageConfig() ? '' : ' — requires usage credits'
     return {
       ...option,
       disabled: true,
       label: 'Fable (disabled)',
-      description: `${option.description} — contact your admin to turn on usage credits`,
+      description: `${option.description}${suffix}`,
     }
   })
 }
@@ -846,12 +817,12 @@ function filterModelOptionsByAllowlist(options: ModelOption[]): ModelOption[] {
           opt.value === null ||
           (opt.value !== null && isModelAllowed(opt.value)),
       )
-  // Official 2.1.178 `oy_` + 183 `Kwd` + `MW$` `dcK`: annotate Fable copy,
-  // dim credits-only Fable rows (183), then disable rows that have a
-  // model-error-overrides hint (disabled rows last).
-  const annotated = dimFablePickerCredits(
-    allowed.map(annotateFablePickerOverage),
-  ).map(applyModelErrorOverrideHint)
+  // Official 2.1.190 `D$d` + `MW$` `dcK`: dim credits-only Fable rows, then
+  // disable rows that have a model-error-overrides hint (disabled rows
+  // last). The 187 `E$d` annotate pass was removed in 190.
+  const annotated = dimFablePickerCredits(allowed).map(
+    applyModelErrorOverrideHint,
+  )
   const disabled = annotated.filter(opt => opt.disabled === true)
   if (disabled.length === 0) return annotated
   return [...annotated.filter(opt => opt.disabled !== true), ...disabled]
