@@ -1,8 +1,15 @@
 /**
  * Official 2.1.178 Fable plan-credit / extra-usage helpers.
  * `ScK` `n58` `Cy_` `OzH` `LQ` `GE` `cEH` `by_` `i58` `x39` `HH6`/`G3$`.
+ *
+ * 2.1.190 `yae`/`uge` `sWi`/`h$d`/`g$d`/`_ae` — the overage helper `LQ`
+ * (187 `pV`) was split into a config-only overage gate (`yae`, adding an
+ * `enabled !== false` short-circuit) and the full overage gate (`uge`,
+ * config-overage OR the session 429 flag), and the saffron credits-only /
+ * picker-dim gates were added.
  */
 import {
+  getSubscriptionType,
   getOauthAccountInfo,
   getRateLimitTier,
   isClaudeAISubscriber,
@@ -13,6 +20,8 @@ import { getFeatureValue_CACHED_MAY_BE_STALE } from '../../services/analytics/gr
 import { isModelAllowed } from './modelAllowlist.js'
 import { getDefaultFableModel, isFableAvailable } from './model.js'
 import { getAPIProvider } from './providers.js'
+import { logForDebugging } from '../debug.js'
+import { z } from 'zod'
 
 export type Fable5LaunchConfig = {
   enabled?: boolean
@@ -25,6 +34,11 @@ const DEFAULT_LAUNCH: Fable5LaunchConfig = { enabled: false }
 
 let launchCache: { raw: unknown; parsed: Fable5LaunchConfig } | null = null
 let planLimitsEndCache: { value: string; ms: number } | null = null
+/** Official 2.1.190 `oWi` — default tier list for the credits-only gate. */
+const CREDITS_ONLY_TIERS_DEFAULT: string[] = ['enterprise']
+/** Official 2.1.190 `m$d` — `tengu_saffron_credits_only_tiers` schema. */
+const CREDITS_ONLY_TIERS_SCHEMA = z.array(z.string())
+let creditsOnlyTiersCache: { raw: unknown; parsed: string[] } | null = null
 
 /** Official 2.1.178 `HH6` / `G3$` — session flag (p$ on official; Core owns bootstrap). */
 let fableCreditsRequired = false
@@ -116,16 +130,29 @@ export function setFableConsentSessionFallback(value: boolean): void {
 }
 
 /**
- * Official 2.1.178 `LQ` — promo/overage window is over (consent required,
- * plan-limits date passed, or a Fable credits 429 this session).
+ * Official 2.1.190 `yae` — config-driven overage only (no session flag).
+ * Returns false when the `tengu_saffron_lattice` feature is explicitly
+ * disabled, otherwise true when consent is required or the plan-limits
+ * date has passed. This is the 187 `LQ`/`pV` overage branch minus the
+ * session-429 flag.
  */
-export function isFableOverageRequired(): boolean {
+export function isFableOverageConfig(): boolean {
   const launch = getFable5LaunchConfig()
+  if (launch.enabled === false) return false
   return (
     launch.overageConsentRequired === true ||
-    isPlanLimitsEndDatePassed(launch.planLimitsEndDate) ||
-    getFableCreditsRequired()
+    isPlanLimitsEndDatePassed(launch.planLimitsEndDate)
   )
+}
+
+/**
+ * Official 2.1.190 `uge` — full overage gate: config-driven overage (`yae`)
+ * OR a Fable-credits 429 this session. This is the 187 `LQ`/`pV` behavior
+ * (consent / plan-end / session-429) recomposed after the 190 split, with
+ * the `enabled !== false` short-circuit now applied to the config branch.
+ */
+export function isFableOverageRequired(): boolean {
+  return isFableOverageConfig() || getFableCreditsRequired()
 }
 
 /**
@@ -139,6 +166,68 @@ export function isFablePermanentAccess(): boolean {
     isEnterpriseUsageBasedSubscriber() ||
     getRateLimitTier() === 'default_claude_zero'
   )
+}
+
+/**
+ * Official 2.1.190 `sWi` — `tengu_saffron_picker_dim` gate (default false).
+ * When on, the model picker dims Fable rows for overage / credits-only
+ * accounts.
+ */
+export function isSaffronPickerDimEnabled(): boolean {
+  return getFeatureValue_CACHED_MAY_BE_STALE(
+    'tengu_saffron_picker_dim',
+    false,
+  )
+}
+
+/**
+ * Official 2.1.190 `h$d` — resolve `tengu_saffron_credits_only_tiers` to the
+ * list of subscription tiers restricted to usage credits (default
+ * `["enterprise"]`, 190 `oWi`). The raw value is validated against a
+ * `string[]` schema; an unparseable value falls back to the default.
+ */
+export function getCreditsOnlyTiers(): string[] {
+  const raw = getFeatureValue_CACHED_MAY_BE_STALE(
+    'tengu_saffron_credits_only_tiers',
+    CREDITS_ONLY_TIERS_DEFAULT,
+  )
+  if (creditsOnlyTiersCache === null || creditsOnlyTiersCache.raw !== raw) {
+    const parsed = CREDITS_ONLY_TIERS_SCHEMA.safeParse(raw)
+    if (!parsed.success) {
+      logForDebugging(
+        'tengu_saffron_credits_only_tiers: unparseable value, using default',
+        { level: 'warn' },
+      )
+    }
+    creditsOnlyTiersCache = {
+      raw,
+      parsed: parsed.success ? parsed.data : CREDITS_ONLY_TIERS_DEFAULT,
+    }
+  }
+  return creditsOnlyTiersCache.parsed
+}
+
+/**
+ * Official 2.1.190 `g$d` — an enterprise org that is NOT on usage-based
+ * billing (always credits-restricted).
+ */
+export function isEnterpriseNonUsageBased(): boolean {
+  return (
+    getSubscriptionType() === 'enterprise' &&
+    !isEnterpriseUsageBasedSubscriber()
+  )
+}
+
+/**
+ * Official 2.1.190 `_ae` — the account's subscription tier is restricted to
+ * usage credits: an enterprise-non-usage-based org, or a tier listed in the
+ * `tengu_saffron_credits_only_tiers` gate.
+ */
+export function isCreditsOnlyTier(): boolean {
+  if (isEnterpriseNonUsageBased()) return true
+  const tier = getSubscriptionType()
+  if (tier === null) return false
+  return getCreditsOnlyTiers().includes(tier)
 }
 
 /** Official 2.1.178 `RcK`. */
