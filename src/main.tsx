@@ -122,6 +122,7 @@ import { settingsChangeDetector } from './utils/settings/changeDetector.js'
 import { skillChangeDetector } from './utils/skills/skillChangeDetector.js'
 import { jsonParse, writeFileSync_DEPRECATED } from './utils/slowOperations.js'
 import { computeInitialTeamContext } from './utils/swarm/reconnection.js'
+import { ensureAiAgentHarnessEnv } from './utils/userAgent.js'
 import { initializeWarningHandler } from './utils/warningHandler.js'
 import { isWorktreeModeEnabled } from './utils/worktreeModeEnabled.js'
 
@@ -1180,6 +1181,9 @@ export async function main() {
 
   // Initialize entrypoint based on mode - needs to be set before any event is logged
   initializeEntrypoint(isNonInteractive)
+
+  // Official 2.1.120 lL$ — second site, after argv/entrypoint, before clientType.
+  ensureAiAgentHarnessEnv()
 
   // Determine client type
   const clientType = (() => {
@@ -6338,6 +6342,28 @@ async function run(): Promise<CommanderCommand> {
       }
       const { agentsHandler } = await import('./cli/handlers/agents.js')
       await agentsHandler()
+      process.exit(0)
+    })
+
+  // Official 2.1.120 nE5 — `claude ultrareview [target]`
+  program
+    .command('ultrareview [target]')
+    .description(
+      'Run a cloud-hosted multi-agent code review of the current branch (or a PR number / base branch) and print the findings',
+    )
+    .option(
+      '--json',
+      'Print the raw bugs.json payload instead of formatted findings',
+    )
+    .option(
+      '--timeout <minutes>',
+      'Maximum minutes to wait for the review to finish (default: 30)',
+    )
+    .action(async (target: string | undefined, opts: { json?: boolean; timeout?: string }) => {
+      const { ultrareviewHandler } = await import(
+        './cli/handlers/ultrareview.js'
+      )
+      await ultrareviewHandler(target ?? '', opts)
       process.exit(0)
     })
 

@@ -73,6 +73,8 @@ type Props = {
     key?: string
   }
   vimMode: VimMode | undefined
+  /** 120 `uP4` / `hideVimModeIndicator`: suppress `-- INSERT --` / `-- VISUAL --`. */
+  hideVimModeIndicator?: boolean
   mode: PromptInputMode
   toolPermissionContext: ToolPermissionContext
   suppressHint: boolean
@@ -131,6 +133,7 @@ function ProactiveCountdown(): React.ReactNode {
 export function PromptInputFooterLeftSide({
   exitMessage,
   vimMode,
+  hideVimModeIndicator = false,
   mode,
   toolPermissionContext,
   suppressHint,
@@ -163,6 +166,7 @@ export function PromptInputFooterLeftSide({
 
   const showVim =
     isVimModeEnabled() &&
+    !hideVimModeIndicator &&
     (vimMode === 'INSERT' ||
       vimMode === 'VISUAL' ||
       vimMode === 'VISUAL LINE') &&

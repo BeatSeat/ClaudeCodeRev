@@ -1,7 +1,8 @@
 import * as React from 'react'
 import { useState } from 'react'
-import { getSdkBetas } from '../../bootstrap/state.js'
 import { Dialog } from '../../components/design-system/Dialog.js'
+import { Byline } from '../../components/design-system/Byline.js'
+import { KeyboardShortcutHint } from '../../components/design-system/KeyboardShortcutHint.js'
 import { Box, Text } from '../../ink.js'
 import { useKeybindings } from '../../keybindings/useKeybinding.js'
 import { useMainLoopModel } from '../../hooks/useMainLoopModel.js'
@@ -20,10 +21,7 @@ import {
   setAutoCompactWindowFromArg,
   sourceLabel,
 } from '../../utils/autoCompactWindow.js'
-import { getContextWindowForModel } from '../../utils/context.js'
 import { formatTokens } from '../../utils/format.js'
-
-const LONG_CONTEXT_URL = 'https://claude.com/blog/1m-context-ga'
 
 function AutoCompactDialog({
   onDone,
@@ -34,11 +32,10 @@ function AutoCompactDialog({
 }): React.ReactNode {
   const model = useMainLoopModel()
   const stateWindow = useAppState(state => state.autoCompactWindow)
-  const modelWindow = getContextWindowForModel(model, getSdkBetas())
-  const resolved = resolveAutoCompactWindow(modelWindow, stateWindow)
+  const resolved = resolveAutoCompactWindow(model, stateWindow)
   const envLocked = resolved.source === 'env'
   const initial =
-    resolved.source === 'model'
+    resolved.source === 'auto'
       ? 0
       : Math.min(
           AUTO_COMPACT_WINDOW_MAX,
@@ -51,13 +48,16 @@ function AutoCompactDialog({
   const [selected, setSelected] = useState(initial)
   const [dirty, setDirty] = useState(false)
 
-  const currentLabel = `${formatTokens(resolved.configured)} tokens (${sourceLabel(resolved.source)})${
-    resolved.configured > resolved.window
-      ? ` · capped to ${formatTokens(resolved.window)} by model`
-      : ''
-  }`
+  const currentLabel =
+    resolved.source === 'auto'
+      ? 'auto'
+      : `${formatTokens(resolved.configured)} tokens (${sourceLabel(resolved.source)})${
+          resolved.configured > resolved.window
+            ? ` · capped to ${formatTokens(resolved.window)} by model`
+            : ''
+        }`
   const selectedLabel =
-    selected === 0 ? 'Model default' : `${formatTokens(selected)} tokens`
+    selected === 0 ? 'auto' : `${formatTokens(selected)} tokens`
 
   function step(delta: number): void {
     if (envLocked) return
@@ -78,7 +78,7 @@ function AutoCompactDialog({
       onDone(`Auto-compact window unchanged: ${currentLabel}`)
       return
     }
-    const arg = selected === 0 ? 'reset' : String(selected)
+    const arg = selected === 0 ? 'auto' : String(selected)
     const message = setAutoCompactWindowFromArg(arg, context)
     onDone(message)
   }
@@ -101,22 +101,39 @@ function AutoCompactDialog({
 
   return (
     <Dialog
-      title="Auto-compact"
+      title="Auto-compact Window"
       subtitle={`Current setting: ${currentLabel}`}
       onCancel={() => onDone(`Auto-compact window unchanged: ${currentLabel}`)}
       inputGuide={() => (
-        <Text dimColor>↑/↓ to change · Enter to apply · Esc to cancel</Text>
+        <Text dimColor>
+          <Byline>
+            <KeyboardShortcutHint chord={['up', 'down']} action="change" />
+            <KeyboardShortcutHint chord="enter" action="apply" />
+            <KeyboardShortcutHint chord="escape" action="cancel" />
+          </Byline>
+        </Text>
       )}
     >
       <Box flexDirection="column" gap={1}>
         <Text>
           This command configures when auto-compaction happens. The actual
-          threshold is the minimum of this setting and your model&apos;s context
-          window.
+          threshold is the minimum of this setting and your model&apos;s maximum
+          context window.
+        </Text>
+        <Text>
+          The auto setting picks a window tuned for your model and is{' '}
+          <Text bold>strongly recommended</Text> for the best cost and
+          performance. You can override it below.
         </Text>
         {!isAutoCompactEnabled() && (
           <Text color="warning">
             Auto-compact is currently disabled (see /config)
+          </Text>
+        )}
+        {selected !== 0 && (
+          <Text color="warning">
+            Overriding auto may result in high token usage, especially when
+            resuming long sessions.
           </Text>
         )}
         {envLocked ? (
@@ -125,24 +142,12 @@ function AutoCompactDialog({
             it to change this setting here.
           </Text>
         ) : (
-          <Text>
-            Select auto-compact window:{' '}
-            <Text bold color="suggestion">
-              {selectedLabel}
-            </Text>
-          </Text>
+          <Box>
+            <Text>Select auto-compact window: </Text>
+            <Text bold color="suggestion">{selectedLabel}</Text>
+          </Box>
         )}
-        <Box flexDirection="column" marginTop={1}>
-          <Text bold>Long context that holds up</Text>
-          <Text>
-            Both Opus 4.6 and Sonnet 4.6 achieve state-of-the-art scores on
-            long-context retrieval benchmarks at 1M tokens — Opus 4.6 scores
-            78.3% on MRCR v2, the highest among frontier models at that length.
-            Opus 4.6 includes 1M context at standard pricing; Sonnet 4.6 1M is
-            available with overages.
-          </Text>
-          <Text dimColor>Learn more: {LONG_CONTEXT_URL}</Text>
-        </Box>
+
       </Box>
     </Dialog>
   )

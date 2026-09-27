@@ -1,13 +1,11 @@
 import { feature } from 'bun:bundle'
 import { getLastInteractionTime, markPostCompaction } from 'src/bootstrap/state.js'
-import { getSdkBetas } from '../../bootstrap/state.js'
 import type { QuerySource } from '../../constants/querySource.js'
 import type { ToolUseContext } from '../../Tool.js'
 import type { Message } from '../../types/message.js'
 import {
   resolveAutoCompactWindow,
 } from '../../utils/autoCompactWindow.js'
-import { getContextWindowForModel } from '../../utils/context.js'
 import { getInitialSettings } from '../../utils/settings/settings.js'
 import { getUserIntentSetting } from '../../utils/settings/userIntent.js'
 import { logForDebugging } from '../../utils/debug.js'
@@ -39,13 +37,12 @@ export function getEffectiveContextWindowSize(model: string): number {
     getMaxOutputTokensForModel(model),
     MAX_OUTPUT_TOKENS_FOR_SUMMARY,
   )
-  const modelWindow = getContextWindowForModel(model, getSdkBetas())
   // Official 2.1.89 j56/Md: env > settings (only when autocompact is on) > model
   const settingsWindow = isAutoCompactEnabled()
     ? getInitialSettings().autoCompactWindow
     : undefined
   const { window: contextWindow } = resolveAutoCompactWindow(
-    modelWindow,
+    model,
     settingsWindow,
   )
 

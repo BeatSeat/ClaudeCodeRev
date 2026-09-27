@@ -432,6 +432,8 @@ const MessagesImpl = ({
   renderRange,
 }: Props): React.ReactNode => {
   const { columns } = useTerminalSize()
+  const columnsRef = useRef(columns)
+  columnsRef.current = columns
   const briefTranscript = useAppState(s => s.briefTranscript)
   const appStore = useAppStateStore()
   const toggleShowAllShortcut = useShortcutDisplay(
@@ -782,7 +784,11 @@ const MessagesImpl = ({
         b.tool_use_id,
       )?.name
       const tool = name ? findToolByName(tools, name) : undefined
-      return tool?.isResultTruncated?.(msg.toolUseResult as never) ?? false
+      return (
+        tool?.isResultTruncated?.(msg.toolUseResult as never, {
+          columns: columnsRef.current,
+        }) ?? false
+      )
     },
     [tools],
   )

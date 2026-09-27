@@ -16,6 +16,7 @@ import { logEvent } from '../services/analytics/index.js'
 import { logForDebugging } from '../utils/debug.js'
 import type { Notification } from '../context/notifications.js'
 import { getGraphemeSegmenter } from '../utils/intl.js'
+import type { Notification } from '../context/notifications.js'
 
 /** Official 113 pG8 — grapheme count so the copy toast doesn't overcount emoji. */
 function countGraphemes(text: string): number {
@@ -437,7 +438,7 @@ const AUTOSCROLL_MAX_TICKS = 200 // 10s @ 50ms
  * Scrolling breaks sticky mode; Ctrl+End re-enables it. Wheeling down at
  * the bottom also re-enables sticky so new content follows naturally.
  */
-/** Official 2.1.116 `te1` / `se1`. 120 rewrites the suffix. */
+/** 120 `bT5` / `xT5`: once-only toast when stdin is sending arrow bursts. */
 function useScrollAsArrowsHint(
   addNotification: (n: Notification) => void,
 ): void {
@@ -455,7 +456,7 @@ function useScrollAsArrowsHint(
         addNotification({
           key: 'scroll-as-arrows',
           priority: 'immediate',
-          text: 'Scroll wheel is sending arrow keys · run /terminal-setup to fix',
+          text: 'Scroll wheel is sending arrow keys · use PgUp/PgDn to scroll',
           color: 'warning',
           timeoutMs: 12000,
         })

@@ -9,6 +9,7 @@ import {
 import { getLspServerManager } from '../../services/lsp/manager.js'
 import { notifyVscodeFileUpdated } from '../../services/mcp/vscodeSdkMcp.js'
 import { checkTeamMemSecrets } from '../../services/teamMemorySync/teamMemSecretGuard.js'
+import { captureMemoryWrite } from '../../components/FeedbackSurvey/memoryWriteSurvey.js'
 import {
   activateConditionalSkillsForPaths,
   addSkillDirectories,
@@ -416,6 +417,8 @@ export const FileEditTool = buildTool({
       userModified,
       updateFileHistoryState,
       dynamicSkillDirTriggers,
+      agentId,
+      setAppState,
     },
     _,
     parentMessage,
@@ -600,6 +603,25 @@ export const FileEditTool = buildTool({
       replaceAll: replace_all,
       ...(gitDiff && { gitDiff }),
     }
+
+    // memory-write-survey (official 2.1.120): edits to memory files also queue
+    // a survey record (bundle `w4$` fires on FileEditTool too).
+    const memoryWriteRecord = captureMemoryWrite(agentId, {
+      filePath: absoluteFilePath,
+      afterContent: updatedFile,
+      beforeContent: fileExists ? originalFileContents : null,
+      structuredPatch: patch,
+    })
+    if (memoryWriteRecord) {
+      setAppState(prev => ({
+        ...prev,
+        memoryWriteQueue: [
+          ...(prev.memoryWriteQueue ?? []),
+          memoryWriteRecord,
+        ],
+      }))
+    }
+
     return {
       data,
     }

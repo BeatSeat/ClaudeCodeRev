@@ -125,11 +125,46 @@ export async function checkOverageGate(): Promise<OverageGate> {
  * Caller must run checkOverageGate() BEFORE calling this function
  * (ultrareviewCommand.tsx handles the dialog).
  */
+export type LaunchRemoteReviewOptions = {
+  /** Official 2.1.120: CLI `claude ultrareview` polls itself — skip REPL task. */
+  skipTaskRegistration?: boolean
+}
+
+export type LaunchRemoteReviewSessionResult = {
+  launched: boolean
+  sessionId?: string
+  sessionUrl?: string
+  taskId?: string
+  title?: string
+  blocks: ContentBlockParam[]
+}
+
 export async function launchRemoteReview(
   args: string,
   context: ToolUseContext,
   billingNote?: string,
+  opts?: LaunchRemoteReviewOptions,
 ): Promise<ContentBlockParam[] | null> {
+  const result = await launchRemoteReviewSession(
+    args,
+    context,
+    billingNote,
+    opts,
+  )
+  return result ? result.blocks : null
+}
+
+export async function launchRemoteReviewSession(
+  args: string,
+  context: Pick<ToolUseContext, 'abortController'> &
+    Partial<Pick<ToolUseContext, 'setAppState' | 'getAppState'>>,
+  billingNote?: string,
+  opts?: LaunchRemoteReviewOptions,
+): Promise<LaunchRemoteReviewSessionResult | null> {
+  const fail = (text: string): LaunchRemoteReviewSessionResult => ({
+    launched: false,
+    blocks: [{ type: 'text', text }],
+  })
   const eligibility = await checkRemoteAgentEligibility()
   // Synthetic DEFAULT_CODE_REVIEW_ENVIRONMENT_ID works without per-org CCR
   // setup, so no_remote_environment isn't a blocker. Server-side quota
@@ -148,12 +183,7 @@ export async function launchRemoteReview(
           ) as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
       })
       const reasons = blockers.map(formatPreconditionError).join('\n')
-      return [
-        {
-          type: 'text',
-          text: `Ultrareview cannot launch:\n${reasons}`,
-        },
-      ]
+      return fail(`Ultrareview cannot launch:\n${reasons}`)
     }
   }
 
@@ -242,12 +272,9 @@ export async function launchRemoteReview(
     const mergeBaseSha = mbOut.trim()
     if (mbCode !== 0 || !mergeBaseSha) {
       logEvent('tengu_review_remote_precondition_failed', {})
-      return [
-        {
-          type: 'text',
-          text: `Could not find merge-base with ${baseBranch}. Make sure you're in a git repo with a ${baseBranch} branch.`,
-        },
-      ]
+      return fail(
+        `Could not find merge-base with ${baseBranch}. Make sure you're in a git repo with a ${baseBranch} branch.`,
+      )
     }
 
     // Bail early on empty diffs instead of launching a container that
@@ -259,12 +286,9 @@ export async function launchRemoteReview(
     )
     if (diffCode === 0 && !diffStat.trim()) {
       logEvent('tengu_review_remote_precondition_failed', {})
-      return [
-        {
-          type: 'text',
-          text: `No changes against the ${baseBranch} fork point. Make some commits or stage files first.`,
-        },
-      ]
+      return fail(
+        `No changes against the ${baseBranch} fork point. Make some commits or stage files first.`,
+      )
     }
 
     session = await teleportToRemote({
@@ -280,12 +304,9 @@ export async function launchRemoteReview(
     })
     if (!session) {
       logEvent('tengu_review_remote_teleport_failed', {})
-      return [
-        {
-          type: 'text',
-          text: 'Repo is too large. Push a PR and use `/ultrareview <PR#>` instead.',
-        },
-      ]
+      return fail(
+        'Repo is too large. Push a PR and use `/ultrareview <PR#>` instead.',
+      )
     }
     command = '/ultrareview'
     target = baseBranch
@@ -295,22 +316,32 @@ export async function launchRemoteReview(
     logEvent('tengu_review_remote_teleport_failed', {})
     return null
   }
-  registerRemoteAgentTask({
-    remoteTaskType: 'ultrareview',
-    session,
-    command,
-    context,
-    isRemoteReview: true,
-  })
+  let taskId: string | undefined
+  if (!opts?.skipTaskRegistration && context.setAppState) {
+    taskId = registerRemoteAgentTask({
+      remoteTaskType: 'ultrareview',
+      session,
+      command,
+      context: context as ToolUseContext,
+      isRemoteReview: true,
+    }).taskId
+  }
   logEvent('tengu_review_remote_launched', {})
   const sessionUrl = getRemoteTaskSessionUrl(session.id)
   // Concise — the tool-output block is visible to the user, so the model
   // shouldn't echo the same info. Just enough for Claude to acknowledge the
-  // launch without restating the target/URL (both already printed above).
-  return [
-    {
-      type: 'text',
-      text: `Ultrareview launched for ${target} (~10–20 min, runs in the cloud). Track: ${sessionUrl}${resolvedBillingNote} Findings arrive via task-notification. Briefly acknowledge the launch to the user without repeating the target or URL — both are already visible in the tool output above.`,
-    },
-  ]
+  // launch without restating the target or URL (both already printed above).
+  return {
+    launched: true,
+    sessionId: session.id,
+    sessionUrl,
+    taskId,
+    title: session.title,
+    blocks: [
+      {
+        type: 'text',
+        text: `Ultrareview launched for ${target} (~10–20 min, runs in the cloud). Track: ${sessionUrl}${resolvedBillingNote} Findings arrive via task-notification. Briefly acknowledge the launch to the user without repeating the target or URL — both are already visible in the tool output above.`,
+      },
+    ],
+  }
 }

@@ -24,6 +24,8 @@ import type { AgentId } from '../types/ids.js'
 import type { Message, UserMessage } from '../types/message.js'
 import type { LoadedPlugin, PluginError } from '../types/plugin.js'
 import type { DeepImmutable } from '../types/utils.js'
+// Type-only: no runtime cycle (memoryWriteSurvey.ts does not import state).
+import type { MemoryWriteRecord } from '../components/FeedbackSurvey/memoryWriteSurvey.js'
 import {
   type AttributionState,
   createEmptyAttributionState,
@@ -187,6 +189,11 @@ export type AppState = DeepImmutable<{
   companionReaction?: string
   // Timestamp of last /buddy pet — CompanionSprite renders hearts while recent
   companionPetAt?: number
+  // Official 2.1.120 `tengu_slate_siskin`: memory writes queued for the
+  // memory-write-survey confirmation dialog. Populated by the Write tool,
+  // consumed by useMemoryWriteSurvey (shows the head, drops it on Keep/Undo/
+  // auto-hide).
+  memoryWriteQueue?: MemoryWriteRecord[]
   // TODO (ashwin): see if we can use utility-types DeepReadonly for this
   mcp: {
     clients: MCPServerConnection[]
@@ -537,6 +544,7 @@ export function getDefaultAppState(): AppState {
       trackedFiles: new Set(),
       snapshotSequence: 0,
     },
+    memoryWriteQueue: [],
     attribution: createEmptyAttributionState(),
     mcp: {
       clients: [],
