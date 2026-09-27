@@ -26,6 +26,7 @@ import {
 import {
   DECSTBM_SUPPORTED,
   isXtermJs,
+  setDec2026Supported,
   setXtversionName,
   supportsExtendedKeys,
 } from '../terminal.js'
@@ -33,7 +34,7 @@ import {
   getTerminalFocused,
   setTerminalFocused,
 } from '../terminal-focus-state.js'
-import { TerminalQuerier, xtversion } from '../terminal-querier.js'
+import { decrqm, TerminalQuerier, xtversion } from '../terminal-querier.js'
 import {
   DISABLE_KITTY_KEYBOARD,
   DISABLE_MODIFY_OTHER_KEYS,
@@ -44,6 +45,7 @@ import {
 } from '../termio/csi.js'
 import {
   DBP,
+  DEC,
   DFE,
   DISABLE_MOUSE_TRACKING,
   EBP,
@@ -70,6 +72,52 @@ const SUPPORTS_SUSPEND = process.platform !== 'win32'
 // but no signal reaches us. 5s is well above normal inter-keystroke gaps
 // but short enough that the first scroll after reattach works.
 const STDIN_RESUME_GAP_MS = 5000
+
+/** 119 `dM_`: XTVERSION first, then DECRQM(2026) unless Apple_Terminal or no reply. */
+async function probeTerminalIdentity(querier: TerminalQuerier): Promise<void> {
+  const [xt] = await Promise.all([querier.send(xtversion()), querier.flush()])
+  if (xt) {
+    let name = xt.name
+    if (process.env.TMUX && name.startsWith('tmux ')) {
+      const { stdout } = await execFileNoThrow(
+        'tmux',
+        ['display-message', '-p', '#{client_termtype}'],
+        { timeout: 1000, useCwd: false },
+      )
+      const termtype = stdout.trim()
+      if (termtype) {
+        name = termtype
+      }
+    }
+    setXtversionName(name)
+    logForDebugging(`XTVERSION: terminal identified as "${name}"`)
+  } else {
+    logForDebugging('XTVERSION: no reply (terminal ignored query)')
+  }
+
+  const skipDecrqm =
+    !xt || process.env.TERM_PROGRAM === 'Apple_Terminal'
+  const [decrpm] = await Promise.all([
+    skipDecrqm
+      ? Promise.resolve(undefined)
+      : querier.send(decrqm(DEC.SYNCHRONIZED_UPDATE)),
+    skipDecrqm ? Promise.resolve() : querier.flush(),
+  ])
+  const supported = decrpm?.status === 1 || decrpm?.status === 2
+  setDec2026Supported(supported)
+  logForDebugging(
+    `DECRQM(2026): ${
+      skipDecrqm
+        ? `skipped (${xt ? 'Apple_Terminal' : 'no XTVERSION reply'})`
+        : decrpm
+          ? `status=${decrpm.status}`
+          : 'no reply'
+    } → sync ${supported ? 'supported' : 'unsupported'}`,
+  )
+  logForDebugging(
+    `DECSTBM: ${DECSTBM_SUPPORTED ? 'enabled' : 'gated'} (TMUX=${process.env.TMUX ? 'set' : 'unset'} ZELLIJ=${process.env.ZELLIJ != null ? 'set' : 'unset'} TERM_PROGRAM=${process.env.TERM_PROGRAM ?? 'unset'} TERM=${process.env.TERM ?? 'unset'})`,
+  )
+}
 
 type Props = {
   readonly children: ReactNode
@@ -313,41 +361,13 @@ export default class App extends PureComponent<Props, State> {
           this.props.stdout.write(ENABLE_KITTY_KEYBOARD)
           this.props.stdout.write(ENABLE_MODIFY_OTHER_KEYS)
         }
-        // Probe terminal identity. XTVERSION survives SSH (query/reply goes
-        // through the pty), unlike TERM_PROGRAM. Used for wheel-scroll base
-        // detection when env vars are absent. Fire-and-forget: the DA1
-        // sentinel bounds the round-trip, and if the terminal ignores the
-        // query, flush() still resolves and name stays undefined.
+        // Probe terminal identity then DEC 2026. XTVERSION first so we can
+        // skip DECRQM(2026) on Apple_Terminal / no-reply (stray `p`).
         // Deferred to next tick so it fires AFTER the current synchronous
         // init sequence completes — avoids interleaving with alt-screen/mouse
         // tracking enable writes that may happen in the same render cycle.
         setImmediate(() => {
-          void Promise.all([
-            this.querier.send(xtversion()),
-            this.querier.flush(),
-          ]).then(async ([r]) => {
-            if (r) {
-              let name = r.name
-              if (process.env.TMUX && name.startsWith('tmux ')) {
-                const { stdout } = await execFileNoThrow(
-                  'tmux',
-                  ['display-message', '-p', '#{client_termtype}'],
-                  { timeout: 1000, useCwd: false },
-                )
-                const termtype = stdout.trim()
-                if (termtype) {
-                  name = termtype
-                }
-              }
-              setXtversionName(name)
-              logForDebugging(`XTVERSION: terminal identified as "${name}"`)
-            } else {
-              logForDebugging('XTVERSION: no reply (terminal ignored query)')
-            }
-            logForDebugging(
-              `DECSTBM: ${DECSTBM_SUPPORTED ? 'enabled' : 'gated'} (TMUX=${process.env.TMUX ? 'set' : 'unset'} TERM_PROGRAM=${process.env.TERM_PROGRAM ?? 'unset'} TERM=${process.env.TERM ?? 'unset'})`,
-            )
-          })
+          if (this.querier) void probeTerminalIdentity(this.querier)
         })
       }
 

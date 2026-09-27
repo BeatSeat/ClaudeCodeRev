@@ -21,6 +21,7 @@ import {
   getSettingsForSource,
   updateSettingsForSource,
 } from '../utils/settings/settings.js'
+import { getUserIntentSetting, setUserIntentSetting } from '../utils/settings/userIntent.js'
 import type { AppState } from './AppStateStore.js'
 
 // Inverse of the push below — restore on worker restart.
@@ -125,16 +126,12 @@ export function onChangeAppState({
     }
   }
 
-  // verbose
+  // verbose — Official 2.1.119: persist to userSettings (user-intent key)
   if (
     newState.verbose !== oldState.verbose &&
-    getGlobalConfig().verbose !== newState.verbose
+    getUserIntentSetting('verbose', false) !== newState.verbose
   ) {
-    const verbose = newState.verbose
-    saveGlobalConfig(current => ({
-      ...current,
-      verbose,
-    }))
+    setUserIntentSetting('verbose', newState.verbose)
   }
 
   // tungstenPanelVisible (ant-only tmux panel sticky toggle)

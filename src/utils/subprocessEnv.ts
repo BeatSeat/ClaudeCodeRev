@@ -366,3 +366,51 @@ export function mergeScrubSandboxConfig<T extends { filesystem?: { allowWrite?: 
     },
   } as T
 }
+
+/** Official 2.1.119 `Pt8` — `CLAUDE_CODE_SCRIPT_CAPS` call-count gate. */
+let scriptCaps: Record<string, number> | null | undefined
+const scriptCapCounts = new Map<string, number>()
+
+function loadScriptCaps(): void {
+  if (scriptCaps !== undefined) return
+  const raw = process.env.CLAUDE_CODE_SCRIPT_CAPS
+  if (!raw) {
+    scriptCaps = null
+    return
+  }
+  try {
+    const parsed = JSON.parse(raw) as unknown
+    if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+      const filtered: Record<string, number> = {}
+      for (const [key, value] of Object.entries(
+        parsed as Record<string, unknown>,
+      )) {
+        if (typeof value === 'number' && Number.isFinite(value) && key.trim()) {
+          filtered[key] = value
+        }
+      }
+      scriptCaps = Object.keys(filtered).length > 0 ? filtered : null
+    } else {
+      scriptCaps = null
+    }
+  } catch {
+    scriptCaps = null
+  }
+}
+
+export function enforceScriptCaps(command: string): void {
+  if (!isSubprocessEnvScrubEnabled()) return
+  loadScriptCaps()
+  if (!scriptCaps) return
+  for (const [token, cap] of Object.entries(scriptCaps)) {
+    const hits = command.split(token).length - 1
+    if (hits <= 0) continue
+    const next = (scriptCapCounts.get(token) ?? 0) + hits
+    scriptCapCounts.set(token, next)
+    if (next > cap) {
+      throw new Error(
+        `Script call limit exceeded: ${token} has been called ${next} times (cap: ${cap}). This limit prevents data exfiltration via repeated write operations in untrusted-input workflows.`,
+      )
+    }
+  }
+}

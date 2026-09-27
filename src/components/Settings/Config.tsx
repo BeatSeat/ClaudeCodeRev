@@ -91,6 +91,11 @@ import {
   getSettingsForSource,
   updateSettingsForSource,
 } from '../../utils/settings/settings.js'
+import {
+  getUserIntentSetting,
+  getUserIntentSettingWithSource,
+  setUserIntentSetting,
+} from '../../utils/settings/userIntent.js'
 import { getUserMsgOptIn, setUserMsgOptIn } from '../../bootstrap/state.js'
 import { DEFAULT_OUTPUT_STYLE_NAME } from 'src/constants/outputStyles.js'
 import { isEnvTruthy, isRunningOnHomespace } from 'src/utils/envUtils.js'
@@ -99,6 +104,7 @@ import type {
   CommandResultDisplay,
 } from '../../commands.js'
 import { getFeatureValue_CACHED_MAY_BE_STALE } from '../../services/analytics/growthbook.js'
+import { isFgLeftArrowAgentsAvailable } from '../FleetView/fleetGate.js'
 import { isAgentSwarmsEnabled } from '../../utils/agentSwarmsEnabled.js'
 import {
   getCliTeammateModeOverride,
@@ -336,8 +342,7 @@ export function Config({
   }
 
   function onChangeVerbose(value: boolean): void {
-    // Update the global config to persist the setting
-    saveGlobalConfig(current => ({ ...current, verbose: value }))
+    setUserIntentSetting('verbose', value)
     setGlobalConfig({ ...getGlobalConfig(), verbose: value })
 
     // Update the app state for immediate UI feedback
@@ -360,10 +365,10 @@ export function Config({
     {
       id: 'autoCompactEnabled',
       label: 'Auto-compact',
-      value: globalConfig.autoCompactEnabled,
+      value: getUserIntentSetting('autoCompactEnabled', true) ?? true,
       type: 'boolean' as const,
       onChange(autoCompactEnabled: boolean) {
-        saveGlobalConfig(current => ({ ...current, autoCompactEnabled }))
+        setUserIntentSetting('autoCompactEnabled', autoCompactEnabled)
         setGlobalConfig({ ...getGlobalConfig(), autoCompactEnabled })
         logEvent('tengu_auto_compact_setting_changed', {
           enabled: autoCompactEnabled,
@@ -531,13 +536,10 @@ export function Config({
           {
             id: 'fileCheckpointingEnabled',
             label: 'Rewind code (checkpoints)',
-            value: globalConfig.fileCheckpointingEnabled,
+            value: getUserIntentSetting('fileCheckpointingEnabled', true) ?? true,
             type: 'boolean' as const,
             onChange(enabled: boolean) {
-              saveGlobalConfig(current => ({
-                ...current,
-                fileCheckpointingEnabled: enabled,
-              }))
+              setUserIntentSetting('fileCheckpointingEnabled', enabled)
               setGlobalConfig({
                 ...getGlobalConfig(),
                 fileCheckpointingEnabled: enabled,
@@ -559,13 +561,10 @@ export function Config({
     {
       id: 'terminalProgressBarEnabled',
       label: 'Terminal progress bar',
-      value: globalConfig.terminalProgressBarEnabled,
+      value: getUserIntentSetting('terminalProgressBarEnabled', true) ?? true,
       type: 'boolean' as const,
       onChange(terminalProgressBarEnabled: boolean) {
-        saveGlobalConfig(current => ({
-          ...current,
-          terminalProgressBarEnabled,
-        }))
+        setUserIntentSetting('terminalProgressBarEnabled', terminalProgressBarEnabled)
         setGlobalConfig({ ...getGlobalConfig(), terminalProgressBarEnabled })
         logEvent('tengu_terminal_progress_bar_setting_changed', {
           enabled: terminalProgressBarEnabled,
@@ -598,10 +597,10 @@ export function Config({
     {
       id: 'showTurnDuration',
       label: 'Show turn duration',
-      value: globalConfig.showTurnDuration,
+      value: getUserIntentSetting('showTurnDuration', true) ?? true,
       type: 'boolean' as const,
       onChange(showTurnDuration: boolean) {
-        saveGlobalConfig(current => ({ ...current, showTurnDuration }))
+        setUserIntentSetting('showTurnDuration', showTurnDuration)
         setGlobalConfig({ ...getGlobalConfig(), showTurnDuration })
         logEvent('tengu_show_turn_duration_setting_changed', {
           enabled: showTurnDuration,
@@ -757,16 +756,40 @@ export function Config({
           {
             id: 'autoScrollEnabled',
             label: 'Auto-scroll',
-            value: globalConfig.autoScrollEnabled ?? true,
+            value: getUserIntentSetting('autoScrollEnabled', true) ?? true,
             type: 'boolean' as const,
             onChange(autoScrollEnabled: boolean) {
-              saveGlobalConfig(current => ({ ...current, autoScrollEnabled }))
+              setUserIntentSetting('autoScrollEnabled', autoScrollEnabled)
               setGlobalConfig({ ...getGlobalConfig(), autoScrollEnabled })
               logEvent('tengu_config_changed', {
                 setting:
                   'autoScrollEnabled' as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
                 value: String(
                   autoScrollEnabled,
+                ) as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
+              })
+            },
+          },
+        ]
+      : []),
+    ...(isFgLeftArrowAgentsAvailable()
+      ? [
+          {
+            id: 'leftArrowOpensAgents',
+            label: `${'\u2190'} opens agents`,
+            value: globalConfig.leftArrowOpensAgents ?? true,
+            type: 'boolean' as const,
+            onChange(leftArrowOpensAgents: boolean) {
+              saveGlobalConfig(current => ({
+                ...current,
+                leftArrowOpensAgents,
+              }))
+              setGlobalConfig({ ...getGlobalConfig(), leftArrowOpensAgents })
+              logEvent('tengu_config_changed', {
+                setting:
+                  'leftArrowOpensAgents' as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
+                value: String(
+                  leftArrowOpensAgents,
                 ) as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
               })
             },
@@ -804,7 +827,7 @@ export function Config({
         feature('KAIROS') || feature('KAIROS_PUSH_NOTIFICATION')
           ? 'Local notifications'
           : 'Notifications',
-      value: globalConfig.preferredNotifChannel,
+      value: getUserIntentSetting('preferredNotifChannel', 'auto') ?? 'auto',
       options: [
         'auto',
         'iterm2',
@@ -816,10 +839,7 @@ export function Config({
       ],
       type: 'enum',
       onChange(notifChannel: GlobalConfig['preferredNotifChannel']) {
-        saveGlobalConfig(current => ({
-          ...current,
-          preferredNotifChannel: notifChannel,
-        }))
+        setUserIntentSetting('preferredNotifChannel', notifChannel)
         setGlobalConfig({
           ...getGlobalConfig(),
           preferredNotifChannel: notifChannel,
@@ -847,13 +867,10 @@ export function Config({
           {
             id: 'inputNeededNotifEnabled',
             label: 'Push when input needed',
-            value: globalConfig.inputNeededNotifEnabled ?? false,
+            value: getUserIntentSetting('inputNeededNotifEnabled', false) ?? false,
             type: 'boolean' as const,
             onChange(inputNeededNotifEnabled: boolean) {
-              saveGlobalConfig(current => ({
-                ...current,
-                inputNeededNotifEnabled,
-              }))
+              setUserIntentSetting('inputNeededNotifEnabled', inputNeededNotifEnabled)
               setGlobalConfig({
                 ...getGlobalConfig(),
                 inputNeededNotifEnabled,
@@ -863,13 +880,10 @@ export function Config({
           {
             id: 'agentPushNotifEnabled',
             label: 'Push when Claude decides',
-            value: globalConfig.agentPushNotifEnabled ?? false,
+            value: getUserIntentSetting('agentPushNotifEnabled', false) ?? false,
             type: 'boolean' as const,
             onChange(agentPushNotifEnabled: boolean) {
-              saveGlobalConfig(current => ({
-                ...current,
-                agentPushNotifEnabled,
-              }))
+              setUserIntentSetting('agentPushNotifEnabled', agentPushNotifEnabled)
               setGlobalConfig({
                 ...getGlobalConfig(),
                 agentPushNotifEnabled,
@@ -936,17 +950,19 @@ export function Config({
       id: 'editorMode',
       label: 'Editor mode',
       // Convert 'emacs' to 'normal' for backward compatibility
-      value:
-        globalConfig.editorMode === 'emacs'
-          ? 'normal'
-          : globalConfig.editorMode || 'normal',
+      value: (() => {
+        const mode = getUserIntentSetting('editorMode', 'normal') as
+          | string
+          | undefined
+        return !mode || mode === 'emacs' ? 'normal' : mode
+      })(),
       options: ['normal', 'vim'],
       type: 'enum',
       onChange(value: string) {
-        saveGlobalConfig(current => ({
-          ...current,
-          editorMode: value as GlobalConfig['editorMode'],
-        }))
+        setUserIntentSetting(
+          'editorMode',
+          value === 'vim' ? 'vim' : 'normal',
+        )
         setGlobalConfig({
           ...getGlobalConfig(),
           editorMode: value as GlobalConfig['editorMode'],
@@ -1107,7 +1123,7 @@ export function Config({
             {
               id: 'teammateMode',
               label,
-              value: globalConfig.teammateMode ?? 'auto',
+              value: getUserIntentSetting('teammateMode', 'auto') ?? 'auto',
               options: ['auto', 'tmux', 'in-process'],
               type: 'enum' as const,
               onChange(mode: string) {
@@ -1120,10 +1136,7 @@ export function Config({
                 }
                 // Clear CLI override and set new mode (pass mode to avoid race condition)
                 clearCliTeammateModeOverride(mode)
-                saveGlobalConfig(current => ({
-                  ...current,
-                  teammateMode: mode,
-                }))
+                setUserIntentSetting('teammateMode', mode)
                 setGlobalConfig({
                   ...getGlobalConfig(),
                   teammateMode: mode,
@@ -1151,32 +1164,25 @@ export function Config({
           {
             id: 'remoteControlAtStartup',
             label: 'Enable Remote Control for all sessions',
-            value:
-              globalConfig.remoteControlAtStartup === undefined
-                ? 'default'
-                : String(globalConfig.remoteControlAtStartup),
+            value: (() => {
+              const { value, source } = getUserIntentSettingWithSource(
+                'remoteControlAtStartup',
+                undefined,
+              )
+              return source === 'default' ? 'default' : String(value)
+            })(),
             options: ['true', 'false', 'default'],
             type: 'enum' as const,
             onChange(selected: string) {
               if (selected === 'default') {
-                // Unset the config key so it falls back to the platform default
-                saveGlobalConfig(current => {
-                  if (current.remoteControlAtStartup === undefined)
-                    return current
-                  const next = { ...current }
-                  delete next.remoteControlAtStartup
-                  return next
-                })
+                setUserIntentSetting('remoteControlAtStartup', undefined)
                 setGlobalConfig({
                   ...getGlobalConfig(),
                   remoteControlAtStartup: undefined,
                 })
               } else {
                 const enabled = selected === 'true'
-                saveGlobalConfig(current => {
-                  if (current.remoteControlAtStartup === enabled) return current
-                  return { ...current, remoteControlAtStartup: enabled }
-                })
+                setUserIntentSetting('remoteControlAtStartup', enabled)
                 setGlobalConfig({
                   ...getGlobalConfig(),
                   remoteControlAtStartup: enabled,
@@ -1477,6 +1483,14 @@ export function Config({
     if (globalConfig.copyOnSelect !== initialConfig.current.copyOnSelect) {
       formattedChanges.push(
         `${globalConfig.copyOnSelect ? 'Enabled' : 'Disabled'} copy on select`,
+      )
+    }
+    if (
+      globalConfig.leftArrowOpensAgents !==
+      initialConfig.current.leftArrowOpensAgents
+    ) {
+      formattedChanges.push(
+        `${globalConfig.leftArrowOpensAgents ?? true ? 'Enabled' : 'Disabled'} ${'\u2190'} opens agents`,
       )
     }
     if (

@@ -282,8 +282,10 @@ export function isToolSearchEnabledOptimistic(): boolean {
   // tool_reference is a beta content type that third-party API gateways
   // (ANTHROPIC_BASE_URL proxies) typically don't support. When the provider
   // is 'firstParty' but the base URL points elsewhere, the proxy will reject
-  // tool_reference blocks with a 400. Vertex/Bedrock/Foundry are unaffected —
-  // they have their own endpoints and beta headers.
+  // tool_reference blocks with a 400. Bedrock/Foundry are unaffected — they
+  // have their own endpoints and beta headers. Vertex is gated separately
+  // below: it rejects the tool-search beta header unless ENABLE_TOOL_SEARCH
+  // is set.
   // https://github.com/anthropics/claude-code/issues/30912
   //
   // HOWEVER: some proxies DO support tool_reference (LiteLLM passthrough,
@@ -305,6 +307,19 @@ export function isToolSearchEnabledOptimistic(): boolean {
       loggedOptimistic = true
       logForDebugging(
         `[ToolSearch:optimistic] disabled: ANTHROPIC_BASE_URL=${process.env.ANTHROPIC_BASE_URL} is not a first-party Anthropic host. Set ENABLE_TOOL_SEARCH=true (or auto / auto:N) if your proxy forwards tool_reference blocks.`,
+      )
+    }
+    return false
+  }
+
+  // Official 2.1.119: Vertex rejects the tool-search beta header. Default
+  // off unless ENABLE_TOOL_SEARCH is explicitly set (same falsy-unset rule
+  // as the first-party proxy gate above).
+  if (!process.env.ENABLE_TOOL_SEARCH && getAPIProvider() === 'vertex') {
+    if (!loggedOptimistic) {
+      loggedOptimistic = true
+      logForDebugging(
+        `[ToolSearch:optimistic] disabled: Vertex AI does not accept the tool-search beta header. Set ENABLE_TOOL_SEARCH=true to override.`,
       )
     }
     return false

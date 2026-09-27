@@ -38,6 +38,12 @@ export type StatusLineCommandInput = {
     remaining_percentage: number | null
   }
   exceeds_200k_tokens: boolean
+  effort?: {
+    level: string
+  }
+  thinking: {
+    enabled: boolean
+  }
   rate_limits?: {
     five_hour?: {
       used_percentage: number

@@ -463,9 +463,18 @@ export function isSourceInBlocklist(source: MarketplaceSource): boolean {
   if (blocklist === null) {
     return false
   }
-  return blocklist.some(blocked =>
-    areSourcesEquivalentForBlocklist(source, blocked),
-  )
+  // Official 2.1.119 x4$: hostPattern / pathPattern entries use the same
+  // regex helpers as the allowlist (uyK / myK). Exact sources stay on
+  // areSourcesEquivalentForBlocklist (118 hD9 / 119 FN_).
+  return blocklist.some(blocked => {
+    if (blocked.source === 'hostPattern') {
+      return doesSourceMatchHostPattern(source, blocked)
+    }
+    if (blocked.source === 'pathPattern') {
+      return doesSourceMatchPathPattern(source, blocked)
+    }
+    return areSourcesEquivalentForBlocklist(source, blocked)
+  })
 }
 
 /**

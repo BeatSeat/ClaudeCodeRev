@@ -114,6 +114,9 @@ export function isSynchronizedOutputSupported(): boolean {
     if (version >= 6800) return true
   }
 
+  // 119 `JwK`: DECRQM(2026) probe said set/reset (status 1 or 2).
+  if (dec2026ProbeSupported) return true
+
   return false
 }
 
@@ -128,6 +131,12 @@ export function isSynchronizedOutputSupported(): boolean {
 // and fall back to env-var detection.
 
 let xtversionName: string | undefined
+let dec2026ProbeSupported = false
+
+/** 119 `LwK`: record DECRQM(2026) probe. status 1/2 → supported. */
+export function setDec2026Supported(supported: boolean): void {
+  dec2026ProbeSupported = supported
+}
 
 /** Record the XTVERSION response. Called once from App.tsx when the reply
  *  arrives on stdin. No-op if already set (defend against re-probe). */

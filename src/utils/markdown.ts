@@ -7,6 +7,7 @@ import { stringWidth } from '../ink/stringWidth.js'
 import { supportsHyperlinks } from '../ink/supports-hyperlinks.js'
 import type { CliHighlight } from './cliHighlight.js'
 import { logForDebugging } from './debug.js'
+import { getCachedRepositoryHost } from './detectRepository.js'
 import { createHyperlink } from './hyperlink.js'
 import { stripPromptXMLTags } from './messages.js'
 import type { ThemeName } from './theme.js'
@@ -289,21 +290,35 @@ export function formatToken(
 const ISSUE_REF_PATTERN =
   /(^|[^\w./-])([A-Za-z0-9][\w-]*\/[A-Za-z0-9][\w.-]*)#(\d+)\b/g
 
+// 119 `fw1`: known non-GitHub forges. Their remotes must not steal
+// owner/repo#N links (those still resolve on github.com).
+const NON_GITHUB_FORGE_HOSTS = new Set([
+  'gitlab.com',
+  'bitbucket.org',
+  'codeberg.org',
+  'gitea.com',
+  'git.sr.ht',
+  'dev.azure.com',
+])
+
 /**
- * Replaces owner/repo#123 references with clickable hyperlinks to GitHub.
+ * Replaces owner/repo#123 references with clickable hyperlinks.
+ * 119: use the git remote host unless it is a known non-GitHub forge.
  */
 function linkifyIssueReferences(text: string): string {
   if (!supportsHyperlinks()) {
     return text
   }
+  const remoteHost = getCachedRepositoryHost()
+  const host =
+    remoteHost && !NON_GITHUB_FORGE_HOSTS.has(remoteHost)
+      ? remoteHost
+      : 'github.com'
   return text.replace(
     ISSUE_REF_PATTERN,
     (_match, prefix, repo, num) =>
       prefix +
-      createHyperlink(
-        `https://github.com/${repo}/issues/${num}`,
-        `${repo}#${num}`,
-      ),
+      createHyperlink(`https://${host}/${repo}/issues/${num}`, `${repo}#${num}`),
   )
 }
 

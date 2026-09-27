@@ -50,7 +50,7 @@ import type { OrphanedPermission } from './types/textInputTypes.js'
 import type { HookDeferredToolAttachment } from './utils/attachments.js'
 import { createAbortController } from './utils/abortController.js'
 import type { AttributionState } from './utils/commitAttribution.js'
-import { getGlobalConfig } from './utils/config.js'
+import { getUserIntentSetting } from './utils/settings/userIntent.js'
 import { getCwd } from './utils/cwd.js'
 import { isBareMode, isEnvTruthy } from './utils/envUtils.js'
 import { getFastModeState } from './utils/fastMode.js'
@@ -392,7 +392,9 @@ export class QueryEngine {
         customSystemPrompt,
         appendSystemPrompt,
         agentDefinitions: { activeAgents: agents, allAgents: [] },
-        theme: resolveThemeSetting(getGlobalConfig().theme),
+        theme: resolveThemeSetting(
+          getUserIntentSetting('theme', 'dark') ?? 'dark',
+        ),
         maxBudgetUsd,
       },
       getAppState,
@@ -626,7 +628,9 @@ export class QueryEngine {
         isNonInteractiveSession: true,
         customSystemPrompt,
         appendSystemPrompt,
-        theme: resolveThemeSetting(getGlobalConfig().theme),
+        theme: resolveThemeSetting(
+          getUserIntentSetting('theme', 'dark') ?? 'dark',
+        ),
         agentDefinitions: { activeAgents: agents, allAgents: [] },
         maxBudgetUsd,
       },
