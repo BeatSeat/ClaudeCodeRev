@@ -88,6 +88,70 @@ export function getRateLimitDisplayName(type: RateLimitType): string {
   return RATE_LIMIT_DISPLAY_NAMES[type] || type
 }
 
+type ErrorWithHeaders = {
+  headers?: {
+    get?: (name: string) => string | null
+  }
+}
+
+/**
+ * Extract the unified limiter identity and reset metadata from an API error.
+ * Retry UI uses this even before the terminal 429 is converted into an
+ * assistant message, so users can see which quota window is blocking them.
+ */
+export function extractRateLimitFromError(
+  error: unknown,
+): ClaudeAILimits | null {
+  if (typeof error !== 'object' || error === null) {
+    return null
+  }
+
+  const headers = (error as ErrorWithHeaders).headers
+  const rateLimitType = headers?.get?.(
+    'anthropic-ratelimit-unified-representative-claim',
+  ) as RateLimitType | null | undefined
+  const overageStatus = headers?.get?.(
+    'anthropic-ratelimit-unified-overage-status',
+  ) as QuotaStatus | null | undefined
+
+  if (!rateLimitType && !overageStatus) {
+    return null
+  }
+
+  const limits: ClaudeAILimits = {
+    status: 'rejected',
+    unifiedRateLimitFallbackAvailable: false,
+    isUsingOverage: false,
+  }
+
+  const resetHeader = headers?.get?.('anthropic-ratelimit-unified-reset')
+  if (resetHeader) {
+    limits.resetsAt = Number(resetHeader)
+  }
+  if (rateLimitType) {
+    limits.rateLimitType = rateLimitType
+  }
+  if (overageStatus) {
+    limits.overageStatus = overageStatus
+  }
+
+  const overageResetHeader = headers?.get?.(
+    'anthropic-ratelimit-unified-overage-reset',
+  )
+  if (overageResetHeader) {
+    limits.overageResetsAt = Number(overageResetHeader)
+  }
+
+  const overageDisabledReason = headers?.get?.(
+    'anthropic-ratelimit-unified-overage-disabled-reason',
+  ) as OverageDisabledReason | null | undefined
+  if (overageDisabledReason) {
+    limits.overageDisabledReason = overageDisabledReason
+  }
+
+  return limits
+}
+
 /**
  * Calculate what fraction of a time window has elapsed.
  * Used for time-relative early warning fallback.

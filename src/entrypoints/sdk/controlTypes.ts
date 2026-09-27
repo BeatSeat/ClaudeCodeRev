@@ -18,5 +18,7 @@ export type StdoutMessage =
   | { type: 'event'; event: Record<string, unknown>; timestamp?: number }
   | { type: 'control_request'; request: SDKControlRequest; requestId: string }
   | { type: 'control_response'; response: SDKControlResponse; requestId: string }
+  | { type: 'keep_alive' }
+  | { type: 'transcript_mirror'; filePath: string; entries: unknown[] }
 
 export type StdinMessage = { type: 'stdin'; content: string } | { type: 'control_response'; response: SDKControlResponse; requestId: string }

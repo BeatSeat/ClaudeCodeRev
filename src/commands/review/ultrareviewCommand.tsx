@@ -9,7 +9,7 @@ import {
   confirmOverage,
   launchRemoteReview,
 } from './reviewRemote.js'
-import { UltrareviewOverageDialog } from './UltrareviewOverageDialog.js'
+import { UltrareviewLaunchDialog } from './UltrareviewLaunchDialog.js'
 
 function contentBlocksToString(blocks: ContentBlockParam[]): string {
   return blocks
@@ -43,6 +43,7 @@ async function launchAndDone(
   }
 }
 
+/** Official 2.1.108 `jpY`. */
 export const call: LocalJSXCommandCall = async (onDone, context, args) => {
   const gate = await checkOverageGate()
 
@@ -62,28 +63,27 @@ export const call: LocalJSXCommandCall = async (onDone, context, args) => {
     return null
   }
 
-  if (gate.kind === 'needs-confirm') {
-    return (
-      <UltrareviewOverageDialog
-        onProceed={async signal => {
-          await launchAndDone(
-            args,
-            context,
-            onDone,
-            ' This review bills as Extra Usage.',
-            signal,
-          )
-          // Only persist the confirmation flag after a non-aborted launch —
-          // otherwise Escape-during-launch would leave the flag set and
-          // skip this dialog on the next attempt.
-          if (!signal.aborted) confirmOverage()
-        }}
-        onCancel={() => onDone('Ultrareview cancelled.', { display: 'system' })}
-      />
-    )
-  }
-
-  // gate.kind === 'proceed'
-  await launchAndDone(args, context, onDone, gate.billingNote)
-  return null
+  // Official 108: both needs-confirm and proceed go through jQK.
+  const needsConfirm = gate.kind === 'needs-confirm'
+  return (
+    <UltrareviewLaunchDialog
+      subtitle={needsConfirm ? null : gate.billingNote || null}
+      body={
+        needsConfirm
+          ? 'Your free ultrareviews for this organization are used. Further reviews bill as Extra Usage (pay-per-use).'
+          : undefined
+      }
+      onProceed={async signal => {
+        await launchAndDone(
+          args,
+          context,
+          onDone,
+          needsConfirm ? ' This review bills as Extra Usage.' : gate.billingNote,
+          signal,
+        )
+        if (!signal.aborted && needsConfirm) confirmOverage()
+      }}
+      onCancel={() => onDone('Ultrareview cancelled.', { display: 'system' })}
+    />
+  )
 }

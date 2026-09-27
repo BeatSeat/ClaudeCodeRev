@@ -13,8 +13,10 @@ import { cleanupOldVersions } from './nativeInstaller/index.js'
 import { cleanupOldPastes } from './pasteStore.js'
 import { getProjectsDir } from './sessionStorage.js'
 import { getSettingsWithAllErrors } from './settings/allErrors.js'
+import { getEnabledSettingSources } from './settings/constants.js'
 import {
   getSettings_DEPRECATED,
+  getSettingsForSource,
   rawSettingsContainsKey,
 } from './settings/settings.js'
 import { TOOL_RESULTS_SUBDIR } from './toolResultStorage.js'
@@ -573,6 +575,18 @@ export async function cleanupOldVersionsThrottled(): Promise<void> {
 }
 
 export async function cleanupOldMessageFilesInBackground(): Promise<void> {
+  const enabledSettingSources = getEnabledSettingSources()
+  const userSettingsEnabled = enabledSettingSources.includes('userSettings')
+  const enabledSourceSetsRetention = enabledSettingSources.some(
+    source => getSettingsForSource(source)?.cleanupPeriodDays !== undefined,
+  )
+  if (!userSettingsEnabled && !enabledSourceSetsRetention) {
+    logForDebugging(
+      'Skipping cleanup: user settings are disabled and no enabled setting source defines cleanupPeriodDays.',
+    )
+    return
+  }
+
   // If settings have validation errors but the user explicitly set cleanupPeriodDays,
   // skip cleanup entirely rather than falling back to the default (30 days).
   // This prevents accidentally deleting files when the user intended a different retention period.

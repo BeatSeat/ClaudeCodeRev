@@ -822,6 +822,14 @@ export class CCRClient {
   }
 
   /**
+   * Flush pending delivery acknowledgements. Call after flushInternalEvents
+   * on turn end so the worker reports received events before going idle.
+   */
+  flushDeliveryAcks(): Promise<void> {
+    return this.deliveryUploader.flush()
+  }
+
+  /**
    * Flush pending client events (writeEvent queue). Call before close()
    * when the caller needs delivery confirmation — close() abandons the
    * queue. Resolves once the uploader drains or rejects; returns

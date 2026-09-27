@@ -520,6 +520,18 @@ export const FileReadTool = buildTool({
     // (especially handles whitespace trimming and Windows path separators)
     const fullFilePath = expandPath(file_path)
 
+    // Official 2.1.91: always-on reread telemetry, even when the dedup
+    // killswitch skips the stub path. priorOp distinguishes Edit/Write
+    // (offset unset) from a previous Read.
+    const priorRead = readFileState.get(fullFilePath)
+    if (priorRead) {
+      logEvent('tengu_file_read_reread', {
+        priorOp: (priorRead.offset === undefined
+          ? 'edit_write'
+          : 'read') as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
+      })
+    }
+
     // Dedup: if we've already read this exact range and the file hasn't
     // changed on disk, return a stub instead of re-sending the full content.
     // The earlier Read tool_result is still in context — two full copies
@@ -729,12 +741,26 @@ function formatFileLines(file: { content: string; startLine: number }): string {
 export const CYBER_RISK_MITIGATION_REMINDER =
   '\n\n<system-reminder>\nWhenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.\n</system-reminder>\n'
 
-// Models where cyber risk mitigation should be skipped
-const MITIGATION_EXEMPT_MODELS = new Set(['claude-opus-4-6'])
+// Models that still receive the cyber-risk mitigation reminder (include-only;
+// newer models skip it). Official 2.1.92 iwY.
+const MITIGATION_INCLUDED_MODELS = new Set([
+  'claude-3-opus',
+  'claude-3-sonnet',
+  'claude-3-haiku',
+  'claude-3-5-sonnet',
+  'claude-3-5-haiku',
+  'claude-3-7-sonnet',
+  'claude-sonnet-4',
+  'claude-sonnet-4-5',
+  'claude-opus-4',
+  'claude-opus-4-1',
+  'claude-opus-4-5',
+  'claude-haiku-4-5',
+])
 
 function shouldIncludeFileReadMitigation(): boolean {
   const shortName = getCanonicalName(getMainLoopModel())
-  return !MITIGATION_EXEMPT_MODELS.has(shortName)
+  return MITIGATION_INCLUDED_MODELS.has(shortName)
 }
 
 /**

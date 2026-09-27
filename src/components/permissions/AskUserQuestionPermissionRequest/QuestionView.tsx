@@ -17,7 +17,9 @@ import {
   Select,
   SelectMulti,
 } from '../../CustomSelect/index.js'
+import { Byline } from '../../design-system/Byline.js'
 import { Divider } from '../../design-system/Divider.js'
+import { KeyboardShortcutHint } from '../../design-system/KeyboardShortcutHint.js'
 import { FilePathLink } from '../../FilePathLink.js'
 import { PermissionRequestTitle } from '../PermissionRequestTitle.js'
 import { PreviewQuestionView } from './PreviewQuestionView.js'
@@ -377,18 +379,24 @@ export function QuestionView({
           </Box>
           <Box marginTop={1}>
             <Text color="inactive" dimColor>
-              Enter to select ·{' '}
-              {questions.length === 1 ? (
-                <>
-                  {figures.arrowUp}/{figures.arrowDown} to navigate
-                </>
-              ) : (
-                'Tab/Arrow keys to navigate'
-              )}
-              {isOtherFocused && editorName && (
-                <> · ctrl+g to edit in {editorName}</>
-              )}{' '}
-              · Esc to cancel
+              <Byline>
+                <KeyboardShortcutHint chord="enter" action="select" />
+                {questions.length === 1 ? (
+                  <KeyboardShortcutHint
+                    chord={['up', 'down']}
+                    action="navigate"
+                  />
+                ) : (
+                  <Text>Tab/Arrow keys to navigate</Text>
+                )}
+                {isOtherFocused && editorName ? (
+                  <KeyboardShortcutHint
+                    chord="ctrl+g"
+                    action={`edit in ${editorName}`}
+                  />
+                ) : null}
+                <KeyboardShortcutHint chord="escape" action="cancel" />
+              </Byline>
             </Text>
           </Box>
         </Box>

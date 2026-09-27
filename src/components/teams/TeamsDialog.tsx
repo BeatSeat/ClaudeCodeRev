@@ -4,6 +4,7 @@ import * as React from 'react'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useInterval } from 'usehooks-ts'
 import { useRegisterOverlay } from '../../context/overlayContext.js'
+import type { KeyboardEvent } from '../../ink/events/keyboard-event.js'
 import { stringWidth } from '../../ink/stringWidth.js'
 // eslint-disable-next-line custom-rules/prefer-use-keybindings -- raw j/k/arrow dialog navigation
 import { Box, Text, useInput } from '../../ink.js'
@@ -153,19 +154,28 @@ export function TeamsDialog({ initialTeams, onDone }: Props): React.ReactNode {
     { context: 'Confirmation' },
   )
 
-  useInput((input, key) => {
-    // Handle left arrow to go back
-    if (key.leftArrow) {
+  function getMaxIndex(): number {
+    if (dialogLevel.type === 'teammateList') {
+      return Math.max(0, teammateStatuses.length - 1)
+    }
+    return 0
+  }
+
+  // Official 2.1.90: focused Box + onKeyDown so list keys don't leak to the
+  // parent REPL. Detail omits tabIndex/autoFocus (prompt 'p' stays on the child).
+  const handleKeyDown = (e: KeyboardEvent): void => {
+    if (e.key === 'left') {
+      e.preventDefault()
       if (dialogLevel.type === 'teammateDetail') {
         goBackToList()
       }
       return
     }
 
-    // Handle up/down navigation
-    if (key.upArrow || key.downArrow) {
+    if (e.key === 'up' || e.key === 'down') {
+      e.preventDefault()
       const maxIndex = getMaxIndex()
-      if (key.upArrow) {
+      if (e.key === 'up') {
         setSelectedIndex(prev => Math.max(0, prev - 1))
       } else {
         setSelectedIndex(prev => Math.min(maxIndex, prev + 1))
@@ -173,8 +183,8 @@ export function TeamsDialog({ initialTeams, onDone }: Props): React.ReactNode {
       return
     }
 
-    // Handle Enter to drill down or view output
-    if (key.return) {
+    if (e.key === 'return') {
+      e.preventDefault()
       if (
         dialogLevel.type === 'teammateList' &&
         teammateStatuses[selectedIndex]
@@ -185,7 +195,6 @@ export function TeamsDialog({ initialTeams, onDone }: Props): React.ReactNode {
           memberName: teammateStatuses[selectedIndex].name,
         })
       } else if (dialogLevel.type === 'teammateDetail' && currentTeammate) {
-        // View output - switch to tmux pane
         void viewTeammateOutput(
           currentTeammate.tmuxPaneId,
           currentTeammate.backendType,
@@ -195,8 +204,8 @@ export function TeamsDialog({ initialTeams, onDone }: Props): React.ReactNode {
       return
     }
 
-    // Handle 'k' to kill teammate
-    if (input === 'k') {
+    if (e.key === 'k' && !e.ctrl && !e.meta) {
+      e.preventDefault()
       if (
         dialogLevel.type === 'teammateList' &&
         teammateStatuses[selectedIndex]
@@ -210,7 +219,6 @@ export function TeamsDialog({ initialTeams, onDone }: Props): React.ReactNode {
           setAppState,
         ).then(() => {
           setRefreshKey(k => k + 1)
-          // Adjust selection if needed
           setSelectedIndex(prev =>
             Math.max(0, Math.min(prev, teammateStatuses.length - 2)),
           )
@@ -229,8 +237,8 @@ export function TeamsDialog({ initialTeams, onDone }: Props): React.ReactNode {
       return
     }
 
-    // Handle 's' for shutdown of selected teammate
-    if (input === 's') {
+    if (e.key === 's' && !e.ctrl && !e.meta) {
+      e.preventDefault()
       if (
         dialogLevel.type === 'teammateList' &&
         teammateStatuses[selectedIndex]
@@ -252,8 +260,8 @@ export function TeamsDialog({ initialTeams, onDone }: Props): React.ReactNode {
       return
     }
 
-    // Handle 'h' to hide/show individual teammate (only for backends that support it)
-    if (input === 'h') {
+    if (e.key === 'h' && !e.ctrl && !e.meta) {
+      e.preventDefault()
       const backend = getCachedBackend()
       const teammate =
         dialogLevel.type === 'teammateList'
@@ -265,7 +273,6 @@ export function TeamsDialog({ initialTeams, onDone }: Props): React.ReactNode {
       if (teammate && backend?.supportsHideShow) {
         void toggleTeammateVisibility(teammate, dialogLevel.teamName).then(
           () => {
-            // Force refresh of teammate statuses
             setRefreshKey(k => k + 1)
           },
         )
@@ -276,11 +283,10 @@ export function TeamsDialog({ initialTeams, onDone }: Props): React.ReactNode {
       return
     }
 
-    // Handle 'H' to hide/show all teammates (only for backends that support it)
-    if (input === 'H' && dialogLevel.type === 'teammateList') {
+    if (e.key === 'H' && !e.ctrl && !e.meta && dialogLevel.type === 'teammateList') {
+      e.preventDefault()
       const backend = getCachedBackend()
       if (backend?.supportsHideShow && teammateStatuses.length > 0) {
-        // If any are visible, hide all. Otherwise, show all.
         const anyVisible = teammateStatuses.some(t => !t.isHidden)
         void Promise.all(
           teammateStatuses.map(t =>
@@ -289,15 +295,14 @@ export function TeamsDialog({ initialTeams, onDone }: Props): React.ReactNode {
               : showTeammate(t, dialogLevel.teamName),
           ),
         ).then(() => {
-          // Force refresh of teammate statuses
           setRefreshKey(k => k + 1)
         })
       }
       return
     }
 
-    // Handle 'p' to prune (kill) all idle teammates
-    if (input === 'p' && dialogLevel.type === 'teammateList') {
+    if (e.key === 'p' && !e.ctrl && !e.meta && dialogLevel.type === 'teammateList') {
+      e.preventDefault()
       const idleTeammates = teammateStatuses.filter(t => t.status === 'idle')
       if (idleTeammates.length > 0) {
         void Promise.all(
@@ -326,36 +331,35 @@ export function TeamsDialog({ initialTeams, onDone }: Props): React.ReactNode {
       }
       return
     }
-
-    // Note: Mode cycling (shift+tab) is handled via useKeybindings with confirm:cycleMode action
-  })
-
-  function getMaxIndex(): number {
-    if (dialogLevel.type === 'teammateList') {
-      return Math.max(0, teammateStatuses.length - 1)
-    }
-    return 0
   }
 
-  // Render based on dialog level
   if (dialogLevel.type === 'teammateList') {
     return (
-      <TeamDetailView
-        teamName={dialogLevel.teamName}
-        teammates={teammateStatuses}
-        selectedIndex={selectedIndex}
-        onCancel={onDone}
-      />
+      <Box
+        flexDirection="column"
+        tabIndex={0}
+        autoFocus
+        onKeyDown={handleKeyDown}
+      >
+        <TeamDetailView
+          teamName={dialogLevel.teamName}
+          teammates={teammateStatuses}
+          selectedIndex={selectedIndex}
+          onCancel={onDone}
+        />
+      </Box>
     )
   }
 
   if (dialogLevel.type === 'teammateDetail' && currentTeammate) {
     return (
-      <TeammateDetailView
-        teammate={currentTeammate}
-        teamName={dialogLevel.teamName}
-        onCancel={goBackToList}
-      />
+      <Box flexDirection="column" onKeyDown={handleKeyDown}>
+        <TeammateDetailView
+          teammate={currentTeammate}
+          teamName={dialogLevel.teamName}
+          onCancel={goBackToList}
+        />
+      </Box>
     )
   }
 

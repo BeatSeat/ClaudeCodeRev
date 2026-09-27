@@ -29,7 +29,7 @@ import {
   isNonCustomOpusModel,
 } from 'src/utils/model/model.js'
 import { getModelStrings } from 'src/utils/model/modelStrings.js'
-import { getAPIProvider } from 'src/utils/model/providers.js'
+import { getAPIProvider, isFirstPartyApiFamily } from 'src/utils/model/providers.js'
 import { getIsNonInteractiveSession } from '../../bootstrap/state.js'
 import {
   API_PDF_MAX_PAGES,
@@ -52,6 +52,7 @@ import { shouldProcessRateLimits } from '../rateLimitMocking.js' // Used for /mo
 import { extractConnectionErrorDetails, formatAPIError } from './errorUtils.js'
 
 export const API_ERROR_MESSAGE_PREFIX = 'API Error'
+const STATUS_CLAUDE_COM = 'status.claude.com'
 
 export function startsWithApiErrorPrefix(text: string): boolean {
   return (
@@ -462,11 +463,10 @@ export function getAssistantMessageFromError(
     })
   }
 
-  if (
-    error instanceof APIError &&
-    error.status === 429 &&
-    shouldProcessRateLimits(isClaudeAISubscriber())
-  ) {
+  if (error instanceof APIError && error.status === 429) {
+    const isSubscriberRateLimit = shouldProcessRateLimits(
+      isClaudeAISubscriber(),
+    )
     // Check if this is the new API with multiple rate limit headers
     const rateLimitType = error.headers?.get?.(
       'anthropic-ratelimit-unified-representative-claim',
@@ -477,7 +477,7 @@ export function getAssistantMessageFromError(
     ) as 'allowed' | 'allowed_warning' | 'rejected' | null
 
     // If we have the new headers, use the new message generation
-    if (rateLimitType || overageStatus) {
+    if (isSubscriberRateLimit && (rateLimitType || overageStatus)) {
       // Build limits object from error headers to determine the appropriate message
       const limits: ClaudeAILimits = {
         status: 'rejected',
@@ -537,7 +537,10 @@ export function getAssistantMessageFromError(
     // No quota headers — this is NOT a quota limit. Surface what the API actually
     // said instead of a generic "Rate limit reached". Entitlement rejections
     // (e.g. 1M context without Extra Usage) and infra capacity 429s land here.
-    if (error.message.includes('Extra usage is required for long context')) {
+    if (
+      isSubscriberRateLimit &&
+      error.message.includes('Extra usage is required for long context')
+    ) {
       const hint = getIsNonInteractiveSession()
         ? 'enable extra usage at claude.ai/settings/usage, or use --model to switch to standard context'
         : 'run /extra-usage to enable, or /model to switch to standard context'
@@ -565,7 +568,7 @@ export function getAssistantMessageFromError(
     }
     const detail = innerMessage || stripped
     return createAssistantAPIErrorMessage({
-      content: `${API_ERROR_MESSAGE_PREFIX}: Request rejected (429) · ${detail || 'this may be a temporary capacity issue — check status.anthropic.com'}`,
+      content: `${API_ERROR_MESSAGE_PREFIX}: ${isSubscriberRateLimit ? 'Server is temporarily limiting requests (not your usage limit)' : 'Request rejected (429)'} · ${detail || `this may be a temporary capacity issue — check ${STATUS_CLAUDE_COM}`}`,
       error: 'rate_limit',
     })
   }
@@ -926,6 +929,28 @@ export function getAssistantMessageFromError(
     })
   }
 
+  // Official 2.1.108: 5xx/529 point first-party users at status.claude.com
+  const statusLink = isFirstPartyApiFamily() ? ` · check ${STATUS_CLAUDE_COM}` : ''
+  if (
+    error instanceof Error &&
+    error.message.includes(REPEATED_529_ERROR_MESSAGE)
+  ) {
+    return createAssistantAPIErrorMessage({
+      content: `${API_ERROR_MESSAGE_PREFIX}: ${REPEATED_529_ERROR_MESSAGE}${statusLink}`,
+      error: 'server_error',
+    })
+  }
+  if (
+    error instanceof APIError &&
+    typeof error.status === 'number' &&
+    error.status >= 500
+  ) {
+    return createAssistantAPIErrorMessage({
+      content: `${API_ERROR_MESSAGE_PREFIX}: ${formatAPIError(error)}${statusLink}`,
+      error: 'server_error',
+    })
+  }
+
   // Connection errors (non-timeout) — use formatAPIError for detailed messages
   if (error instanceof APIConnectionError) {
     return createAssistantAPIErrorMessage({
@@ -951,7 +976,7 @@ export function getAssistantMessageFromError(
  * Returns a model name suggestion, or undefined if no suggestion is applicable.
  */
 function get3PModelFallbackSuggestion(model: string): string | undefined {
-  if (getAPIProvider() === 'firstParty') {
+  if (isFirstPartyApiFamily()) {
     return undefined
   }
   // @[MODEL LAUNCH]: Add a fallback suggestion chain for the new model → previous version for 3P
@@ -1217,9 +1242,18 @@ export function getErrorMessageIfRefusal(
     has_explanation: Boolean(explanation),
   })
 
+  const maximumExplanationLength = 400
+  const truncatedExplanation =
+    explanation && explanation.length > maximumExplanationLength
+      ? explanation.slice(0, maximumExplanationLength).trimEnd() + '…'
+      : explanation
+  const explanationSuffix = truncatedExplanation
+    ? ` ${truncatedExplanation}${/[.!?…]$/.test(truncatedExplanation) ? '' : '.'}`
+    : ''
+
   const baseMessage = getIsNonInteractiveSession()
-    ? `${API_ERROR_MESSAGE_PREFIX}: Claude Code is unable to respond to this request, which appears to violate our Usage Policy (https://www.anthropic.com/legal/aup). Try rephrasing the request or attempting a different approach.`
-    : `${API_ERROR_MESSAGE_PREFIX}: Claude Code is unable to respond to this request, which appears to violate our Usage Policy (https://www.anthropic.com/legal/aup). Please double press esc to edit your last message or start a new session for Claude Code to assist with a different task.`
+    ? `${API_ERROR_MESSAGE_PREFIX}: Claude Code is unable to respond to this request, which appears to violate our Usage Policy (https://www.anthropic.com/legal/aup).${explanationSuffix} Try rephrasing the request or attempting a different approach.`
+    : `${API_ERROR_MESSAGE_PREFIX}: Claude Code is unable to respond to this request, which appears to violate our Usage Policy (https://www.anthropic.com/legal/aup).${explanationSuffix} Please double press esc to edit your last message or start a new session for Claude Code to assist with a different task.`
 
   const modelSuggestion =
     model !== 'claude-sonnet-4-20250514'

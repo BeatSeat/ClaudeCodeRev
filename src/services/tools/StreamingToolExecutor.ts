@@ -10,6 +10,7 @@ import { BASH_TOOL_NAME } from '../../tools/BashTool/toolName.js'
 import type { AssistantMessage, Message } from '../../types/message.js'
 import { createChildAbortController } from '../../utils/abortController.js'
 import { runToolUse } from './toolExecution.js'
+import { formatMissingToolError } from './missingToolError.js'
 
 type MessageUpdate = {
   message?: Message
@@ -76,6 +77,11 @@ export class StreamingToolExecutor {
   addTool(block: ToolUseBlock, assistantMessage: AssistantMessage): void {
     const toolDefinition = findToolByName(this.toolDefinitions, block.name)
     if (!toolDefinition) {
+      const missingToolError = formatMissingToolError(
+        block.name,
+        this.toolDefinitions,
+        this.toolUseContext,
+      )
       this.tools.push({
         id: block.id,
         block,
@@ -88,12 +94,12 @@ export class StreamingToolExecutor {
             content: [
               {
                 type: 'tool_result',
-                content: `<tool_use_error>Error: No such tool available: ${block.name}</tool_use_error>`,
+                content: `<tool_use_error>${missingToolError}</tool_use_error>`,
                 is_error: true,
                 tool_use_id: block.id,
               },
             ],
-            toolUseResult: `Error: No such tool available: ${block.name}`,
+            toolUseResult: missingToolError,
             sourceToolAssistantUUID: assistantMessage.uuid,
           }),
         ],

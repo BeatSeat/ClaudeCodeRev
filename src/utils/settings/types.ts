@@ -781,6 +781,12 @@ export const SettingsSchema = lazySchema(() =>
           'When false, prompt suggestions are disabled. When absent or true, ' +
             'prompt suggestions are enabled.',
         ),
+      awaySummaryEnabled: z
+        .boolean()
+        .optional()
+        .describe(
+          '@internal When false, the session recap (shown when you return after being away for 5+ minutes) is disabled. When absent or true, recap is enabled. Hidden from public SDK types until external launch; mirrors voiceHandsfree pattern above.',
+        ),
       showClearContextOnPlanAccept: z
         .boolean()
         .optional()

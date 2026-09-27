@@ -4,6 +4,7 @@ import type { BundledSkillDefinition } from '../skills/bundledSkills.js'
 import type {
   CommandMetadata,
   PluginAuthor,
+  PluginDependencyConstraint,
   PluginManifest,
   PluginMonitorDefinition,
 } from '../utils/plugins/schemas.js'
@@ -70,6 +71,8 @@ export type LoadedPlugin = {
   /** Official GkY — background monitors from manifest.monitors or monitors/monitors.json */
   monitors?: PluginMonitorDefinition[]
   settings?: Record<string, unknown>
+  /** Version requirements keyed by the normalized dependency ID. */
+  depConstraints?: Record<string, PluginDependencyConstraint>
 }
 
 export type PluginComponent =
@@ -281,6 +284,14 @@ export type PluginError =
       reason: 'not-enabled' | 'not-found'
     }
   | {
+      type: 'dependency-version-unsatisfied'
+      source: string
+      plugin: string
+      dependency: string
+      required: string
+      installed?: string
+    }
+  | {
       type: 'plugin-cache-miss'
       source: string
       plugin: string
@@ -370,6 +381,8 @@ export function getPluginErrorMessage(error: PluginError): string {
           : 'not found in any configured marketplace'
       return `Dependency "${error.dependency}" is ${hint}`
     }
+    case 'dependency-version-unsatisfied':
+      return `Requires "${error.dependency}" ${error.required}, installed ${error.installed ?? 'version unknown'}`
     case 'plugin-cache-miss':
       return `Plugin "${error.plugin}" not cached at ${error.installPath} — run /plugins to refresh`
   }

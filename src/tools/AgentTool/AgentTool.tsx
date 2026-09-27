@@ -1,6 +1,11 @@
 import { feature } from 'bun:bundle'
 import * as React from 'react'
-import { buildTool, type ToolDef, toolMatchesName } from 'src/Tool.js'
+import {
+  buildTool,
+  type Tool,
+  type ToolDef,
+  toolMatchesName,
+} from 'src/Tool.js'
 import type {
   Message as MessageType,
   NormalizedUserMessage,
@@ -405,6 +410,9 @@ export const AgentTool = buildTool({
 
     // Get app state for permission mode and agent filtering
     const appState = toolUseContext.getAppState()
+    const parentOptionMcpTools = toolUseContext.options.tools.filter(
+      tool => tool.isMcp,
+    )
     const permissionMode = appState.toolPermissionContext.mode
     // In-process teammates get a no-op setAppState; setAppStateForTasks
     // reaches the root store so task registration/progress/kill stay visible.
@@ -603,7 +611,11 @@ export const AgentTool = buildTool({
 
       // Get servers that actually have tools (meaning they're connected AND authenticated)
       const serversWithTools: string[] = []
-      for (const tool of currentAppState.mcp.tools) {
+      const availableMcpTools = [
+        ...currentAppState.mcp.tools,
+        ...parentOptionMcpTools,
+      ]
+      for (const tool of availableMcpTools) {
         if (tool.name?.startsWith('mcp__')) {
           // Extract server name from tool name (format: mcp__serverName__toolName)
           const parts = tool.name.split('__')
@@ -852,7 +864,10 @@ export const AgentTool = buildTool({
     }
     const workerTools = assembleToolPool(
       workerPermissionContext,
-      appState.mcp.tools,
+      [
+        ...toolUseContext.getAppState().mcp.tools,
+        ...parentOptionMcpTools,
+      ],
     )
 
     // Create a stable agent ID early so it can be used for worktree slug

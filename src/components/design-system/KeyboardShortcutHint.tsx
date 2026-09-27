@@ -1,9 +1,17 @@
 import React from 'react'
 import Text from '../../ink/components/Text.js'
+import {
+  formatShortcutDisplay,
+  type ShortcutFormatOptions,
+} from '../../keybindings/format.js'
 
 type Props = {
-  /** The key or chord to display (e.g., "ctrl+o", "Enter", "↑/↓") */
-  shortcut: string
+  /** Legacy pre-formatted key text (e.g. "ctrl+o", "Enter", "↑/↓") */
+  shortcut?: string
+  /** Key or chord list formatted by formatShortcutDisplay (official 2.1.92 n8) */
+  chord?: string | readonly string[]
+  /** Display options for `chord` (keyCase, arrowSep, style, …) */
+  format?: ShortcutFormatOptions
   /** The action the key performs (e.g., "expand", "select", "navigate") */
   action: string
   /** Whether to wrap the hint in parentheses. Default: false */
@@ -21,6 +29,11 @@ type Props = {
  * // Simple hint wrapped in dim Text
  * <Text dimColor><KeyboardShortcutHint shortcut="esc" action="cancel" /></Text>
  *
+ * // Chord API (2.1.92): "↑↓ to navigate"
+ * <Text dimColor>
+ *   <KeyboardShortcutHint chord={['up', 'down']} format={{ arrowSep: '' }} action="navigate" />
+ * </Text>
+ *
  * // With parentheses: "(ctrl+o to expand)"
  * <Text dimColor><KeyboardShortcutHint shortcut="ctrl+o" action="expand" parens /></Text>
  *
@@ -37,11 +50,18 @@ type Props = {
  */
 export function KeyboardShortcutHint({
   shortcut,
+  chord,
+  format,
   action,
   parens = false,
   bold = false,
 }: Props): React.ReactNode {
-  const shortcutText = bold ? <Text bold>{shortcut}</Text> : shortcut
+  const label =
+    chord !== undefined ? formatShortcutDisplay(chord, format) : (shortcut ?? '')
+  if (!label) {
+    return null
+  }
+  const shortcutText = bold ? <Text bold>{label}</Text> : label
 
   if (parens) {
     return (

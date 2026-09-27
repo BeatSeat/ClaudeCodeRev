@@ -181,6 +181,7 @@ export function CollapsedReadSearchContent({
     ? Math.max(0, maxBashCountRef.current - gitOpBashCount)
     : 0
   const otherToolCount = message.otherToolCount ?? 0
+  const frameCount = message.frameCount ?? 0
   const editFileCount = message.editFileCount ?? 0
   const linesAdded = message.linesAdded ?? 0
   const linesRemoved = message.linesRemoved ?? 0
@@ -194,7 +195,8 @@ export function CollapsedReadSearchContent({
     bashCount > 0 ||
     gitOpBashCount > 0 ||
     otherToolCount > 0 ||
-    editFileCount > 0
+    editFileCount > 0 ||
+    frameCount > 0
 
   const readPaths = message.readFilePaths
   const searchArgs = message.searchArgs

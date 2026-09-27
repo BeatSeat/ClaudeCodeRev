@@ -4,7 +4,9 @@ import type {
   CommandResultDisplay,
   LocalJSXCommandContext,
 } from '../../commands.js'
+import { Byline } from '../../components/design-system/Byline.js'
 import { Dialog } from '../../components/design-system/Dialog.js'
+import { KeyboardShortcutHint } from '../../components/design-system/KeyboardShortcutHint.js'
 import { FastIcon, getFastIconString } from '../../components/FastIcon.js'
 import { Box, Link, Text } from '../../ink.js'
 import { useKeybindings } from '../../keybindings/useKeybinding.js'
@@ -144,9 +146,13 @@ export function FastModePicker({
         exitState.pending ? (
           <Text>Press {exitState.keyName} again to exit</Text>
         ) : isUnavailable ? (
-          <Text>Esc to cancel</Text>
+          <KeyboardShortcutHint chord="escape" action="cancel" />
         ) : (
-          <Text>Tab to toggle · Enter to confirm · Esc to cancel</Text>
+          <Byline>
+            <KeyboardShortcutHint chord="tab" action="toggle" />
+            <KeyboardShortcutHint chord="enter" action="confirm" />
+            <KeyboardShortcutHint chord="escape" action="cancel" />
+          </Byline>
         )
       }
     >

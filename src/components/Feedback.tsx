@@ -253,10 +253,21 @@ export function Feedback({
       ...(rawTranscriptJsonl && { rawTranscriptJsonl }),
     }
 
-    const [result, t] = await Promise.all([
+    const [firstResult, t] = await Promise.all([
       submitFeedback(reportData, abortSignal),
       generateTitle(description, abortSignal),
     ])
+    let result = firstResult
+    if (!result.success && result.payloadTooLarge) {
+      const {
+        transcript: _transcript,
+        subagentTranscripts: _subagentTranscripts,
+        lastApiRequest: _lastApiRequest,
+        rawTranscriptJsonl: _rawTranscriptJsonl,
+        ...stripped
+      } = reportData
+      result = await submitFeedback({ ...stripped, transcript: [] }, abortSignal)
+    }
 
     setTitle(t)
 
@@ -396,7 +407,12 @@ export function Feedback({
               }
             }}
             columns={textInputColumns}
-            onSubmit={() => setStep('consent')}
+            onSubmit={() => {
+              // Official 2.1.108: clear the previous error so Enter retries
+              // without requiring the description to be edited first.
+              setError(null)
+              setStep('consent')
+            }}
             onExitMessage={() =>
               onDone('Feedback cancelled', { display: 'system' })
             }
@@ -682,14 +698,27 @@ function sanitizeAndLogError(err: unknown): void {
 async function submitFeedback(
   data: FeedbackData,
   signal?: AbortSignal,
-): Promise<{ success: boolean; feedbackId?: string; isZdrOrg?: boolean }> {
+): Promise<{
+  success: boolean
+  feedbackId?: string
+  isZdrOrg?: boolean
+  payloadTooLarge?: boolean
+}> {
   if (isEssentialTrafficOnly()) {
     return { success: false }
   }
 
+  const maxPayloadBytes = 8 * 1024 * 1024
+  let payloadBytes = 0
   try {
     // Ensure OAuth token is fresh before getting auth headers
     // This prevents 401 errors from stale cached tokens
+    const content = jsonStringify(data)
+    payloadBytes = Buffer.byteLength(jsonStringify({ content }), 'utf8')
+    if (payloadBytes > maxPayloadBytes) {
+      return { success: false, payloadTooLarge: true }
+    }
+
     await checkAndRefreshOAuthTokenIfNeeded()
 
     const authResult = getAuthHeaders()
@@ -706,7 +735,7 @@ async function submitFeedback(
     const response = await axios.post(
       'https://api.anthropic.com/api/claude_cli_feedback',
       {
-        content: jsonStringify(data),
+        content,
       },
       {
         headers,
@@ -736,6 +765,19 @@ async function submitFeedback(
     // Handle cancellation/abort - don't log as error
     if (axios.isCancel(err)) {
       return { success: false }
+    }
+
+    if (err instanceof RangeError) {
+      return { success: false, payloadTooLarge: true }
+    }
+
+    if (axios.isAxiosError(err)) {
+      if (err.response?.status === 413) {
+        return { success: false, payloadTooLarge: true }
+      }
+      if (err.code === 'ECONNABORTED' && payloadBytes > maxPayloadBytes / 8) {
+        return { success: false, payloadTooLarge: true }
+      }
     }
 
     if (axios.isAxiosError(err) && err.response?.status === 403) {

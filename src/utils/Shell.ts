@@ -1,7 +1,8 @@
-import { execFileSync, spawn } from 'child_process'
+import { execFileSync, spawn, type StdioOptions } from 'child_process'
 import { constants as fsConstants, readFileSync, unlinkSync } from 'fs'
 import { type FileHandle, mkdir, open, realpath } from 'fs/promises'
 import memoize from 'lodash-es/memoize.js'
+import { tmpdir as osTmpdir } from 'os'
 import { isAbsolute, resolve } from 'path'
 import { join as posixJoin } from 'path/posix'
 import { logEvent } from 'src/services/analytics/index.js'
@@ -9,7 +10,7 @@ import { getOriginalCwd, getSessionId } from '../bootstrap/state.js'
 import { generateTaskId } from '../Task.js'
 import { hasCwdOverride, pwd, setCwd as applyCwd } from './cwd.js'
 import { logForDebugging } from './debug.js'
-import { errorMessage, isENOENT } from './errors.js'
+import { errorMessage, getErrnoCode, isENOENT } from './errors.js'
 import { getFsImplementation } from './fsOperations.js'
 import { logError } from './log.js'
 import {
@@ -24,21 +25,61 @@ import { which } from './which.js'
 
 export type { ExecResult } from './ShellCommand.js'
 
+function getSandboxTmpRoot(): string {
+  if (process.env.CLAUDE_CODE_TMPDIR) {
+    return process.env.CLAUDE_CODE_TMPDIR
+  }
+  if (process.platform === 'darwin') {
+    return '/tmp'
+  }
+  return osTmpdir()
+}
+
 import { accessSync } from 'fs'
 import { onCwdChangedForHooks } from './hooks/fileChangedWatcher.js'
 import { getClaudeTempDirName } from './permissions/filesystem.js'
 import { getPlatform } from './platform.js'
-import { SandboxManager } from './sandbox/sandbox-adapter.js'
+import {
+  getEmbeddedApplySeccompFd,
+  SandboxManager,
+} from './sandbox/sandbox-adapter.js'
 import { invalidateSessionEnvCache } from './sessionEnvironment.js'
 import { getW3CTraceparent } from './telemetry/sessionTracing.js'
 import { createBashShellProvider } from './shell/bashProvider.js'
 import { getCachedPowerShellPath } from './shell/powershellDetection.js'
 import { createPowerShellProvider } from './shell/powershellProvider.js'
 import type { ShellProvider, ShellType } from './shell/shellProvider.js'
-import { subprocessEnv } from './subprocessEnv.js'
+import { parseForSecurity } from './bash/ast.js'
+import { isEnvTruthy } from './envUtils.js'
+import { getSettings_DEPRECATED } from './settings/settings.js'
+import {
+  enforceScriptCaps,
+  getScrubSandboxPolicy,
+  isLinuxBwrapAvailable,
+  isSubprocessEnvScrubEnabled,
+  mergeScrubSandboxConfig,
+  subprocessEnv,
+} from './subprocessEnv.js'
 import { posixPathToWindowsPath } from './windowsPaths.js'
 
 const DEFAULT_TIMEOUT = 30 * 60 * 1000 // 30 minutes
+
+/** Official 2.1.92: copy apply-seccomp's /proc/self/exe onto stdio fd 3. */
+const EMBEDDED_APPLY_SECCOMP_FD = 3
+
+function spawnStdio(
+  usePipeMode: boolean,
+  outputFd: number | undefined,
+  applySeccompFd: number | undefined,
+): StdioOptions {
+  const stdio: StdioOptions = usePipeMode
+    ? ['pipe', 'pipe', 'pipe']
+    : ['pipe', outputFd, outputFd]
+  if (applySeccompFd !== undefined && Array.isArray(stdio)) {
+    stdio[EMBEDDED_APPLY_SECCOMP_FD] = applySeccompFd
+  }
+  return stdio
+}
 
 export type ShellConfig = {
   provider: ShellProvider
@@ -169,6 +210,8 @@ export type ExecOptions = {
   shouldAutoBackground?: boolean
   /** When provided, stdout is piped (not sent to file) and this callback fires on each data chunk. */
   onStdout?: (data: string) => void
+  /** Per-invocation environment set by /env for spawned child processes. */
+  sessionEnvVars?: ReadonlyMap<string, string>
 }
 
 /**
@@ -188,6 +231,7 @@ export async function exec(
     shouldUseSandbox,
     shouldAutoBackground,
     onStdout,
+    sessionEnvVars,
   } = options ?? {}
   const commandTimeout = timeout || DEFAULT_TIMEOUT
 
@@ -198,10 +242,7 @@ export async function exec(
     .padStart(4, '0')
 
   // Sandbox temp directory - use per-user directory name to prevent multi-user permission conflicts
-  const sandboxTmpDir = posixJoin(
-    process.env.CLAUDE_CODE_TMPDIR || '/tmp',
-    getClaudeTempDirName(),
-  )
+  const sandboxTmpDir = posixJoin(getSandboxTmpRoot(), getClaudeTempDirName())
 
   const { commandString: builtCommand, cwdFilePath } =
     await provider.buildExecCommand(command, {
@@ -239,6 +280,17 @@ export async function exec(
     return createAbortedCommand()
   }
 
+  // Official 2.1.98 db1: count SCRIPT_CAPS against parsed simple commands
+  // after CWD recovery / abort, not against the raw BashTool input.
+  if (isEnvTruthy(process.env.CLAUDE_CODE_SUBPROCESS_ENV_SCRUB)) {
+    const parsed = await parseForSecurity(command)
+    enforceScriptCaps(
+      parsed.kind === 'simple'
+        ? parsed.commands.map(c => c.text).join('\n')
+        : command,
+    )
+  }
+
   const binShell = provider.shellPath
 
   // Sandboxed PowerShell: wrapWithSandbox hardcodes `<binShell> -c '<cmd>'` —
@@ -254,26 +306,53 @@ export async function exec(
   const sandboxBinShell = isSandboxedPowerShell ? '/bin/sh' : binShell
 
   if (shouldUseSandbox) {
-    commandString = await SandboxManager.wrapWithSandbox(
-      commandString,
-      sandboxBinShell,
-      undefined,
-      abortSignal,
-    )
-    // Create sandbox temp directory for sandboxed processes with secure permissions
+    // The sandbox wrapper may probe its temp directory while constructing the
+    // wrapped command, so create it before wrapping. Concurrent calls share
+    // this directory; EEXIST is therefore the successful race outcome.
+    let sandboxTmpDirAvailable = false
     try {
       const fs = getFsImplementation()
       await fs.mkdir(sandboxTmpDir, { mode: 0o700 })
+      sandboxTmpDirAvailable = true
     } catch (error) {
-      logForDebugging(`Failed to create ${sandboxTmpDir} directory: ${error}`)
+      if (getErrnoCode(error) === 'EEXIST') {
+        sandboxTmpDirAvailable = true
+      } else {
+        logForDebugging(`Failed to create ${sandboxTmpDir} directory: ${error}`)
+      }
     }
+    if (sandboxTmpDirAvailable && !process.env.CLAUDE_TMPDIR) {
+      process.env.CLAUDE_TMPDIR = sandboxTmpDir
+    }
+
+    const customConfig =
+      isSubprocessEnvScrubEnabled() && isLinuxBwrapAvailable()
+        ? mergeScrubSandboxConfig(
+            getScrubSandboxPolicy(),
+            getSettings_DEPRECATED()?.sandbox?.filesystem?.allowWrite ?? [],
+            getSettings_DEPRECATED()?.sandbox?.filesystem?.denyRead ?? [],
+            SandboxManager.getFsWriteConfig().denyWithinAllow,
+          )
+        : undefined
+    commandString = await SandboxManager.wrapWithSandbox(
+      commandString,
+      sandboxBinShell,
+      customConfig,
+      abortSignal,
+    )
   }
 
   const spawnBinary = isSandboxedPowerShell ? '/bin/sh' : binShell
   const shellArgs = isSandboxedPowerShell
     ? ['-c', commandString]
     : provider.getSpawnArgs(commandString)
-  const envOverrides = await provider.getEnvironmentOverrides(command)
+  const envOverrides = await provider.getEnvironmentOverrides(
+    command,
+    sessionEnvVars,
+  )
+  const applySeccompFd = shouldUseSandbox
+    ? await getEmbeddedApplySeccompFd()
+    : undefined
 
   // When onStdout is provided, use pipe mode: stdout flows through
   // StreamWrapper → TaskOutput in-memory buffer instead of a file fd.
@@ -326,9 +405,7 @@ export async function exec(
           : {}),
       },
       cwd,
-      stdio: usePipeMode
-        ? ['pipe', 'pipe', 'pipe']
-        : ['pipe', outputHandle?.fd, outputHandle?.fd],
+      stdio: spawnStdio(usePipeMode, outputHandle?.fd, applySeccompFd),
       // Don't pass the signal - we'll handle termination ourselves with tree-kill
       detached: provider.detached,
       // Prevent visible console window on Windows (no-op on other platforms)

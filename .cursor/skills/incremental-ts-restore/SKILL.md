@@ -1,17 +1,34 @@
 ---
 name: incremental-ts-restore
-description: Incrementally restore later Claude Code versions into this 2.1.88 TypeScript tree from official npm cli.js (2.1.89–2.1.112) then Cometix Node-layer cli.js (2.1.113+). Uses AST fingerprints, function ledgers, official CHANGELOG alignment, and hard quality gates. Use when restoring a later version, walking 2.1.89–2.1.220, doing AST diff across bundles, aligning changelog items, or continuing incremental-ts-restore work.
+description: Incrementally restore later Claude Code versions into this 2.1.88 TypeScript tree from official npm cli.js (2.1.89–2.1.112) then Cometix Node-layer cli.js (2.1.113+). Uses shcv/astdiff for structural AST comparison across minified JS bundles, spawns multi-subagents to parallelly review and land AST diffs by domain, aligns with official CHANGELOG, and enforces hard quality gates. Use when restoring a later version, walking 2.1.89–2.1.220, doing AST diff across bundles, or orchestrating multi-subagent restore work.
 ---
 
-# Incremental TypeScript restore
+# Incremental TypeScript Restore (astdiff + Multi-Subagent)
 
-Restore later Claude Code versions **one step at a time** onto this repo's 2.1.88 TypeScript tree. Do not deobfuscate a later bundle from scratch.
+Restore later Claude Code versions **one step at a time** onto this repo's 2.1.88 TypeScript tree.
+We use **[shcv/astdiff](https://github.com/shcv/astdiff)** to extract AST-level structural deviations across bundled `cli.js` versions, and **multi-subagents** to parallelly inspect and land the concrete code changes in `src/**`.
+
+```mermaid
+flowchart TD
+    A["cli.js (From) vs cli.js (To)"] --> B["astdiff Structural Diff (--summary, --format json, --dump)"]
+    B --> C["Partition Diffs by Functional Domain"]
+    C --> D1["Subagent: UI & Terminal (src/ink, src/components, src/screens)"]
+    C --> D2["Subagent: Tools & Permissions (src/tools, src/utils/permissions)"]
+    C --> D3["Subagent: Core & Session (src/bridge, src/state, src/types)"]
+    C --> D4["Subagent: Services & API (src/services, src/utils/telemetry)"]
+    D1 --> E["Main Agent: Typecheck & Build Gate (bun run typecheck / build)"]
+    D2 --> E
+    D3 --> E
+    D4 --> E
+    E --> F["CHANGELOG Alignment Verification"]
+    F --> G["Commit: restore: align TypeScript tree with official &lt;ver&gt;"]
+```
 
 ## First actions (every run)
 
-1. Read [inventory/version-path.json](inventory/version-path.json) for the walk order and artifact paths.
-2. Read that version's block in [inventory/changelog-by-version.json](inventory/changelog-by-version.json). If the JSON is stale, read [inventory/official-CHANGELOG.md](inventory/official-CHANGELOG.md) under `## <version>`.
-3. Open `restore-work/ledgers/<fromVersion>.json` (or `_template.json` on the first hop) and `restore-work/ledgers/<version>.json` if it exists.
+1. Ensure `astdiff` is installed (`cargo install --git https://github.com/shcv/astdiff`). Binary location: `astdiff` (or `E:\packages\cargo\bin\astdiff.exe`).
+2. Read [inventory/version-path.json](inventory/version-path.json) for the walk order and artifact paths.
+3. Read that version's block in [inventory/changelog-by-version.json](inventory/changelog-by-version.json). If the JSON is stale, read [inventory/official-CHANGELOG.md](inventory/official-CHANGELOG.md) under `## <version>`.
 4. Confirm artifacts exist (`restore-work/artifacts/.../cli.js`). If missing, fetch — do not invent JS.
 
 Refresh data (only when inventory is missing or the user asks):
@@ -21,8 +38,6 @@ node .cursor/skills/incremental-ts-restore/scripts/refresh-inventory.mjs
 node .cursor/skills/incremental-ts-restore/scripts/fetch-artifacts.mjs --phase official
 node .cursor/skills/incremental-ts-restore/scripts/fetch-artifacts.mjs --phase cometix --versions 2.1.113,2.1.133
 ```
-
-Skill scripts live under `.cursor/skills/incremental-ts-restore/`. Run them from the **repo root**. First-time: `npm install` in the skill directory (needs `acorn`).
 
 ## Version path (do not improvise)
 
@@ -37,18 +52,17 @@ Skill scripts live under `.cursor/skills/incremental-ts-restore/`. Run them from
 - Cometix **2.1.113–2.1.114**: `cli.js` is in the wrapper `@cometix/claude-code`. **2.1.116+**: use the **platform** package `cli.js`.
 - Detail: [reference/version-path.md](reference/version-path.md). Bridge hop: [reference/112-to-113-bridge.md](reference/112-to-113-bridge.md).
 
-## Per-version workflow
+## Per-version workflow (astdiff + Multi-Subagents)
 
 Copy this checklist and keep it updated:
 
 ```
-- [ ] 1. Load fromVersion ledger + target CHANGELOG items
-- [ ] 2. Have both cli.js artifacts (or 2.1.88 build output) + package.json
-- [ ] 3. Fingerprint both sides
-- [ ] 4. classify.mjs → draft ledger; classify every target function
-- [ ] 5. Align every CHANGELOG item (no deferred left)
-- [ ] 6. LLM only on small-edit / rewrite / added
-- [ ] 7. quality-gate.mjs --ledger must pass
+- [ ] 1. Obtain both cli.js artifacts (fromVersion and targetVersion) + package.json
+- [ ] 2. Run astdiff to generate structural diffs (--summary, --format json, --dump)
+- [ ] 3. Partition AST diffs by domain (UI, Tools/Permissions, Core/Session, Services/API)
+- [ ] 4. Launch parallel subagents (invoke_subagent) to review AST diffs & land TS changes
+- [ ] 5. Main agent integrates, aligns CHANGELOG items, and runs quality gates (typecheck + build)
+- [ ] 6. Update package.json version and git commit: `restore: align TypeScript tree with official <ver>`
 ```
 
 ### 1. Artifacts
@@ -57,81 +71,54 @@ Copy this checklist and keep it updated:
 - 2.1.89–2.1.112: `restore-work/artifacts/official/<ver>/cli.js`
 - 2.1.113+: `restore-work/artifacts/cometix/<ver>/cli.js`
 
-### 2. Fingerprint
+### 2. Structural Diff with astdiff
 
 ```bash
-node .cursor/skills/incremental-ts-restore/scripts/fingerprint.mjs restore-work/artifacts/official/2.1.89/cli.js --out restore-work/ledgers/2.1.89.fp.json
+# 1. Structural summary (similarity %, additions, deletions, modifications, renames)
+astdiff restore-work/artifacts/official/<from>/cli.js restore-work/artifacts/official/<to>/cli.js --summary
+
+# 2. Export full AST diff to JSON
+mkdir -p restore-work/diffs
+astdiff restore-work/artifacts/official/<from>/cli.js restore-work/artifacts/official/<to>/cli.js --format json > restore-work/diffs/<to>.json
+
+# 3. Create searchable dump for subagents
+astdiff restore-work/artifacts/official/<from>/cli.js restore-work/artifacts/official/<to>/cli.js --dump restore-work/diffs/<to>.astdump
 ```
 
-Matching rules: [reference/ast-matching.md](reference/ast-matching.md). Classes: `unchanged` | `rename-only` | `small-edit` | `rewrite` | `added` | `removed`.
+See [reference/ast-matching.md](reference/ast-matching.md).
 
-### 2b. Classify (required)
+### 3. Domain Partitioning & Subagent Dispatch
 
-```bash
-node .cursor/skills/incremental-ts-restore/scripts/classify.mjs \
-  --from restore-work/ledgers/2.1.88.fp.json \
-  --to restore-work/ledgers/2.1.89.fp.json \
-  --version 2.1.89 --from-version 2.1.88 \
-  --out restore-work/ledgers/2.1.89.json
-```
+Divide the AST diff into domain scopes and invoke subagents simultaneously with clear non-overlapping directory boundaries:
 
-Writes a draft ledger covering every target (+ `removed` from prior). `unchanged` rows are slim. CHANGELOG rows start as `deferred` — resolve before the gate.
+- **Subagent 1: UI & Terminal** (`src/ink/`, `src/components/`, `src/screens/`)
+- **Subagent 2: Tools & Permissions** (`src/tools/`, `src/utils/permissions/`, `src/utils/sandbox/`)
+- **Subagent 3: Core & Session** (`src/bridge/`, `src/state/`, `src/types/`, `src/screens/REPL.tsx`)
+- **Subagent 4: Services & API** (`src/services/`, `src/utils/telemetry/`, `src/utils/plugins/`)
 
-### 3. CHANGELOG alignment (required)
+Detailed subagent prompt templates: [reference/multi-subagent-workflow.md](reference/multi-subagent-workflow.md).
 
-For **every** item in `changelog-by-version.json` → `byVersion[ver].items`:
+### 4. Apply TS Changes
 
-| Status | Meaning |
-|---|---|
-| `located` | Point to file/function + how the bundle shows it |
-| `absent-in-bundle` | Item is docs/packaging/VS Code-only; say why |
-| `deferred` | Needs a later hop; record the reason |
-| `unrelated-packaging` | Cometix P1–P9 or installer-only |
+- **Unchanged / Renamed-only functions**: Keep existing TypeScript code in `src/`. No LLM rewrite.
+- **Modified / Added functions**: Update or add TypeScript code in `src/` matching the structural AST diff from `astdiff`.
+- **Removed functions**: Delete or stub only if `astdiff` confirms deletion (DCE / dead code removal / feature deprecation).
+- Advance one hop at a time (e.g. 2.1.97 → 2.1.98). Never jump multiple versions.
 
-Do not mark a version done while any item lacks a status. Raw prose: [inventory/official-CHANGELOG.md](inventory/official-CHANGELOG.md).
+### 5. Gates & Verification
 
-### 4. Apply TS changes
+Before calling a hop complete:
 
-- `unchanged` / `rename-only`: keep 2.1.88 (or previous hop) TypeScript. No LLM rewrite.
-- `small-edit` / `rewrite` / `added`: edit TypeScript using the matched baseline file as the name/structure prior.
-- `removed`: delete or stub only with bundle evidence (DCE / feature flag).
-- One hop at a time. Do not jump 2.1.88 → 2.1.112.
+1. `bun run typecheck` passes with **0 errors**.
+2. `bun run build` succeeds and produces `dist/cli.js`.
+3. All target CHANGELOG items are verified against `astdiff` outputs.
 
-### 5. Gate
-
-Write `restore-work/ledgers/<ver>.json` from the repo-root template `restore-work/ledgers/_template.json`. Then:
-
-```bash
-node .cursor/skills/incremental-ts-restore/scripts/quality-gate.mjs --ledger restore-work/ledgers/<ver>.json
-```
-
-If the gate fails, the version is **not done**. Full rules: [reference/quality-gates.md](reference/quality-gates.md).
+Full rules: [reference/quality-gates.md](reference/quality-gates.md).
 
 ## Hard rules
 
-1. Never declare done from a skim, a changelog read, or `IMPORT_MAP`-style status.
-2. Never LLM-rewrite a function classified `unchanged`.
-3. Never use official npm 2.1.113+ as JS input.
-4. 2.1.112 → 2.1.113 must keep an **unpatched SEA** `cli.js` in the ledger (`bridge.unpatchedSeaPath`). Compare that to 2.1.112 first; treat Cometix P1–P9 as known noise. See [reference/cometix-patches.md](reference/cometix-patches.md).
-5. Function classes in a hop must cover the target fingerprint set (plus `removed` from the previous set).
-6. Prefer this repo's `scripts/build.ts` for the 2.1.88 control bundle.
-
-## Scripts
-
-| Script | Run when |
-|---|---|
-| `scripts/refresh-inventory.mjs` | Refresh npm lists + rebuild `version-path.json` |
-| `scripts/parse-changelog.mjs` | Re-parse CHANGELOG only |
-| `scripts/fetch-artifacts.mjs` | Download `cli.js` + `package.json` (`--status` to see gaps) |
-| `scripts/fingerprint.mjs` | Build function fingerprints |
-| `scripts/classify.mjs` | Auto-classify from→to fingerprints into a draft ledger |
-| `scripts/quality-gate.mjs` | Before calling a hop complete |
-
-## Layout
-
-```
-.cursor/skills/incremental-ts-restore/   this skill
-inventory/                               CHANGELOG + version path (read these)
-restore-work/artifacts/                  downloaded cli.js (gitignored)
-restore-work/ledgers/                    per-version ledgers (keep in git)
-```
+1. Never declare done from a skim or superficial review.
+2. Never LLM-rewrite a function that has no structural changes in `astdiff`.
+3. Never use official npm 2.1.113+ as JS input (it is a thin binary installer without JS).
+4. 2.1.112 → 2.1.113 bridge must compare **unpatched SEA** `cli.js` first, then isolate Cometix P1–P9 patches. See [reference/112-to-113-bridge.md](reference/112-to-113-bridge.md) and [reference/cometix-patches.md](reference/cometix-patches.md).
+5. One hop at a time; maintain a clean, verifiable git commit history.

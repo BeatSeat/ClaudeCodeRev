@@ -1,7 +1,11 @@
 import { APIUserAbortError } from '@anthropic-ai/sdk'
+import { getIsNonInteractiveSession } from '../bootstrap/state.js'
 import { getEmptyToolPermissionContext } from '../Tool.js'
 import type { Message } from '../types/message.js'
+import { getFeatureValue_CACHED_MAY_BE_STALE } from './analytics/growthbook.js'
 import { logForDebugging } from '../utils/debug.js'
+import { isEnvDefinedFalsy, isEnvTruthy } from '../utils/envUtils.js'
+import { getInitialSettings } from '../utils/settings/settings.js'
 import {
   createUserMessage,
   getAssistantMessageText,
@@ -14,6 +18,21 @@ import { getSessionMemoryContent } from './SessionMemory/sessionMemoryUtils.js'
 // Recap only needs recent context — truncate to avoid "prompt too long" on
 // large sessions. 30 messages ≈ ~15 exchanges, plenty for "where we left off."
 const RECENT_MESSAGE_WINDOW = 30
+
+/**
+ * Official 2.1.108 uh6 — auto recap gate.
+ * Env force/disable, then GB, then not-noninteractive, then settings.
+ */
+export function isAwaySummaryEnabled(): boolean {
+  const env = process.env.CLAUDE_CODE_ENABLE_AWAY_SUMMARY
+  if (isEnvDefinedFalsy(env)) return false
+  if (isEnvTruthy(env)) return true
+  if (!getFeatureValue_CACHED_MAY_BE_STALE('tengu_sedge_lantern', false)) {
+    return false
+  }
+  if (getIsNonInteractiveSession()) return false
+  return getInitialSettings()?.awaySummaryEnabled !== false
+}
 
 function buildAwaySummaryPrompt(memory: string | null): string {
   const memoryBlock = memory

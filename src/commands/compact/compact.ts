@@ -62,7 +62,10 @@ export const call: LocalCommandCall = async (args, context) => {
       )
       if (sessionMemoryResult) {
         getUserContext.cache.clear?.()
-        runPostCompactCleanup()
+        runPostCompactCleanup(
+          context.options.querySource,
+          context.setAppState,
+        )
         // Reset cache read baseline so the post-compact drop isn't flagged
         // as a break. compactConversation does this internally; SM-compact doesn't.
         if (feature('PROMPT_CACHE_BREAK_DETECTION')) {
@@ -116,7 +119,7 @@ export const call: LocalCommandCall = async (args, context) => {
     suppressCompactWarning()
 
     getUserContext.cache.clear?.()
-    runPostCompactCleanup()
+    runPostCompactCleanup(context.options.querySource, context.setAppState)
 
     return {
       type: 'compact',
@@ -200,7 +203,7 @@ async function compactViaReactive(
     // resetMicrocompactState — processSlashCommand calls that for all
     // type:'compact' results.
     setLastSummarizedMessageId(undefined)
-    runPostCompactCleanup()
+    runPostCompactCleanup(context.options.querySource, context.setAppState)
     suppressCompactWarning()
     getUserContext.cache.clear?.()
 
@@ -266,7 +269,6 @@ async function getCacheSharingParams(
     Array.from(
       appState.toolPermissionContext.additionalWorkingDirectories.keys(),
     ),
-    context.options.mcpClients,
   )
   const systemPrompt = buildEffectiveSystemPrompt({
     mainThreadAgentDefinition: undefined,

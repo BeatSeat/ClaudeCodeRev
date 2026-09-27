@@ -544,6 +544,26 @@ export const SDKControlElicitationResponseSchema = lazySchema(() =>
     .describe('Response from the SDK consumer for an elicitation request.'),
 )
 
+export const SDKControlOAuthTokenRefreshRequestSchema = lazySchema(() =>
+  z
+    .object({
+      subtype: z.literal('oauth_token_refresh'),
+    })
+    .describe(
+      '@internal Request from the CLI subprocess to the SDK host for a fresh OAuth access token after a 401 with no local refresh token.',
+    ),
+)
+
+export const SDKControlOAuthTokenRefreshResponseSchema = lazySchema(() =>
+  z
+    .object({
+      accessToken: z.string().nullable(),
+    })
+    .describe(
+      '@internal Fresh OAuth access token returned by the SDK host getOAuthToken callback, or null when the host has no token available.',
+    ),
+)
+
 
 // ============================================================================
 // Control Request/Response Wrappers
@@ -572,6 +592,7 @@ export const SDKControlRequestInnerSchema = lazySchema(() =>
     SDKControlApplyFlagSettingsRequestSchema(),
     SDKControlGetSettingsRequestSchema(),
     SDKControlElicitationRequestSchema(),
+    SDKControlOAuthTokenRefreshRequestSchema(),
   ]),
 )
 

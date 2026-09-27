@@ -44,6 +44,7 @@ import {
   setCachedSettingsForSource,
   setSessionSettingsCache,
 } from './settingsCache.js'
+import { publishSettingsChange } from './settingsChangeSignal.js'
 import { type SettingsJson, SettingsSchema } from './types.js'
 import {
   filterSettingsWarnings,
@@ -51,6 +52,15 @@ import {
   type SettingsWithErrors,
   type ValidationError,
 } from './validation.js'
+
+function cloneAndFilterSettingsWarnings(
+  settings: SettingsJson,
+  sourceName: string,
+): { settings: SettingsJson; warnings: ValidationError[] } {
+  const filteredSettings = clone(settings)
+  const warnings = filterSettingsWarnings(filteredSettings, sourceName)
+  return { settings: filteredSettings, warnings }
+}
 
 /**
  * Get the path to the managed settings file based on the current platform
@@ -323,7 +333,13 @@ function getSettingsForSourceUncached(
   if (source === 'policySettings') {
     const remoteSettings = getRemoteManagedSettingsSyncFromCache()
     if (remoteSettings && Object.keys(remoteSettings).length > 0) {
-      return remoteSettings
+      const filtered = cloneAndFilterSettingsWarnings(
+        remoteSettings,
+        'remote managed settings',
+      ).settings
+      if (Object.keys(filtered).length > 0) {
+        return filtered
+      }
     }
 
     const mdmResult = getMdmSettings()
@@ -353,7 +369,11 @@ function getSettingsForSourceUncached(
   if (source === 'flagSettings') {
     const inlineSettings = getFlagSettingsInline()
     if (inlineSettings) {
-      const parsed = SettingsSchema().safeParse(inlineSettings)
+      const filteredInline = cloneAndFilterSettingsWarnings(
+        inlineSettings,
+        'inline flag settings',
+      ).settings
+      const parsed = SettingsSchema().safeParse(filteredInline)
       if (parsed.success) {
         return mergeWith(
           fileSettings || {},
@@ -502,8 +522,9 @@ export function updateSettingsForSource(
       jsonStringify(updatedSettings, null, 2) + '\n',
     )
 
-    // Invalidate the session cache since settings have been updated
-    resetSettingsCache()
+    // Apply the fresh settings and permission snapshots immediately. The
+    // watcher consumes the internal-write marker, so this is the only fan-out.
+    publishSettingsChange(source)
 
     if (source === 'localSettings') {
       // Okay to add to gitignore async without awaiting
@@ -681,8 +702,13 @@ function loadSettingsFromDisk(): SettingsWithErrors {
         // 1. Remote (highest priority)
         const remoteSettings = getRemoteManagedSettingsSyncFromCache()
         if (remoteSettings && Object.keys(remoteSettings).length > 0) {
-          const result = SettingsSchema().safeParse(remoteSettings)
-          if (result.success) {
+          const filteredRemote = cloneAndFilterSettingsWarnings(
+            remoteSettings,
+            'remote managed settings',
+          )
+          policyErrors.push(...filteredRemote.warnings)
+          const result = SettingsSchema().safeParse(filteredRemote.settings)
+          if (result.success && Object.keys(result.data).length > 0) {
             policySettings = result.data
           } else {
             // Remote exists but is invalid — surface errors even as we fall through
@@ -771,13 +797,35 @@ function loadSettingsFromDisk(): SettingsWithErrors {
       if (source === 'flagSettings') {
         const inlineSettings = getFlagSettingsInline()
         if (inlineSettings) {
-          const parsed = SettingsSchema().safeParse(inlineSettings)
+          const filteredInline = cloneAndFilterSettingsWarnings(
+            inlineSettings,
+            'inline flag settings',
+          )
+          for (const warning of filteredInline.warnings) {
+            const warningKey = `${warning.file}:${warning.path}:${warning.message}`
+            if (!seenErrors.has(warningKey)) {
+              seenErrors.add(warningKey)
+              allErrors.push(warning)
+            }
+          }
+          const parsed = SettingsSchema().safeParse(filteredInline.settings)
           if (parsed.success) {
             mergedSettings = mergeWith(
               mergedSettings,
               parsed.data,
               settingsMergeCustomizer,
             )
+          } else {
+            for (const error of formatZodError(
+              parsed.error,
+              'inline flag settings',
+            )) {
+              const errorKey = `${error.file}:${error.path}:${error.message}`
+              if (!seenErrors.has(errorKey)) {
+                seenErrors.add(errorKey)
+                allErrors.push(error)
+              }
+            }
           }
         }
       }

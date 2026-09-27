@@ -410,15 +410,32 @@ export async function resolveHookPermissionDecision(
     return { decision: hookPermissionResult, input }
   }
 
-  // No hook decision or 'ask' — normal permission flow, possibly with
-  // forceDecision so the dialog shows the hook's ask message.
-  const forceDecision =
-    hookPermissionResult?.behavior === 'ask' ? hookPermissionResult : undefined
+  // A hook ask still cannot override an explicit settings deny. Preserve the
+  // hook's ask message for every other rule outcome so the permission dialog
+  // explains why confirmation is required.
   const askInput =
     hookPermissionResult?.behavior === 'ask' &&
     hookPermissionResult.updatedInput
       ? hookPermissionResult.updatedInput
       : input
+  if (hookPermissionResult?.behavior === 'ask') {
+    const ruleCheck = await checkRuleBasedPermissions(
+      tool,
+      askInput,
+      toolUseContext,
+    )
+    if (ruleCheck?.behavior === 'deny') {
+      logForDebugging(
+        `Hook asked for confirmation for ${tool.name}, but deny rule overrides: ${ruleCheck.message}`,
+      )
+      return { decision: ruleCheck, input: askInput }
+    }
+  }
+
+  // No hook decision or a non-denied hook ask — continue through the normal
+  // permission flow, forcing the hook decision when present.
+  const forceDecision =
+    hookPermissionResult?.behavior === 'ask' ? hookPermissionResult : undefined
   return {
     decision: await canUseTool(
       tool,

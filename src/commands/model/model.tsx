@@ -2,6 +2,8 @@ import chalk from 'chalk'
 import * as React from 'react'
 import type { CommandResultDisplay } from '../../commands.js'
 import { ModelPicker } from '../../components/ModelPicker.js'
+import { getTotalOutputTokens } from '../../bootstrap/state.js'
+import { CacheMissWarningDialog } from './CacheMissWarningDialog.js'
 import { COMMON_HELP_ARGS, COMMON_INFO_ARGS } from '../../constants/xml.js'
 import {
   type AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
@@ -25,6 +27,7 @@ import {
 import {
   getDefaultMainLoopModelSetting,
   isOpus1mMergeEnabled,
+  parseUserSpecifiedModel,
   renderDefaultModelSetting,
 } from '../../utils/model/model.js'
 import { isModelAllowed } from '../../utils/model/modelAllowlist.js'
@@ -42,6 +45,10 @@ function ModelPickerWrapper({
   const mainLoopModelForSession = useAppState(s => s.mainLoopModelForSession)
   const isFastMode = useAppState(s => s.fastMode)
   const setAppState = useSetAppState()
+  const [pendingSwitch, setPendingSwitch] = React.useState<{
+    model: string | null
+    effort: EffortLevel | undefined
+  } | null>(null)
 
   function handleCancel(): void {
     logEvent('tengu_model_command_menu', {
@@ -54,7 +61,26 @@ function ModelPickerWrapper({
     })
   }
 
+  function resolveModelKey(model: string | null): string {
+    return parseUserSpecifiedModel(model ?? getDefaultMainLoopModelSetting())
+  }
+
   function handleSelect(
+    model: string | null,
+    effort: EffortLevel | undefined,
+  ): void {
+    if (
+      getTotalOutputTokens() > 0 &&
+      resolveModelKey(model) !==
+        resolveModelKey(mainLoopModelForSession ?? mainLoopModel)
+    ) {
+      setPendingSwitch({ model, effort })
+      return
+    }
+    applyModel(model, effort)
+  }
+
+  function applyModel(
     model: string | null,
     effort: EffortLevel | undefined,
   ): void {
@@ -114,6 +140,20 @@ function ModelPickerWrapper({
     }
 
     onDone(message)
+  }
+
+  if (pendingSwitch) {
+    return (
+      <CacheMissWarningDialog
+        toModelLabel={renderModelLabel(pendingSwitch.model)}
+        onConfirm={() => {
+          const next = pendingSwitch
+          setPendingSwitch(null)
+          applyModel(next.model, next.effort)
+        }}
+        onCancel={() => setPendingSwitch(null)}
+      />
+    )
   }
 
   return (

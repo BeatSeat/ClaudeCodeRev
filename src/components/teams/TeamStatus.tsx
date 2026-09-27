@@ -1,6 +1,7 @@
 import * as React from 'react'
 import { Text } from '../../ink.js'
 import { useAppState } from '../../state/AppState.js'
+import { KeyboardShortcutHint } from '../design-system/KeyboardShortcutHint.js'
 
 type Props = {
   teamsSelected: boolean
@@ -31,7 +32,11 @@ export function TeamStatus({
     showHint && teamsSelected ? (
       <>
         <Text dimColor>· </Text>
-        <Text dimColor>Enter to view</Text>
+        <KeyboardShortcutHint
+          chord="enter"
+          action="view"
+          format={{ keyCase: 'lower' }}
+        />
       </>
     ) : null
 

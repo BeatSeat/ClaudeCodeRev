@@ -12,7 +12,10 @@ import type {
   SDKMessage,
   SDKUserMessage,
 } from 'src/entrypoints/agentSdkTypes.js'
-import { SDKControlElicitationResponseSchema } from 'src/entrypoints/sdk/controlSchemas.js'
+import {
+  SDKControlElicitationResponseSchema,
+  SDKControlOAuthTokenRefreshResponseSchema,
+} from 'src/entrypoints/sdk/controlSchemas.js'
 import type {
   SDKControlRequest,
   SDKControlResponse,
@@ -188,6 +191,11 @@ export class StructuredIO {
 
   /** Flush pending internal events. No-op for non-remote IO. Overridden by RemoteIO. */
   flushInternalEvents(): Promise<void> {
+    return Promise.resolve()
+  }
+
+  /** Flush pending delivery acks. No-op for non-remote IO. Overridden by RemoteIO. */
+  flushDeliveryAcks(): Promise<void> {
     return Promise.resolve()
   }
 
@@ -528,6 +536,15 @@ export class StructuredIO {
       }
       this.pendingRequests.delete(requestId)
     }
+  }
+
+  async requestOAuthTokenRefresh(): Promise<string | null> {
+    const response = await this.sendRequest<{ accessToken: string | null }>(
+      { subtype: 'oauth_token_refresh' },
+      SDKControlOAuthTokenRefreshResponseSchema(),
+      AbortSignal.timeout(30_000),
+    )
+    return response.accessToken
   }
 
   createCanUseTool(

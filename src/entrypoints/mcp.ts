@@ -5,7 +5,6 @@ import {
   type CallToolResult,
   ListToolsRequestSchema,
   type ListToolsResult,
-  type Tool,
 } from '@modelcontextprotocol/sdk/types.js'
 import { getDefaultAppState } from 'src/state/AppStateStore.js'
 import review from '../commands/review.js'
@@ -27,8 +26,7 @@ import { jsonStringify } from '../utils/slowOperations.js'
 import { getErrorParts } from '../utils/toolErrors.js'
 import { zodToJsonSchema } from '../utils/zodToJsonSchema.js'
 
-type ToolInput = Tool['inputSchema']
-type ToolOutput = Tool['outputSchema']
+type ToolInput = import('@modelcontextprotocol/sdk/types.js').Tool['inputSchema']
 
 const MCP_COMMANDS: Command[] = [review]
 
@@ -65,21 +63,6 @@ export async function startMCPServer(
       return {
         tools: await Promise.all(
           tools.map(async tool => {
-            let outputSchema: ToolOutput | undefined
-            if (tool.outputSchema) {
-              const convertedSchema = zodToJsonSchema(tool.outputSchema)
-              // MCP SDK requires outputSchema to have type: "object" at root level
-              // Skip schemas with anyOf/oneOf at root (from z.union, z.discriminatedUnion, etc.)
-              // See: https://github.com/anthropics/claude-code/issues/8014
-              if (
-                typeof convertedSchema === 'object' &&
-                convertedSchema !== null &&
-                'type' in convertedSchema &&
-                convertedSchema.type === 'object'
-              ) {
-                outputSchema = convertedSchema as ToolOutput
-              }
-            }
             return {
               ...tool,
               description: await tool.prompt({
@@ -88,7 +71,9 @@ export async function startMCPServer(
                 agents: [],
               }),
               inputSchema: zodToJsonSchema(tool.inputSchema) as ToolInput,
-              outputSchema,
+              // This server returns text content only. Advertising a schema
+              // without matching structuredContent breaks older MCP clients.
+              outputSchema: undefined,
             }
           }),
         ),

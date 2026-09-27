@@ -17,6 +17,7 @@ import rubyClaudeApi from './claude-api/ruby/claude-api.md'
 import skillPrompt from './claude-api/SKILL.md'
 import sharedErrorCodes from './claude-api/shared/error-codes.md'
 import sharedLiveSources from './claude-api/shared/live-sources.md'
+import sharedManagedAgents from './claude-api/shared/managed-agents.md'
 import sharedModels from './claude-api/shared/models.md'
 import sharedAgentDesign from './claude-api/shared/agent-design.md'
 import sharedPromptCaching from './claude-api/shared/prompt-caching.md'
@@ -64,6 +65,7 @@ export const SKILL_FILES: Record<string, string> = {
   'shared/agent-design.md': sharedAgentDesign,
   'shared/error-codes.md': sharedErrorCodes,
   'shared/live-sources.md': sharedLiveSources,
+  'shared/managed-agents.md': sharedManagedAgents,
   'shared/models.md': sharedModels,
   'shared/prompt-caching.md': sharedPromptCaching,
   'shared/tool-use-concepts.md': sharedToolUseConcepts,

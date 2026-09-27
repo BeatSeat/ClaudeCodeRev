@@ -9,6 +9,7 @@ import type {
   ServerResource,
   ServerResourceTemplate,
 } from '../services/mcp/types.js'
+import { isAwaySummaryEnabled } from '../services/awaySummary.js'
 import { shouldEnablePromptSuggestion } from '../services/PromptSuggestion/promptSuggestion.js'
 import {
   getEmptyToolPermissionContext,
@@ -159,6 +160,18 @@ export type AppState = DeepImmutable<{
   // Always-on bridge: first-time remote dialog pending (set by /remote-control command)
   showRemoteCallout: boolean
 }> & {
+  imagePaths?: Map<number, string>
+  classifierApprovals?: {
+    approvals: Map<
+      string,
+      {
+        classifier: 'bash' | 'auto-mode'
+        matchedRule?: string
+        reason?: string
+      }
+    >
+    checking: Set<string>
+  }
   // Unified task state - excluded from DeepImmutable because TaskState contains function types
   tasks: { [taskId: string]: TaskState }
   // Name → AgentId registry populated by Agent tool when `name` is provided.
@@ -234,6 +247,7 @@ export type AppState = DeepImmutable<{
   }
   thinkingEnabled: boolean | undefined
   promptSuggestionEnabled: boolean
+  awaySummaryEnabled: boolean
   sessionHooks: SessionHooksState
   tungstenActiveSession?: {
     sessionName: string
@@ -475,6 +489,11 @@ export function getDefaultAppState(): AppState {
 
   return {
     settings: getInitialSettings(),
+    imagePaths: new Map(),
+    classifierApprovals: {
+      approvals: new Map(),
+      checking: new Set(),
+    },
     tasks: {},
     agentNameRegistry: new Map(),
     agentTypesInvokedThisSession: new Set(),
@@ -549,6 +568,7 @@ export function getDefaultAppState(): AppState {
     },
     thinkingEnabled: shouldEnableThinkingByDefault(),
     promptSuggestionEnabled: shouldEnablePromptSuggestion(),
+    awaySummaryEnabled: isAwaySummaryEnabled(),
     sessionHooks: new Map(),
     inbox: {
       messages: [],

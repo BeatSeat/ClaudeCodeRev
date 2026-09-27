@@ -3,7 +3,7 @@ import type { BetaMessageParam as MessageParam } from '@anthropic-ai/sdk/resourc
 // @aws-sdk/client-bedrock-runtime is imported dynamically in countTokensWithBedrock()
 // to defer ~279KB of AWS SDK code until a Bedrock call is actually made
 import type { CountTokensCommandInput } from '@aws-sdk/client-bedrock-runtime'
-import { getAPIProvider } from 'src/utils/model/providers.js'
+import { getAPIProviderForModel } from 'src/utils/model/providers.js'
 import { VERTEX_COUNT_TOKENS_ALLOWED_BETAS } from '../constants/betas.js'
 import type { Attachment } from '../utils/attachments.js'
 import { getModelBetas } from '../utils/betas.js'
@@ -147,7 +147,7 @@ export async function countMessagesTokensWithAPI(
       const betas = getModelBetas(model)
       const containsThinking = hasThinkingBlocks(messages)
 
-      if (getAPIProvider() === 'bedrock') {
+      if (getAPIProviderForModel(model) === 'bedrock') {
         // @anthropic-sdk/bedrock-sdk doesn't support countTokens currently
         return countTokensWithBedrock({
           model: normalizeModelStringForAPI(model),
@@ -165,7 +165,7 @@ export async function countMessagesTokensWithAPI(
       })
 
       const filteredBetas =
-        getAPIProvider() === 'vertex'
+        getAPIProviderForModel(model) === 'vertex'
           ? betas.filter(b => VERTEX_COUNT_TOKENS_ALLOWED_BETAS.has(b))
           : betas
 
@@ -252,6 +252,7 @@ export async function countTokensViaHaikuFallback(
   messages: Anthropic.Beta.Messages.BetaMessageParam[],
   tools: Anthropic.Beta.Messages.BetaToolUnion[],
 ): Promise<number | null> {
+  return withTokenCountVCR(messages, tools, async () => {
   // Check if messages contain thinking blocks
   const containsThinking = hasThinkingBlocks(messages)
 
@@ -294,7 +295,7 @@ export async function countTokensViaHaikuFallback(
   // Filter betas for Vertex - some betas (like web-search) cause 400 errors
   // on certain Vertex endpoints. See issue #10789.
   const filteredBetas =
-    getAPIProvider() === 'vertex'
+    getAPIProviderForModel(model) === 'vertex'
       ? betas.filter(b => VERTEX_COUNT_TOKENS_ALLOWED_BETAS.has(b))
       : betas
 
@@ -322,6 +323,7 @@ export async function countTokensViaHaikuFallback(
   const cacheReadTokens = usage.cache_read_input_tokens || 0
 
   return inputTokens + cacheCreationTokens + cacheReadTokens
+  })
 }
 
 export function roughTokenCountEstimationForMessages(

@@ -3,7 +3,7 @@ import figures from 'figures'
 import * as React from 'react'
 import { SentryErrorBoundary } from 'src/components/SentryErrorBoundary.js'
 import { Box, Text, useTheme } from '../../../ink.js'
-import { useAppState } from '../../../state/AppState.js'
+import { useAppState, useAppStateStore } from '../../../state/AppState.js'
 import {
   filterToolProgressMessages,
   type Tool,
@@ -47,6 +47,7 @@ export function UserToolSuccessMessage({
   width,
   isTranscriptMode,
 }: Props): React.ReactNode {
+  const appStateStore = useAppStateStore()
   const [theme] = useTheme()
   // Hook stays inside feature() ternary so external builds don't pay a
   // per-scrollback-message store subscription — same pattern as
@@ -60,14 +61,14 @@ export function UserToolSuccessMessage({
   // Capture classifier approval once on mount, then delete from Map to prevent linear growth.
   // useState lazy initializer ensures the value persists across re-renders.
   const [classifierRule] = React.useState(() =>
-    getClassifierApproval(toolUseID),
+    getClassifierApproval(toolUseID, appStateStore.getState),
   )
   const [yoloReason] = React.useState(() =>
-    getYoloClassifierApproval(toolUseID),
+    getYoloClassifierApproval(toolUseID, appStateStore.getState),
   )
   React.useEffect(() => {
-    deleteClassifierApproval(toolUseID)
-  }, [toolUseID])
+    deleteClassifierApproval(toolUseID, appStateStore.setState)
+  }, [appStateStore, toolUseID])
 
   if (!message.toolUseResult || !tool) {
     return null

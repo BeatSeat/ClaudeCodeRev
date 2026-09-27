@@ -1,5 +1,6 @@
 import { useCallback, useState } from 'react'
 import { KeyboardEvent } from '../ink/events/keyboard-event.js'
+import { PasteEvent } from '../ink/events/paste-event.js'
 // eslint-disable-next-line custom-rules/prefer-use-keybindings -- backward-compat bridge until consumers wire handleKeyDown to <Box onKeyDown>
 import { useInput } from '../ink.js'
 import {
@@ -30,6 +31,9 @@ type UseSearchInputOptions = {
    *  less/vim "delete past the /" convention. Dialogs that want Esc-only
    *  cancel set this false so a held backspace doesn't eject the user. */
   backspaceExitsOnEmpty?: boolean
+  /** Keep the legacy global input bridge for consumers that have not yet
+   *  moved keyboard and paste handling onto a focused Ink element. */
+  useGlobalInputFallback?: boolean
 }
 
 type UseSearchInputReturn = {
@@ -37,6 +41,7 @@ type UseSearchInputReturn = {
   setQuery: (q: string) => void
   cursorOffset: number
   handleKeyDown: (e: KeyboardEvent) => void
+  handlePaste: (e: PasteEvent) => void
 }
 
 function isKillKey(e: KeyboardEvent): boolean {
@@ -67,6 +72,8 @@ const UNHANDLED_SPECIAL_KEYS = new Set([
   'wheelup',
   'wheeldown',
   'mouse',
+  'clear',
+  'enter',
   'f1',
   'f2',
   'f3',
@@ -90,6 +97,7 @@ export function useSearchInput({
   passthroughCtrlKeys = [],
   initialQuery = '',
   backspaceExitsOnEmpty = true,
+  useGlobalInputFallback = true,
 }: UseSearchInputOptions): UseSearchInputReturn {
   const { columns: terminalColumns } = useTerminalSize()
   const effectiveColumns = columns ?? terminalColumns
@@ -349,16 +357,31 @@ export function useSearchInput({
     }
   }
 
+  const handlePaste = (e: PasteEvent): void => {
+    if (!isActive || e.text.length === 0) return
+
+    e.preventDefault()
+    const firstLine = e.text.split(/\r\n|\r|\n/, 2)[0] ?? ''
+    if (firstLine.length === 0) return
+
+    const cursor = Cursor.fromText(query, effectiveColumns, cursorOffset)
+    const newCursor = cursor.insert(firstLine)
+    setQueryState(newCursor.text)
+    setCursorOffset(newCursor.offset)
+  }
+
   // Backward-compat bridge: existing consumers don't yet wire handleKeyDown
-  // to <Box onKeyDown>. Subscribe via useInput and adapt InputEvent →
-  // KeyboardEvent until all 11 call sites are migrated (separate PRs).
+  // to a focused element. Focused consumers retain the official no-op
+  // subscription so raw mode remains active without processing input twice.
   // TODO(onKeyDown-migration): remove once all consumers pass handleKeyDown.
   useInput(
     (_input, _key, event) => {
-      handleKeyDown(new KeyboardEvent(event.keypress))
+      if (useGlobalInputFallback) {
+        handleKeyDown(new KeyboardEvent(event.keypress))
+      }
     },
     { isActive },
   )
 
-  return { query, setQuery, cursorOffset, handleKeyDown }
+  return { query, setQuery, cursorOffset, handleKeyDown, handlePaste }
 }

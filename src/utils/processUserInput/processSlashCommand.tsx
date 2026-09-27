@@ -83,6 +83,7 @@ import {
   isRestrictedToPluginOnly,
   isSourceAdminTrusted,
 } from '../settings/pluginOnlyPolicy.js'
+import { closestCommandName } from '../fuzzyCommandMatch.js'
 import { parseSlashCommand } from '../slashCommandParsing.js'
 import { sleep } from '../sleep.js'
 import { recordSkillUsage } from '../suggestions/skillUsageTracking.js'
@@ -437,12 +438,24 @@ export async function processSlashCommand(
       // Not a file path — treat as command name
     }
     if (looksLikeCommand(commandName) && !isFilePath) {
+      const suggestion = closestCommandName(
+        commandName,
+        context.options.commands
+          .filter(cmd => !cmd.isHidden)
+          .map(cmd => ({
+            name: getCommandName(cmd),
+            aliases: cmd.aliases,
+          })),
+      )
       logEvent('tengu_input_slash_invalid', {
         input:
           commandName as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
+        had_suggestion: Boolean(suggestion),
       })
 
-      const unknownMessage = `Unknown skill: ${commandName}`
+      const unknownMessage = suggestion
+        ? `Unknown command: /${commandName}. Did you mean /${suggestion}?`
+        : `Unknown command: /${commandName}`
       return {
         messages: [
           createSyntheticUserCaveatMessage(),

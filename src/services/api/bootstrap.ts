@@ -15,6 +15,7 @@ import { logError } from '../../utils/log.js'
 import { getAPIProvider } from '../../utils/model/providers.js'
 import { isEssentialTrafficOnly } from '../../utils/privacyLevel.js'
 import { getClaudeCodeUserAgent } from '../../utils/userAgent.js'
+import type { ModelCosts } from '../../utils/modelCost.js'
 
 const bootstrapResponseSchema = lazySchema(() =>
   z.object({
@@ -34,6 +35,7 @@ const bootstrapResponseSchema = lazySchema(() =>
           })),
       )
       .nullish(),
+    additional_model_costs: z.record(z.unknown()).nullish(),
   }),
 )
 
@@ -118,12 +120,16 @@ export async function fetchBootstrapData(): Promise<void> {
 
     const clientData = response.client_data ?? null
     const additionalModelOptions = response.additional_model_options ?? []
+    const additionalModelCosts =
+      (response.additional_model_costs as Record<string, ModelCosts> | null) ??
+      {}
 
     // Only persist if data actually changed — avoids a config write on every startup.
     const config = getGlobalConfig()
     if (
       isEqual(config.clientDataCache, clientData) &&
-      isEqual(config.additionalModelOptionsCache, additionalModelOptions)
+      isEqual(config.additionalModelOptionsCache, additionalModelOptions) &&
+      isEqual(config.additionalModelCostsCache, additionalModelCosts)
     ) {
       logForDebugging('[Bootstrap] Cache unchanged, skipping write')
       return
@@ -134,6 +140,7 @@ export async function fetchBootstrapData(): Promise<void> {
       ...current,
       clientDataCache: clientData,
       additionalModelOptionsCache: additionalModelOptions,
+      additionalModelCostsCache: additionalModelCosts,
     }))
   } catch (error) {
     logError(error)

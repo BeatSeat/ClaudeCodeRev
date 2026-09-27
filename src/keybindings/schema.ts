@@ -30,6 +30,8 @@ export const KEYBINDING_CONTEXTS = [
   'Select',
   'Plugin',
   'Doctor',
+  'Scroll',
+  'MessageActions',
 ] as const
 
 /**
@@ -58,6 +60,9 @@ export const KEYBINDING_CONTEXT_DESCRIPTIONS: Record<
   Select: 'When a select/list component is focused',
   Plugin: 'When the plugin dialog is open',
   Doctor: 'When the /doctor diagnostics screen is open',
+  Scroll: 'When a scrollable view is focused (fullscreen layout)',
+  MessageActions:
+    'When the message actions menu is open (fullscreen layout)',
 }
 
 /**

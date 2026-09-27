@@ -1,5 +1,7 @@
 import figures from 'figures'
-import React from 'react'
+import React, { useEffect, useRef } from 'react'
+import type { DOMElement } from '../../ink/dom.js'
+import { getFocusManager } from '../../ink/focus.js'
 import { Box, Text } from '../../ink.js'
 import type { PastedContent } from '../../utils/config.js'
 import type { ImageDimensions } from '../../utils/imageResizer.js'
@@ -102,10 +104,23 @@ export function SelectMulti<T>({
     hideIndexes,
   })
 
+  const containerRef = useRef<DOMElement | null>(null)
+  useEffect(() => {
+    if (!isDisabled && containerRef.current) {
+      getFocusManager(containerRef.current).focus(containerRef.current)
+    }
+  }, [isDisabled])
+
   const maxIndexWidth = options.length.toString().length
 
   return (
-    <Box flexDirection="column">
+    <Box
+      flexDirection="column"
+      ref={containerRef}
+      {...(isDisabled
+        ? {}
+        : { tabIndex: 0, onKeyDown: state.handleKeyDown })}
+    >
       <Box flexDirection="column">
         {state.visibleOptions.map((option, index) => {
           const isOptionFocused =

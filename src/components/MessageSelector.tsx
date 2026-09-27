@@ -966,7 +966,7 @@ export function messagesAfterAreOnlySynthetic(
       if (Array.isArray(content)) {
         const hasMeaningfulContent = content.some(
           block =>
-            (block.type === 'text' && block.text.trim()) ||
+            (block.type === 'text' && block.text?.trim()) ||
             block.type === 'tool_use',
         )
         if (hasMeaningfulContent) return false

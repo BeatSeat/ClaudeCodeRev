@@ -1,5 +1,6 @@
 import { logEvent } from '../../services/analytics/index.js'
 import { refreshAndGetAwsCredentials } from '../auth.js'
+import { logForDebugging } from '../debug.js'
 import { getAWSRegion, isEnvTruthy } from '../envUtils.js'
 import { getProxyFetchOptions } from '../proxy.js'
 import {
@@ -187,20 +188,19 @@ export async function findBedrockUpgradeCandidates(): Promise<
     const spec = TIER_ENV[tier]
     let envVar: string | undefined
     let pinnedRaw: string | undefined
+    let pinnedKey: ModelKey | undefined
     for (const name of spec.envVarPriority) {
       const value = process.env[name]
-      if (value) {
-        envVar = name
-        pinnedRaw = value
-        break
-      }
+      if (!value) continue
+      if (value.includes('application-inference-profile')) continue
+      const key = modelKeyForPinnedId(value)
+      if (!key || tierOfKey(key) !== tier || key === spec.defaultKey) continue
+      envVar = name
+      pinnedRaw = value
+      pinnedKey = key
+      break
     }
-    if (!envVar || !pinnedRaw) continue
-    if (pinnedRaw.includes('application-inference-profile')) continue
-    const pinnedKey = modelKeyForPinnedId(pinnedRaw)
-    if (!pinnedKey) continue
-    if (tierOfKey(pinnedKey) !== tier) continue
-    if (pinnedKey === spec.defaultKey) continue
+    if (!envVar || !pinnedRaw || !pinnedKey) continue
     const pinnedIdx = MODEL_KEY_ORDER.indexOf(pinnedKey)
     const defaultIdx = MODEL_KEY_ORDER.indexOf(spec.defaultKey)
     if (pinnedIdx >= defaultIdx) continue
@@ -257,7 +257,13 @@ export async function findBedrockUpgradeCandidates(): Promise<
       return ok ? candidate : null
     }),
   )
-  return accessible.filter((row): row is BedrockUpgradeCandidate => row !== null)
+  const candidates = accessible.filter(
+    (row): row is BedrockUpgradeCandidate => row !== null,
+  )
+  logForDebugging(
+    `[bedrock-upgrade] tiersWithPin=${stale.length} candidates=${candidates.length}`,
+  )
+  return candidates
 }
 
 /** Official 2.1.94 fKO. */
@@ -273,10 +279,17 @@ export async function checkBedrockDefaultAvailability(): Promise<
   }> = []
   for (const tier of Object.keys(TIER_ENV) as BedrockTier[]) {
     const spec = TIER_ENV[tier]
-    if (spec.envVarPriority.some(name => process.env[name])) continue
+    const consideredPinned = spec.envVarPriority.some(name => {
+      const value = process.env[name]
+      if (!value) return false
+      const key = modelKeyForPinnedId(value)
+      if (!key) return true
+      return tierOfKey(key) === tier
+    })
+    if (consideredPinned) continue
     unpinned.push({
       tier,
-      envVar: spec.envVarPriority[0]!,
+      envVar: spec.envVarPriority.at(-1)!,
       defaultKey: spec.defaultKey,
     })
   }
@@ -325,9 +338,16 @@ export async function checkBedrockDefaultAvailability(): Promise<
       } satisfies BedrockDefaultFallback
     }),
   )
-  return rows.filter((row): row is BedrockDefaultFallback => row !== null)
+  const fallbacks = rows.filter(
+    (row): row is BedrockDefaultFallback => row !== null,
+  )
+  logForDebugging(
+    `[bedrock-fallback] unpinnedTiers=${unpinned.length} fallbacks=${fallbacks.length}`,
+  )
+  return fallbacks
 }
 
+/** Official 2.1.98 haiku pin: always DEFAULT_HAIKU, plus SMALL_FAST when that was the pin. */
 export function bedrockPinEnvPatch(
   tier: BedrockTier,
   envVar: string,
@@ -335,8 +355,10 @@ export function bedrockPinEnvPatch(
 ): Record<string, string> {
   if (tier === 'haiku') {
     return {
-      ANTHROPIC_SMALL_FAST_MODEL: modelId,
       ANTHROPIC_DEFAULT_HAIKU_MODEL: modelId,
+      ...(envVar === 'ANTHROPIC_SMALL_FAST_MODEL'
+        ? { ANTHROPIC_SMALL_FAST_MODEL: modelId }
+        : {}),
     }
   }
   return { [envVar]: modelId }

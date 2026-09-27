@@ -61,11 +61,13 @@ import {
   vertexPinEnvPatch,
   vertexUpgradeKey,
 } from './utils/model/vertexUpgrade.js'
+import { logForDebugging } from './utils/debug.js'
 import { execRelaunch } from './utils/relaunch.js'
 import { updateSettingsForSource } from './utils/settings/settings.js'
 import { sleep } from './utils/sleep.js'
 import { updateDeepLinkTerminalPreference } from './utils/deepLink/terminalPreference.js'
 import { isEnvTruthy, isRunningOnHomespace } from './utils/envUtils.js'
+import { getAPIProvider } from './utils/model/providers.js'
 import { type FpsMetrics, FpsTracker } from './utils/fpsTracker.js'
 import { updateGithubRepoPathMapping } from './utils/githubRepoPathMapping.js'
 import { applyConfigEnvironmentVariables } from './utils/managedEnv.js'
@@ -306,7 +308,11 @@ export async function showSetupScreens(
   // Check for custom API key
   // On homespace, ANTHROPIC_API_KEY is preserved in process.env for child
   // processes but ignored by Claude Code itself (see auth.ts).
-  if (process.env.ANTHROPIC_API_KEY && !isRunningOnHomespace()) {
+  if (
+    process.env.ANTHROPIC_API_KEY &&
+    !isRunningOnHomespace() &&
+    getAPIProvider() === 'firstParty'
+  ) {
     const customApiKeyTruncated = normalizeApiKeyForConfig(
       process.env.ANTHROPIC_API_KEY,
     )
@@ -454,9 +460,42 @@ export async function showSetupScreens(
   return onboardingShown
 }
 
-/** Official 2.1.94 VKO. */
+/** Official 2.1.98 Ta8 / 2.1.108 Jt8 — empty result if the 3P probe overruns. */
+const THIRD_PARTY_PROBE_DEADLINE_MS = 20_000
+
+async function with3pProbeDeadline<T>(
+  label: string,
+  work: Promise<T[]>,
+): Promise<T[]> {
+  let timer: ReturnType<typeof setTimeout> | undefined
+  try {
+    return await Promise.race([
+      work,
+      new Promise<T[]>(resolve => {
+        timer = setTimeout(
+          (done: (value: T[]) => void, name: string) => {
+            logForDebugging(
+              `[3p-probe] ${name} hit ${THIRD_PARTY_PROBE_DEADLINE_MS}ms deadline; proceeding without it`,
+            )
+            done([])
+          },
+          THIRD_PARTY_PROBE_DEADLINE_MS,
+          resolve,
+          label,
+        )
+      }),
+    ])
+  } finally {
+    if (timer !== undefined) clearTimeout(timer)
+  }
+}
+
+/** Official 2.1.98 J9A. */
 async function runBedrockUpgradeDialogs(root: Root): Promise<void> {
-  const candidates = await findBedrockUpgradeCandidates()
+  const candidates = await with3pProbeDeadline(
+    'bedrock-upgrade',
+    findBedrockUpgradeCandidates(),
+  )
   if (candidates.length === 0) return
   const declined = getGlobalConfig().bedrockDeclinedUpgrades ?? {}
   const pending = candidates.filter(
@@ -529,9 +568,12 @@ async function runBedrockUpgradeDialogs(root: Root): Promise<void> {
   }
 }
 
-/** Official 2.1.94 yKO — session-only fallback when the default model is dark. */
+/** Official 2.1.98 X9A — session-only fallback when the default model is dark. */
 async function runBedrockDefaultFallbackToast(root: Root): Promise<void> {
-  const fallbacks = await checkBedrockDefaultAvailability()
+  const fallbacks = await with3pProbeDeadline(
+    'bedrock-fallback',
+    checkBedrockDefaultAvailability(),
+  )
   if (fallbacks.length === 0) return
   for (const row of fallbacks) {
     applyBedrockPinEnv(row.tier, row.envVar, row.fallbackBedrockId)
@@ -562,7 +604,10 @@ async function runBedrockDefaultFallbackToast(root: Root): Promise<void> {
 
 /** Official 2.1.98 M9A. */
 async function runVertexUpgradeDialogs(root: Root): Promise<void> {
-  const candidates = await findVertexUpgradeCandidates()
+  const candidates = await with3pProbeDeadline(
+    'vertex-upgrade',
+    findVertexUpgradeCandidates(),
+  )
   if (candidates.length === 0) return
   const declined = getGlobalConfig().vertexDeclinedUpgrades ?? {}
   const pending = candidates.filter(
@@ -637,7 +682,10 @@ async function runVertexUpgradeDialogs(root: Root): Promise<void> {
 
 /** Official 2.1.98 P9A — session-only fallback when the default Vertex model is dark. */
 async function runVertexDefaultFallbackToast(root: Root): Promise<void> {
-  const fallbacks = await checkVertexDefaultAvailability()
+  const fallbacks = await with3pProbeDeadline(
+    'vertex-fallback',
+    checkVertexDefaultAvailability(),
+  )
   if (fallbacks.length === 0) return
   for (const row of fallbacks) {
     applyVertexPinEnv(row.tier, row.envVar, row.fallbackVertexId)

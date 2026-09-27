@@ -39,6 +39,7 @@ import {
 } from '@modelcontextprotocol/sdk/types.js'
 import mapValues from 'lodash-es/mapValues.js'
 import memoize from 'lodash-es/memoize.js'
+import uniqBy from 'lodash-es/uniqBy.js'
 import zipObject from 'lodash-es/zipObject.js'
 import pMap from 'p-map'
 import { getOriginalCwd, getSessionId } from '../../bootstrap/state.js'
@@ -531,28 +532,27 @@ export function wrapFetchWithTimeout(baseFetch: FetchLike): FetchLike {
     timer.unref?.()
 
     const parentSignal = init?.signal
-    const abort = () => controller.abort(parentSignal?.reason)
-    parentSignal?.addEventListener('abort', abort)
     if (parentSignal?.aborted) {
       controller.abort(parentSignal.reason)
+    } else {
+      parentSignal?.addEventListener(
+        'abort',
+        () => controller.abort(parentSignal.reason),
+        { once: true },
+      )
     }
 
-    const cleanup = () => {
-      clearTimeout(timer)
-      parentSignal?.removeEventListener('abort', abort)
-    }
-
+    // Official 2.1.97: keep the parent abort linked after headers so
+    // transport.close() can cancel in-flight Streamable HTTP POST bodies.
+    // Only the timeout timer is cleared in finally.
     try {
-      const response = await baseFetch(url, {
+      return await baseFetch(url, {
         ...init,
         headers,
         signal: controller.signal,
       })
-      cleanup()
-      return response
-    } catch (error) {
-      cleanup()
-      throw error
+    } finally {
+      clearTimeout(timer)
     }
   }
 }
@@ -1693,6 +1693,82 @@ export async function clearServerCache(
   fetchCommandsForClient.cache.delete(name)
   if (feature('MCP_SKILLS')) {
     fetchMcpSkillsForClient!.cache.delete(name)
+  }
+}
+
+/** Official 2.1.108 `jOA` / `HOA`. */
+const REMOTE_MCP_RETRY_BACKOFF_MS = [500, 1500, 4000] as const
+const REMOTE_MCP_RETRY_TYPES = new Set(['http', 'sse', 'claudeai-proxy'])
+
+export type McpConnectionSlice = {
+  clients: MCPServerConnection[]
+  tools: Tool[]
+  commands: Command[]
+}
+
+export type RemoteMcpRetryStore = {
+  getClients: () => MCPServerConnection[]
+  applyMcpUpdate: (
+    updater: (mcp: McpConnectionSlice) => McpConnectionSlice,
+  ) => void
+}
+
+/**
+ * Official 2.1.108 `JOA`. After the first connect batch, retry failed remote
+ * MCP servers with 500/1500/4000ms backoff. Clears only the memoize cache
+ * (not a full cleanup) so the next connectToServer actually dials again.
+ */
+export async function retryFailedRemoteMcpServers(
+  configs: Record<string, ScopedMcpServerConfig>,
+  store: RemoteMcpRetryStore,
+): Promise<void> {
+  const remotes = Object.entries(configs).filter(([, config]) =>
+    REMOTE_MCP_RETRY_TYPES.has(config.type ?? ''),
+  )
+  if (remotes.length === 0) return
+
+  for (const backoffMs of REMOTE_MCP_RETRY_BACKOFF_MS) {
+    await sleep(backoffMs)
+    const stillFailed = remotes.filter(([name]) =>
+      store.getClients().some(client => client.name === name && client.type === 'failed'),
+    )
+    if (stillFailed.length === 0) {
+      logForDebugging('[MCP] Retry: all remote servers connected, stopping')
+      return
+    }
+    logForDebugging(
+      `[MCP] Retry: ${stillFailed.length} failed remote server(s) after ${backoffMs}ms backoff`,
+    )
+    for (const [name, config] of stillFailed) {
+      connectToServer.cache.delete(getServerCacheKey(name, config))
+    }
+    await getMcpToolsCommandsAndResources(({ client, tools, commands }) => {
+      store.applyMcpUpdate(mcp => {
+        if (!mcp.clients.some(existing => existing.name === client.name)) {
+          if (client.type === 'connected') {
+            void clearServerCache(client.name, client.config)
+          }
+          return mcp
+        }
+        return {
+          ...mcp,
+          clients: mcp.clients.map(existing =>
+            existing.name === client.name ? client : existing,
+          ),
+          tools: uniqBy([...mcp.tools, ...tools], 'name'),
+          commands: uniqBy([...mcp.commands, ...commands], 'name'),
+        }
+      })
+    }, Object.fromEntries(stillFailed))
+  }
+
+  const remaining = remotes.filter(([name]) =>
+    store.getClients().some(client => client.name === name && client.type === 'failed'),
+  )
+  if (remaining.length > 0) {
+    logForDebugging(
+      `[MCP] Retry: ${remaining.length} remote server(s) still failed after all retries: ${remaining.map(([name]) => name).join(', ')}`,
+    )
   }
 }
 

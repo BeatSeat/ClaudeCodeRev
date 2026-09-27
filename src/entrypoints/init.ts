@@ -68,6 +68,11 @@ export const init = memoize(async (): Promise<void> => {
     })
     profileCheckpoint('init_configs_enabled')
 
+    const { initSubprocessEnvScrubIsolation } = await import(
+      '../utils/subprocessEnv.js'
+    )
+    await initSubprocessEnvScrubIsolation()
+
     // Apply only safe environment variables before trust dialog
     // Full environment variables are applied after trust is established
     const envVarsStart = Date.now()
