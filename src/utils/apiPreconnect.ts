@@ -24,7 +24,7 @@
  */
 
 import { getOauthConfig } from '../constants/oauth.js'
-import { isEnvTruthy } from './envUtils.js'
+import { isThirdPartyCloudEnv } from './model/providers.js'
 
 let fired = false
 
@@ -33,11 +33,7 @@ export function preconnectAnthropicApi(): void {
   fired = true
 
   // Skip if using a cloud provider — different endpoint + auth
-  if (
-    isEnvTruthy(process.env.CLAUDE_CODE_USE_BEDROCK) ||
-    isEnvTruthy(process.env.CLAUDE_CODE_USE_VERTEX) ||
-    isEnvTruthy(process.env.CLAUDE_CODE_USE_FOUNDRY)
-  ) {
+  if (isThirdPartyCloudEnv()) {
     return
   }
   // Skip if proxy/mTLS/unix — SDK's custom dispatcher won't reuse this pool

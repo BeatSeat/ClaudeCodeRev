@@ -14,6 +14,7 @@ import { getUserAgent } from 'src/utils/http.js'
 import { getSmallFastModel } from 'src/utils/model/model.js'
 import {
   getAPIProvider,
+  isAnthropicAwsEnabled,
   isFirstPartyAnthropicBaseUrl,
 } from 'src/utils/model/providers.js'
 import { getProxyFetchOptions } from 'src/utils/proxy.js'
@@ -218,6 +219,26 @@ export async function getAnthropicClient({
     // we have always been lying about the return type - this doesn't support batching or models
     return new AnthropicFoundry(foundryArgs) as unknown as Anthropic
   }
+  if (isAnthropicAwsEnabled()) {
+    const { AnthropicAws } = await import('./anthropicAws.js')
+    const skipAnthropicAwsAuth = isEnvTruthy(
+      process.env.CLAUDE_CODE_SKIP_ANTHROPIC_AWS_AUTH,
+    )
+    const anthropicAwsArgs: ConstructorParameters<typeof AnthropicAws>[0] = {
+      ...ARGS,
+      ...(skipAnthropicAwsAuth && { skipAuth: true }),
+      ...(isDebugToStdErr() && { logger: createStderrLogger() }),
+    }
+    if (!process.env.ANTHROPIC_AWS_API_KEY && !skipAnthropicAwsAuth) {
+      const cachedCredentials = await refreshAndGetAwsCredentials()
+      if (cachedCredentials) {
+        anthropicAwsArgs.awsAccessKey = cachedCredentials.accessKeyId
+        anthropicAwsArgs.awsSecretAccessKey = cachedCredentials.secretAccessKey
+        anthropicAwsArgs.awsSessionToken = cachedCredentials.sessionToken
+      }
+    }
+    return new AnthropicAws(anthropicAwsArgs) as unknown as Anthropic
+  }
   if (isEnvTruthy(process.env.CLAUDE_CODE_USE_VERTEX)) {
     // Refresh GCP credentials if gcpAuthRefresh is configured and credentials are expired
     // This is similar to how we handle AWS credential refresh for Bedrock
@@ -363,8 +384,10 @@ function buildFetch(
   const inner = fetchOverride ?? globalThis.fetch
   // Only send to the first-party API — Bedrock/Vertex/Foundry don't log it
   // and unknown headers risk rejection by strict proxies (inc-4029 class).
+  const provider = getAPIProvider()
   const injectClientRequestId =
-    getAPIProvider() === 'firstParty' && isFirstPartyAnthropicBaseUrl()
+    (provider === 'firstParty' && isFirstPartyAnthropicBaseUrl()) ||
+    (provider === 'anthropicAws' && !process.env.ANTHROPIC_AWS_BASE_URL)
   return (input, init) => {
     // eslint-disable-next-line eslint-plugin-n/no-unsupported-features/node-builtins
     const headers = new Headers(init?.headers)

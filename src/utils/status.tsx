@@ -339,6 +339,8 @@ export function buildAPIProviderProperties(): Property[] {
       bedrock: 'AWS Bedrock',
       vertex: 'Google Vertex AI',
       foundry: 'Microsoft Foundry',
+      anthropicAws: 'Claude Platform on AWS',
+      mantle: 'Amazon Bedrock (Mantle)',
     }[apiProvider]
 
     properties.push({
@@ -421,6 +423,30 @@ export function buildAPIProviderProperties(): Property[] {
     if (isEnvTruthy(process.env.CLAUDE_CODE_SKIP_FOUNDRY_AUTH)) {
       properties.push({
         value: 'Microsoft Foundry auth skipped',
+      })
+    }
+  } else if (apiProvider === 'anthropicAws') {
+    const anthropicAwsBaseUrl = process.env.ANTHROPIC_AWS_BASE_URL
+    if (anthropicAwsBaseUrl) {
+      properties.push({
+        label: 'Claude Platform on AWS base URL',
+        value: anthropicAwsBaseUrl,
+      })
+    }
+    const workspaceId = process.env.ANTHROPIC_AWS_WORKSPACE_ID
+    if (workspaceId) {
+      properties.push({
+        label: 'Workspace ID',
+        value: workspaceId,
+      })
+    }
+    properties.push({
+      label: 'AWS region',
+      value: getAWSRegion(),
+    })
+    if (isEnvTruthy(process.env.CLAUDE_CODE_SKIP_ANTHROPIC_AWS_AUTH)) {
+      properties.push({
+        value: 'Claude Platform on AWS auth skipped',
       })
     }
   }

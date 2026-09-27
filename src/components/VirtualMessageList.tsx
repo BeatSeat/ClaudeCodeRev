@@ -249,7 +249,7 @@ function VirtualItem({
       onMouseLeave={clickable ? () => onLeaveK(k) : undefined}
     >
       <TextHoverColorContext.Provider
-        value={hovered && !expanded ? 'text' : undefined}
+        value={!!(hovered && !expanded)}
       >
         {renderItem(msg, idx)}
       </TextHoverColorContext.Provider>

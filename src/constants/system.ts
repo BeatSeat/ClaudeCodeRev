@@ -77,9 +77,19 @@ export function getAttributionHeader(fingerprint: string): string {
 
   const version = `${MACRO.VERSION}.${fingerprint}`
   const entrypoint = process.env.CLAUDE_CODE_ENTRYPOINT ?? 'unknown'
+  const provider = getAPIProvider()
+  // Official 2.1.90/98: skip native attestation placeholder on Bedrock,
+  // Anthropic-on-AWS, and Mantle (different request path / signer).
+  const skipClientAttestation =
+    provider === 'bedrock' ||
+    provider === 'anthropicAws' ||
+    provider === 'mantle'
 
   // cch=00000 placeholder is overwritten by Bun's HTTP stack with attestation token
-  const cch = feature('NATIVE_CLIENT_ATTESTATION') ? ' cch=00000;' : ''
+  const cch =
+    feature('NATIVE_CLIENT_ATTESTATION') && !skipClientAttestation
+      ? ' cch=00000;'
+      : ''
   // cc_workload: turn-scoped hint so the API can route e.g. cron-initiated
   // requests to a lower QoS pool. Absent = interactive default. Safe re:
   // fingerprint (computed from msg chars + version only, line 78 above) and

@@ -60,6 +60,18 @@ import {
 import { getPlatform } from './platform.js'
 import { countFilesRoundedRg } from './ripgrep.js'
 import { jsonStringify } from './slowOperations.js'
+
+const inputJsonSchemaCache = new WeakMap<object, string>()
+
+function cachedJsonStringify(value: object): string {
+  const cached = inputJsonSchemaCache.get(value)
+  if (cached !== undefined) {
+    return cached
+  }
+  const serialized = jsonStringify(value)
+  inputJsonSchemaCache.set(value, serialized)
+  return serialized
+}
 import type { SystemPrompt } from './systemPromptType.js'
 import { getToolSchemaCache } from './toolSchemaCache.js'
 import { windowsPathToPosixPath } from './windowsPaths.js'
@@ -146,7 +158,7 @@ export async function toolToAPISchema(
   // so including it preserves their GB-flip cache stability.
   const cacheKey =
     'inputJSONSchema' in tool && tool.inputJSONSchema
-      ? `${tool.name}:${jsonStringify(tool.inputJSONSchema)}`
+      ? `${tool.name}:${cachedJsonStringify(tool.inputJSONSchema)}`
       : tool.name
   const cache = getToolSchemaCache()
   let base = cache.get(cacheKey)

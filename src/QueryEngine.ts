@@ -207,6 +207,18 @@ export class QueryEngine {
   // many turns in SDK mode.
   private discoveredSkillNames = new Set<string>()
   private loadedNestedMemoryPaths = new Set<string>()
+  private transcriptCursor = 0
+
+  private recordTranscriptDelta(messages: Message[]): ReturnType<
+    typeof recordTranscript
+  > {
+    const slice =
+      this.transcriptCursor === 0
+        ? messages
+        : messages.slice(this.transcriptCursor)
+    this.transcriptCursor = messages.length
+    return recordTranscript(slice, undefined, undefined, messages)
+  }
 
   constructor(config: QueryEngineConfig) {
     this.config = config
@@ -544,7 +556,7 @@ export class QueryEngine {
     // — the single largest controllable critical-path cost after module eval.
     // Transcript is still written (for post-hoc debugging); just not blocking.
     if (persistSession && messagesFromUserInput.length > 0) {
-      const transcriptPromise = recordTranscript(messages)
+      const transcriptPromise = this.recordTranscriptDelta(messages)
       if (isBareMode()) {
         void transcriptPromise
       } else {
@@ -703,7 +715,7 @@ export class QueryEngine {
       }
 
       if (persistSession) {
-        await recordTranscript(messages)
+        await this.recordTranscriptDelta(messages)
         if (
           isEnvTruthy(process.env.CLAUDE_CODE_EAGER_FLUSH) ||
           isEnvTruthy(process.env.CLAUDE_CODE_IS_COWORK)
@@ -809,7 +821,11 @@ export class QueryEngine {
               m => m.uuid === tailUuid,
             )
             if (tailIdx !== -1) {
-              await recordTranscript(this.mutableMessages.slice(0, tailIdx + 1))
+              this.transcriptCursor = 0
+              await this.recordTranscriptDelta(
+                this.mutableMessages.slice(0, tailIdx + 1),
+              )
+              this.transcriptCursor = 0
             }
           }
         }
@@ -825,9 +841,9 @@ export class QueryEngine {
           // useLogMessages.ts fire-and-forgets. enqueueWrite is
           // order-preserving so fire-and-forget here is safe.
           if (message.type === 'assistant') {
-            void recordTranscript(messages)
+            void this.recordTranscriptDelta(messages)
           } else {
-            await recordTranscript(messages)
+            await this.recordTranscriptDelta(messages)
           }
         }
 
@@ -882,7 +898,7 @@ export class QueryEngine {
           // forking the chain and orphaning the conversation on resume.
           if (persistSession) {
             messages.push(message)
-            void recordTranscript(messages)
+            void this.recordTranscriptDelta(messages)
           }
           yield* normalizeMessage(message)
           break
@@ -936,7 +952,7 @@ export class QueryEngine {
           // Record inline (same reason as progress above).
           if (persistSession) {
             messages.push(message)
-            void recordTranscript(messages)
+            void this.recordTranscriptDelta(messages)
           }
 
           // Extract structured output from StructuredOutput tool calls

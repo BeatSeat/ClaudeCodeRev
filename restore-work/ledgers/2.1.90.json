@@ -1,0 +1,104 @@
+{
+  "version": "2.1.90",
+  "fromVersion": "2.1.89",
+  "expectedFunctionCount": 0,
+  "functions": [],
+  "changelogCoverage": [
+    {
+      "item": "Added `/powerup` — interactive lessons teaching Claude Code features with animated demos",
+      "status": "located",
+      "evidence": "src/commands/powerup + tengu_powerup_lesson_opened/completed"
+    },
+    {
+      "item": "Added `CLAUDE_CODE_PLUGIN_KEEP_MARKETPLACE_ON_FAILURE` env var to keep the existing marketplace cache when `git pull` fails, useful in offline environments",
+      "status": "located",
+      "evidence": "src/utils/plugins/marketplaceManager.ts KEEP_MARKETPLACE_ON_FAILURE"
+    },
+    {
+      "item": "Added `.husky` to protected directories (acceptEdits mode)",
+      "status": "located",
+      "evidence": "src/utils/permissions/filesystem.ts '.husky'"
+    },
+    {
+      "item": "Fixed an infinite loop where the rate-limit options dialog would repeatedly auto-open after hitting your usage limit, eventually crashing the session",
+      "status": "located",
+      "evidence": "rate-limit options dialog already in tree; official 90 structural hit on usage UI"
+    },
+    {
+      "item": "Fixed `--resume` causing a full prompt-cache miss on the first request for users with deferred tools, MCP servers, or custom agents (regression since v2.1.69)",
+      "status": "located",
+      "evidence": "resume/deferred-tool cache prefix already in tree"
+    },
+    {
+      "item": "Fixed `Edit`/`Write` failing with \"File content has changed\" when a PostToolUse format-on-save hook rewrites the file between consecutive edits",
+      "status": "located",
+      "evidence": "astdiff added hDK file_path helper; Edit/Write readFileState already in tree"
+    },
+    {
+      "item": "Fixed `PreToolUse` hooks that emit JSON to stdout and exit with code 2 not correctly blocking the tool call",
+      "status": "located",
+      "evidence": "PreToolUse exit-2 JSON block already in hook runner"
+    },
+    {
+      "item": "Fixed collapsed search/read summary badge appearing multiple times in fullscreen scrollback when a CLAUDE.md file auto-loads during a tool call",
+      "status": "located",
+      "evidence": "collapsed search/read badge already in tree"
+    },
+    {
+      "item": "Fixed auto mode not respecting explicit user boundaries (\"don't push\", \"wait for X before Y\") even when the action would otherwise be allowed",
+      "status": "located",
+      "evidence": "auto mode classifier user-boundary already in tree"
+    },
+    {
+      "item": "Fixed click-to-expand hover text being nearly invisible on light terminal themes",
+      "status": "located",
+      "evidence": "click-to-expand hover theme already in tree"
+    },
+    {
+      "item": "Fixed UI crash when malformed tool input reached the permission dialog",
+      "status": "located",
+      "evidence": "permission dialog malformed-input guard already in tree"
+    },
+    {
+      "item": "Fixed headers disappearing when scrolling `/model`, `/config`, and other selection screens",
+      "status": "located",
+      "evidence": "Select/header sticky already in tree"
+    },
+    {
+      "item": "Hardened PowerShell tool permission checks: fixed trailing `&` background job bypass, `-ErrorAction Break` debugger hang, archive-extraction TOCTOU, and parse-fail fallback deny-rule degradation",
+      "status": "located",
+      "evidence": "astdiff product hits on PowerShellTool; src/tools/PowerShellTool"
+    },
+    {
+      "item": "Improved performance: eliminated per-turn JSON.stringify of MCP tool schemas on cache-key lookup",
+      "status": "located",
+      "evidence": "MCP schema cache-key already in tree"
+    },
+    {
+      "item": "Improved performance: SSE transport now handles large streamed frames in linear time (was quadratic)",
+      "status": "located",
+      "evidence": "SSE frame handling already in tree"
+    },
+    {
+      "item": "Improved performance: SDK sessions with long conversations no longer slow down quadratically on transcript writes",
+      "status": "located",
+      "evidence": "SDK transcript write already in tree"
+    },
+    {
+      "item": "Improved `/resume` all-projects view to load project sessions in parallel, improving load times for users with many projects",
+      "status": "located",
+      "evidence": "resume all-projects parallel load already in tree"
+    },
+    {
+      "item": "Changed `--resume` picker to no longer show sessions created by `claude -p` or SDK invocations",
+      "status": "located",
+      "evidence": "resume picker filters print/SDK sessions already in tree"
+    },
+    {
+      "item": "Removed `Get-DnsClientCache` and `ipconfig /displaydns` from auto-allow (DNS cache privacy)",
+      "status": "located",
+      "evidence": "astdiff removed /displaydns; auto-allow list no longer includes those DNS cache commands"
+    }
+  ],
+  "notes": "astdiff 2.1.89→2.1.90: 99.2% similar, +148/-50, 7011 structural, 57 string-only. filter-astdiff: 7266 entries (product 180, unknown 850, vendor 181, rename-only-100% 6177). Most product hits are minify-adjacent permission/anthropic/marketplace string neighbors. Changelog-external FAILs engineered into this hop: (1) runForkedAgent defaults maxTurns to 50 (official CfK) and logs tengu_forked_agent_default_turns_exceeded when the caller omitted maxTurns and the fork hit that cap; (2) extractMemories skips when no ≥3-word non-meta user prose since the cursor (official U_Y/tDK/aDK=3) and logs tengu_extract_memories_skipped_no_prose; (3) session memoryToggledOff + /toggle-memory (official isEnabled always false) + autoMem/filesystem deny copy. Already in this hop from prior review: /powerup, KEEP_MARKETPLACE_ON_FAILURE, .husky, ultraplan timeout GB default 1800, CLAUDE_CODE_USE_ANTHROPIC_AWS / SKIP_ANTHROPIC_AWS_AUTH. Skipped: tengu_slate_harbor default false (Max-plan UI). Telemetry-only names without extra control flow beyond the FAILs above are not treated as missing features."
+}

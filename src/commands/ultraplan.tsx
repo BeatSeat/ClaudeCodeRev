@@ -29,11 +29,13 @@ import {
   UltraplanPollError,
 } from '../utils/ultraplan/ccrSession.js'
 
-// TODO(prod-hardening): OAuth token may go stale over the 30min poll;
-// consider refresh.
-
-// Multi-agent exploration is slow; 30min timeout.
-const ULTRAPLAN_TIMEOUT_MS = 30 * 60 * 1000
+// Official 2.1.90: I8("tengu_ultraplan_timeout_seconds", 1800)*1000
+function getUltraplanTimeoutMs(): number {
+  return (
+    getFeatureValue_CACHED_MAY_BE_STALE('tengu_ultraplan_timeout_seconds', 1800) *
+    1000
+  )
+}
 
 export const CCR_TERMS_URL =
   'https://code.claude.com/docs/en/claude-code-on-the-web'
@@ -108,7 +110,7 @@ function startDetachedPoll(
       const { plan, rejectCount, executionTarget } =
         await pollForApprovedExitPlanMode(
           sessionId,
-          ULTRAPLAN_TIMEOUT_MS,
+          getUltraplanTimeoutMs(),
           phase => {
             if (phase === 'needs_input')
               logEvent('tengu_ultraplan_awaiting_input', {})

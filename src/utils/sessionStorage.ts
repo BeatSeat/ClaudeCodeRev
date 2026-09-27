@@ -4032,10 +4032,11 @@ export async function loadAllProjectsMessageLogsProgressive(
     .filter(dirent => dirent.isDirectory())
     .map(dirent => join(projectsDir, dirent.name))
 
-  const rawLogs: LogOption[] = []
-  for (const projectDir of projectDirs) {
-    rawLogs.push(...(await getSessionFilesLite(projectDir, limit)))
-  }
+  const rawLogs = (
+    await Promise.all(
+      projectDirs.map(projectDir => getSessionFilesLite(projectDir, limit)),
+    )
+  ).flat()
   // Deduplicate — same session can appear in multiple project dirs
   const sorted = deduplicateLogsBySessionId(rawLogs)
 
@@ -4364,6 +4365,14 @@ export function isLoggableMessage(m: Message): boolean {
     if (m.attachment.type === 'hook_deferred_tool') {
       return true
     }
+    if (
+      m.attachment.type === 'deferred_tools_delta' ||
+      m.attachment.type === 'mcp_instructions_delta' ||
+      m.attachment.type === 'agent_listing_delta' ||
+      m.attachment.type === 'companion_intro'
+    ) {
+      return true
+    }
     return false
   }
   return true
@@ -4589,6 +4598,8 @@ type LiteMetadata = {
   summary?: string
   tag?: string
   agentSetting?: string
+  entrypoint?: string
+  isLoopSession?: boolean
   prNumber?: number
   prUrl?: string
   prRepository?: string
@@ -4747,6 +4758,9 @@ async function readLiteMetadata(
   const { head, tail } = await readHeadAndTail(filePath, fileSize, buf)
   if (!head) return { firstPrompt: '', isSidechain: false }
 
+  const entrypoint = extractJsonStringField(head, 'entrypoint')
+  const isLoopSession = head.includes('<command-name>/loop</command-name>')
+
   // Extract stable metadata from the first line via string search.
   // Works even when the first line is truncated (>64KB message).
   const isSidechain =
@@ -4809,6 +4823,8 @@ async function readLiteMetadata(
     summary,
     tag,
     agentSetting,
+    entrypoint,
+    isLoopSession,
     prNumber,
     prUrl,
     prRepository,
@@ -5065,6 +5081,22 @@ async function enrichLog(
   if (enriched.teamName) {
     logForDebugging(
       `Session ${log.sessionId} filtered from /resume: teamName=${enriched.teamName}`,
+    )
+    return null
+  }
+  if (
+    meta.entrypoint === 'sdk-cli' ||
+    meta.entrypoint === 'sdk-ts' ||
+    meta.entrypoint === 'sdk-py'
+  ) {
+    logForDebugging(
+      `Session ${log.sessionId} filtered from /resume: entrypoint=${meta.entrypoint}`,
+    )
+    return null
+  }
+  if (meta.isLoopSession) {
+    logForDebugging(
+      `Session ${log.sessionId} filtered from /resume: /loop session`,
     )
     return null
   }
