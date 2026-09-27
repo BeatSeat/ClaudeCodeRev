@@ -25,6 +25,11 @@ import {
   MONITOR_TOOL_NAME,
 } from './prompt.js'
 import {
+  getPushNotificationEventHint,
+  getPushNotificationPromptSection,
+  isPushWhenClaudeDecidesEnabled,
+} from '../PushNotificationTool/prompt.js'
+import {
   getToolUseSummary,
   renderToolResultMessage,
   renderToolUseMessage,
@@ -94,13 +99,18 @@ function enqueueMonitorEvent(
   description: string,
   event: string,
   taskId?: string,
+  opts?: { housekeeping?: boolean },
 ): void {
   const taskIdLine = taskId
     ? `\n<${TASK_ID_TAG}>${escapeXml(taskId)}</${TASK_ID_TAG}>`
     : ''
+  const pushHint =
+    !opts?.housekeeping && isPushWhenClaudeDecidesEnabled()
+      ? `\n${getPushNotificationEventHint()}`
+      : ''
   const message = `<${TASK_NOTIFICATION_TAG}>${taskIdLine}
 <${SUMMARY_TAG}>Monitor event: "${escapeXml(description)}"</${SUMMARY_TAG}>
-<event>${escapeXml(event)}</event>
+<event>${escapeXml(event)}</event>${pushHint}
 </${TASK_NOTIFICATION_TAG}>`
   enqueuePendingNotification({
     value: message,
@@ -221,6 +231,7 @@ async function startMonitor(
           description,
           `[${suppressed} events suppressed — output rate too high. Consider using TaskStop to restart this monitor with a more selective filter.]`,
           taskRef.id,
+          { housekeeping: true },
         )
         suppressed = 0
         if (
@@ -244,6 +255,7 @@ async function startMonitor(
         description,
         `[Monitor stopped — your script produced too much output (${suppressed} events suppressed over ${Math.round((Date.now() - overRateSince) / 1000)}s). Write a new monitor command that filters more aggressively — pipe through grep --line-buffered, awk, or a wrapper script that only emits the specific events you need.]`,
         taskRef.id,
+        { housekeeping: true },
       )
       if (taskRef.id) {
         emitTaskTerminatedSdk(taskRef.id, 'stopped', {
@@ -289,6 +301,7 @@ async function startMonitor(
           description,
           '[Monitor timed out — re-arm if needed.]',
           handle.taskId,
+          { housekeeping: true },
         )
         emitTaskTerminatedSdk(handle.taskId, 'stopped', {
           toolUseId,
@@ -345,10 +358,14 @@ export const MonitorTool = buildTool({
     }
   },
   async description() {
-    return DESCRIPTION
+    return isPushWhenClaudeDecidesEnabled()
+      ? DESCRIPTION + getPushNotificationPromptSection()
+      : DESCRIPTION
   },
   async prompt() {
-    return DESCRIPTION
+    return isPushWhenClaudeDecidesEnabled()
+      ? DESCRIPTION + getPushNotificationPromptSection()
+      : DESCRIPTION
   },
   get inputSchema(): InputSchema {
     return inputSchema()

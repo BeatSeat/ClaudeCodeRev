@@ -180,6 +180,11 @@ export async function cleanupOldSessionFiles(): Promise<CleanupResult> {
       continue
     }
 
+    // Official 2.1.110: directories first so tool-results cleanup runs
+    // before the sibling-dir rm triggered by deleting the .jsonl.
+    entries.sort(
+      (a, b) => Number(b.isDirectory()) - Number(a.isDirectory()),
+    )
     for (const entry of entries) {
       if (entry.isFile()) {
         if (!entry.name.endsWith('.jsonl') && !entry.name.endsWith('.cast')) {
@@ -190,6 +195,18 @@ export async function cleanupOldSessionFiles(): Promise<CleanupResult> {
             await unlinkIfOld(join(projectDir, entry.name), cutoffDate, fsImpl)
           ) {
             result.messages++
+            // Session dir (subagent transcripts, tool-results) shares the
+            // jsonl stem. 109 only tryRmdir'd when empty.
+            if (entry.name.endsWith('.jsonl')) {
+              const stem = entry.name.slice(0, -'.jsonl'.length)
+              if (stem && stem !== '.' && stem !== '..') {
+                await fsImpl
+                  .rm(join(projectDir, stem), { recursive: true, force: true })
+                  .catch(() => {
+                    result.errors++
+                  })
+              }
+            }
           }
         } catch {
           result.errors++

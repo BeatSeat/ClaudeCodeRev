@@ -119,6 +119,9 @@ export type EnvLessBridgeParams = {
   onSetPermissionMode?: (
     mode: PermissionMode,
   ) => { ok: true } | { ok: false; error: string }
+  onRenameSession?: (
+    title: string,
+  ) => { ok: true } | { ok: false; error: string }
   onStateChange?: (state: BridgeState, detail?: string) => void
   /**
    * When true, skip opening the SSE read stream — only the CCRClient write
@@ -156,6 +159,7 @@ export async function initEnvLessBridgeCore(
     onSetModel,
     onSetMaxThinkingTokens,
     onSetPermissionMode,
+    onRenameSession,
     onStateChange,
     outboundOnly,
     tags,
@@ -198,8 +202,8 @@ export async function initEnvLessBridgeCore(
     cfg,
   )
   if (!credentials || isUntrustedDeviceBridgeResponse(credentials)) {
-    const msg = credentials
-      ? UNTRUSTED_DEVICE_ENROLL_MSG
+    const msg = isUntrustedDeviceBridgeResponse(credentials)
+      ? terminalBridgeReasonMessage(credentials.reason)
       : 'Remote credentials fetch failed — see debug log'
     logForDebugging(
       `[remote-bridge] Creds failed; onStateChange ${onStateChange ? 'set' : 'UNSET'}, msg="${msg}"`,
@@ -365,7 +369,7 @@ export async function initEnvLessBridgeCore(
           if (!fresh || tornDown) return
           if (isUntrustedDeviceBridgeResponse(fresh)) {
             if (!tornDown) {
-              onStateChange?.('failed', UNTRUSTED_DEVICE_ENROLL_MSG)
+              onStateChange?.('failed', terminalBridgeReasonMessage(fresh.reason))
             }
             return
           }
@@ -460,6 +464,7 @@ export async function initEnvLessBridgeCore(
             onSetModel,
             onSetMaxThinkingTokens,
             onSetPermissionMode,
+            onRenameSession,
             outboundOnly,
           }),
       )
@@ -587,7 +592,7 @@ export async function initEnvLessBridgeCore(
       }
       if (isUntrustedDeviceBridgeResponse(fresh)) {
         if (!tornDown) {
-          onStateChange?.('failed', UNTRUSTED_DEVICE_ENROLL_MSG)
+          onStateChange?.('failed', terminalBridgeReasonMessage(fresh.reason))
         }
         return
       }
@@ -946,7 +951,7 @@ import {
   createCodeSession,
   fetchRemoteCredentials as fetchRemoteCredentialsRaw,
   isUntrustedDeviceBridgeResponse,
-  UNTRUSTED_DEVICE_ENROLL_MSG,
+  terminalBridgeReasonMessage,
   type RemoteCredentials,
   type RemoteCredentialsResult,
 } from './codeSessionApi.js'

@@ -437,6 +437,24 @@ export function getRuleByContentsForToolName(
 }
 
 /**
+ * Official 110 j98: if a PermissionRequest hook allowed a call with
+ * updatedInput, re-check that rewritten input against deny/ask rules.
+ * Returns the rule decision when it overrides, otherwise null.
+ */
+export function permissionRequestHookUpdatedInputOverride(
+  ruleCheck: PermissionAskDecision | PermissionDenyDecision | null,
+  toolName: string,
+): PermissionAskDecision | PermissionDenyDecision | null {
+  if (ruleCheck?.behavior === 'deny' || ruleCheck?.behavior === 'ask') {
+    logForDebugging(
+      `PermissionRequest hook allowed ${toolName} with updatedInput, but ${ruleCheck.behavior} rule overrides: ${ruleCheck.message}`,
+    )
+    return ruleCheck
+  }
+  return null
+}
+
+/**
  * Runs PermissionRequest hooks for headless/async agents that cannot show
  * permission prompts. This gives hooks an opportunity to allow or deny
  * tool use before the fallback auto-deny kicks in.
@@ -468,6 +486,26 @@ async function runPermissionRequestHooksForHeadlessAgent(
       const decision = hookResult.permissionRequestResult
       if (decision.behavior === 'allow') {
         const finalInput = decision.updatedInput ?? input
+        // Official 110 j98: hook-rewritten input must be re-checked against
+        // permissions.deny (and ask). Headless cannot prompt, so ask → deny.
+        if (decision.updatedInput) {
+          const override = permissionRequestHookUpdatedInputOverride(
+            await checkRuleBasedPermissions(tool, finalInput, context),
+            tool.name,
+          )
+          if (override) {
+            return override.behavior === 'ask'
+              ? {
+                  behavior: 'deny',
+                  message: override.message,
+                  decisionReason: override.decisionReason ?? {
+                    type: 'other',
+                    reason: 'ask rule on hook-rewritten input',
+                  },
+                }
+              : override
+          }
+        }
         // Persist permission updates if provided
         if (decision.updatedPermissions?.length) {
           persistPermissionUpdates(decision.updatedPermissions)

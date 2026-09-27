@@ -1,3 +1,4 @@
+import { spawnSync } from 'child_process'
 import {
   expandPastedTextRefs,
   formatPastedTextRef,
@@ -6,11 +7,12 @@ import {
 import instances from '../ink/instances.js'
 import type { PastedContent } from './config.js'
 import { classifyGuiEditor, getExternalEditor } from './editor.js'
-import { execSync_DEPRECATED } from './execSyncWrapper.js'
 import { getFsImplementation } from './fsOperations.js'
 import { toIDEDisplayName } from './ide.js'
 import { writeFileSync_DEPRECATED } from './slowOperations.js'
 import { generateTempFilePath } from './tempfile.js'
+import { extractTextContent } from './messages.js'
+import type { Message } from '../types/message.js'
 
 // Map of editor command overrides (e.g., to add wait flags)
 const EDITOR_OVERRIDES: Record<string, string> = {
@@ -66,29 +68,40 @@ export function editFileInEditor(filePath: string): EditorResult {
   try {
     // Use override command if available, otherwise use the editor as-is
     const editorCommand = EDITOR_OVERRIDES[editor] ?? editor
-    execSync_DEPRECATED(`${editorCommand} "${filePath}"`, {
-      stdio: 'inherit',
-    })
+    const parts = editorCommand.split(' ')
+    const base = parts[0] ?? editorCommand
+    const editorArgs = parts.slice(1)
+    // Official 110: POSIX spawnSync argv (no shell) so untrusted filenames
+    // cannot inject. win32 still needs shell:true for .cmd / start.
+    let result
+    if (process.platform === 'win32') {
+      result = spawnSync(`${editorCommand} "${filePath}"`, {
+        stdio: 'inherit',
+        shell: true,
+      })
+    } else {
+      result = spawnSync(base, [...editorArgs, filePath], {
+        stdio: 'inherit',
+      })
+    }
+    if (
+      result.error ||
+      result.signal ||
+      (result.status !== null && result.status !== 0)
+    ) {
+      const editorName = toIDEDisplayName(editor)
+      const detail = result.error
+        ? result.error.message
+        : result.signal
+          ? `terminated by signal ${result.signal}`
+          : `exited with code ${result.status}`
+      return { content: null, error: `${editorName} ${detail}` }
+    }
 
     // Read the edited content
     const editedContent = fs.readFileSync(filePath, { encoding: 'utf-8' })
     return { content: editedContent }
-  } catch (err) {
-    if (
-      typeof err === 'object' &&
-      err !== null &&
-      'status' in err &&
-      typeof (err as { status: unknown }).status === 'number'
-    ) {
-      const status = (err as { status: number }).status
-      if (status !== 0) {
-        const editorName = toIDEDisplayName(editor)
-        return {
-          content: null,
-          error: `${editorName} exited with code ${status}`,
-        }
-      }
-    }
+  } catch {
     return { content: null }
   } finally {
     if (useAlternateScreen) {
@@ -134,10 +147,79 @@ function recollapsePastedContent(
   return collapsed
 }
 
+const LAST_RESPONSE_DIVIDER =
+  '# ─── Write your reply below this line ──────────────────────────'
+const LAST_RESPONSE_MAX_LINES = 50
+
+/** Official DSK: last N assistant text turns, capped by byte length. */
+export function collectLastAssistantResponses(
+  messages: readonly Message[],
+  maxMessages = 8,
+  maxBytes = 65536,
+): { messages: string[]; capped: boolean } {
+  const collected: string[] = []
+  let bytes = 0
+  let capped = false
+  for (let i = messages.length - 1; i >= 0; i--) {
+    const msg = messages[i]
+    if (!msg) continue
+    if (msg.type === 'assistant') {
+      const content = msg.message.content
+      const text = (
+        typeof content === 'string'
+          ? content
+          : extractTextContent(content, '\n')
+      ).trim()
+      if (!text) continue
+      const size = Buffer.byteLength(text, 'utf8')
+      if (
+        collected.length >= maxMessages ||
+        (collected.length > 0 && bytes + size > maxBytes)
+      ) {
+        capped = true
+        break
+      }
+      collected.push(text)
+      bytes += size
+    } else if (msg.type === 'user') {
+      const content = msg.message.content
+      if (typeof content !== 'string' && content.some(b => b.type === 'tool_result')) {
+        continue
+      }
+      if (msg.isMeta) continue
+      break
+    }
+  }
+  collected.reverse()
+  return { messages: collected, capped }
+}
+
+/** Official SSY: comment-wrap last response for the external editor. */
+function wrapLastResponseContext(text: string): string {
+  let lines = text.split('\n')
+  if (lines.length > LAST_RESPONSE_MAX_LINES) {
+    lines = lines.slice(-LAST_RESPONSE_MAX_LINES)
+    lines.unshift('… (earlier output truncated)')
+  }
+  return (
+    `# ─── Claude's last response (for reference; removed on save) ───\n` +
+    `${lines.map(line => (line ? `# ${line}` : '#')).join('\n')}\n` +
+    `${LAST_RESPONSE_DIVIDER}\n\n`
+  )
+}
+
+/** Official CSY: strip the commented last-response preamble on save. */
+function unwrapLastResponseContext(text: string): string {
+  const idx = text.indexOf(LAST_RESPONSE_DIVIDER)
+  if (idx === -1) return text
+  return text.slice(idx + LAST_RESPONSE_DIVIDER.length).replace(/^\r?\n\r?\n?/, '')
+}
+
 // sync IO: called from sync context (React components, sync command handlers)
 export function editPromptInEditor(
   currentPrompt: string,
   pastedContents?: Record<number, PastedContent>,
+  lastResponseContext?: string,
 ): EditorResult {
   const fs = getFsImplementation()
   const tempFile = generateTempFilePath()
@@ -148,8 +230,12 @@ export function editPromptInEditor(
       ? expandPastedTextRefs(currentPrompt, pastedContents)
       : currentPrompt
 
+    const toWrite = lastResponseContext
+      ? wrapLastResponseContext(lastResponseContext) + expandedPrompt
+      : expandedPrompt
+
     // Write expanded prompt to temp file
-    writeFileSync_DEPRECATED(tempFile, expandedPrompt, {
+    writeFileSync_DEPRECATED(tempFile, toWrite, {
       encoding: 'utf-8',
       flush: true,
     })
@@ -161,8 +247,12 @@ export function editPromptInEditor(
       return result
     }
 
-    // Trim a single trailing newline if present (common editor behavior)
     let finalContent = result.content
+    if (lastResponseContext) {
+      finalContent = unwrapLastResponseContext(finalContent)
+    }
+
+    // Trim a single trailing newline if present (common editor behavior)
     if (finalContent.endsWith('\n') && !finalContent.endsWith('\n\n')) {
       finalContent = finalContent.slice(0, -1)
     }

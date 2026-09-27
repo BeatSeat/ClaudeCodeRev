@@ -1,5 +1,9 @@
 import React, { useMemo } from 'react'
-import { getMcpConfigsByScope } from 'src/services/mcp/config.js'
+import {
+  findMcpScopeConflicts,
+  getMcpConfigsByScope,
+  type McpScopeConflict,
+} from 'src/services/mcp/config.js'
 import type { ConfigScope } from 'src/services/mcp/types.js'
 import {
   describeMcpConfigFilePath,
@@ -81,21 +85,60 @@ function McpConfigErrorSection({
   )
 }
 
+function McpScopeConflictRow({
+  conflict,
+  index,
+}: {
+  conflict: McpScopeConflict
+  index: number
+}): React.ReactNode {
+  return (
+    <Box key={`conflict-${index}`} flexDirection="column">
+      <Text>
+        <Text dimColor>└ </Text>
+        <Text color="warning">[Warning]</Text>
+        <Text dimColor> {conflict.message}</Text>
+      </Text>
+      {conflict.suggestion && (
+        <Text dimColor>
+          {'  '}
+          Suggestion: {conflict.suggestion}
+        </Text>
+      )}
+    </Box>
+  )
+}
+
 export function McpParsingWarnings(): React.ReactNode {
   // Config files don't change during dialog lifetime; read once on mount
   // to avoid blocking file IO on every re-render.
   const scopes = useMemo(
     () =>
       [
-        { scope: 'user', config: getMcpConfigsByScope('user') },
-        { scope: 'project', config: getMcpConfigsByScope('project') },
-        { scope: 'local', config: getMcpConfigsByScope('local') },
-        { scope: 'enterprise', config: getMcpConfigsByScope('enterprise') },
+        { scope: 'user' as const, config: getMcpConfigsByScope('user') },
+        { scope: 'project' as const, config: getMcpConfigsByScope('project') },
+        { scope: 'local' as const, config: getMcpConfigsByScope('local') },
+        {
+          scope: 'enterprise' as const,
+          config: getMcpConfigsByScope('enterprise'),
+        },
       ] satisfies Array<{
         scope: ConfigScope
-        config: { errors: ValidationError[] }
+        config: ReturnType<typeof getMcpConfigsByScope>
       }>,
     [],
+  )
+
+  // Official 2.1.110 `w9K`: enterprise is excluded from conflict detection
+  // (`RRY`) — managed policy is not something /doctor tells the user to remove.
+  const conflicts = useMemo(
+    () =>
+      findMcpScopeConflicts(
+        scopes
+          .filter(({ scope }) => scope !== 'enterprise')
+          .map(({ scope, config }) => ({ scope, servers: config.servers })),
+      ),
+    [scopes],
   )
 
   const hasParsingErrors = scopes.some(
@@ -105,7 +148,7 @@ export function McpParsingWarnings(): React.ReactNode {
     ({ config }) => filterErrors(config.errors, 'warning').length > 0,
   )
 
-  if (!hasParsingErrors && !hasWarnings) {
+  if (!hasParsingErrors && !hasWarnings && conflicts.length === 0) {
     return null
   }
 
@@ -128,13 +171,20 @@ export function McpParsingWarnings(): React.ReactNode {
           warnings={filterErrors(config.errors, 'warning')}
         />
       ))}
-      {/* TODO: Add additional diagnostic sections:
-       * - Duplicate Server Names (check for servers with same name across scopes)
-       * This section should include:
-       * - File paths where each server is defined
-       * - More detailed location info for user/local scopes
-       * - Approved / disabled status of servers
-       */}
+      {conflicts.length > 0 && (
+        <Box flexDirection="column" marginTop={1}>
+          <Text color="warning">[Conflicting scopes]</Text>
+          <Box marginLeft={1} flexDirection="column">
+            {conflicts.map((conflict, i) => (
+              <McpScopeConflictRow
+                key={`conflict-${i}`}
+                conflict={conflict}
+                index={i}
+              />
+            ))}
+          </Box>
+        </Box>
+      )}
     </Box>
   )
 }

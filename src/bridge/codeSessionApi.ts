@@ -96,36 +96,66 @@ export type UntrustedDeviceBridgeResponse = {
   reason: 'untrusted_device'
 }
 
+/** Official 2.1.110: session too old for trusted-device check — re-login. */
+export type SessionStaleReloginBridgeResponse = {
+  terminal: true
+  reason: 'session_stale_relogin'
+}
+
+export type TerminalBridgeResponse =
+  | UntrustedDeviceBridgeResponse
+  | SessionStaleReloginBridgeResponse
+
 export type RemoteCredentialsResult =
   | RemoteCredentials
-  | UntrustedDeviceBridgeResponse
+  | TerminalBridgeResponse
   | null
 
 export const UNTRUSTED_DEVICE_ENROLL_MSG =
   'run /login to enroll this device'
 
+export const SESSION_STALE_RELOGIN_MSG =
+  'session expired for trusted-device check — run /login to re-authenticate'
+
 export function isUntrustedDeviceBridgeResponse(
   value: RemoteCredentialsResult,
-): value is UntrustedDeviceBridgeResponse {
+): value is TerminalBridgeResponse {
   return value !== null && 'terminal' in value
 }
 
-function isUntrustedDeviceBridgeError(
+/** Official 2.1.110 UJ7 */
+export function terminalBridgeReasonMessage(
+  reason: TerminalBridgeResponse['reason'],
+): string {
+  switch (reason) {
+    case 'untrusted_device':
+      return UNTRUSTED_DEVICE_ENROLL_MSG
+    case 'session_stale_relogin':
+      return SESSION_STALE_RELOGIN_MSG
+  }
+}
+
+/** Official 2.1.110 b1A — extract error.resource from /bridge 403. */
+function extractBridgeErrorResource(
   data: unknown,
   detail: string | undefined,
-): boolean {
+): TerminalBridgeResponse['reason'] | undefined {
   if (
     data !== null &&
     typeof data === 'object' &&
     'error' in data &&
     data.error !== null &&
     typeof data.error === 'object' &&
-    'resource' in data.error &&
-    data.error.resource === 'untrusted_device'
+    'resource' in data.error
   ) {
-    return true
+    const resource = data.error.resource
+    if (resource === 'untrusted_device' || resource === 'session_stale_relogin') {
+      return resource
+    }
+    return undefined
   }
-  return detail?.includes('trusted device') ?? false
+  if (detail?.includes('trusted device')) return 'untrusted_device'
+  return undefined
 }
 
 export async function fetchRemoteCredentials(
@@ -163,11 +193,11 @@ export async function fetchRemoteCredentials(
     logForDebugging(
       `[code-session] /bridge failed ${response.status}${detail ? `: ${detail}` : ''}`,
     )
-    if (
-      response.status === 403 &&
-      isUntrustedDeviceBridgeError(response.data, detail)
-    ) {
-      return { terminal: true, reason: 'untrusted_device' }
+    if (response.status === 403) {
+      const resource = extractBridgeErrorResource(response.data, detail)
+      if (resource) {
+        return { terminal: true, reason: resource }
+      }
     }
     return null
   }

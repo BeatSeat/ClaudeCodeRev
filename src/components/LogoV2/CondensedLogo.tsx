@@ -27,6 +27,12 @@ import {
   OverageCreditUpsell,
   useShowOverageCreditUpsell,
 } from './OverageCreditUpsell.js'
+import {
+  FullscreenUpsell,
+  incrementFullscreenUpsellSeenCount,
+  TuiJustSwitchedNotice,
+  useShowFullscreenUpsell,
+} from './FullscreenUpsell.js'
 
 export function CondensedLogo(): ReactNode {
   const { columns } = useTerminalSize()
@@ -40,6 +46,8 @@ export function CondensedLogo(): ReactNode {
   const agentName = agent ?? agentNameFromSettings
   const showGuestPassesUpsell = useShowGuestPassesUpsell()
   const showOverageCreditUpsell = useShowOverageCreditUpsell()
+  const showFullscreenUpsell = useShowFullscreenUpsell()
+  const justSwitchedTui = process.env.CLAUDE_CODE_TUI_JUST_SWITCHED !== undefined
 
   useEffect(() => {
     if (showGuestPassesUpsell) {
@@ -52,6 +60,16 @@ export function CondensedLogo(): ReactNode {
       incrementOverageCreditUpsellSeenCount()
     }
   }, [showOverageCreditUpsell, showGuestPassesUpsell])
+
+  useEffect(() => {
+    if (
+      showFullscreenUpsell &&
+      !showGuestPassesUpsell &&
+      !showOverageCreditUpsell
+    ) {
+      incrementFullscreenUpsellSeenCount()
+    }
+  }, [showFullscreenUpsell, showGuestPassesUpsell, showOverageCreditUpsell])
 
   // Calculate available width for text content
   // Account for: condensed clawd width (11 chars) + gap (2) + padding (2) = 15 chars
@@ -86,33 +104,47 @@ export function CondensedLogo(): ReactNode {
   // of which changing while in scrollback would force a full terminal reset.
   return (
     <OffscreenFreeze>
-      <Box flexDirection="row" gap={2} alignItems="center">
-      {isFullscreenEnvEnabled() ? <AnimatedClawd /> : <Clawd />}
-
-      {/* Info */}
       <Box flexDirection="column">
-        <Text>
-          <Text bold>Claude Code</Text>{' '}
-          <Text dimColor>v{truncatedVersion}</Text>
-        </Text>
-        {shouldSplit ? (
-          <>
-            <Text dimColor>{truncatedModel}</Text>
-            <Text dimColor>{truncatedBilling}</Text>
-          </>
-        ) : (
-          <Text dimColor>
-            {truncatedModel} · {truncatedBilling}
-          </Text>
+        <Box flexDirection="row" gap={2} alignItems="center">
+          {isFullscreenEnvEnabled() ? <AnimatedClawd /> : <Clawd />}
+
+          {/* Info */}
+          <Box flexDirection="column">
+            <Text>
+              <Text bold>Claude Code</Text>{' '}
+              <Text dimColor>v{truncatedVersion}</Text>
+            </Text>
+            {shouldSplit ? (
+              <>
+                <Text dimColor>{truncatedModel}</Text>
+                <Text dimColor>{truncatedBilling}</Text>
+              </>
+            ) : (
+              <Text dimColor>
+                {truncatedModel} · {truncatedBilling}
+              </Text>
+            )}
+            <Text dimColor>
+              {agentName ? `@${agentName} · ${truncatedCwd}` : truncatedCwd}
+            </Text>
+            {showGuestPassesUpsell && <GuestPassesUpsell />}
+            {!showGuestPassesUpsell && showOverageCreditUpsell && (
+              <OverageCreditUpsell maxWidth={textWidth} twoLine />
+            )}
+          </Box>
+        </Box>
+        {justSwitchedTui && (
+          <Box paddingLeft={2} flexDirection="column" marginTop={1}>
+            <TuiJustSwitchedNotice />
+          </Box>
         )}
-        <Text dimColor>
-          {agentName ? `@${agentName} · ${truncatedCwd}` : truncatedCwd}
-        </Text>
-        {showGuestPassesUpsell && <GuestPassesUpsell />}
-        {!showGuestPassesUpsell && showOverageCreditUpsell && (
-          <OverageCreditUpsell maxWidth={textWidth} twoLine />
-        )}
-      </Box>
+        {!showGuestPassesUpsell &&
+          !showOverageCreditUpsell &&
+          showFullscreenUpsell && (
+            <Box paddingLeft={2} flexDirection="column" marginTop={1}>
+              <FullscreenUpsell />
+            </Box>
+          )}
       </Box>
     </OffscreenFreeze>
   )

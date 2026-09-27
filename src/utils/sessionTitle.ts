@@ -17,6 +17,14 @@ import { getIsNonInteractiveSession } from '../bootstrap/state.js'
 import { logEvent } from '../services/analytics/index.js'
 import { queryHaiku } from '../services/api/claude.js'
 import type { Message } from '../types/message.js'
+import {
+  BASH_INPUT_TAG,
+  COMMAND_MESSAGE_TAG,
+  COMMAND_NAME_TAG,
+  LOCAL_COMMAND_STDOUT_TAG,
+} from '../constants/xml.js'
+import { isEssentialTrafficOnly } from './privacyLevel.js'
+import { isEnvTruthy } from './envUtils.js'
 import { logForDebugging } from './debug.js'
 import { safeParseJSON } from './json.js'
 import { lazySchema } from './lazySchema.js'
@@ -70,6 +78,27 @@ Bad (too long): {"title": "Investigate and fix the issue where the login button 
 Bad (wrong case): {"title": "Fix Login Button On Mobile"}`
 
 const titleSchema = lazySchema(() => z.object({ title: z.string() }))
+
+/**
+ * Official 2.1.110 `tgK`. Headless/SDK auto-title must not fire a Haiku
+ * request when nonessential traffic is off or the user opted out of titles.
+ */
+export function isSessionTitleGenerationDisabled(): boolean {
+  return (
+    isEssentialTrafficOnly() ||
+    isEnvTruthy(process.env.CLAUDE_CODE_DISABLE_TERMINAL_TITLE)
+  )
+}
+
+/** Official 2.1.110 `ll8`. Slash/bash breadcrumbs are not a session topic. */
+export function isSyntheticSessionTitleInput(text: string): boolean {
+  return (
+    text.startsWith(`<${LOCAL_COMMAND_STDOUT_TAG}>`) ||
+    text.startsWith(`<${COMMAND_MESSAGE_TAG}>`) ||
+    text.startsWith(`<${COMMAND_NAME_TAG}>`) ||
+    text.startsWith(`<${BASH_INPUT_TAG}>`)
+  )
+}
 
 /**
  * Generate a sentence-case session title from a description or first message.

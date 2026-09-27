@@ -61,6 +61,8 @@ import bughunter from './commands/bughunter/index.js'
 import terminalSetup from './commands/terminalSetup/index.js'
 import usage from './commands/usage/index.js'
 import theme from './commands/theme/index.js'
+import tui from './commands/tui/index.js'
+import focus from './commands/focus/index.js'
 import { feature } from 'bun:bundle'
 // Dead code elimination: conditional imports
 /* eslint-disable @typescript-eslint/no-require-imports */
@@ -180,7 +182,7 @@ import memoize from 'lodash-es/memoize.js'
 import { isUsing3PServices, isClaudeAISubscriber } from './utils/auth.js'
 import { isFirstPartyAnthropicBaseUrl } from './utils/model/providers.js'
 import env from './commands/env/index.js'
-import exit from './commands/exit/index.js'
+import exit, { exitNonInteractive } from './commands/exit/index.js'
 import exportCommand from './commands/export/index.js'
 import model from './commands/model/index.js'
 import outputStyle from './commands/output-style/index.js'
@@ -288,6 +290,7 @@ const COMMANDS = memoize((): Command[] => [
   exit,
   fast,
   files,
+  focus,
   heapDump,
   help,
   powerup,
@@ -316,6 +319,7 @@ const COMMANDS = memoize((): Command[] => [
   statusline,
   stickers,
   theme,
+  tui,
   feedback,
   review,
   ultrareview,
@@ -670,6 +674,9 @@ export const BRIDGE_SAFE_COMMANDS: Set<Command> = new Set(
     summary, // Summarize conversation
     releaseNotes, // Show changelog
     files, // List tracked files
+    contextNonInteractive, // Official 2.1.110 — /context from RC
+    exitNonInteractive, // Official 2.1.110 qaK — /exit from RC
+    reloadPlugins, // Official 2.1.110 — /reload-plugins from RC
   ].filter((c): c is Command => c !== null),
 )
 
@@ -687,6 +694,27 @@ export function isBridgeSafeCommand(cmd: Command): boolean {
   if (cmd.type === 'local-jsx') return false
   if (cmd.type === 'prompt') return true
   return BRIDGE_SAFE_COMMANDS.has(cmd)
+}
+
+/**
+ * Official 2.1.110 kj7 — local-jsx commands blocked on RC can still run
+ * if BRIDGE_SAFE_COMMANDS has a same-name `local` counterpart.
+ */
+export function findBridgeSafeLocalCommand(
+  cmd: Command,
+): Command | undefined {
+  if (cmd.type !== 'local-jsx') return undefined
+  for (const candidate of BRIDGE_SAFE_COMMANDS) {
+    if (candidate.name === cmd.name && candidate.type === 'local') {
+      return candidate
+    }
+  }
+  return undefined
+}
+
+/** Official 2.1.110 esK — advertise to mobile/web if safe or has a local counterpart. */
+export function isRemoteControlCommand(cmd: Command): boolean {
+  return isBridgeSafeCommand(cmd) || findBridgeSafeLocalCommand(cmd) !== undefined
 }
 
 /**

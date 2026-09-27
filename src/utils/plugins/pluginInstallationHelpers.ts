@@ -16,6 +16,7 @@ import {
 import { getCwd } from '../cwd.js'
 import { toError } from '../errors.js'
 import { getFsImplementation } from '../fsOperations.js'
+import { logForDebugging } from '../debug.js'
 import { logError } from '../log.js'
 import {
   getSettingsForSource,
@@ -26,6 +27,7 @@ import { clearAllCaches } from './cacheUtils.js'
 import {
   formatDependencyCountSuffix,
   getEnabledPluginIdsForScope,
+  qualifyDependency,
   type ResolutionResult,
   resolveDependencyClosure,
 } from './dependencyResolver.js'
@@ -123,7 +125,7 @@ export function validatePathWithinBase(
  *                'managed' scope is used for plugins installed automatically from managed settings.
  * @param projectPath - Project path (required for project/local scopes)
  * @param localSourcePath - For local plugins, the resolved absolute path to the source directory
- * @returns The installation path
+ * @returns Installation path plus plugin.json dependencies (official 2.1.110 `ee6`)
  */
 export async function cacheAndRegisterPlugin(
   pluginId: string,
@@ -131,7 +133,7 @@ export async function cacheAndRegisterPlugin(
   scope: PluginScope = 'user',
   projectPath?: string,
   localSourcePath?: string,
-): Promise<string> {
+): Promise<{ path: string; dependencies?: string[] }> {
   // For local plugins, we need the resolved absolute path
   // Cast to PluginSource since cachePlugin handles any string path at runtime
   const source: PluginSource =
@@ -222,7 +224,10 @@ export async function cacheAndRegisterPlugin(
     projectPath,
   )
 
-  return finalPath
+  return {
+    path: finalPath,
+    dependencies: cacheResult.manifest.dependencies,
+  }
 }
 
 /**
@@ -345,6 +350,61 @@ export function formatResolutionError(
  * @param marketplaceInstallLocation Pass this if the caller already has it
  *   (from a prior marketplace search) to avoid a redundant lookup.
  */
+/**
+ * Official 2.1.110 `Y3z`. Marketplace entries may omit `dependencies` that
+ * plugin.json declares. Collect those extra IDs so install can auto-install
+ * them. Cross-marketplace / missing deps are skipped with a warning (not
+ * hard-fail) so a stale catalog cannot block the root install.
+ */
+async function collectExtraManifestDependencies(params: {
+  rootManifestDeps: string[] | undefined
+  pluginId: string
+  closureSet: Set<string>
+  alreadyEnabled: ReadonlySet<string>
+  rootMarketplace: string | undefined
+  allowedCrossMarketplaces: ReadonlySet<string>
+  depInfo: Map<
+    string,
+    { entry: PluginMarketplaceEntry; marketplaceInstallLocation: string }
+  >
+}): Promise<
+  | { ok: true; ids: string[] }
+  | { ok: false; blockedDependency: string }
+> {
+  const ids: string[] = []
+  for (const raw of params.rootManifestDeps ?? []) {
+    const dep = qualifyDependency(raw, params.pluginId)
+    if (params.closureSet.has(dep) || params.alreadyEnabled.has(dep)) {
+      continue
+    }
+    const depMarketplace = parsePluginIdentifier(dep).marketplace
+    if (
+      depMarketplace !== params.rootMarketplace &&
+      !(depMarketplace && params.allowedCrossMarketplaces.has(depMarketplace))
+    ) {
+      logForDebugging(
+        `${params.pluginId} plugin.json declares dependency "${dep}" in a different marketplace; not auto-installing — install it manually`,
+        { level: 'warn' },
+      )
+      continue
+    }
+    if (isPluginBlockedByPolicy(dep)) {
+      return { ok: false, blockedDependency: dep }
+    }
+    const info = await getPluginById(dep)
+    if (!info) {
+      logForDebugging(
+        `${params.pluginId} plugin.json declares dependency "${dep}" not found in any known marketplace; not auto-installing`,
+        { level: 'warn' },
+      )
+      continue
+    }
+    params.depInfo.set(dep, info)
+    ids.push(dep)
+  }
+  return { ok: true, ids }
+}
+
 export async function installResolvedPlugin({
   pluginId,
   entry,
@@ -445,7 +505,9 @@ export async function installResolvedPlugin({
 
   // ── Materialize: cache each closure member ──
   const projectPath = scope !== 'user' ? getCwd() : undefined
-  for (const id of resolution.closure) {
+  const closureIds = [...resolution.closure]
+  let rootManifestDeps: string[] | undefined
+  async function materializeOne(id: string): Promise<boolean> {
     let info = depInfo.get(id)
     // Root wasn't pre-seeded (caller didn't pass marketplaceInstallLocation
     // for a non-local source). Fetch now; it's needed for the cache write.
@@ -453,7 +515,7 @@ export async function installResolvedPlugin({
       const mktLocation = (await getPluginById(id))?.marketplaceInstallLocation
       if (mktLocation) info = { entry, marketplaceInstallLocation: mktLocation }
     }
-    if (!info) continue
+    if (!info) return false
 
     let localSourcePath: string | undefined
     const { source } = info.entry
@@ -463,21 +525,86 @@ export async function installResolvedPlugin({
         source,
       )
     }
-    await cacheAndRegisterPlugin(
+    const cached = await cacheAndRegisterPlugin(
       id,
       info.entry,
       scope,
       projectPath,
       localSourcePath,
     )
+    if (id === pluginId) {
+      rootManifestDeps = cached.dependencies
+    }
+    return true
+  }
+
+  for (const id of resolution.closure) {
+    await materializeOne(id)
+  }
+
+  // Official 2.1.110 `Y3z`: honor plugin.json dependencies the marketplace
+  // entry omitted. Extra IDs are enabled + cached; names land in depNote.
+  const extra = await collectExtraManifestDependencies({
+    rootManifestDeps,
+    pluginId,
+    closureSet: new Set(closureIds),
+    alreadyEnabled: getEnabledPluginIdsForScope(settingSource),
+    rootMarketplace,
+    allowedCrossMarketplaces,
+    depInfo,
+  })
+  if (!extra.ok) {
+    return {
+      ok: false,
+      reason: 'dependency-blocked-by-policy',
+      pluginName: entry.name,
+      blockedDependency: extra.blockedDependency,
+    }
+  }
+  if (extra.ids.length > 0) {
+    const extraEnabled: Record<string, true> = {}
+    for (const id of extra.ids) {
+      closureIds.push(id)
+      extraEnabled[id] = true
+    }
+    const { error: extraError } = updateSettingsForSource(settingSource, {
+      enabledPlugins: {
+        ...getSettingsForSource(settingSource)?.enabledPlugins,
+        ...extraEnabled,
+      },
+    })
+    if (extraError) {
+      return {
+        ok: false,
+        reason: 'settings-write-failed',
+        message: extraError.message,
+      }
+    }
+    for (const id of extra.ids) {
+      await materializeOne(id)
+    }
+  }
+
+  if (rootManifestDeps !== undefined) {
+    const fromManifest = new Set(
+      rootManifestDeps.map(d => qualifyDependency(d, pluginId)),
+    )
+    for (const raw of entry.dependencies ?? []) {
+      const dep = qualifyDependency(raw, pluginId)
+      if (!fromManifest.has(dep)) {
+        logForDebugging(
+          `Marketplace entry for ${pluginId} lists dependency "${dep}" not present in plugin.json — catalog may be stale`,
+        )
+      }
+    }
   }
 
   clearAllCaches()
 
   const depNote = formatDependencyCountSuffix(
-    resolution.closure.filter(id => id !== pluginId),
+    closureIds.filter(id => id !== pluginId),
   )
-  return { ok: true, closure: resolution.closure, depNote }
+  return { ok: true, closure: closureIds, depNote }
 }
 
 /**

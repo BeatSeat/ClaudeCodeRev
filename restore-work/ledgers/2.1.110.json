@@ -1,0 +1,174 @@
+{
+  "version": "2.1.110",
+  "fromVersion": "2.1.109",
+  "expectedFunctionCount": 0,
+  "functions": [],
+  "changelogCoverage": [
+    {
+      "item": "Added `/tui` command and `tui` setting — run `/tui fullscreen` to switch to flicker-free rendering in the same conversation",
+      "status": "located",
+      "evidence": "src/commands/tui/ + commands.ts + settings tui enum + fullscreen.ts reads tui; FullscreenUpsell.tsx"
+    },
+    {
+      "item": "Added push notification tool — Claude can send mobile push notifications when Remote Control and \"Push when Claude decides\" config are enabled",
+      "status": "located",
+      "evidence": "src/tools/PushNotificationTool/* wired in tools.ts; prompts.ts ki1 section when GB + agentPushNotifEnabled"
+    },
+    {
+      "item": "Changed `Ctrl+O` to toggle between normal and verbose transcript only; focus view is now toggled separately with the new `/focus` command",
+      "status": "located",
+      "evidence": "src/commands/focus/; useGlobalKeybindings.tsx no longer cycles focus on Ctrl+O"
+    },
+    {
+      "item": "Added `autoScrollEnabled` config to disable conversation auto-scroll in fullscreen mode",
+      "status": "located",
+      "evidence": "config.ts + Config.tsx + REPL.tsx repinScroll gate"
+    },
+    {
+      "item": "Added option to show Claude's last response as commented context in the `Ctrl+G` external editor (enable via `/config`)",
+      "status": "located",
+      "evidence": "externalEditorContext in config + promptEditor.ts wrap/unwrap"
+    },
+    {
+      "item": "Improved `/plugin` Installed tab — items needing attention and favorites appear at the top, disabled items are hidden behind a fold, and `f` favorites the selected item",
+      "status": "located",
+      "evidence": "ManagePlugins.tsx + favoritePlugins on GlobalConfig"
+    },
+    {
+      "item": "Improved `/doctor` to warn when an MCP server is defined in multiple config scopes with different endpoints",
+      "status": "located",
+      "evidence": "src/services/mcp/config.ts + McpParsingWarnings.tsx"
+    },
+    {
+      "item": "`--resume`/`--continue` now resurrects unexpired scheduled tasks",
+      "status": "located",
+      "evidence": "resurrectSessionCronTasks in sessionRestore.ts; REPL resume + initialMessages"
+    },
+    {
+      "item": "`/context`, `/exit`, and `/reload-plugins` now work from Remote Control (mobile/web) clients",
+      "status": "located",
+      "evidence": "BRIDGE_SAFE + exit-noninteractive + findBridgeSafeLocalCommand + processUserInput rewrite"
+    },
+    {
+      "item": "Write tool now informs the model when you edit the proposed content in the IDE diff before accepting",
+      "status": "located",
+      "evidence": "FileWriteTool userModified + toolExecution.ts permissionDecision.userModified"
+    },
+    {
+      "item": "Bash tool now enforces the documented maximum timeout instead of accepting arbitrarily large values",
+      "status": "located",
+      "evidence": "BashTool.tsx Math.min(..., getMaxTimeoutMs())"
+    },
+    {
+      "item": "SDK/headless sessions now read `TRACEPARENT`/`TRACESTATE` from the environment for distributed trace linking",
+      "status": "located",
+      "evidence": "sessionTracing.ts startInteractionSpan reads env TRACEPARENT/TRACESTATE"
+    },
+    {
+      "item": "Session recap is now enabled for users with telemetry disabled (Bedrock, Vertex, Foundry, `DISABLE_TELEMETRY`). Opt out via `/config` or `CLAUDE_CODE_ENABLE_AWAY_SUMMARY=0`.",
+      "status": "located",
+      "evidence": "tengu_sedge_lantern default true in awaySummary.ts, recap, Config.tsx"
+    },
+    {
+      "item": "Fixed MCP tool calls hanging indefinitely when the server connection drops mid-response on SSE/HTTP transports",
+      "status": "located",
+      "evidence": "src/services/mcp/client.ts truncated JSON-RPC reject on drop"
+    },
+    {
+      "item": "Fixed non-streaming fallback retries causing multi-minute hangs when the API is unreachable",
+      "status": "located",
+      "evidence": "withRetry.ts / claude.ts maxRetries cap 2 + 60s watchdog (111 later reverts this cap — do not pull that)"
+    },
+    {
+      "item": "Fixed session recap, local slash-command output, and other system status lines not appearing in focus mode",
+      "status": "located",
+      "evidence": "filterForFocusTranscript.ts system-message keep rules"
+    },
+    {
+      "item": "Fixed high CPU usage in fullscreen when text is selected while a tool is running",
+      "status": "located",
+      "evidence": "ink.tsx full-damage only when selection bounds change"
+    },
+    {
+      "item": "Fixed plugin install not honoring dependencies declared in `plugin.json` when the marketplace entry omits them; `/plugin` install now lists auto-installed dependencies",
+      "status": "located",
+      "evidence": "pluginInstallationHelpers.ts + dependencyResolver.ts"
+    },
+    {
+      "item": "Fixed skills with `disable-model-invocation: true` failing when invoked via `/ ` mid-message",
+      "status": "located",
+      "evidence": "SkillTool.ts mid-message /skill bypass"
+    },
+    {
+      "item": "Fixed `--resume` sometimes showing the first prompt instead of the `/rename` name for sessions still running or exited uncleanly",
+      "status": "located",
+      "evidence": "sessionStorage.ts bytesSinceMetadataReAppend + reAppendSessionMetadata"
+    },
+    {
+      "item": "Fixed queued messages briefly appearing twice during multi-tool-call turns",
+      "status": "deferred",
+      "evidence": "109 vs 110 queuedCommands/isMeta needle counts identical; no isolated product AST in core/REPL. Not invented."
+    },
+    {
+      "item": "Fixed session cleanup not removing the full session directory including subagent transcripts",
+      "status": "located",
+      "evidence": "cleanup.ts rm(stem, {recursive:true}) after unlinking .jsonl"
+    },
+    {
+      "item": "Fixed dropped keystrokes after the CLI relaunches (e.g. `/tui`, provider setup wizards)",
+      "status": "located",
+      "evidence": "relaunch.ts severTtyInputForRelaunch"
+    },
+    {
+      "item": "Fixed garbled startup rendering in macOS Terminal.app and other terminals that don't support synchronized output",
+      "status": "located",
+      "evidence": "ink/terminal.ts useSync = !skipSyncMarkers && SYNC_OUTPUT_SUPPORTED"
+    },
+    {
+      "item": "Hardened \"Open in editor\" actions against command injection from untrusted filenames",
+      "status": "located",
+      "evidence": "promptEditor.ts POSIX spawnSync argv (no shell)"
+    },
+    {
+      "item": "Fixed `PermissionRequest` hooks returning `updatedInput` not being re-checked against `permissions.deny` rules; `setMode:'bypassPermissions'` updates now respect `disableBypassPermissionsMode`",
+      "status": "located",
+      "evidence": "permissions.ts + PermissionUpdate.ts + PermissionContext.ts"
+    },
+    {
+      "item": "Fixed `PreToolUse` hook `additionalContext` being dropped when the tool call fails",
+      "status": "located",
+      "evidence": "toolExecution.ts keeps additionalContext on failure"
+    },
+    {
+      "item": "Fixed stdio MCP servers that print stray non-JSON lines to stdout being disconnected on the first stray line (regression in 2.1.105)",
+      "status": "located",
+      "evidence": "mcp/client.ts ignore stray non-JSON stdout lines"
+    },
+    {
+      "item": "Fixed headless/SDK session auto-title firing an extra Haiku request when `CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC` or `CLAUDE_CODE_DISABLE_TERMINAL_TITLE` is set",
+      "status": "located",
+      "evidence": "sessionTitle.ts + cli/print.ts gate"
+    },
+    {
+      "item": "Fixed potential excessive memory allocation when piped (non-TTY) Ink output contains a single very wide line",
+      "status": "located",
+      "evidence": "ink/renderer.ts clamp non-TTY width to terminalWidth"
+    },
+    {
+      "item": "Fixed `/skills` menu not scrolling when the list overflows the modal in fullscreen mode",
+      "status": "located",
+      "evidence": "SkillsMenu.tsx useModalOrTerminalSize window + N more above/below"
+    },
+    {
+      "item": "Fixed Remote Control sessions showing a generic error instead of prompting for re-login when the session is too old",
+      "status": "located",
+      "evidence": "session_stale_relogin in codeSessionApi.ts + remoteBridgeCore.ts"
+    },
+    {
+      "item": "Fixed Remote Control session renames from claude.ai not persisting the title to the local CLI session",
+      "status": "located",
+      "evidence": "rename_session control_request → saveCustomTitle"
+    }
+  ],
+  "notes": "astdiff 109→110: similarity 98.7%, +245/-59, 7895 structural, 56 string-only. Partition: 6733 struct-100-rename, 241 added-product, 292 genuine after pass-2. Four domain landers. Tools pre-commit FAIL then fix: PermissionRequest {reprompted} cancels CCR/channel; ki1() is Monitor-only + TM6 housekeeping including timeout. Queued-message double-flash deferred (no isolated 110 delta). build PASS 12.5MB. Do not pull 111 Opus 4.7 xhigh / /ultrareview / /effort slider or the 111 revert of the non-streaming retry cap."
+}

@@ -202,10 +202,12 @@ export function writeDiffToTerminal(
     return
   }
 
-  // BSU/ESU wrapping is opt-out to keep main-screen behavior unchanged.
-  // Callers pass skipSyncMarkers=true when the terminal doesn't support
-  // DEC 2026 (e.g. tmux) AND the cost matters (high-frequency alt-screen).
-  const useSync = !skipSyncMarkers
+  // Official 2.1.110: never emit BSU/ESU unless the terminal actually
+  // implements DEC 2026. Terminal.app and other unsyncing emulators
+  // otherwise print the sequences as garbage on startup.
+  // skipSyncMarkers remains an extra opt-out for high-frequency alt-screen
+  // when DECSTBM is used without atomicity (tmux).
+  const useSync = !skipSyncMarkers && SYNC_OUTPUT_SUPPORTED
 
   // Buffer all writes into a single string to avoid multiple write calls
   let buffer = useSync ? BSU : ''
