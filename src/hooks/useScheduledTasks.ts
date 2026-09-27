@@ -108,7 +108,9 @@ export function useScheduledTasks({
           return
         }
         const msg = createScheduledTaskFireMessage(
-          `Running scheduled task (${formatCronFireTime(new Date())})`,
+          task.kind === 'loop'
+            ? `Claude resuming /loop wakeup (${formatCronFireTime(new Date())})`
+            : `Running scheduled task (${formatCronFireTime(new Date())})`,
         )
         setMessages(prev => [...prev, msg])
         enqueueForLead(task.prompt)

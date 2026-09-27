@@ -163,6 +163,17 @@ export const SDKControlRenameSessionRequestSchema = lazySchema(() =>
     .describe('Sets the user-facing title for the current session.'),
 )
 
+export const SDKControlFileSuggestionsRequestSchema = lazySchema(() =>
+  z
+    .object({
+      subtype: z.literal('file_suggestions'),
+      query: z.string(),
+    })
+    .describe(
+      'Requests at-mention file autocomplete suggestions for a partial path prefix. Returns the same fuzzy-matched results the TUI shows.',
+    ),
+)
+
 export const SDKControlMcpStatusRequestSchema = lazySchema(() =>
   z
     .object({
@@ -587,6 +598,7 @@ export const SDKControlRequestInnerSchema = lazySchema(() =>
     SDKControlSetModelRequestSchema(),
     SDKControlSetMaxThinkingTokensRequestSchema(),
     SDKControlRenameSessionRequestSchema(),
+    SDKControlFileSuggestionsRequestSchema(),
     SDKControlMcpStatusRequestSchema(),
     SDKControlGetContextUsageRequestSchema(),
     SDKHookCallbackRequestSchema(),

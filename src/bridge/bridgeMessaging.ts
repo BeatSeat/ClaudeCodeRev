@@ -230,6 +230,13 @@ export type ServerControlRequestHandlers = {
   onRenameSession?: (
     title: string,
   ) => { ok: true } | { ok: false; error: string }
+  /**
+   * Official 2.1.113 file_suggestions — RC @-file autocomplete.
+   * Returns the same fuzzy-matched paths the TUI typeahead shows.
+   */
+  onFileSuggestions?: (
+    query: string,
+  ) => Promise<Array<{ path: string }>>
 }
 
 const OUTBOUND_ONLY_ERROR =
@@ -257,6 +264,7 @@ export function handleServerControlRequest(
     onSetMaxThinkingTokens,
     onSetPermissionMode,
     onRenameSession,
+    onFileSuggestions,
   } = handlers
   if (!transport) {
     logForDebugging(
@@ -374,6 +382,54 @@ export function handleServerControlRequest(
         },
       }
       break
+
+    case 'file_suggestions': {
+      if (!onFileSuggestions) {
+        response = {
+          type: 'control_response',
+          response: {
+            subtype: 'error',
+            request_id: request.request_id,
+            error:
+              'file_suggestions is not supported in this context (onFileSuggestions callback not registered)',
+          },
+        }
+        break
+      }
+      const query =
+        typeof request.request.query === 'string' ? request.request.query : ''
+      void onFileSuggestions(query)
+        .then(
+          suggestions =>
+            ({
+              type: 'control_response' as const,
+              response: {
+                subtype: 'success' as const,
+                request_id: request.request_id,
+                response: { suggestions },
+              },
+            }) satisfies SDKControlResponse,
+        )
+        .catch(
+          err =>
+            ({
+              type: 'control_response' as const,
+              response: {
+                subtype: 'error' as const,
+                request_id: request.request_id,
+                error: errorMessage(err),
+              },
+            }) satisfies SDKControlResponse,
+        )
+        .then(asyncResult => {
+          const event = { ...asyncResult, session_id: sessionId }
+          void transport.write(event)
+          logForDebugging(
+            `[bridge:repl] Sent control_response for file_suggestions request_id=${request.request_id} result=${asyncResult.response.subtype}`,
+          )
+        })
+      return
+    }
 
     case 'rename_session': {
       const title = request.request.title

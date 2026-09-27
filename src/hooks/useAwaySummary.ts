@@ -9,7 +9,9 @@ import {
   isAwaySummaryEnabled,
 } from '../services/awaySummary.js'
 import type { Message } from '../types/message.js'
+import { getDraftInput } from '../components/PromptInput/draftInput.js'
 import { createAwaySummaryMessage } from '../utils/messages.js'
+import { logForDebugging } from '../utils/debug.js'
 
 const BLUR_DELAY_MS = 5 * 60_000
 
@@ -66,6 +68,11 @@ export function useAwaySummary(
 
     async function generate(): Promise<void> {
       pendingRef.current = false
+      // Official 113: skip auto-recap while composing unsent prompt text.
+      if (getDraftInput() !== '') {
+        logForDebugging('[awaySummary] skipped: draft input present')
+        return
+      }
       if (hasSummarySinceLastUserTurn(messagesRef.current)) return
       abortInFlight()
       const controller = new AbortController()

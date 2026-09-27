@@ -219,6 +219,7 @@ import {
   Notifications,
 } from './Notifications.js'
 import PromptInputFooter from './PromptInputFooter.js'
+import { setDraftInput } from './draftInput.js'
 import type { SuggestionItem } from './PromptInputFooterSuggestions.js'
 import { PromptInputModeIndicator } from './PromptInputModeIndicator.js'
 import { PromptInputQueuedCommands } from './PromptInputQueuedCommands.js'
@@ -377,6 +378,11 @@ function PromptInput({
     key?: string
   }>({ show: false })
   const [cursorOffset, setCursorOffset] = useState<number>(input.length)
+  // Official 113 Jl_: keep the away-summary gate in sync with unsent prompt text.
+  useEffect(() => {
+    setDraftInput(input)
+  }, [input])
+  useEffect(() => () => setDraftInput(''), [])
   // Track the last input value set via internal handlers so we can detect
   // external input changes (e.g. speech-to-text injection) and move cursor to end.
   const lastInternalInputRef = React.useRef(input)

@@ -13,6 +13,15 @@ import { getClipboardPath } from '../ink/termio/osc.js'
 import { type Key, useInput } from '../ink.js'
 import { useKeybindings } from '../keybindings/useKeybinding.js'
 import { logForDebugging } from '../utils/debug.js'
+import { getGraphemeSegmenter } from '../utils/intl.js'
+
+/** Official 113 pG8 — grapheme count so the copy toast doesn't overcount emoji. */
+function countGraphemes(text: string): number {
+  if (!text) return 0
+  let n = 0
+  for (const _ of getGraphemeSegmenter().segment(text)) n++
+  return n
+}
 
 type Props = {
   scrollRef: RefObject<ScrollBoxHandle | null>
@@ -150,6 +159,53 @@ export function selectionFocusMoveForKey(key: Key): FocusMove | null {
   if (key.home) return 'lineStart'
   if (key.end) return 'lineEnd'
   return null
+}
+
+/**
+ * Official 113: when Shift+↑/↓ extends a selection past the visible
+ * viewport edge, scroll the ScrollBox one row and keep the highlight on
+ * the same content (capture outgoing row + shiftAnchor). Returns true if
+ * the caller should skip moveFocus (focus is already at the edge).
+ */
+export function scrollViewportIfExtendingPastEdge(
+  move: FocusMove,
+  scroll: ScrollBoxHandle | null,
+  selection: ReturnType<typeof useSelection>,
+  onScroll?: Props['onScroll'],
+): boolean {
+  if (move !== 'up' && move !== 'down') return false
+  if (!scroll) return false
+  const state = selection.getState()
+  if (!state?.anchor || !state.focus) return false
+  const top = scroll.getViewportTop()
+  const bottom = top + scroll.getViewportHeight() - 1
+  const anchorInView = state.anchor.row >= top && state.anchor.row <= bottom
+  const atTop = anchorInView && move === 'up' && state.focus.row <= top
+  const atBottom = anchorInView && move === 'down' && state.focus.row >= bottom
+  if (!atTop && !atBottom) return false
+  const max = Math.max(0, scroll.getScrollHeight() - scroll.getViewportHeight())
+  const canScroll = atTop ? scroll.getScrollTop() > 0 : scroll.getScrollTop() < max
+  if (scroll.getPendingDelta() === 0 && canScroll) {
+    const outgoing = atTop ? state.scrolledOffAbove : state.scrolledOffBelow
+    if (outgoing.length > 0) {
+      state.scrolledOffAbove = []
+      state.scrolledOffBelow = []
+      state.scrolledOffAboveSW = []
+      state.scrolledOffBelowSW = []
+      state.virtualAnchorRow = undefined
+    }
+    if (atTop) {
+      selection.captureScrolledRows(bottom, bottom, 'below')
+      selection.shiftAnchor(1, top, bottom)
+      scroll.scrollBy(-1)
+    } else {
+      selection.captureScrolledRows(top, top, 'above')
+      selection.shiftAnchor(-1, top, bottom)
+      scroll.scrollBy(1)
+    }
+    onScroll?.(false, scroll)
+  }
+  return true
 }
 
 export type WheelAccelState = {
@@ -397,17 +453,18 @@ export function ScrollKeybindingHandler({
     // did (native pbcopy / tmux load-buffer / raw OSC 52) so we can tell
     // the user whether paste will Just Work or needs prefix+].
     const path = getClipboardPath()
-    const n = text.length
+    const n = countGraphemes(text)
+    const unit = n === 1 ? 'char' : 'chars'
     let msg: string
     switch (path) {
       case 'native':
-        msg = `copied ${n} chars to clipboard`
+        msg = `copied ${n} ${unit} to clipboard`
         break
       case 'tmux-buffer':
-        msg = `copied ${n} chars to tmux buffer · paste with prefix + ]`
+        msg = `copied ${n} ${unit} to tmux buffer · paste with prefix + ]`
         break
       case 'osc52':
-        msg = `sent ${n} chars via OSC 52 · check terminal clipboard settings if paste fails`
+        msg = `sent ${n} ${unit} via OSC 52 · check terminal clipboard settings if paste fails`
         break
     }
     addNotification({
@@ -637,7 +694,16 @@ export function ScrollKeybindingHandler({
       }
       const move = selectionFocusMoveForKey(key)
       if (move) {
-        selection.moveFocus(move)
+        if (
+          !scrollViewportIfExtendingPastEdge(
+            move,
+            scrollRef.current,
+            selection,
+            onScroll,
+          )
+        ) {
+          selection.moveFocus(move)
+        }
         event.stopImmediatePropagation()
         return
       }

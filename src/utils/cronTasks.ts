@@ -67,6 +67,12 @@ export type CronTask = {
    * REPL's. Never written to disk (teammate crons are always session-only).
    */
   agentId?: string
+  /**
+   * Official 2.1.113 — session-only dynamic /loop wakeup (kind:"loop").
+   * Never written to disk. Esc cancels these without touching recurring
+   * CronCreate /loop jobs.
+   */
+  kind?: 'loop'
 }
 
 type CronFile = { tasks: CronTask[] }
@@ -228,6 +234,20 @@ export async function addCronTask(
  * `dir !== undefined` guard keeps this function from touching bootstrap
  * state on that path (tests enforce this).
  */
+/**
+ * Official 2.1.113 G91 `cancelAllPendingLoopSessionCrons`.
+ * Esc and RC interrupt drop every in-memory kind:"loop" wakeup.
+ */
+export function cancelAllPendingLoopSessionCrons(): number {
+  const pending = getSessionCronTasks().filter(t => t.kind === 'loop')
+  if (pending.length === 0) return 0
+  const removed = removeSessionCronTasks(pending.map(t => t.id))
+  logForDebugging(
+    `[loop/dynamic] cancelled ${pending.length} pending loop wakeup(s) on user abort`,
+  )
+  return removed
+}
+
 export async function removeCronTasks(
   ids: string[],
   dir?: string,

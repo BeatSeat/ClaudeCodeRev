@@ -287,6 +287,12 @@ export type IntersectConstraintsResult =
   | { ok: true; range: string }
   | { ok: false; reason: 'invalid' | 'too-complex' | 'disjoint' }
 
+export type VersionRequirementWhy =
+  | 'disjoint'
+  | 'too-complex'
+  | 'invalid'
+  | 'installed-unsatisfied'
+
 /** Official 2.1.111 `ZQ1`. */
 function tooComplex(detail: string): IntersectConstraintsResult {
   logForDebugging(`intersectConstraints: ${detail} — treating as too complex`, {
@@ -367,14 +373,26 @@ function truncateRangeDisplay(value: string): string {
 }
 
 /**
- * Official 2.1.111 `ZS8`. Distinguish conflicting / invalid / too-complex
- * version requirement errors.
+ * Official 2.1.113 `KI_`. Does `installed` satisfy `range` after coerce?
+ */
+export function pluginVersionSatisfies(
+  installed: string | undefined,
+  range: string,
+): boolean {
+  const normalized = normalizePluginVersion(installed)
+  return normalized !== undefined && satisfies(normalized, range)
+}
+
+/**
+ * Official 2.1.111 `ZS8` / 2.1.113 `_I_`. Distinguish conflicting /
+ * invalid / too-complex / already-installed-unsatisfied errors.
  */
 export function formatVersionRequirementError(
   kind: 'Plugin' | 'Dependency',
   id: string,
   ranges: string[],
-  why: 'disjoint' | 'too-complex' | 'invalid',
+  why: VersionRequirementWhy,
+  installed?: string,
 ): string {
   const listed = truncateRangeDisplay(
     stripControlChars(ranges.join(', ')),
@@ -387,6 +405,8 @@ export function formatVersionRequirementError(
       return `${kind} "${name}" has version requirements too complex to intersect — simplify the ranges: ${listed}`
     case 'invalid':
       return `${kind} "${name}" has an invalid version requirement among: ${listed}`
+    case 'installed-unsatisfied':
+      return `${kind} "${name}" is installed at ${truncateRangeDisplay(stripControlChars(installed ?? 'an unknown version'))}, which does not satisfy: ${listed}`
   }
 }
 

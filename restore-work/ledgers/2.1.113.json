@@ -1,0 +1,204 @@
+{
+  "version": "2.1.113",
+  "fromVersion": "2.1.112",
+  "expectedFunctionCount": 0,
+  "functions": [],
+  "bridge": {
+    "unpatchedSeaPath": "restore-work/artifacts/sea/2.1.113/cli.js",
+    "unpatchedSeaMissing": true,
+    "userAuthorizedCompare": "official/2.1.112/cli.js vs cometix/2.1.113/cli.js"
+  },
+  "changelogCoverage": [
+    {
+      "item": "Changed the CLI to spawn a native Claude Code binary (via a per-platform optional dependency) instead of bundled JavaScript",
+      "status": "unrelated-packaging",
+      "evidence": "Official npm 2.1.113 is a thin installer + SEA binary. This hop restores the Cometix Node-layer cli.js product surface. No installer invented."
+    },
+    {
+      "item": "Added sandbox.network.deniedDomains setting to block specific domains even when a broader allowedDomains wildcard would otherwise permit them",
+      "status": "located",
+      "evidence": "src/entrypoints/sandboxTypes.ts schema + src/utils/sandbox/sandbox-adapter.ts merge before WebFetch deny rules"
+    },
+    {
+      "item": "Fullscreen mode: Shift+↑/↓ now scrolls the viewport when extending a selection past the visible edge",
+      "status": "located",
+      "evidence": "src/components/ScrollKeybindingHandler.tsx — no unique 113 token; UI lander matched 113 selection-edge scroll"
+    },
+    {
+      "item": "Ctrl+A and Ctrl+E now move to the start/end of the current logical line in multiline input, matching readline behavior",
+      "status": "located",
+      "evidence": "src/hooks/useTextInput.ts startOfLogicalLine / endOfLogicalLine emacs bindings"
+    },
+    {
+      "item": "Windows: Ctrl+Backspace now deletes the previous word",
+      "status": "located",
+      "evidence": "src/ink/parse-keypress.ts CLAUDE_CODE_BS_AS_CTRL_BACKSPACE; runtime process.platform (not SEA-hardcoded darwin)"
+    },
+    {
+      "item": "Long URLs in responses and bash output stay clickable when they wrap across lines (in terminals with OSC 8 hyperlinks)",
+      "status": "already-present",
+      "evidence": "2.1.111 OutputLine/O04 always-linkify; 113 has no extra wrap delta vs 112. wrapAnsi remains Bun.wrapAnsi ?? wrap-ansi"
+    },
+    {
+      "item": "Improved /loop: pressing Esc now cancels pending wakeups, and wakeups display as Claude resuming /loop wakeup",
+      "status": "located",
+      "evidence": "src/hooks/useCancelRequest.ts + useReplBridge onInterrupt cancelAllPendingLoopSessionCrons; useScheduledTasks kind===loop copy. Dynamic wakeup creator still absent in this TS tree"
+    },
+    {
+      "item": "/extra-usage now works from Remote Control (mobile/web) clients",
+      "status": "located",
+      "evidence": "src/commands.ts BRIDGE_SAFE_COMMANDS includes extraUsageNonInteractive"
+    },
+    {
+      "item": "Remote Control clients can now query @-file autocomplete suggestions",
+      "status": "located",
+      "evidence": "control_request subtype file_suggestions in controlSchemas.ts + bridgeMessaging.ts onFileSuggestions"
+    },
+    {
+      "item": "Improved /ultrareview: faster launch with parallelized checks, diffstat in the launch dialog, and animated launching state",
+      "status": "deferred",
+      "evidence": "No unique 113 string vs 112 (ultrareview/diffStat counts identical). Did not invent launch chrome"
+    },
+    {
+      "item": "Subagents that stall mid-stream now fail with a clear error after 10 minutes instead of hanging silently",
+      "status": "located",
+      "evidence": "src/tools/AgentTool/agentToolUtils.ts CLAUDE_ASYNC_AGENT_STALL_TIMEOUT_MS default 600000"
+    },
+    {
+      "item": "Bash tool: multi-line commands whose first line is a comment now show the full command in the transcript",
+      "status": "located",
+      "evidence": "src/tools/BashTool/commentLabel.ts extractBashCommentLabel — first-# title only if rest is comments and no C0"
+    },
+    {
+      "item": "Running cd && git … no longer triggers a permission prompt when the cd is a no-op",
+      "status": "located",
+      "evidence": "src/tools/BashTool/bashPermissions.ts parseCdDestination / isCdDestNoop / areAstCompoundCdsNoops"
+    },
+    {
+      "item": "Security: on macOS, /private/{etc,var,tmp,home} paths are now treated as dangerous removal targets under Bash(rm:*) allow rules",
+      "status": "located",
+      "evidence": "src/utils/permissions/pathValidation.ts isDangerousRemovalPath strips /private/(etc|var|tmp|home)"
+    },
+    {
+      "item": "Security: Bash deny rules now match commands wrapped in env/sudo/watch/ionice/setsid and similar exec wrappers",
+      "status": "located",
+      "evidence": "src/tools/BashTool/bashPermissions.ts peelExecWrappers + BARE_SHELL_PREFIXES + checkPrefixAllowSemantics"
+    },
+    {
+      "item": "Security: Bash(find:*) allow rules no longer auto-approve find -exec/-delete",
+      "status": "located",
+      "evidence": "checkPrefixAllowSemantics find dangerous predicates -exec/-execdir/-ok/-okdir/-delete/-fprint*"
+    },
+    {
+      "item": "Fixed MCP concurrent-call timeout handling where a message for one tool call could silently disarm another call's watchdog",
+      "status": "located",
+      "evidence": "src/services/mcp/client.ts per-call armedAt on activeCallWatchdogs; onmessage no longer clears shared lastErrorAt"
+    },
+    {
+      "item": "Fixed Cmd-backspace / Ctrl+U to once again delete from the cursor to the start of the line",
+      "status": "located",
+      "evidence": "src/hooks/useTextInput.ts case u → deleteToLineStart (reverts 111 whole-buffer Ctrl+U)"
+    },
+    {
+      "item": "Fixed markdown tables breaking when a cell contains an inline code span with a pipe character",
+      "status": "deferred",
+      "evidence": "No unique 113 token vs 112 marked tableAlign/split('|'). Did not invent parser change"
+    },
+    {
+      "item": "Fixed session recap auto-firing while composing unsent text in the prompt",
+      "status": "located",
+      "evidence": "src/hooks/useAwaySummary.ts + src/components/PromptInput/draftInput.ts — skip when draft present"
+    },
+    {
+      "item": "Fixed /copy Full response not aligning markdown table columns for pasting into GitHub, Notion, or Slack",
+      "status": "deferred",
+      "evidence": "No unique 113 token vs 112. Did not invent aligner"
+    },
+    {
+      "item": "Fixed messages typed while viewing a running subagent being hidden from its transcript and misattributed to the parent AI",
+      "status": "already-present",
+      "evidence": "getActiveAgentForInput already routes PromptInput to viewed teammate; no unique 113 string"
+    },
+    {
+      "item": "Fixed Bash dangerouslyDisableSandbox running commands outside the sandbox without a permission prompt",
+      "status": "located",
+      "evidence": "src/tools/BashTool/BashTool.tsx + permissions.ts sandboxOverride ask; bypass/auto-mode immune"
+    },
+    {
+      "item": "Fixed /effort auto confirmation — now says Effort level set to max to match the status bar label",
+      "status": "located",
+      "evidence": "src/commands/effort/effort.tsx message Effort level set to max"
+    },
+    {
+      "item": "Fixed the copied N chars toast overcounting emoji and other multi-code-unit characters",
+      "status": "located",
+      "evidence": "grapheme Segmenter count + char/chars plural (UI landing)"
+    },
+    {
+      "item": "Fixed /insights crashing with EBUSY on Windows",
+      "status": "deferred",
+      "evidence": "113 EBUSY hits are vendor (graceful-fs/rimraf). Insights copyFile already swallows. Did not invent retry"
+    },
+    {
+      "item": "Fixed exit confirmation dialog mislabeling one-shot scheduled tasks as recurring — now shows a countdown",
+      "status": "deferred",
+      "evidence": "No unique dialog/countdown token vs 112. ExitFlow only displays detail"
+    },
+    {
+      "item": "Fixed slash/@ completion menu not sitting flush against the prompt border in fullscreen mode",
+      "status": "already-present",
+      "evidence": "UI landing: noPad flush already in tree; no 113-only layout token"
+    },
+    {
+      "item": "Fixed CLAUDE_CODE_EXTRA_BODY output_config.effort causing 400 errors on subagent calls to models that don't support effort and on Vertex AI",
+      "status": "located",
+      "evidence": "configureEffortParams deletes outputConfig.effort when model/Vertex does not support effort"
+    },
+    {
+      "item": "Fixed prompt cursor disappearing when NO_COLOR is set",
+      "status": "located",
+      "evidence": "src/ink/colorize.ts rawInverse SGR 7 (UI landing)"
+    },
+    {
+      "item": "Fixed ToolSearch ranking so pasted MCP tool names surface the actual tool instead of description-matching siblings",
+      "status": "located",
+      "evidence": "src/tools/ToolSearchTool/ToolSearchTool.ts coarseParts server/tool scoring"
+    },
+    {
+      "item": "Fixed compacting a resumed long-context session failing with Extra usage is required for long context requests",
+      "status": "deferred",
+      "evidence": "Shared 429 copy in both 112 and 113; no unique compact-path token"
+    },
+    {
+      "item": "Fixed plugin install succeeding when a dependency version conflicts with an already-installed plugin — now reports range-conflict",
+      "status": "located",
+      "evidence": "src/utils/plugins/pluginInstallationHelpers.ts why: installed-unsatisfied"
+    },
+    {
+      "item": "Fixed Refine with Ultraplan not showing the remote session URL in the transcript",
+      "status": "deferred",
+      "evidence": "ultraplanSessionUrl count 19=19; no unique 113 transcript token"
+    },
+    {
+      "item": "Fixed SDK image content blocks that fail to process crashing the session — now degrade to a text placeholder",
+      "status": "located",
+      "evidence": "src/utils/processUserInput/processUserInput.ts ImageResizeError → [Image could not be processed: …] + tengu_image_resize_degraded"
+    },
+    {
+      "item": "Fixed Remote Control sessions not streaming subagent transcripts",
+      "status": "deferred",
+      "evidence": "No unique 113 string; isEligibleBridgeMessage unchanged. Did not widen filter"
+    },
+    {
+      "item": "Fixed Remote Control sessions not being archived when Claude Code exits",
+      "status": "already-present",
+      "evidence": "archiveBridgeSession on REPL teardown / process exit already in 112-aligned TS"
+    },
+    {
+      "item": "Fixed thinking.type.enabled is not supported 400 error when using Opus 4.7 via a Bedrock Application Inference Profile ARN",
+      "status": "located",
+      "evidence": "src/services/api/claude.ts paramsFromContext uses resolved backing model for thinking/adaptive/budget, not raw ARN"
+    }
+  ],
+  "notes": "astdiff official 112 ESM vs Cometix 113 CJS: similarity 88.9%, +2251/−1595, 9280 structural, 43 string-only. Partition: 4360 struct-100-rename, 3898 struct-real, ~1450 added/removed-product (much ESM→CJS noise). SEA unpatched cli.js missing; user authorized this hop. P1–P9 classified in 2.1.113-patches.md — all do-not-land. 111 YeY //c/ polarity, 111 retry-cap revert, 112 WV8 (omit temperature on opus-4-7), 110 /tui /focus /thinking-hint kept. Did not start 2.1.114."
+}

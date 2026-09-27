@@ -191,15 +191,6 @@ export function useTextInput({
     return newCursor
   }
 
-  // Official 111: Ctrl+U kills the entire input buffer (not just to line start).
-  function killEntireBuffer(): Cursor {
-    if (cursor.text === '') {
-      return cursor
-    }
-    pushToKillRing(cursor.text, 'prepend')
-    return Cursor.fromText('', columns, 0)
-  }
-
   function killWordBefore(): Cursor {
     const { cursor: newCursor, killed } = cursor.deleteWordBefore()
     pushToKillRing(killed, 'prepend')
@@ -233,17 +224,20 @@ export function useTextInput({
   }
 
   const handleCtrl = mapInput([
-    ['a', () => cursor.startOfLine()],
+    // Official 113: Ctrl+A/E move to the start/end of the current logical
+    // line in multiline input (readline), not the wrapped visual line.
+    ['a', () => cursor.startOfLogicalLine()],
     ['b', () => cursor.left()],
     ['c', handleCtrlC],
     ['d', handleCtrlD],
-    ['e', () => cursor.endOfLine()],
+    ['e', () => cursor.endOfLogicalLine()],
     ['f', () => cursor.right()],
     ['h', () => cursor.deleteTokenBefore() ?? cursor.backspace()],
     ['k', killToLineEnd],
     ['n', () => downOrHistoryDown()],
     ['p', () => upOrHistoryUp()],
-    ['u', killEntireBuffer],
+    // Official 113: revert 111 whole-buffer Ctrl+U — kill to logical line start.
+    ['u', killToLineStart],
     ['w', killWordBefore],
     ['y', yank],
   ])
