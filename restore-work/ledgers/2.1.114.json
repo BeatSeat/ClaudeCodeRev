@@ -1,0 +1,14 @@
+{
+  "version": "2.1.114",
+  "fromVersion": "2.1.113",
+  "expectedFunctionCount": 0,
+  "functions": [],
+  "changelogCoverage": [
+    {
+      "item": "Fixed a crash in the permission dialog when an agent teams teammate requested tool permission",
+      "status": "located",
+      "evidence": "src/components/permissions/hooks.ts usePermissionRequestLogging: toolUseContext.getAppState?.()?.toolPermissionContext.mode. Official 113 called getAppState() unconditionally; tmux teammate ToolUseConfirm stubs context as {}."
+    }
+  ],
+  "notes": "astdiff cometix 113→114: similarity 100.0%, +0/−0, 25 structural / 47 string-only (mostly VERSION/BUILD_TIME). After stripping version/time the only product delta is getAppState → getAppState?.(). Partition genuineStructural=0 because pass-2 treated the optional-call as false-rename. Did not start 2.1.115. Kept 110–113 guards."
+}
