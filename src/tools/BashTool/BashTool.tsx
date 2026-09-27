@@ -79,7 +79,10 @@ import {
   PREVIEW_SIZE_BYTES,
 } from '../../utils/toolResultStorage.js'
 import { userFacingName as fileEditUserFacingName } from '../FileEditTool/UI.js'
-import { trackGitOperations } from '../shared/gitOperationTracking.js'
+import {
+  maybeGhRateLimitHint,
+  trackGitOperations,
+} from '../shared/gitOperationTracking.js'
 import {
   bashToolHasPermission,
   commandHasAnyCd,
@@ -516,6 +519,12 @@ const outputSchema = lazySchema(() =>
       .describe(
         'Model-facing note listing readFileState entries whose mtime bumped during this command (set when WRITE_COMMAND_MARKERS matches)',
       ),
+    ghRateLimitHint: z
+      .string()
+      .optional()
+      .describe(
+        'Model-facing system-reminder appended when a gh command reports a GitHub API rate-limit error',
+      ),
   }),
 )
 
@@ -876,6 +885,7 @@ export const BashTool = buildTool({
       persistedOutputPath,
       persistedOutputSize,
       staleReadFileStateHint,
+      ghRateLimitHint,
     },
     toolUseID,
   ): ToolResultBlockParam {
@@ -941,6 +951,7 @@ export const BashTool = buildTool({
         errorMessage,
         backgroundInfo,
         staleReadFileStateHint,
+        ghRateLimitHint,
       ]
         .filter(Boolean)
         .join('\n'),
@@ -1220,6 +1231,9 @@ export const BashTool = buildTool({
       persistedOutputPath,
       persistedOutputSize,
       staleReadFileStateHint,
+      ghRateLimitHint: result.backgroundTaskId
+        ? undefined
+        : maybeGhRateLimitHint(input.command, result.stdout || ''),
     }
 
     return {

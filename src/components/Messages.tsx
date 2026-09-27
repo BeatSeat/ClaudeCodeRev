@@ -12,7 +12,6 @@ import { useTerminalSize } from '../hooks/useTerminalSize.js'
 import type { ScrollBoxHandle } from '../ink/components/ScrollBox.js'
 import { useTerminalNotification } from '../ink/useTerminalNotification.js'
 import { Box, Text } from '../ink.js'
-import { ThinkingProgressHint } from './ThinkingProgressHint.js'
 import { useShortcutDisplay } from '../keybindings/useShortcutDisplay.js'
 import type { Screen } from '../screens/REPL.js'
 import type { Tools } from '../Tool.js'
@@ -280,11 +279,6 @@ type Props = {
   streamingThinking?: StreamingThinking | null
   /** Streaming text preview (rendered as last item so transition to final message is positionally seamless) */
   streamingText?: string | null
-  /** Official 2.1.109: mount rotating thinking hint after the list, before
-   *  streaming text. Default false. REPL passes !viewedAgentTask. */
-  showThinkingHint?: boolean
-  /** Stand-in for official dgK's wAK() thinking-store selector. */
-  isThinking?: boolean
   /** When true, only show Brief tool output (hide everything else) */
   isBriefOnly?: boolean
   /** Fullscreen-mode "─── N new ───" divider. Renders before the first
@@ -423,8 +417,6 @@ const MessagesImpl = ({
   hidePastThinking = false,
   streamingThinking,
   streamingText,
-  showThinkingHint = false,
-  isThinking = false,
   isBriefOnly = false,
   unseenDivider,
   scrollRef,
@@ -1008,10 +1000,6 @@ const MessagesImpl = ({
         </InVirtualListContext.Provider>
       ) : (
         renderableMessages.flatMap(renderMessageRow)
-      )}
-
-      {showThinkingHint && (
-        <ThinkingProgressHint isThinking={isThinking} isLoading={isLoading} />
       )}
 
       {streamingText && !isBriefOnly && (

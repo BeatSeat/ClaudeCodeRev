@@ -185,19 +185,25 @@ type Props = {
   suggestions: SuggestionItem[]
   selectedSuggestion: number
   maxColumnWidth?: number
+  /** Official 2.1.116: shown when a slash filter has zero matches. */
+  emptyMessage?: string
   /**
    * When true, the suggestions are rendered inside a position=absolute
    * overlay. We omit minHeight and flex-end so the y-clamp in the
    * renderer doesn't push fewer items down into the prompt area.
    */
   overlay?: boolean
+  /** Official 2.1.116 etH noPad: skip spacer rows (fullscreen overlay). */
+  noPad?: boolean
 }
 
 export function PromptInputFooterSuggestions({
   suggestions,
   selectedSuggestion,
   maxColumnWidth: maxColumnWidthProp,
+  emptyMessage,
   overlay,
+  noPad,
 }: Props): ReactNode {
   const { rows } = useTerminalSize()
   // Maximum number of suggestions to show at once (leaving space for prompt).
@@ -207,9 +213,23 @@ export function PromptInputFooterSuggestions({
     ? OVERLAY_MAX_ITEMS
     : Math.min(6, Math.max(1, rows - 3))
 
-  // No suggestions to display
+  // Official 2.1.116: keep the menu chrome when the filter has zero hits.
   if (suggestions.length === 0) {
-    return null
+    if (!emptyMessage) return null
+    const pad = noPad ? 0 : Math.max(0, maxVisibleItems - 1)
+    return (
+      <Box
+        flexDirection="column"
+        justifyContent={overlay ? undefined : 'flex-end'}
+      >
+        <Text dimColor wrap="truncate">
+          {emptyMessage}
+        </Text>
+        {Array.from({ length: pad }, (_, i) => (
+          <Text key={`pad-${i}`}> </Text>
+        ))}
+      </Box>
+    )
   }
 
   // Use prop if provided (stable width from all commands), otherwise calculate from visible

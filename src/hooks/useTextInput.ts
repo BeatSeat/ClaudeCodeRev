@@ -334,6 +334,12 @@ export function useTextInput({
           // Return the current cursor unchanged - handleEscape manages state internally
           return cursor
         }
+      // Official 2.1.116: Cmd+Left/Right (Kitty super) jump to wrapped-line
+      // start/end. Must win over ctrl/meta/fn word hops.
+      case key.leftArrow && key.super:
+        return () => cursor.startOfLine()
+      case key.rightArrow && key.super:
+        return () => cursor.endOfLine()
       case key.leftArrow && (key.ctrl || key.meta || key.fn):
         return () => cursor.prevWord()
       case key.rightArrow && (key.ctrl || key.meta || key.fn):

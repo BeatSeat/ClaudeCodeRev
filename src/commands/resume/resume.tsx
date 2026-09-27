@@ -135,7 +135,18 @@ function ResumeCommand({
     }
 
     // Load full messages for lite logs
-    const fullLog = isLiteLog(log) ? await loadFullLog(log) : log
+    let fullLog: LogOption
+    try {
+      fullLog = isLiteLog(log) ? await loadFullLog(log) : log
+    } catch (error) {
+      logError(error as Error)
+      onDone('Failed to load conversation')
+      return
+    }
+    if (isLiteLog(fullLog)) {
+      onDone('Failed to load conversation')
+      return
+    }
 
     // Check if this conversation is from a different directory
     const crossProjectCheck = checkCrossProjectResume(
@@ -268,8 +279,17 @@ export const call: LocalJSXCommandCall = async (onDone, context, args) => {
 
     if (matchingLogs.length > 0) {
       const log = matchingLogs[0]!
-      const fullLog = isLiteLog(log) ? await loadFullLog(log) : log
-      void onResume(maybeSessionId, fullLog, 'slash_command_session_id')
+      try {
+        const fullLog = isLiteLog(log) ? await loadFullLog(log) : log
+        if (isLiteLog(fullLog)) {
+          onDone('Failed to load conversation')
+          return null
+        }
+        void onResume(maybeSessionId, fullLog, 'slash_command_session_id')
+      } catch (error) {
+        logError(error as Error)
+        onDone('Failed to load conversation')
+      }
       return null
     }
 
@@ -292,8 +312,17 @@ export const call: LocalJSXCommandCall = async (onDone, context, args) => {
       const log = titleMatches[0]!
       const sessionId = getSessionIdFromLog(log)
       if (sessionId) {
-        const fullLog = isLiteLog(log) ? await loadFullLog(log) : log
-        void onResume(sessionId, fullLog, 'slash_command_title')
+        try {
+          const fullLog = isLiteLog(log) ? await loadFullLog(log) : log
+          if (isLiteLog(fullLog)) {
+            onDone('Failed to load conversation')
+            return null
+          }
+          void onResume(sessionId, fullLog, 'slash_command_title')
+        } catch (error) {
+          logError(error as Error)
+          onDone('Failed to load conversation')
+        }
         return null
       }
     }

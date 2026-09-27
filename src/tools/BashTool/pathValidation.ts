@@ -67,7 +67,7 @@ export type PathCommand =
  * require explicit user approval, even if allowlist rules exist.
  * This prevents catastrophic data loss from commands like `rm -rf /`.
  */
-function checkDangerousRemovalPaths(
+export function checkDangerousRemovalPaths(
   command: 'rm' | 'rmdir',
   args: string[],
   cwd: string,
@@ -90,9 +90,12 @@ function checkDangerousRemovalPaths(
       return {
         behavior: 'ask',
         message: `Dangerous ${command} operation detected: '${absolutePath}'\n\nThis command would remove a critical system directory. This requires explicit approval and cannot be auto-allowed by permission rules.`,
+        // Official 2.1.116 Et8: safetyCheck + classifierApprovable:false
+        // (114 was type:"other" + bashMissKind:"dangerous-path").
         decisionReason: {
-          type: 'other',
+          type: 'safetyCheck',
           reason: `Dangerous ${command} operation on critical path: ${absolutePath}`,
+          classifierApprovable: false,
         },
         // Don't provide suggestions - we don't want to encourage saving dangerous commands
         suggestions: [],

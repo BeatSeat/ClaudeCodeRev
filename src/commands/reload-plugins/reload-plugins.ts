@@ -3,7 +3,9 @@ import { getIsRemoteMode } from '../../bootstrap/state.js'
 import { redownloadUserSettings } from '../../services/settingsSync/index.js'
 import type { LocalCommandCall } from '../../types/command.js'
 import { isEnvTruthy } from '../../utils/envUtils.js'
+import { formatDependencyCountSuffix } from '../../utils/plugins/dependencyResolver.js'
 import { refreshActivePlugins } from '../../utils/plugins/refresh.js'
+import { resolveMissingDependencies } from '../../utils/plugins/resolveMissingDependencies.js'
 import { settingsChangeDetector } from '../../utils/settings/changeDetector.js'
 import { plural } from '../../utils/stringUtils.js'
 
@@ -34,7 +36,13 @@ export const call: LocalCommandCall = async (_args, context) => {
     }
   }
 
-  const r = await refreshActivePlugins(context.setAppState)
+  let r = await refreshActivePlugins(context.setAppState)
+  let resolvedNote = ''
+  const resolved = await resolveMissingDependencies(r.errors)
+  if (resolved.installed.length > 0) {
+    resolvedNote = `${formatDependencyCountSuffix(resolved.installed)} resolved`
+    r = await refreshActivePlugins(context.setAppState)
+  }
 
   const parts = [
     n(r.enabled_count, 'plugin'),
@@ -47,7 +55,7 @@ export const call: LocalCommandCall = async (_args, context) => {
     n(r.mcp_count, 'plugin MCP server'),
     n(r.lsp_count, 'plugin LSP server'),
   ]
-  let msg = `Reloaded: ${parts.join(' · ')}`
+  let msg = `Reloaded: ${parts.join(' · ')}${resolvedNote}`
 
   if (r.error_count > 0) {
     msg += `\n${n(r.error_count, 'error')} during load. Run /doctor for details.`

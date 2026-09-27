@@ -605,6 +605,11 @@ export async function loadConversationForResume(
       // Load full messages for lite logs
       if (isLiteLog(log)) {
         log = await loadFullLog(log)
+        // Official 2.1.116: a still-lite log means the file failed to load
+        // (parse/read error). Do not resume a silently empty conversation.
+        if (isLiteLog(log)) {
+          return null
+        }
       }
 
       // Determine sessionId first so we can pass it to copy functions

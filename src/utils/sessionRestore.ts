@@ -8,12 +8,18 @@ import {
   getSessionId,
   setMainLoopModelOverride,
   setMainThreadAgentType,
+  setMainThreadAgentHooks,
   setOriginalCwd,
   setScheduledTasksEnabled,
   switchSession,
 } from '../bootstrap/state.js'
 import { clearSystemPromptSections } from '../constants/systemPromptSections.js'
 import { restoreCostStateForSession } from '../cost-tracker.js'
+import {
+  isRestrictedToPluginOnly,
+  isSourceAdminTrusted,
+} from './settings/pluginOnlyPolicy.js'
+import type { HooksSettings } from './settings/types.js'
 import type { AppState } from '../state/AppState.js'
 import type { AgentColorName } from '../tools/AgentTool/agentColorManager.js'
 import {
@@ -199,6 +205,26 @@ export function computeStandaloneAgentContext(
 }
 
 /**
+ * Official 2.1.116 rAH: store main-thread --agent frontmatter hooks so
+ * getHooksConfig fires them (subagent registerFrontmatterHooks is a
+ * different path — isAgent=true remaps Stop→SubagentStop).
+ */
+export function applyMainThreadAgentHooks(
+  agent:
+    | { hooks?: HooksSettings; source?: string }
+    | undefined,
+): void {
+  if (
+    agent?.hooks &&
+    (!isRestrictedToPluginOnly('hooks') || isSourceAdminTrusted(agent.source))
+  ) {
+    setMainThreadAgentHooks(agent.hooks)
+  } else {
+    setMainThreadAgentHooks(undefined)
+  }
+}
+
+/**
  * Restore agent setting from a resumed session.
  *
  * When resuming a conversation that used a custom agent, this re-applies the
@@ -224,6 +250,7 @@ export function restoreAgentFromSession(
   // If session had no agent, clear any stale bootstrap state
   if (!agentSetting) {
     setMainThreadAgentType(undefined)
+    applyMainThreadAgentHooks(undefined)
     return { agentDefinition: undefined, agentType: undefined }
   }
 
@@ -235,10 +262,12 @@ export function restoreAgentFromSession(
       `Resumed session had agent "${agentSetting}" but it is no longer available. Using default behavior.`,
     )
     setMainThreadAgentType(undefined)
+    applyMainThreadAgentHooks(undefined)
     return { agentDefinition: undefined, agentType: undefined }
   }
 
   setMainThreadAgentType(resumedAgent.agentType)
+  applyMainThreadAgentHooks(resumedAgent)
 
   // Apply agent's model if user didn't specify one
   if (
