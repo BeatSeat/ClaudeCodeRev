@@ -12,6 +12,7 @@ import {
 } from '../utils/model/model.js'
 import { validateModel } from '../utils/model/validateModel.js'
 import { updateSettingsForSource } from '../utils/settings/settings.js'
+import { logEvent } from '../services/analytics/index.js'
 
 const call: LocalCommandCall = async (args, context) => {
   const arg = args.trim().toLowerCase()
@@ -41,6 +42,7 @@ const call: LocalCommandCall = async (args, context) => {
   }
 
   if (arg === 'unset' || arg === 'off') {
+    logEvent('tengu_advisor_command', { advisor: 'off' })
     const prev = context.getAppState().advisorModel
     context.setAppState(s => {
       if (s.advisorModel === undefined) return s
@@ -74,6 +76,7 @@ const call: LocalCommandCall = async (args, context) => {
     }
   }
 
+  logEvent('tengu_advisor_command', { advisor: arg })
   context.setAppState(s => {
     if (s.advisorModel === normalizedModel) return s
     return { ...s, advisorModel: normalizedModel }

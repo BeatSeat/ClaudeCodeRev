@@ -41,6 +41,8 @@ import {
   type ContentReplacementState,
   cloneContentReplacementState,
 } from './toolResultStorage.js'
+import { createBashRerunAliases } from './bash/rerunAliases.js'
+import { createToolResultDedupState } from './toolResultDedup.js'
 import { createAgentId } from './uuid.js'
 
 /** Official 2.1.90 CfK — default fork turn cap when the caller omits maxTurns. */
@@ -404,6 +406,8 @@ export function createSubagentContext(
       (parentContext.contentReplacementState
         ? cloneContentReplacementState(parentContext.contentReplacementState)
         : undefined),
+    bashRerunAliases: createBashRerunAliases(),
+    resultDedupState: createToolResultDedupState(),
 
     // AbortController
     abortController,

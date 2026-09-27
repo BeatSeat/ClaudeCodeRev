@@ -1776,6 +1776,15 @@ export function parseArgs(args: string[]): ParsedArgs {
     } else if (arg.startsWith('--name=')) {
       name = arg.slice('--name='.length)
     } else if (
+      arg === '--remote-control-session-name-prefix' &&
+      i + 1 < args.length
+    ) {
+      process.env.CLAUDE_REMOTE_CONTROL_SESSION_NAME_PREFIX = args[++i]
+    } else if (arg.startsWith('--remote-control-session-name-prefix=')) {
+      process.env.CLAUDE_REMOTE_CONTROL_SESSION_NAME_PREFIX = arg.slice(
+        '--remote-control-session-name-prefix='.length,
+      )
+    } else if (
       feature('KAIROS') &&
       arg === '--session-id' &&
       i + 1 < args.length
@@ -1924,6 +1933,10 @@ USAGE
   claude remote-control [options]
 OPTIONS
   --name <name>                    Name for the session (shown in claude.ai/code)
+  --remote-control-session-name-prefix <prefix>
+                                   Prefix for auto-generated session names
+                                   (default: hostname; env:
+                                   CLAUDE_REMOTE_CONTROL_SESSION_NAME_PREFIX)
 ${
   feature('KAIROS')
     ? `  -c, --continue                   Resume the last session in this directory
@@ -2095,9 +2108,8 @@ export async function bridgeMain(args: string[]): Promise<void> {
   // Resolve auth
   const { clearOAuthTokenCache, checkAndRefreshOAuthTokenIfNeeded } =
     await import('../utils/auth.js')
-  const { getBridgeAccessToken, getBridgeBaseUrl } = await import(
-    './bridgeConfig.js'
-  )
+  const { getBridgeAccessToken, getBridgeBaseUrl, getBridgeSessionNamePrefix } =
+    await import('./bridgeConfig.js')
 
   const bridgeToken = getBridgeAccessToken()
   if (!bridgeToken) {
@@ -2676,7 +2688,9 @@ export async function bridgeMain(args: string[]): Promise<void> {
     try {
       initialSessionId = await createBridgeSession({
         environmentId,
-        title: name,
+        title:
+          name ||
+          `${getBridgeSessionNamePrefix()}-${(await import('../utils/words.js')).generateShortWordSlug()}`,
         events: [],
         gitRepoUrl,
         branch,

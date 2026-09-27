@@ -1,11 +1,13 @@
 import { useEffect, useRef } from 'react'
-import { normalizeFullWidthDigits } from '../../utils/stringUtils.js'
 
 // Delay before accepting a digit as a response, to prevent accidental
 // submissions when users start messages with numbers (e.g., numbered lists).
 // Short enough to feel instant for intentional presses, long enough to
 // cancel when the user types more characters.
 const DEFAULT_DEBOUNCE_MS = 400
+// Ignore digits for this long after mount so auto-pilot keypresses and
+// consecutive-prompt digit collisions don't submit the survey.
+const DEFAULT_MOUNT_DELAY_MS = 600
 
 /**
  * Detects when the user types a single valid digit into the prompt input,
@@ -23,6 +25,7 @@ export function useDebouncedDigitInput<T extends string = string>({
   enabled = true,
   once = false,
   debounceMs = DEFAULT_DEBOUNCE_MS,
+  mountDelayMs = DEFAULT_MOUNT_DELAY_MS,
 }: {
   inputValue: string
   setInputValue: (value: string) => void
@@ -31,10 +34,12 @@ export function useDebouncedDigitInput<T extends string = string>({
   enabled?: boolean
   once?: boolean
   debounceMs?: number
+  mountDelayMs?: number
 }): void {
   const initialInputValue = useRef(inputValue)
   const hasTriggeredRef = useRef(false)
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const mountedAtRef = useRef(enabled ? Date.now() : null)
 
   // Latest-ref pattern so callers can pass inline callbacks without causing
   // the effect to re-run (which would reset the debounce timer every render).
@@ -51,8 +56,15 @@ export function useDebouncedDigitInput<T extends string = string>({
       debounceRef.current = null
     }
 
+    if (
+      mountedAtRef.current !== null &&
+      Date.now() - mountedAtRef.current < mountDelayMs
+    ) {
+      return
+    }
+
     if (inputValue !== initialInputValue.current) {
-      const lastChar = normalizeFullWidthDigits(inputValue.slice(-1))
+      const lastChar = inputValue.slice(-1).normalize('NFKC')
       if (callbacksRef.current.isValidDigit(lastChar)) {
         const trimmed = inputValue.slice(0, -1)
         debounceRef.current = setTimeout(
@@ -78,5 +90,5 @@ export function useDebouncedDigitInput<T extends string = string>({
         debounceRef.current = null
       }
     }
-  }, [inputValue, enabled, once, debounceMs])
+  }, [inputValue, enabled, once, debounceMs, mountDelayMs])
 }

@@ -6,7 +6,6 @@ import {
   getCurrentTurnTokenBudget,
   getTurnOutputTokens,
   getBudgetContinuationCount,
-  getTotalInputTokens,
 } from '../bootstrap/state.js'
 import { parseTokenBudget } from '../utils/tokenBudget.js'
 import { count } from '../utils/array.js'
@@ -164,6 +163,7 @@ import {
   resetCostState,
   getStoredSessionCosts,
 } from '../cost-tracker.js'
+import { tokenCountWithEstimation } from '../utils/tokens.js'
 import { useCostSummary } from '../costHook.js'
 import { useFpsMetrics } from '../context/fpsMetrics.js'
 import { useAfterFirstRender } from '../hooks/useAfterFirstRender.js'
@@ -366,6 +366,8 @@ import {
   reconstructContentReplacementState,
   type ContentReplacementRecord,
 } from '../utils/toolResultStorage.js'
+import { createBashRerunAliases } from '../utils/bash/rerunAliases.js'
+import { createToolResultDedupState } from '../utils/toolResultDedup.js'
 import { partialCompactConversation } from '../services/compact/compact.js'
 import type { LogOption } from '../types/logs.js'
 import type { AgentColorName } from '../tools/AgentTool/agentColorManager.js'
@@ -2042,6 +2044,12 @@ export function REPL({
       initialContentReplacements,
     ),
   }))
+  const [bashRerunAliasesRef] = useState(() => ({
+    current: createBashRerunAliases(),
+  }))
+  const [resultDedupStateRef] = useState(() => ({
+    current: createToolResultDedupState(),
+  }))
 
   const [haveShownCostDialog, setHaveShownCostDialog] = useState(
     getGlobalConfig().hasAcknowledgedCostThreshold,
@@ -3302,6 +3310,8 @@ export function REPL({
         setConversationId,
         requestPrompt: feature('HOOK_PROMPTS') ? requestPrompt : undefined,
         contentReplacementState: contentReplacementStateRef.current,
+        bashRerunAliases: bashRerunAliasesRef.current,
+        resultDedupState: resultDedupStateRef.current,
       }
     },
     [
@@ -4295,7 +4305,9 @@ export function REPL({
               (Date.now() - lastQueryCompletionTimeRef.current) / 60_000,
             ),
             messageCount: messagesRef.current.length,
-            totalInputTokens: getTotalInputTokens(),
+            contextTokens: tokenCountWithEstimation(
+              getMessagesAfterCompactBoundary(messagesRef.current),
+            ),
           })
           idleHintShownRef.current = false
         }
@@ -4457,7 +4469,9 @@ export function REPL({
           !speculationAccept &&
           !input.trim().startsWith('/') &&
           lastQueryCompletionTimeRef.current > 0 &&
-          getTotalInputTokens() >= tokenThreshold
+          tokenCountWithEstimation(
+            getMessagesAfterCompactBoundary(messagesRef.current),
+          ) >= tokenThreshold
         ) {
           const idleMs = Date.now() - lastQueryCompletionTimeRef.current
           const idleMinutes = idleMs / 60_000
@@ -5283,7 +5297,12 @@ export function REPL({
     const tokenThreshold = Number(
       process.env.CLAUDE_CODE_IDLE_TOKEN_THRESHOLD ?? 100_000,
     )
-    if (getTotalInputTokens() < tokenThreshold) return
+    if (
+      tokenCountWithEstimation(
+        getMessagesAfterCompactBoundary(messagesRef.current),
+      ) < tokenThreshold
+    )
+      return
 
     const idleThresholdMs =
       Number(process.env.CLAUDE_CODE_IDLE_THRESHOLD_MINUTES ?? 75) * 60_000
@@ -5293,7 +5312,9 @@ export function REPL({
     const timer = setTimeout(
       (lqct, addNotif, msgsRef, mode, hintRef) => {
         if (msgsRef.current.length === 0) return
-        const totalTokens = getTotalInputTokens()
+        const totalTokens = tokenCountWithEstimation(
+          getMessagesAfterCompactBoundary(msgsRef.current),
+        )
         const formattedTokens = formatTokens(totalTokens)
         const idleMinutes = (Date.now() - lqct) / 60_000
         addNotif({
@@ -5325,7 +5346,7 @@ export function REPL({
             mode as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
           idleMinutes: Math.round(idleMinutes),
           messageCount: msgsRef.current.length,
-          totalInputTokens: totalTokens,
+          contextTokens: totalTokens,
         })
       },
       Math.max(0, remaining),
@@ -6513,7 +6534,9 @@ export function REPL({
                 {focusedInputDialog === 'idle-return' && idleReturnPending && (
                   <IdleReturnDialog
                     idleMinutes={idleReturnPending.idleMinutes}
-                    totalInputTokens={getTotalInputTokens()}
+                    totalInputTokens={tokenCountWithEstimation(
+                      getMessagesAfterCompactBoundary(messages),
+                    )}
                     onDone={async action => {
                       const pending = idleReturnPending
                       setIdleReturnPending(null)
@@ -6522,7 +6545,11 @@ export function REPL({
                           action as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
                         idleMinutes: Math.round(pending.idleMinutes),
                         messageCount: messagesRef.current.length,
-                        totalInputTokens: getTotalInputTokens(),
+                        contextTokens: tokenCountWithEstimation(
+                          getMessagesAfterCompactBoundary(
+                            messagesRef.current,
+                          ),
+                        ),
                       })
                       if (action === 'dismiss') {
                         setInputValue(pending.input)

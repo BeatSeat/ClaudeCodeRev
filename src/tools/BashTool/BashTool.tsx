@@ -362,6 +362,12 @@ For commands that are harder to parse at a glance (piped commands, obscure flags
     dangerouslyDisableSandbox: semanticBoolean(z.boolean().optional()).describe(
       'Set this to true to dangerously override sandbox mode and run commands without sandboxing.',
     ),
+    rerun: z
+      .string()
+      .optional()
+      .describe(
+        "Rerun a prior command exactly by passing the alias from a previous result's [rerun: bN] footer (e.g. 'b3'). Mutually exclusive with 'command'.",
+      ),
     _simulatedSedEdit: z
       .object({
         filePath: z.string(),
