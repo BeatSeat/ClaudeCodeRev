@@ -30,6 +30,7 @@ import {
   formatNoMatchingTagError,
   formatReverseDependentsSuffix,
   formatVersionRequirementError,
+  getEnabledPluginIdsForScope,
 } from '../../utils/plugins/dependencyResolver.js'
 import {
   loadInstalledPluginsFromDisk,
@@ -37,6 +38,7 @@ import {
   removePluginInstallation,
   updateInstallationPathOnDisk,
 } from '../../utils/plugins/installedPluginsManager.js'
+import { isSourceAllowedByPolicy } from '../../utils/plugins/marketplaceHelpers.js'
 import {
   getMarketplace,
   getPluginById,
@@ -52,6 +54,7 @@ import {
   formatResolutionError,
   installResolvedPlugin,
 } from '../../utils/plugins/pluginInstallationHelpers.js'
+import { installMissingDependenciesForPlugin } from '../../utils/plugins/resolveMissingDependencies.js'
 import {
   cachePlugin,
   copyPluginToVersionedCache,
@@ -119,6 +122,32 @@ export function isInstallableScope(
  */
 export function getProjectPathForScope(scope: PluginScope): string | undefined {
   return scope === 'project' || scope === 'local' ? getOriginalCwd() : undefined
+}
+
+/**
+ * Official 2.1.117 `CLK`: enabled at this scope, V2 install row matches
+ * scope+projectPath, and installPath still exists on disk.
+ */
+export async function isPluginInstalledAtScope(
+  pluginId: string,
+  scope: InstallableScope,
+): Promise<boolean> {
+  const settingSource = scopeToSettingSource(scope)
+  if (!getEnabledPluginIdsForScope(settingSource).has(pluginId)) {
+    return false
+  }
+  const projectPath = scope !== 'user' ? getProjectPathForScope(scope) : undefined
+  const entry = loadInstalledPluginsV2().plugins[pluginId]?.find(
+    inst => inst.scope === scope && inst.projectPath === projectPath,
+  )
+  if (!entry) return false
+  try {
+    await getFsImplementation().stat(entry.installPath)
+    return true
+  } catch (error) {
+    if (isENOENT(error)) return false
+    throw error
+  }
 }
 
 /**
@@ -350,6 +379,9 @@ export async function installPluginOp(
   } else {
     const marketplaces = await loadKnownMarketplacesConfig()
     for (const [mktName, mktConfig] of Object.entries(marketplaces)) {
+      if (!isSourceAllowedByPolicy(mktConfig.source)) {
+        continue
+      }
       try {
         const marketplace = await getMarketplace(mktName)
         const pluginEntry = marketplace.plugins.find(p => p.name === pluginName)
@@ -378,6 +410,18 @@ export async function installPluginOp(
 
   const entry = foundPlugin
   const pluginId = `${entry.name}@${foundMarketplace}`
+
+  // Official 2.1.117: already-installed → install missing deps instead of stopping
+  if (await isPluginInstalledAtScope(pluginId, scope)) {
+    const missing = await installMissingDependenciesForPlugin(pluginId)
+    return {
+      success: true,
+      message: `Plugin "${pluginId}" is already installed (scope: ${scope})${missing?.suffix ?? ''}`,
+      pluginId,
+      pluginName: entry.name,
+      scope,
+    }
+  }
 
   const result = await installResolvedPlugin({
     pluginId,
@@ -412,6 +456,16 @@ export async function installPluginOp(
         return {
           success: false,
           message: `Plugin "${result.pluginName}" depends on "${result.blockedDependency}", which is blocked by your organization's policy`,
+        }
+      case 'marketplace-blocked-by-policy':
+        return {
+          success: false,
+          message: `Plugin "${result.pluginName}" is from marketplace "${result.marketplaceName}", which is blocked by your organization's policy`,
+        }
+      case 'dependency-marketplace-blocked-by-policy':
+        return {
+          success: false,
+          message: `Plugin "${result.pluginName}" depends on "${result.blockedDependency}" from marketplace "${result.marketplaceName}", which is blocked by your organization's policy`,
         }
       case 'range-conflict':
         return {
@@ -868,6 +922,14 @@ export async function updatePluginOp(
     const marketplaceSource = (await loadKnownMarketplacesConfig())[
       marketplaceName
     ]?.source
+    if (marketplaceSource && !isSourceAllowedByPolicy(marketplaceSource)) {
+      return {
+        success: false,
+        message: `Plugin "${pluginName}" is from marketplace "${marketplaceName}", which is blocked by your organization's policy`,
+        pluginId,
+        scope,
+      }
+    }
     if (
       marketplaceSource &&
       (marketplaceSource.source === 'github' ||

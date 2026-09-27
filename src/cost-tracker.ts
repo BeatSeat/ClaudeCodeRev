@@ -279,14 +279,16 @@ export function addToTotalSessionCost(
   cost: number,
   usage: Usage,
   model: string,
+  effort?: string | null,
 ): number {
   const modelUsage = addToTotalModelUsage(cost, usage, model)
   addToTotalCostState(cost, modelUsage, model)
 
-  const attrs =
-    isFastModeEnabled() && usage.speed === 'fast'
-      ? { model, speed: 'fast' }
-      : { model }
+  const attrs = {
+    model,
+    ...(isFastModeEnabled() && usage.speed === 'fast' ? { speed: 'fast' } : {}),
+    ...(effort ? { effort } : {}),
+  }
 
   getCostCounter()?.add(cost, attrs)
   getTokenCounter()?.add(usage.input_tokens, { ...attrs, type: 'input' })

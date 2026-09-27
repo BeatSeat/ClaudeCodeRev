@@ -10,9 +10,13 @@ import { KeyboardShortcutHint } from '../../components/design-system/KeyboardSho
 import { Spinner } from '../../components/Spinner.js'
 import TextInput from '../../components/TextInput.js'
 import { Box, Text } from '../../ink.js'
-import { toError } from '../../utils/errors.js'
+import { logForDebugging } from '../../utils/debug.js'
+import { errorMessage, toError } from '../../utils/errors.js'
 import { logError } from '../../utils/log.js'
 import { clearAllCaches } from '../../utils/plugins/cacheUtils.js'
+import { formatDependencyCountSuffix } from '../../utils/plugins/dependencyResolver.js'
+import { loadAllPlugins } from '../../utils/plugins/pluginLoader.js'
+import { resolveMissingDependencies } from '../../utils/plugins/resolveMissingDependencies.js'
 import {
   addMarketplaceSource,
   saveMarketplaceToSettings,
@@ -97,6 +101,20 @@ export function AddMarketplace({
           sourceType as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
       })
 
+      let installedDeps: string[] = []
+      try {
+        installedDeps = (await resolveMissingDependencies((await loadAllPlugins()).errors))
+          .installed
+      } catch (depErr) {
+        logForDebugging(
+          `marketplace add: dep auto-resolve skipped: ${errorMessage(depErr)}`,
+          { level: 'warn' },
+        )
+      }
+      if (installedDeps.length > 0) {
+        clearAllCaches()
+      }
+
       if (onAddComplete) {
         await onAddComplete()
       }
@@ -106,7 +124,9 @@ export function AddMarketplace({
 
       if (cliMode) {
         // In CLI mode, set result to trigger completion
-        setResult(`Successfully added marketplace: ${name}`)
+        setResult(
+          `Successfully added marketplace: ${name}${formatDependencyCountSuffix(installedDeps)}`,
+        )
       } else {
         // In interactive mode, switch to browse view
         setViewState({ type: 'browse-marketplace', targetMarketplace: name })

@@ -41,7 +41,12 @@ import {
   getGitCommitSha,
 } from './installedPluginsManager.js'
 import { getManagedPluginNames } from './managedPlugins.js'
-import { getMarketplaceCacheOnly, getPluginById } from './marketplaceManager.js'
+import { isSourceAllowedByPolicy } from './marketplaceHelpers.js'
+import {
+  getMarketplaceCacheOnly,
+  getPluginById,
+  loadKnownMarketplacesConfig,
+} from './marketplaceManager.js'
 import {
   isOfficialMarketplaceName,
   parsePluginIdentifier,
@@ -339,6 +344,19 @@ export type InstallCoreResult =
     }
   | {
       ok: false
+      reason: 'marketplace-blocked-by-policy'
+      pluginName: string
+      marketplaceName: string
+    }
+  | {
+      ok: false
+      reason: 'dependency-marketplace-blocked-by-policy'
+      pluginName: string
+      blockedDependency: string
+      marketplaceName: string
+    }
+  | {
+      ok: false
       reason: 'range-conflict'
       dep: string
       ranges: string[]
@@ -472,6 +490,20 @@ export async function installResolvedPlugin({
     return { ok: false, reason: 'blocked-by-policy', pluginName: entry.name }
   }
 
+  const rootMarketplace = parsePluginIdentifier(pluginId).marketplace
+  if (rootMarketplace) {
+    const known = await loadKnownMarketplacesConfig()
+    const source = known[rootMarketplace]?.source
+    if (source && !isSourceAllowedByPolicy(source)) {
+      return {
+        ok: false,
+        reason: 'marketplace-blocked-by-policy',
+        pluginName: entry.name,
+        marketplaceName: rootMarketplace,
+      }
+    }
+  }
+
   // ── Resolve dependency closure ──
   // depInfo caches marketplace lookups so the materialize loop doesn't
   // re-fetch. Seed the root if the caller gave us its install location.
@@ -494,7 +526,6 @@ export async function installResolvedPlugin({
     depInfo.set(pluginId, { entry, marketplaceInstallLocation })
   }
 
-  const rootMarketplace = parsePluginIdentifier(pluginId).marketplace
   const allowedCrossMarketplaces = new Set(
     (rootMarketplace
       ? (await getMarketplaceCacheOnly(rootMarketplace))
@@ -521,6 +552,7 @@ export async function installResolvedPlugin({
   // The root plugin was already checked above, but any dependency in the
   // closure could also be policy-blocked. Check before writing to settings
   // so a non-blocked plugin can't pull in a blocked dependency.
+  const knownForPolicy = await loadKnownMarketplacesConfig()
   for (const id of resolution.closure) {
     if (id !== pluginId && isPluginBlockedByPolicy(id)) {
       return {
@@ -528,6 +560,21 @@ export async function installResolvedPlugin({
         reason: 'dependency-blocked-by-policy',
         pluginName: entry.name,
         blockedDependency: id,
+      }
+    }
+    if (id !== pluginId) {
+      const depMarketplace = parsePluginIdentifier(id).marketplace
+      const depSource = depMarketplace
+        ? knownForPolicy[depMarketplace]?.source
+        : undefined
+      if (depSource && !isSourceAllowedByPolicy(depSource)) {
+        return {
+          ok: false,
+          reason: 'dependency-marketplace-blocked-by-policy',
+          pluginName: entry.name,
+          blockedDependency: id,
+          marketplaceName: depMarketplace!,
+        }
       }
     }
   }
@@ -832,6 +879,16 @@ export async function installPluginFromMarketplace({
           return {
             success: false,
             error: `Cannot install "${result.pluginName}": dependency "${result.blockedDependency}" is blocked by your organization's policy`,
+          }
+        case 'marketplace-blocked-by-policy':
+          return {
+            success: false,
+            error: `Cannot install "${result.pluginName}": marketplace "${result.marketplaceName}" is blocked by your organization's policy`,
+          }
+        case 'dependency-marketplace-blocked-by-policy':
+          return {
+            success: false,
+            error: `Cannot install "${result.pluginName}": dependency "${result.blockedDependency}" is from marketplace "${result.marketplaceName}", which is blocked by your organization's policy`,
           }
         case 'range-conflict':
           return {

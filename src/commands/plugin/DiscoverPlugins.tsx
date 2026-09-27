@@ -34,6 +34,7 @@ import {
 import { loadKnownMarketplacesConfig } from '../../utils/plugins/marketplaceManager.js'
 import { OFFICIAL_MARKETPLACE_NAME } from '../../utils/plugins/officialMarketplace.js'
 import { installPluginFromMarketplace } from '../../utils/plugins/pluginInstallationHelpers.js'
+import { installMissingDependenciesForPlugin } from '../../utils/plugins/resolveMissingDependencies.js'
 import { isPluginBlockedByPolicy } from '../../utils/plugins/pluginPolicy.js'
 import { plural } from '../../utils/stringUtils.js'
 import { truncateToWidth } from '../../utils/truncate.js'
@@ -257,9 +258,19 @@ export function DiscoverPlugins({
 
           if (foundPlugin) {
             if (foundPlugin.isInstalled) {
-              setError(
-                `Plugin '${foundPlugin.pluginId}' is already installed. Use '/plugin' to manage existing plugins.`,
+              const missing = await installMissingDependenciesForPlugin(
+                foundPlugin.pluginId,
               )
+              if (missing === null) {
+                setError(
+                  `Plugin '${foundPlugin.pluginId}' is already installed. Use '/plugin' to manage existing plugins.`,
+                )
+              } else {
+                setResult(
+                  `Plugin "${foundPlugin.pluginId}" is already installed${missing.suffix}`,
+                )
+                await onInstallComplete?.()
+              }
             } else {
               setSelectedPlugin(foundPlugin)
               setViewState('plugin-details')
@@ -275,7 +286,7 @@ export function DiscoverPlugins({
       }
     }
     void loadAllPlugins()
-  }, [setError, targetPlugin])
+  }, [setError, setResult, targetPlugin, onInstallComplete])
 
   // Install selected plugins
   const installSelectedPlugins = async () => {

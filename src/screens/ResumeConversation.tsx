@@ -23,6 +23,7 @@ import { useAppState, useSetAppState } from '../state/AppState.js'
 import type { Tool } from '../Tool.js'
 import type { AgentColorName } from '../tools/AgentTool/agentColorManager.js'
 import type { AgentDefinition } from '../tools/AgentTool/loadAgentsDir.js'
+import { mergeAgentFrontmatterMcpConfig } from '../utils/agentMcpConfig.js'
 import { asSessionId } from '../types/ids.js'
 import type { LogOption } from '../types/logs.js'
 import type { Message } from '../types/message.js'
@@ -373,7 +374,11 @@ export function ResumeConversation({
         initialAgentName={resumeData.agentName}
         initialAgentColor={resumeData.agentColor}
         mcpClients={mcpClients}
-        dynamicMcpConfig={dynamicMcpConfig}
+        dynamicMcpConfig={mergeAgentFrontmatterMcpConfig(
+          dynamicMcpConfig ?? {},
+          resumeData.mainThreadAgentDefinition,
+          { strictMcpConfig },
+        )}
         strictMcpConfig={strictMcpConfig}
         systemPrompt={systemPrompt}
         appendSystemPrompt={appendSystemPrompt}

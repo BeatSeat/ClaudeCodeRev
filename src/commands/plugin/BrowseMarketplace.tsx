@@ -35,6 +35,7 @@ import {
 } from '../../utils/plugins/marketplaceManager.js'
 import { OFFICIAL_MARKETPLACE_NAME } from '../../utils/plugins/officialMarketplace.js'
 import { installPluginFromMarketplace } from '../../utils/plugins/pluginInstallationHelpers.js'
+import { installMissingDependenciesForPlugin } from '../../utils/plugins/resolveMissingDependencies.js'
 import { isPluginBlockedByPolicy } from '../../utils/plugins/pluginPolicy.js'
 import { plural } from '../../utils/stringUtils.js'
 import { truncateToWidth } from '../../utils/truncate.js'
@@ -268,9 +269,18 @@ export function BrowseMarketplace({
             const globallyInstalled = isPluginGloballyInstalled(pluginId)
 
             if (globallyInstalled) {
-              setError(
-                `Plugin '${pluginId}' is already installed globally. Use '/plugin' to manage existing plugins.`,
-              )
+              const missing =
+                await installMissingDependenciesForPlugin(pluginId)
+              if (missing === null) {
+                setError(
+                  `Plugin '${pluginId}' is already installed globally. Use '/plugin' to manage existing plugins.`,
+                )
+              } else {
+                setResult(
+                  `Plugin "${pluginId}" is already installed${missing.suffix}`,
+                )
+                await onInstallComplete?.()
+              }
             } else {
               // Navigate to the plugin details view
               setSelectedMarketplace(foundMarketplace)
@@ -301,7 +311,7 @@ export function BrowseMarketplace({
       }
     }
     void loadMarketplaceData()
-  }, [setError, targetMarketplace, targetPlugin])
+  }, [setError, setResult, targetMarketplace, targetPlugin, onInstallComplete])
 
   // Load plugins when a marketplace is selected
   useEffect(() => {

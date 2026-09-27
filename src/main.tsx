@@ -218,6 +218,7 @@ import {
   shouldAutoEnableClaudeInChrome,
   shouldEnableClaudeInChrome,
 } from './utils/claudeInChrome/setup.js'
+import { mergeAgentFrontmatterMcpConfig } from './utils/agentMcpConfig.js'
 import { getContextWindowForModel } from './utils/context.js'
 import { loadConversationForResume } from './utils/conversationRecovery.js'
 import { buildDeepLinkBanner } from './utils/deepLink/banner.js'
@@ -3493,6 +3494,22 @@ async function run(): Promise<CommanderCommand> {
       logForDebugging(
         `[STARTUP] MCP configs resolved in ${mcpConfigResolvedMs}ms (awaited at +${Date.now() - mcpConfigStart}ms)`,
       )
+      // Official 2.1.117 TFH: --agent frontmatter mcpServers join the
+      // dynamic map (existing --mcp-config / CLI entries win).
+      dynamicMcpConfig = mergeAgentFrontmatterMcpConfig(
+        dynamicMcpConfig,
+        mainThreadAgentDefinition,
+        {
+          strictMcpConfig,
+          onBlocked: blocked => {
+            process.stderr.write(
+              chalk.yellow(
+                `Warning: agent frontmatter MCP ${plural(blocked.length, 'server')} blocked by enterprise policy: ${blocked.join(', ')}\n`,
+              ),
+            )
+          },
+        },
+      )
       // CLI flag (--mcp-config) should override file-based configs, matching settings precedence
       const allMcpConfigs = { ...existingMcpConfigs, ...dynamicMcpConfig }
 
@@ -3982,11 +3999,7 @@ async function run(): Promise<CommanderCommand> {
           }
         }
         profileCheckpoint('before_connectMcp')
-        await waitForMcpOrProceed(
-          connectMcpBatch(regularMcpConfigs, 'regular'),
-          '--mcp-config servers',
-        )
-        profileCheckpoint('after_connectMcp')
+        const regularConnect = connectMcpBatch(regularMcpConfigs, 'regular')
         // Dedup: suppress plugin MCP servers that duplicate a claude.ai
         // connector (connector wins), then connect claude.ai servers.
         // Bounded wait — #23725 made this blocking so single-turn -p sees
@@ -4065,7 +4078,13 @@ async function run(): Promise<CommanderCommand> {
           )
           return connectMcpBatch(dedupedClaudeAi, 'claudeai')
         })
-        await waitForMcpOrProceed(claudeaiConnect, 'claude.ai connectors')
+        // Official 2.1.117: concurrent connect is now the default when both
+        // local and claude.ai MCP servers are configured (flag removed).
+        await Promise.all([
+          waitForMcpOrProceed(regularConnect, '--mcp-config servers'),
+          waitForMcpOrProceed(claudeaiConnect, 'claude.ai connectors'),
+        ])
+        profileCheckpoint('after_connectMcp')
         profileCheckpoint('after_connectMcp_claudeai')
 
         // In headless mode, start deferred prefetches immediately (no user typing delay)
@@ -4463,6 +4482,11 @@ async function run(): Promise<CommanderCommand> {
               ...sessionConfig,
               mainThreadAgentDefinition:
                 loaded.restoredAgentDef ?? mainThreadAgentDefinition,
+              dynamicMcpConfig: mergeAgentFrontmatterMcpConfig(
+                dynamicMcpConfig,
+                loaded.restoredAgentDef ?? mainThreadAgentDefinition,
+                { strictMcpConfig },
+              ),
               initialMessages: loaded.messages,
               initialFileHistorySnapshots: loaded.fileHistorySnapshots,
               initialContentReplacements: loaded.contentReplacements,
@@ -5270,6 +5294,11 @@ async function run(): Promise<CommanderCommand> {
               ...sessionConfig,
               mainThreadAgentDefinition:
                 resumeData.restoredAgentDef ?? mainThreadAgentDefinition,
+              dynamicMcpConfig: mergeAgentFrontmatterMcpConfig(
+                dynamicMcpConfig,
+                resumeData.restoredAgentDef ?? mainThreadAgentDefinition,
+                { strictMcpConfig },
+              ),
               initialMessages: resumeData.messages,
               initialFileHistorySnapshots: resumeData.fileHistorySnapshots,
               initialContentReplacements: resumeData.contentReplacements,
