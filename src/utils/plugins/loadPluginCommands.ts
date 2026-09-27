@@ -265,13 +265,21 @@ function createPluginCommand(
       substitutedAllowedTools,
     )
 
-    const argumentHint = frontmatter['argument-hint'] as string | undefined
+    const argumentHint =
+      frontmatter['argument-hint'] != null
+        ? String(frontmatter['argument-hint'])
+        : undefined
     const argumentNames = parseArgumentNames(
       frontmatter.arguments as string | string[] | undefined,
     )
-    const whenToUse = frontmatter.when_to_use as string | undefined
-    const version = frontmatter.version as string | undefined
-    const displayName = frontmatter.name as string | undefined
+    const whenToUse =
+      frontmatter.when_to_use != null
+        ? String(frontmatter.when_to_use)
+        : undefined
+    const version =
+      frontmatter.version != null ? String(frontmatter.version) : undefined
+    const displayName =
+      frontmatter.name != null ? String(frontmatter.name) : undefined
 
     // Handle model configuration, resolving aliases like 'haiku', 'sonnet', 'opus'
     const model =

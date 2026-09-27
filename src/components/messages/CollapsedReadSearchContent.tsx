@@ -1,4 +1,5 @@
 import { feature } from 'bun:bundle'
+import figures from 'figures'
 import { basename } from 'path'
 import React, { useRef } from 'react'
 import { useMinDisplayTime } from '../../hooks/useMinDisplayTime.js'
@@ -179,6 +180,10 @@ export function CollapsedReadSearchContent({
   const bashCount = isFullscreenEnvEnabled()
     ? Math.max(0, maxBashCountRef.current - gitOpBashCount)
     : 0
+  const otherToolCount = message.otherToolCount ?? 0
+  const editFileCount = message.editFileCount ?? 0
+  const linesAdded = message.linesAdded ?? 0
+  const linesRemoved = message.linesRemoved ?? 0
 
   const hasNonMemoryOps =
     searchCount > 0 ||
@@ -187,7 +192,9 @@ export function CollapsedReadSearchContent({
     replCount > 0 ||
     mcpCallCount > 0 ||
     bashCount > 0 ||
-    gitOpBashCount > 0
+    gitOpBashCount > 0 ||
+    otherToolCount > 0 ||
+    editFileCount > 0
 
   const readPaths = message.readFilePaths
   const searchArgs = message.searchArgs
@@ -327,6 +334,28 @@ export function CollapsedReadSearchContent({
   // Build non-memory parts first (search, read, repl, mcp, bash) — these render
   // before memory so the line reads "Ran 3 bash commands, recalled 1 memory".
   const nonMemParts: React.ReactNode[] = []
+
+  if (editFileCount > 0) {
+    const editVerb = isActiveGroup ? 'Editing' : 'Edited'
+    nonMemParts.push(
+      <Text key="edit">
+        {editVerb} <Text bold>{editFileCount}</Text>{' '}
+        {editFileCount === 1 ? 'file' : 'files'}
+        {linesAdded > 0 && (
+          <>
+            {' '}
+            <Text color="diffAddedWord">+{linesAdded}</Text>
+          </>
+        )}
+        {linesRemoved > 0 && (
+          <>
+            {' '}
+            <Text color="diffRemovedWord">-{linesRemoved}</Text>
+          </>
+        )}
+      </Text>,
+    )
+  }
 
   // Git operations lead the line — they're the load-bearing outcome.
   function pushPart(key: string, verb: string, body: React.ReactNode): void {
@@ -489,6 +518,26 @@ export function CollapsedReadSearchContent({
     )
   }
 
+  if (otherToolCount > 0) {
+    const isFirst = nonMemParts.length === 0
+    const verb = isActiveGroup
+      ? isFirst
+        ? 'Calling'
+        : 'calling'
+      : isFirst
+        ? 'Called'
+        : 'called'
+    if (!isFirst) {
+      nonMemParts.push(<Text key="comma-other">, </Text>)
+    }
+    nonMemParts.push(
+      <Text key="other">
+        {verb} <Text bold>{otherToolCount}</Text>{' '}
+        {otherToolCount === 1 ? 'tool' : 'tools'}
+      </Text>,
+    )
+  }
+
   if (isFullscreenEnvEnabled() && bashCount > 0) {
     const isFirst = nonMemParts.length === 0
     const verb = isActiveGroup
@@ -613,6 +662,14 @@ export function CollapsedReadSearchContent({
           {message.hookCount === 1 ? 'hook' : 'hooks'} (
           {formatSecondsShort(message.hookTotalMs)})
         </Text>
+      )}
+      {isActiveGroup && message.pendingText && (
+        <Box flexDirection="row" marginTop={1}>
+          <Box width={2} flexShrink={0}>
+            <Text dimColor>{figures.pointer}</Text>
+          </Box>
+          <Text dimColor>{message.pendingText}</Text>
+        </Box>
       )}
     </Box>
   )

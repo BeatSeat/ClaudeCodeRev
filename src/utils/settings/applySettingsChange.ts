@@ -6,6 +6,7 @@ import {
   findOverlyBroadBashPermissions,
   isBypassPermissionsModeDisabled,
   removeDangerousPermissions,
+  syncAdditionalDirectoriesFromSettings,
   transitionPlanAutoMode,
 } from '../permissions/permissionSetup.js'
 import { syncPermissionRulesFromDisk } from '../permissions/permissions.js'
@@ -45,6 +46,12 @@ export function applySettingsChange(
     let newContext = syncPermissionRulesFromDisk(
       prev.toolPermissionContext,
       updatedRules,
+    )
+
+    newContext = syncAdditionalDirectoriesFromSettings(
+      newContext,
+      prev.settings.permissions?.additionalDirectories,
+      newSettings.permissions?.additionalDirectories,
     )
 
     // Ant-only: re-strip overly broad Bash allow rules after settings sync

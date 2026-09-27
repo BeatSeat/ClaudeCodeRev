@@ -70,7 +70,7 @@ export type Props = {
   width?: number | string
   isTranscriptMode: boolean
   isStatic: boolean
-  onOpenRateLimitOptions?: () => void
+  onOpenRateLimitOptions?: () => boolean
   isActiveCollapsedGroup?: boolean
   isUserContinuation?: boolean
   /** ID of the last thinking block (uuid:index) to show, used for hiding past thinking in transcript mode */
@@ -391,7 +391,7 @@ function AssistantMessageBlock({
   inProgressToolCallCount?: number
   isTranscriptMode: boolean
   lookups: ReturnType<typeof buildMessageLookups>
-  onOpenRateLimitOptions?: () => void
+  onOpenRateLimitOptions?: () => boolean
   /** ID of this content block's message:index for thinking block comparison */
   thinkingBlockId: string
   /** ID of the last thinking block to show, null means show all */

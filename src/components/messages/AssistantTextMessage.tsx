@@ -42,7 +42,7 @@ type Props = {
   shouldShowDot: boolean
   verbose: boolean
   width?: number | string
-  onOpenRateLimitOptions?: () => void
+  onOpenRateLimitOptions?: () => boolean
 }
 
 function InvalidApiKeyMessage(): React.ReactNode {

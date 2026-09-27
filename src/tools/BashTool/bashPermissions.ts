@@ -427,6 +427,15 @@ const SAFE_ENV_VARS = new Set([
   'TIME_STYLE', // time display format for ls
   'BLOCK_SIZE', // block size for du/df
   'BLOCKSIZE', // alternative block size
+
+  // Terminal geometry and color (cannot execute code)
+  'COLUMNS', // terminal width
+  'LINES', // terminal height
+  'CLICOLOR', // BSD color toggle
+  'CLICOLOR_FORCE', // force BSD color output
+  'CI', // CI environment indicator
+  'DEBIAN_FRONTEND', // noninteractive apt/dpkg
+  'GIT_TERMINAL_PROMPT', // disable git credential prompts
 ])
 
 /**
@@ -495,6 +504,69 @@ const ANT_ONLY_SAFE_ENV_VARS = new Set([
   'GH_TOKEN', // GitHub token
   'GROWTHBOOK_API_KEY', // self-hosted growthbook
 ])
+
+function isSafeEnvVarName(name: string): boolean {
+  return (
+    SAFE_ENV_VARS.has(name) ||
+    (process.env.USER_TYPE === 'ant' && ANT_ONLY_SAFE_ENV_VARS.has(name))
+  )
+}
+
+const ENV_ASSIGN_PREFIX_RE = /^([A-Za-z_][A-Za-z0-9_]*)\+?=/
+const ENV_ASSIGN_CONSUME_RE =
+  /^[A-Za-z_][A-Za-z0-9_]*\+?=(?:"[^"$`\\]*"|'[^']*'|[A-Za-z0-9_./:+-]*)[ \t]+/
+
+/**
+ * True when the command assigns an env var that is not on the SAFE list.
+ * Official fhz(): AST envVars, otherwise leading NAME+= / NAME= prefixes.
+ * Also treats NAME+= / NAME= tokens in argv as assignments.
+ */
+function hasUnsafeEnvAssignment(
+  input: { command: string },
+  astCommands?: SimpleCommand[],
+): boolean {
+  if (astCommands && astCommands.length > 0) {
+    return astCommands.some(cmd => {
+      if (cmd.envVars.some(v => !isSafeEnvVarName(v.name))) {
+        return true
+      }
+      return cmd.argv.some(arg => {
+        const match = ENV_ASSIGN_PREFIX_RE.exec(arg)
+        return match !== null && !isSafeEnvVarName(match[1]!)
+      })
+    })
+  }
+
+  let rest = input.command
+  for (;;) {
+    const prefix = rest.match(ENV_ASSIGN_PREFIX_RE)
+    if (!prefix) {
+      return false
+    }
+    if (!isSafeEnvVarName(prefix[1]!)) {
+      return true
+    }
+    const consumed = rest.match(ENV_ASSIGN_CONSUME_RE)
+    if (!consumed) {
+      return true
+    }
+    rest = rest.slice(consumed[0].length)
+  }
+}
+
+function hasNetworkDeviceRedirect(
+  command: string,
+  astRedirects?: Redirect[],
+): boolean {
+  if (astRedirects?.some(r => /^\/dev\/(tcp|udp)\//.test(r.target))) {
+    return true
+  }
+  const extracted = extractOutputRedirections(command)
+  return (
+    extracted.dangerousRedirectionReason === 'network_device' ||
+    extracted.redirections.some(r => /^\/dev\/(tcp|udp)\//.test(r.target))
+  )
+}
 
 /**
  * Strips full-line comments from a command.
@@ -1150,8 +1222,12 @@ export const bashToolCheckPermission = (
     return modeResult
   }
 
-  // 7. Check read-only rules
-  if (BashTool.isReadOnly(input)) {
+  // 7. Check read-only rules. Unsafe env assignments (PATH=, LD_PRELOAD=,
+  // or any non-SAFE NAME+= / NAME=) can change which binary runs.
+  if (
+    BashTool.isReadOnly(input) &&
+    !hasUnsafeEnvAssignment(input, astCommand ? [astCommand] : undefined)
+  ) {
     return {
       behavior: 'allow',
       updatedInput: input,
@@ -1270,6 +1346,8 @@ export async function checkCommandAndSuggestRules(
 function checkSandboxAutoAllow(
   input: z.infer<typeof BashTool.inputSchema>,
   toolPermissionContext: ToolPermissionContext,
+  astCommands?: SimpleCommand[],
+  astRedirects?: Redirect[],
 ): PermissionResult {
   const command = input.command.trim()
 
@@ -1346,8 +1424,8 @@ function checkSandboxAutoAllow(
       },
     }
   }
-  // No explicit rules, so auto-allow with sandbox
 
+  // No explicit rules, so auto-allow with sandbox
   return {
     behavior: 'allow',
     updatedInput: input,
@@ -1836,6 +1914,8 @@ export async function bashToolHasPermission(
     const sandboxAutoAllowResult = checkSandboxAutoAllow(
       input,
       appState.toolPermissionContext,
+      astCommands,
+      astRedirects,
     )
     if (sandboxAutoAllowResult.behavior !== 'passthrough') {
       return sandboxAutoAllowResult

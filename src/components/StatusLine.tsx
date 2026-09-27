@@ -37,6 +37,7 @@ import {
 } from '../utils/context.js'
 import { getCwd } from '../utils/cwd.js'
 import { logForDebugging } from '../utils/debug.js'
+import { getGitWorktreeName } from '../utils/git.js'
 import { isFullscreenEnvEnabled } from '../utils/fullscreen.js'
 import {
   createBaseHookInput,
@@ -70,6 +71,7 @@ function buildStatusLineCommandInput(
   messages: Message[],
   addedDirs: string[],
   mainLoopModel: ModelName,
+  gitWorktreeName: string | null,
   vimMode?: VimMode,
 ): StatusLineCommandInput {
   const agentType = getMainThreadAgentType()
@@ -119,6 +121,7 @@ function buildStatusLineCommandInput(
       current_dir: getCwd(),
       project_dir: getOriginalCwd(),
       added_dirs: addedDirs,
+      ...(gitWorktreeName && { git_worktree: gitWorktreeName }),
     },
     version: MACRO.VERSION,
     output_style: {
@@ -267,6 +270,7 @@ function StatusLineInner({
         msgs,
         Array.from(addedDirsRef.current.keys()),
         mainLoopModelRef.current,
+        await getGitWorktreeName(getCwd()),
         vimModeRef.current,
       )
 
@@ -325,6 +329,13 @@ function StatusLineInner({
     mainLoopModel,
     scheduleUpdate,
   ])
+
+  const refreshInterval = settings?.statusLine?.refreshInterval
+  useEffect(() => {
+    if (typeof refreshInterval !== 'number') return
+    const id = setInterval(scheduleUpdate, Math.max(1, refreshInterval) * 1000)
+    return () => clearInterval(id)
+  }, [refreshInterval, scheduleUpdate])
 
   // When the statusLine command changes (hot reload), log the next result
   const statusLineCommand = settings?.statusLine?.command

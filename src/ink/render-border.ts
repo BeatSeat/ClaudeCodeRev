@@ -25,6 +25,16 @@ export const CUSTOM_BORDER_STYLES = {
     bottomLeft: ' ',
     bottomRight: ' ',
   },
+  quote: {
+    top: ' ',
+    left: '▎',
+    right: ' ',
+    bottom: ' ',
+    topLeft: ' ',
+    topRight: ' ',
+    bottomLeft: ' ',
+    bottomRight: ' ',
+  },
 } as const
 
 export type BorderStyle =

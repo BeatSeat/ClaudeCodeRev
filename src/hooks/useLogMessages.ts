@@ -6,6 +6,7 @@ import { isAgentSwarmsEnabled } from '../utils/agentSwarmsEnabled.js'
 import {
   cleanMessagesForLogging,
   isChainParticipant,
+  persistEndIndex,
   recordTranscript,
 } from '../utils/sessionStorage.js'
 
@@ -15,13 +16,19 @@ import {
  *
  * @param messages The current conversation messages
  * @param ignore When true, messages will not be recorded to the transcript
+ * @param skipStreamingAssistant When true (REPL isLoading), do not persist
+ *   assistant placeholders with `stop_reason === null`. Earlier messages in
+ *   the same flush are still written (official VoK / H38).
  */
-export function useLogMessages(messages: Message[], ignore: boolean = false) {
+export function useLogMessages(
+  messages: Message[],
+  ignore: boolean = false,
+  skipStreamingAssistant: boolean = false,
+) {
   const teamContext = useAppState(s => s.teamContext)
 
-  // messages is append-only between compactions, so track where we left off
-  // and only pass the new tail to recordTranscript. Avoids O(n) filter+scan
-  // on every setMessages (~20x/turn, so n=3000 was ~120k wasted iterations).
+  // Persist cursor: last exclusive end index written (not messages.length).
+  // Streaming placeholders sit at this index until stop_reason is set.
   const lastRecordedLengthRef = useRef(0)
   const lastParentUuidRef = useRef<UUID | undefined>(undefined)
   // First-uuid change = compaction or /clear rebuilt the array; length alone
@@ -30,9 +37,14 @@ export function useLogMessages(messages: Message[], ignore: boolean = false) {
   // Guard against stale async .then() overwriting a fresher sync update when
   // an incremental render fires before the compaction .then() resolves.
   const callSeqRef = useRef(0)
+  // Official j: persist-end used as H38 search start across incremental flushes.
+  const lastPersistEndRef = useRef(0)
 
   useEffect(() => {
-    if (ignore) return
+    if (ignore) {
+      lastPersistEndRef.current = messages.length
+      return
+    }
 
     const currentFirstUuid = messages[0]?.uuid as UUID | undefined
     const prevLength = lastRecordedLengthRef.current
@@ -57,11 +69,25 @@ export function useLogMessages(messages: Message[], ignore: boolean = false) {
       prevLength > messages.length
 
     const startIndex = isIncremental ? prevLength : 0
-    if (startIndex === messages.length) return
+    const persistFrom = isIncremental || wasFirstRender
+      ? lastPersistEndRef.current
+      : startIndex
+    const persistUntil = persistEndIndex(
+      messages,
+      Math.max(startIndex, persistFrom),
+      skipStreamingAssistant,
+    )
+    if (!isIncremental) {
+      lastPersistEndRef.current = persistUntil
+    }
+    if (persistUntil === startIndex) return
 
     // Full array on first call + after compaction: recordTranscript's own
     // O(n) dedup loop handles messagesToKeep interleaving correctly there.
-    const slice = startIndex === 0 ? messages : messages.slice(startIndex)
+    const slice =
+      startIndex === 0 && persistUntil === messages.length
+        ? messages
+        : messages.slice(startIndex, persistUntil)
     const parentHint = isIncremental ? lastParentUuidRef.current : undefined
 
     // Fire and forget - we don't want to block the UI.
@@ -113,7 +139,13 @@ export function useLogMessages(messages: Message[], ignore: boolean = false) {
       if (last) lastParentUuidRef.current = last.uuid as UUID
     }
 
-    lastRecordedLengthRef.current = messages.length
+    lastRecordedLengthRef.current = persistUntil
     firstMessageUuidRef.current = currentFirstUuid
-  }, [messages, ignore, teamContext?.teamName, teamContext?.selfAgentName])
+  }, [
+    messages,
+    ignore,
+    skipStreamingAssistant,
+    teamContext?.teamName,
+    teamContext?.selfAgentName,
+  ])
 }

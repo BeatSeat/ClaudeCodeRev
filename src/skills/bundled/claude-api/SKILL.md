@@ -19,6 +19,7 @@ When triggered, the skill equips Claude with:
 - **Streaming patterns:** Implementation details for building chat UIs and handling incremental display
 - **Batch processing:** Offline batch processing at 50% cost
 - **Agent SDK reference:** Installation, built-in tools, permissions, MCP integration, and common patterns (Python and TypeScript)
+- **Managed Agents:** Persistent server-side agents (`managed-agents-2026-04-01`) — create once, reference by ID. See `shared/managed-agents.md`
 - **Current model information:** Model IDs, context window sizes, and pricing
 - **Common pitfalls:** Detailed guidance on avoiding frequent mistakes when integrating with the API
 
@@ -40,16 +41,18 @@ The skill does not activate for general programming tasks, ML/data-science work,
 
 The skill detects your project's language automatically by examining project files (for example, `requirements.txt` for Python, `tsconfig.json` for TypeScript, `go.mod` for Go) and loads the appropriate documentation.
 
-| Language   | SDK documentation | Tool runner | Agent SDK |
-|------------|-------------------|-------------|-----------|
-| Python     | Yes               | Yes (beta)  | Yes       |
-| TypeScript | Yes               | Yes (beta)  | Yes       |
-| Java       | Yes               | No          | No        |
-| Go         | Yes               | No          | No        |
-| Ruby       | Yes               | Yes (beta)  | No        |
-| C#         | Yes               | No          | No        |
-| PHP        | Yes               | No          | No        |
-| cURL       | Yes               | N/A         | N/A       |
+| Language   | SDK documentation | Tool runner | Managed Agents | Agent SDK | Notes                                 |
+|------------|-------------------|-------------|----------------|-----------|---------------------------------------|
+| Python     | Yes               | Yes (beta)  | Yes (beta)     | Yes       | Full support — `@beta_tool` decorator |
+| TypeScript | Yes               | Yes (beta)  | Yes (beta)     | Yes       | Full support — `betaZodTool` + Zod    |
+| Java       | Yes               | Yes (beta)  | Yes (beta)     | No        | Beta tool use with annotated classes  |
+| Go         | Yes               | Yes (beta)  | Yes (beta)     | No        | `BetaToolRunner` in `toolrunner` pkg  |
+| Ruby       | Yes               | Yes (beta)  | Yes (beta)     | No        | `BaseTool` + `tool_runner` in beta    |
+| C#         | Yes               | No          | No             | No        | Official SDK                          |
+| PHP        | Yes               | Yes (beta)  | Yes (beta)     | No        | `BetaRunnableTool` + `toolRunner()`   |
+| cURL       | Yes               | N/A         | Yes (beta)     | N/A       | Raw HTTP, no SDK features             |
+
+**Managed Agents** are persistent — create once, reference by ID. Store the agent ID returned by `agents.create` and pass it to every subsequent `sessions.create`; do not call `agents.create` in the request path. Read `shared/managed-agents.md` for the language-agnostic contract (`managed-agents-2026-04-01`).
 
 If your project uses multiple languages, Claude asks which one applies. For unsupported languages (Rust, Swift, C++), the skill provides cURL/raw HTTP examples.
 

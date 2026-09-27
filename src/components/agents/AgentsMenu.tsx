@@ -44,6 +44,22 @@ export function AgentsMenu({ tools, onExit }: Props): React.ReactNode {
   const agentDefinitions = useAppState(s => s.agentDefinitions)
   const mcpTools = useAppState(s => s.mcp.tools)
   const toolPermissionContext = useAppState(s => s.toolPermissionContext)
+  const tasks = useAppState(s => s.tasks)
+  const runningCounts = useMemo(() => {
+    const counts = new Map<string, number>()
+    for (const task of Object.values(tasks)) {
+      if (
+        task.type === 'local_agent' &&
+        task.agentType !== 'main-session' &&
+        task.status !== 'completed' &&
+        task.status !== 'failed' &&
+        task.status !== 'killed'
+      ) {
+        counts.set(task.agentType, (counts.get(task.agentType) ?? 0) + 1)
+      }
+    }
+    return counts
+  }, [tasks])
   const setAppState = useSetAppState()
   const { allAgents, activeAgents: agents } = agentDefinitions
   const [changes, setChanges] = useState<string[]>([])
@@ -150,6 +166,7 @@ export function AgentsMenu({ tools, onExit }: Props): React.ReactNode {
             }
             onCreateNew={() => setModeState({ mode: 'create-agent' })}
             changes={changes}
+            runningCounts={runningCounts}
           />
           <AgentNavigationFooter />
         </>

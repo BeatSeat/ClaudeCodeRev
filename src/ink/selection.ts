@@ -709,10 +709,10 @@ export function isCellSelected(
   return true
 }
 
-/** Extract text from one screen row. When the next row is a soft-wrap
- *  continuation (screen.softWrap[row+1]>0), clamp to that content-end
- *  column and skip the trailing trim so the word-separator space survives
- *  the join. See Screen.softWrap for why the clamp is necessary. */
+/** Extract text from one screen row. Official _14: packed softWrap is
+ *  (prevContentEnd << 16) | startCol. Next-row high 16 bits are this
+ *  row's content-end (don't trimEnd). This-row low 16 bits are the
+ *  continuation start column. */
 function extractRowText(
   screen: Screen,
   row: number,
@@ -721,10 +721,13 @@ function extractRowText(
 ): string {
   const noSelect = screen.noSelect
   const rowOff = row * screen.width
-  const contentEnd = row + 1 < screen.height ? screen.softWrap[row + 1]! : 0
+  const packed = screen.softWrap[row]!
+  const contentEnd =
+    (row + 1 < screen.height ? screen.softWrap[row + 1]! : 0) >>> 16
   const lastCol = contentEnd > 0 ? Math.min(colEnd, contentEnd - 1) : colEnd
+  const start = packed !== 0 ? Math.max(colStart, packed & 65535) : colStart
   let line = ''
-  for (let col = colStart; col <= lastCol; col++) {
+  for (let col = start; col <= lastCol; col++) {
     // Skip cells marked noSelect (gutters, line numbers, diff sigils).
     // Check before cellAt to avoid the decode cost for excluded cells.
     if (noSelect[rowOff + col] === 1) continue
@@ -761,14 +764,13 @@ function joinRows(
 
 /**
  * Extract text from the screen buffer within the selection range.
- * Rows are joined with newlines unless the screen's softWrap bitmap
- * marks a row as a word-wrap continuation — those rows are concatenated
- * onto the previous row so the copied text matches the logical source
- * line, not the visual wrapped layout. Trailing whitespace on the last
- * fragment of each logical line is trimmed. Wide-char spacer cells are
- * skipped. Rows that scrolled out of the viewport during drag-to-scroll
- * are joined back in from the scrolledOffAbove/Below accumulators along
- * with their captured softWrap bits.
+ * Rows are joined with newlines unless the screen's packed softWrap
+ * value is non-zero — those continuation rows are concatenated onto the
+ * previous row with no extra space or newline (official aR1 / _14).
+ * Trailing whitespace on the last fragment of each logical line is
+ * trimmed. Wide-char spacer cells are skipped. Rows that scrolled out
+ * of the viewport during drag-to-scroll are joined back in from the
+ * scrolledOffAbove/Below accumulators along with their captured bits.
  */
 export function getSelectedText(s: SelectionState, screen: Screen): string {
   const b = selectionBounds(s)

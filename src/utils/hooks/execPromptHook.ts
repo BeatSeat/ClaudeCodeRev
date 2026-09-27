@@ -1,10 +1,17 @@
 import { randomUUID } from 'crypto'
 import type { HookEvent } from 'src/entrypoints/agentSdkTypes.js'
+import {
+  type AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
+  logEvent,
+} from 'src/services/analytics/index.js'
 import { queryModelWithoutStreaming } from '../../services/api/claude.js'
+import { groupMessagesByApiRound } from '../../services/compact/grouping.js'
+import { roughTokenCountEstimationForMessage } from '../../services/tokenEstimation.js'
 import type { ToolUseContext } from '../../Tool.js'
 import type { Message } from '../../types/message.js'
 import { createAttachmentMessage } from '../attachments.js'
 import { createCombinedAbortSignal } from '../combinedAbortSignal.js'
+import { has1mContext, MODEL_CONTEXT_WINDOW_DEFAULT } from '../context.js'
 import { logForDebugging } from '../debug.js'
 import { errorMessage } from '../errors.js'
 import type { HookResult } from '../hooks.js'
@@ -12,8 +19,79 @@ import { safeParseJSON } from '../json.js'
 import { createUserMessage, extractTextContent } from '../messages.js'
 import { getSmallFastModel } from '../model/model.js'
 import type { PromptHook } from '../settings/types.js'
+import { jsonStringify } from '../slowOperations.js'
 import { asSystemPrompt } from '../systemPromptType.js'
+import { tokenCountFromLastAPIResponse } from '../tokens.js'
 import { addArgumentsToPrompt, hookResponseSchema } from './hookHelpers.js'
+
+/** Official qQY — keep ~70% of the evaluator context window for Stop transcripts. */
+const HOOK_TRANSCRIPT_BUDGET_RATIO = 0.7
+
+function estimateHookTranscriptGroupTokens(group: Message[]): number {
+  let tokens = 0
+  for (const message of group) {
+    if (message.type === 'assistant' || message.type === 'user') {
+      tokens += roughTokenCountEstimationForMessage(message)
+    } else {
+      tokens += jsonStringify(message).length / 4
+    }
+  }
+  return Math.ceil(tokens)
+}
+
+/**
+ * Official zQY: drop earlier API-round groups from the tail-kept transcript
+ * so Stop / SubagentStop evaluators stay within ~70% of the model budget.
+ */
+function truncateHookTranscript(
+  messages: Message[],
+  evaluatorModel: string,
+): Message[] {
+  const window = has1mContext(evaluatorModel)
+    ? 1_000_000
+    : MODEL_CONTEXT_WINDOW_DEFAULT
+  const budget = Math.floor(window * HOOK_TRANSCRIPT_BUDGET_RATIO)
+  if (tokenCountFromLastAPIResponse(messages) <= budget) {
+    return messages
+  }
+
+  const groups = groupMessagesByApiRound(messages)
+  let used = 0
+  let keepFrom = groups.length
+  for (let i = groups.length - 1; i >= 0; i--) {
+    const group = groups[i]!
+    const groupTokens = estimateHookTranscriptGroupTokens(group)
+    if (keepFrom < groups.length && used + groupTokens > budget) {
+      break
+    }
+    used += groupTokens
+    keepFrom = i
+  }
+
+  const kept = groups.slice(keepFrom).flat()
+  const droppedMessages = messages.length - kept.length
+  if (droppedMessages <= 0) {
+    return messages
+  }
+
+  logForDebugging(
+    `Hooks: truncated Stop transcript ${messages.length}→${kept.length} msgs (budget ${budget}, model ${evaluatorModel})`,
+  )
+  logEvent('tengu_hook_prompt_transcript_truncated', {
+    droppedMessages,
+    keptMessages: kept.length,
+    budget,
+    evaluatorModel:
+      evaluatorModel as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
+  })
+
+  return [
+    createUserMessage({
+      content: `[Earlier conversation truncated to fit the hook evaluator's context window — ${droppedMessages} earlier messages omitted. Evaluate the condition against the recent transcript below; if the required evidence may be in the omitted prefix, return {"ok": false, "reason": "insufficient evidence in transcript"}.]`,
+    }),
+    ...kept,
+  ]
+}
 
 /**
  * Execute a prompt-based hook using an LLM
@@ -45,11 +123,16 @@ export async function execPromptHook(
     // Create user message directly - no need for processUserInput which would
     // trigger UserPromptSubmit hooks and cause infinite recursion
     const userMessage = createUserMessage({ content: processedPrompt })
+    const evaluatorModel = hook.model ?? getSmallFastModel()
+    const transcript =
+      isStopHook && messages && messages.length > 0
+        ? truncateHookTranscript(messages, evaluatorModel)
+        : messages
 
     // Prepend conversation history if provided
     const messagesToQuery =
-      messages && messages.length > 0
-        ? [...messages, userMessage]
+      transcript && transcript.length > 0
+        ? [...transcript, userMessage]
         : [userMessage]
 
     logForDebugging(
@@ -91,7 +174,7 @@ Always include a "reason" field.`,
             const appState = toolUseContext.getAppState()
             return appState.toolPermissionContext
           },
-          model: hook.model ?? getSmallFastModel(),
+          model: evaluatorModel,
           toolChoice: undefined,
           isNonInteractiveSession: true,
           hasAppendSystemPrompt: false,
@@ -115,6 +198,27 @@ Always include a "reason" field.`,
       })
 
       cleanupSignal()
+
+      if (response.isApiErrorMessage) {
+        const apiError = extractTextContent(response.message.content).trim()
+        logForDebugging(
+          `Hooks: prompt-hook evaluator API error: ${apiError}`,
+          { level: 'error' },
+        )
+        return {
+          hook,
+          outcome: 'non_blocking_error',
+          message: createAttachmentMessage({
+            type: 'hook_non_blocking_error',
+            hookName,
+            toolUseID: effectiveToolUseID,
+            hookEvent,
+            stderr: `Hook evaluator API error: ${apiError}`,
+            stdout: '',
+            exitCode: 1,
+          }),
+        }
+      }
 
       // Extract text content from response
       const content = extractTextContent(response.message.content)

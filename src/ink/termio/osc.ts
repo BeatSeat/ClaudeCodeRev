@@ -210,11 +210,20 @@ function copyNative(text: string): void {
       })
       return
     }
-    case 'win32':
-      // clip.exe is always available on Windows. Unicode handling is
-      // imperfect (system locale encoding) but good enough for a fallback.
-      void execFileNoThrow('clip', [], opts)
+    case 'win32': {
+      const b64 = Buffer.from(text, 'utf8').toString('base64')
+      if (b64.length > 30_000) return
+      void execFileNoThrow(
+        'powershell',
+        [
+          '-NoProfile',
+          '-Command',
+          `Set-Clipboard -Value ([Text.Encoding]::UTF8.GetString([Convert]::FromBase64String('${b64}')))`,
+        ],
+        { useCwd: false, timeout: 2000 },
+      )
       return
+    }
   }
 }
 
