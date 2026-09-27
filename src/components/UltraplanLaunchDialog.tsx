@@ -37,6 +37,12 @@ export function UltraplanLaunchDialog({ onChoice }: Props): React.ReactNode {
 
   const handleChoice = (choice: Choice) => {
     const disconnectedBridge = choice === 'run' && replBridgeEnabled
+    logEvent('tengu_ultraplan_dialog_choice', {
+      choice,
+      first_run: firstLaunch,
+      bridge_disconnected: disconnectedBridge,
+      prompt_identifier: promptIdentifier,
+    })
     if (disconnectedBridge) {
       setAppState(prev =>
         prev.replBridgeEnabled

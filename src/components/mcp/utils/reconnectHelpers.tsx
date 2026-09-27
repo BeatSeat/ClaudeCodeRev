@@ -21,6 +21,7 @@ export function handleReconnectResult(
     resources?: ServerResource[]
   },
   serverName: string,
+  options?: { hasHeadersHelper?: boolean },
 ): ReconnectResult {
   switch (result.client.type) {
     case 'connected':
@@ -31,7 +32,9 @@ export function handleReconnectResult(
 
     case 'needs-auth':
       return {
-        message: `${serverName} requires authentication. Use the 'Authenticate' option.`,
+        message: options?.hasHeadersHelper
+          ? `${serverName} requires authentication. Check that the headersHelper script returns valid credentials, then use the 'Reconnect' option.`
+          : `${serverName} requires authentication. Use the 'Authenticate' option.`,
         success: false,
       }
 

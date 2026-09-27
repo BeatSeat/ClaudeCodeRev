@@ -688,6 +688,13 @@ export function MCPRemoteServerMenu({
     })
   }
 
+  const hasHeadersHelper =
+    server.config.type !== 'claudeai-proxy' &&
+    Boolean(
+      'headersHelper' in server.config &&
+        (server.config as { headersHelper?: string }).headersHelper,
+    )
+
   if (server.config.type === 'claudeai-proxy') {
     if (server.client.type === 'connected') {
       menuOptions.push({
@@ -700,7 +707,7 @@ export function MCPRemoteServerMenu({
         value: 'claudeai-auth',
       })
     }
-  } else {
+  } else if (!hasHeadersHelper) {
     if (isEffectivelyAuthenticated) {
       menuOptions.push({
         label: 'Re-authenticate',
@@ -721,7 +728,7 @@ export function MCPRemoteServerMenu({
   }
 
   if (server.client.type !== 'disabled') {
-    if (server.client.type !== 'needs-auth') {
+    if (server.client.type !== 'needs-auth' || hasHeadersHelper) {
       menuOptions.push({
         label: 'Reconnect',
         value: 'reconnectMcpServer',
@@ -855,6 +862,7 @@ export function MCPRemoteServerMenu({
                       const { message } = handleReconnectResult(
                         result,
                         server.name,
+                        { hasHeadersHelper },
                       )
                       onComplete?.(message)
                     } catch (err) {

@@ -9,6 +9,7 @@ import type { LocalJSXCommandContext } from '../../commands.js'
 import { ConfigurableShortcutHint } from '../../components/ConfigurableShortcutHint.js'
 import { ConsoleOAuthFlow } from '../../components/ConsoleOAuthFlow.js'
 import { Dialog } from '../../components/design-system/Dialog.js'
+import { useIsInsideModal } from '../../context/modalContext.js'
 import { useMainLoopModel } from '../../hooks/useMainLoopModel.js'
 import { Text } from '../../ink.js'
 import { refreshGrowthBookAfterAuthChange } from '../../services/analytics/growthbook.js'
@@ -85,6 +86,7 @@ export function Login(props: {
   startingMessage?: string
 }): React.ReactNode {
   const mainLoopModel = useMainLoopModel()
+  const urlOutdent = useIsInsideModal() ? 1 : 2
 
   return (
     <Dialog
@@ -107,6 +109,7 @@ export function Login(props: {
       <ConsoleOAuthFlow
         onDone={() => props.onDone(true, mainLoopModel)}
         startingMessage={props.startingMessage}
+        urlOutdent={urlOutdent}
       />
     </Dialog>
   )
