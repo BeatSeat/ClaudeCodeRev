@@ -404,6 +404,45 @@ export function getSettingsForSource(
 }
 
 /**
+ * Official 2.1.126 `CD9` / `OH$`: every managed-settings source that actually
+ * loaded, not first-wins `policySettings`. Used so `allowManagedDomainsOnly`
+ * / `allowManagedReadPathsOnly` still apply when a higher-priority source
+ * lacks a `sandbox` block. Order matches the policy chain without HKCU:
+ * remote, MDM (HKLM/plist), file+drop-ins, parent.
+ */
+export function getAllManagedSettingsSources(): SettingsJson[] {
+  const sources: SettingsJson[] = []
+
+  const remoteSettings = getRemoteManagedSettingsSyncFromCache()
+  if (remoteSettings && Object.keys(remoteSettings).length > 0) {
+    const filtered = cloneAndFilterSettingsWarnings(
+      remoteSettings,
+      'remote managed settings',
+    ).settings
+    if (Object.keys(filtered).length > 0) {
+      sources.push(filtered)
+    }
+  }
+
+  const mdm = getMdmSettings()
+  if (Object.keys(mdm.settings).length > 0) {
+    sources.push(mdm.settings)
+  }
+
+  const { settings: fileSettings } = loadManagedFileSettings()
+  if (fileSettings) {
+    sources.push(fileSettings)
+  }
+
+  const { settings: parentSettings } = loadParentManagedSettings()
+  if (parentSettings) {
+    sources.push(parentSettings)
+  }
+
+  return sources
+}
+
+/**
  * Highest-priority enabled source that actually defines `key`.
  * Official 2.1.117 Q3H — used by /model pin chrome and persist.
  */

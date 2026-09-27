@@ -1,5 +1,5 @@
 import { feature } from 'bun:bundle'
-import { getLastInteractionTime, markPostCompaction } from 'src/bootstrap/state.js'
+import { getLastInteractionTime, markPostCompaction } from '../../bootstrap/state.js'
 import type { QuerySource } from '../../constants/querySource.js'
 import type { ToolUseContext } from '../../Tool.js'
 import type { Message } from '../../types/message.js'
@@ -158,6 +158,20 @@ export function calculateTokenWarningState(
     isAboveAutoCompactThreshold,
     isAtBlockingLimit,
   }
+}
+
+/**
+ * Official 2.1.126 `nG6` / `CLAUDE_CODE_COLD_COMPACT`.
+ * Env wins; else idle ≥ 90m then GrowthBook `tengu_cold_compact` default-false.
+ */
+export function isColdCompactEnabled(): boolean {
+  if (process.env.CLAUDE_CODE_COLD_COMPACT !== undefined) {
+    return isEnvTruthy(process.env.CLAUDE_CODE_COLD_COMPACT)
+  }
+  if (Date.now() - getLastInteractionTime() < COLD_COMPACT_IDLE_MS) {
+    return false
+  }
+  return getFeatureValue_CACHED_MAY_BE_STALE('tengu_cold_compact', false)
 }
 
 export function isAutoCompactEnabled(): boolean {
@@ -339,13 +353,6 @@ export async function autoCompactIfNeeded(
     }
   }
 
-  // 2.1.89: cold compact — when the session has been idle long enough for
-  // the prompt cache to go cold, the compaction fork skips cache-prefix
-  // sharing (tengu_cold_compact gate; official PDK `let X=L_Y()&&u8("tengu_cold_compact",!1)`).
-  const coldCompact =
-    Date.now() - getLastInteractionTime() >= COLD_COMPACT_IDLE_MS &&
-    getFeatureValue_CACHED_MAY_BE_STALE('tengu_cold_compact', false)
-
   try {
     const compactionResult = await compactConversation(
       messages,
@@ -355,7 +362,7 @@ export async function autoCompactIfNeeded(
       undefined, // No custom instructions for autocompact
       true, // isAutoCompact
       recompactionInfo,
-      coldCompact,
+      isColdCompactEnabled(),
     )
 
     // Reset lastSummarizedMessageId since legacy compaction replaces all messages

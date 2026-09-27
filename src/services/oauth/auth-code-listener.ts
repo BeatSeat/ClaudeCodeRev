@@ -43,7 +43,9 @@ export class AuthCodeListener {
       })
 
       // Listen on specified port or 0 to let the OS assign an available port
-      this.localServer.listen(port ?? 0, 'localhost', () => {
+      // Official 2.1.126 #14: bind 127.0.0.1 (not localhost) so IPv6-only /
+      // slow DNS / proxy setups do not stall the OAuth callback.
+      this.localServer.listen(port ?? 0, '127.0.0.1', () => {
         const address = this.localServer.address() as AddressInfo
         this.port = address.port
         resolve(this.port)

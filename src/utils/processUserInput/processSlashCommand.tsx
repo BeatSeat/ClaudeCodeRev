@@ -89,6 +89,7 @@ import { parseSlashCommand } from '../slashCommandParsing.js'
 import { sleep } from '../sleep.js'
 import { recordSkillUsage } from '../suggestions/skillUsageTracking.js'
 import { logOTelEvent, redactIfDisabled } from '../telemetry/events.js'
+import { logOTelSkillActivated } from '../telemetry/skillActivatedEvent.js'
 import { buildPluginCommandTelemetryFields } from '../telemetry/pluginTelemetry.js'
 import { getAssistantMessageContentLength } from '../tokens.js'
 import { createAgentId } from '../uuid.js'
@@ -992,6 +993,9 @@ async function getMessagesForSlashCommand(
         }
       }
       case 'prompt': {
+        if (!(command.isMcp && command.loadedFrom !== 'mcp')) {
+          logOTelSkillActivated(command.name, command, 'user-slash')
+        }
         try {
           // Check if command should run as forked sub-agent
           if (command.context === 'fork') {

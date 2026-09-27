@@ -5,6 +5,7 @@ import { getSystemPrompt } from '../../constants/prompts.js'
 import { getSystemContext, getUserContext } from '../../context.js'
 import { getShortcutDisplay } from '../../keybindings/shortcutFormat.js'
 import { notifyCompaction } from '../../services/api/promptCacheBreakDetection.js'
+import { isColdCompactEnabled } from '../../services/compact/autoCompact.js'
 import {
   type CompactionResult,
   compactConversation,
@@ -109,6 +110,8 @@ export const call: LocalCommandCall = async (args, context) => {
       false,
       customInstructions,
       false,
+      undefined,
+      isColdCompactEnabled(),
     )
 
     // Reset lastSummarizedMessageId since legacy compaction replaces all messages

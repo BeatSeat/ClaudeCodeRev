@@ -1,18 +1,26 @@
 import * as React from 'react'
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useRegisterOverlay } from '../context/overlayContext.js'
 import {
   getTimestampedHistory,
+  HISTORY_PICKER_SCOPES,
+  type HistoryPickerScope,
   type TimestampedHistoryEntry,
 } from '../history.js'
 import { useTerminalSize } from '../hooks/useTerminalSize.js'
 import { stringWidth } from '../ink/stringWidth.js'
 import { wrapAnsi } from '../ink/wrapAnsi.js'
 import { Box, Text } from '../ink.js'
-import { logEvent } from '../services/analytics/index.js'
+import { useKeybinding } from '../keybindings/useKeybinding.js'
+import { useShortcutDisplay } from '../keybindings/useShortcutDisplay.js'
+import {
+  type AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
+  logEvent,
+} from '../services/analytics/index.js'
 import type { HistoryEntry } from '../utils/config.js'
 import { formatRelativeTimeAgo, truncateToWidth } from '../utils/format.js'
 import { FuzzyPicker } from './design-system/FuzzyPicker.js'
+import { KeyboardShortcutHint } from './design-system/KeyboardShortcutHint.js'
 
 type Props = {
   initialQuery?: string
@@ -39,13 +47,21 @@ export function HistorySearchDialog({
   useRegisterOverlay('history-search')
   const { columns } = useTerminalSize()
 
+  const [scope, setScope] = useState<HistoryPickerScope>('project')
   const [items, setItems] = useState<Item[] | null>(null)
   const [query, setQuery] = useState(initialQuery ?? '')
+  const cacheRef = useRef<Partial<Record<HistoryPickerScope, Item[]>>>({})
 
   useEffect(() => {
+    const cached = cacheRef.current[scope]
+    if (cached) {
+      setItems(cached)
+      return
+    }
+    setItems(null)
     let cancelled = false
     void (async () => {
-      const reader = getTimestampedHistory()
+      const reader = getTimestampedHistory(scope)
       const loaded: Item[] = []
       for await (const entry of reader) {
         if (cancelled) {
@@ -63,12 +79,35 @@ export function HistorySearchDialog({
           age: age + ' '.repeat(Math.max(0, AGE_WIDTH - stringWidth(age))),
         })
       }
-      if (!cancelled) setItems(loaded)
+      if (!cancelled) {
+        cacheRef.current[scope] = loaded
+        setItems(loaded)
+      }
     })()
     return () => {
       cancelled = true
     }
-  }, [])
+  }, [scope])
+
+  const scopeChord = useShortcutDisplay(
+    'historySearch:cycleScope',
+    'HistorySearch',
+    'ctrl+s',
+  )
+  useKeybinding(
+    'historySearch:cycleScope',
+    () => {
+      const idx = HISTORY_PICKER_SCOPES.indexOf(scope)
+      const next =
+        HISTORY_PICKER_SCOPES[(idx + 1) % HISTORY_PICKER_SCOPES.length]!
+      setScope(next)
+      logEvent('tengu_history_picker_scope', {
+        from: scope as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
+        to: next as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
+      })
+    },
+    { context: 'HistorySearch' },
+  )
 
   const filtered = useMemo(() => {
     if (!items) return []
@@ -97,9 +136,14 @@ export function HistorySearchDialog({
 
   return (
     <FuzzyPicker
-      title="Search prompts"
+      title={
+        <Text>
+          Search prompts <Text color="suggestion">· {scope}</Text>
+        </Text>
+      }
       placeholder="Filter history…"
       initialQuery={initialQuery}
+      resetKey={scope}
       items={filtered}
       getKey={item => String(item.entry.timestamp)}
       onQueryChange={setQuery}
@@ -111,6 +155,7 @@ export function HistorySearchDialog({
         void item.entry.resolve().then(onSelect)
       }}
       onCancel={onCancel}
+      extraHints={<KeyboardShortcutHint chord={scopeChord} action="scope" />}
       emptyMessage={q =>
         items === null
           ? 'Loading…'

@@ -18,9 +18,11 @@ type PickerAction<T> = {
 }
 
 type Props<T> = {
-  title: string
+  title: React.ReactNode
   placeholder?: string
   initialQuery?: string
+  /** Official 126: reset focused row when this identity changes (history scope). */
+  resetKey?: string
   items: readonly T[]
   getKey: (item: T) => string
   /** Keep to one line — preview handles overflow. */
@@ -89,6 +91,7 @@ export function FuzzyPicker<T>({
   matchLabel,
   selectAction = 'select',
   extraHints,
+  resetKey,
 }: Props<T>): React.ReactNode {
   const isTerminalFocused = useTerminalFocus()
   const { rows, columns } = useTerminalSize()
@@ -165,6 +168,11 @@ export function FuzzyPicker<T>({
   useEffect(() => {
     setFocusedIndex(i => clamp(i, 0, items.length - 1))
   }, [items.length])
+
+  useEffect(() => {
+    if (resetKey === undefined) return
+    setFocusedIndex(0)
+  }, [resetKey])
 
   const focused = items[focusedIndex]
   useEffect(() => {

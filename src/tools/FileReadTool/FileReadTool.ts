@@ -52,7 +52,6 @@ import { lazySchema } from '../../utils/lazySchema.js'
 import { logError } from '../../utils/log.js'
 import { isAutoMemFile } from '../../utils/memoryFileDetection.js'
 import { createUserMessage } from '../../utils/messages.js'
-import { getCanonicalName, getMainLoopModel } from '../../utils/model/model.js'
 import {
   mapNotebookCellsToToolResult,
   readNotebook,
@@ -408,9 +407,9 @@ export const FileReadTool = buildTool({
   renderToolResultMessage,
   // UI.tsx:140 — ALL types render summary chrome only: "Read N lines",
   // "Read image (42KB)". Never the content itself. The model-facing
-  // serialization (below) sends content + CYBER_RISK_MITIGATION_REMINDER
-  // + line prefixes; UI shows none of it. Nothing to index. Caught by
-  // the render-fidelity test when this initially claimed file.content.
+  // serialization (below) sends content + line prefixes; UI shows none
+  // of it. Nothing to index. Caught by the render-fidelity test when
+  // this initially claimed file.content.
   extractSearchText() {
     return ''
   },
@@ -706,13 +705,7 @@ export const FileReadTool = buildTool({
 
         if (data.file.content) {
           content =
-            memoryFileFreshnessPrefix(data) +
-            formatFileLines(data.file) +
-            (shouldIncludeFileReadMitigation(
-              fileReadModels.get(data) ?? getMainLoopModel(),
-            )
-              ? CYBER_RISK_MITIGATION_REMINDER
-              : '')
+            memoryFileFreshnessPrefix(data) + formatFileLines(data.file)
         } else {
           // Determine the appropriate warning message
           content =
@@ -740,30 +733,6 @@ function formatFileLines(file: { content: string; startLine: number }): string {
   return addLineNumbers(file)
 }
 
-export const CYBER_RISK_MITIGATION_REMINDER =
-  '\n\n<system-reminder>\nWhenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.\n</system-reminder>\n'
-
-// Models that still receive the cyber-risk mitigation reminder (include-only;
-// newer models skip it). Official 2.1.92 iwY.
-const MITIGATION_INCLUDED_MODELS = new Set([
-  'claude-3-opus',
-  'claude-3-sonnet',
-  'claude-3-haiku',
-  'claude-3-5-sonnet',
-  'claude-3-5-haiku',
-  'claude-3-7-sonnet',
-  'claude-sonnet-4',
-  'claude-sonnet-4-5',
-  'claude-opus-4',
-  'claude-opus-4-1',
-  'claude-opus-4-5',
-  'claude-haiku-4-5',
-])
-
-function shouldIncludeFileReadMitigation(model: string): boolean {
-  return MITIGATION_INCLUDED_MODELS.has(getCanonicalName(model))
-}
-
 /**
  * Side-channel from call() to mapToolResultToToolResultBlockParam: mtime
  * of auto-memory files, keyed by the `data` object identity. Avoids
@@ -772,11 +741,6 @@ function shouldIncludeFileReadMitigation(model: string): boolean {
  * when the data object becomes unreachable after rendering.
  */
 const memoryFileMtimes = new WeakMap<object, number>()
-
-// Official 2.1.117 `oW7`: the agent that issued this Read, not the REPL
-// main-loop model. Subagents on a newer model were inheriting the parent
-// model's include-list and getting a false malware reminder.
-const fileReadModels = new WeakMap<object, string>()
 
 function memoryFileFreshnessPrefix(data: object): string {
   const mtimeMs = memoryFileMtimes.get(data)
@@ -1085,7 +1049,6 @@ async function callInner(
       totalLines,
     },
   }
-  fileReadModels.set(data, context.options.mainLoopModel)
   if (isAutoMemFile(fullFilePath)) {
     memoryFileMtimes.set(data, mtimeMs)
   }
