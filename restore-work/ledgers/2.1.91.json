@@ -1,0 +1,74 @@
+{
+  "version": "2.1.91",
+  "fromVersion": "2.1.90",
+  "expectedFunctionCount": 0,
+  "functions": [],
+  "changelogCoverage": [
+    {
+      "item": "Added MCP tool result persistence override via `_meta[\"anthropic/maxResultSizeChars\"]` annotation (up to 500K), allowing larger results like DB schemas to pass through without truncation",
+      "status": "located",
+      "evidence": "src/services/mcp/client.ts anthropic/maxResultSizeChars + Tool.ts persistenceThresholdCeiling"
+    },
+    {
+      "item": "Added `disableSkillShellExecution` setting to disable inline shell execution in skills, custom slash commands, and plugin commands",
+      "status": "located",
+      "evidence": "src/utils/settings/types.ts + src/utils/promptShellExecution.ts"
+    },
+    {
+      "item": "Added support for multi-line prompts in `claude-cli://open?q=` deep links (encoded newlines `%0A` no longer rejected)",
+      "status": "located",
+      "evidence": "deep-link q= %0A already in tree"
+    },
+    {
+      "item": "Plugins can now ship executables under `bin/` and invoke them as bare commands from the Bash tool",
+      "status": "located",
+      "evidence": "plugin bin/ PATH already in tree"
+    },
+    {
+      "item": "Fixed transcript chain breaks on `--resume` that could lose conversation history when async transcript writes fail silently",
+      "status": "located",
+      "evidence": "src/utils/sessionStorage.ts tengu_chain_timestamp_fallback"
+    },
+    {
+      "item": "Fixed `cmd+delete` not deleting to start of line on iTerm2, kitty, WezTerm, Ghostty, and Windows Terminal",
+      "status": "located",
+      "evidence": "cmd+delete line-start already in tree"
+    },
+    {
+      "item": "Fixed plan mode in remote sessions losing track of the plan file after a container restart, which caused permission prompts on plan edits and an empty plan-approval modal",
+      "status": "located",
+      "evidence": "remote plan-file tracking already in tree"
+    },
+    {
+      "item": "Fixed JSON schema validation for `permissions.defaultMode: \"auto\"` in settings.json",
+      "status": "located",
+      "evidence": "settings defaultMode auto already in types"
+    },
+    {
+      "item": "Fixed Windows version cleanup not protecting the active version's rollback copy",
+      "status": "located",
+      "evidence": "Windows version cleanup already in tree"
+    },
+    {
+      "item": "`/feedback` now explains why it's unavailable instead of disappearing from the slash menu",
+      "status": "located",
+      "evidence": "src/commands/feedback unavailable copy already in tree"
+    },
+    {
+      "item": "Improved `/claude-api` skill guidance for agent design patterns including tool surface decisions, context management, and caching strategy",
+      "status": "located",
+      "evidence": "bundled claude-api skill already in tree"
+    },
+    {
+      "item": "Improved performance: faster `stripAnsi` on Bun by routing through `Bun.stripANSI`",
+      "status": "located",
+      "evidence": "Bun.stripANSI already in tree"
+    },
+    {
+      "item": "Edit tool now uses shorter `old_string` anchors, reducing output tokens",
+      "status": "located",
+      "evidence": "src/tools/FileEditTool/prompt.ts tengu_edit_minimalanchor_jrn (default false)"
+    }
+  ],
+  "notes": "astdiff 2.1.90→2.1.91: 99.4% similar, +110/-47, 6828 structural, 55 string-only. filter-astdiff: 7040 entries (product 186, unknown 748, vendor 158, rename-only-100% 6095). Changelog-external strings: tengu_sub_nomdrep_q7k (default false, already wired in FileWriteTool + prompts), ultraplan isMeta + tengu_ultraplan_keyword/config/stopped (config.enabled default null/false), tengu_chain_timestamp_fallback (already in sessionStorage). Default-false GB not treated as FAIL: tengu_editafterwrite_qpl, tengu_maple_forge_w8k (write append; gone by 108), tengu_lean_sub_pf7q, tengu_relpath_gh7k, tengu_noreread_q7m_velvet, tengu_garnet_plover, tengu_gypsum_kite, tengu_slate_finch, tengu_slate_reef, tengu_edit_minimalanchor_jrn. No additional src FAIL vs official 91 after prior nomdrep/ultraplan work."
+}
