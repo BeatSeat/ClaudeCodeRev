@@ -4341,6 +4341,7 @@ async function run(): Promise<CommanderCommand> {
           commands: [],
           resources: {},
           resourceTemplates: {},
+          suppressedClaudeAiConnectors: [],
           pluginReconnectKey: 0,
         },
         plugins: {

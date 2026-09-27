@@ -1342,6 +1342,44 @@ export function clearOAuthTokenCache(): void {
   clearKeychainCache()
 }
 
+/** Official 2.1.122 `Zm8`. */
+function isInvalidGrantRefreshError(error: unknown): boolean {
+  if (!error || typeof error !== 'object') return false
+  const response = (error as { response?: { status?: number; data?: unknown } })
+    .response
+  if (!response) return false
+  if (response.status !== 400 && response.status !== 401) return false
+  const data = response.data
+  if (!data || typeof data !== 'object') return false
+  const err = (data as { error?: unknown }).error
+  const code =
+    typeof err === 'string'
+      ? err
+      : err && typeof err === 'object'
+        ? (err as { type?: unknown }).type
+        : undefined
+  return code === 'invalid_grant'
+}
+
+/** Official 2.1.122 `s_1`. */
+function clearOAuthRefreshTokenIfCurrent(refreshToken: string): void {
+  try {
+    const secureStorage = getSecureStorage()
+    clearKeychainCache()
+    const storageData = secureStorage.read() || {}
+    const oauth = storageData.claudeAiOauth as
+      | { refreshToken?: string; [key: string]: unknown }
+      | undefined
+    if (!oauth || oauth.refreshToken !== refreshToken) return
+    storageData.claudeAiOauth = { ...oauth, refreshToken: '' }
+    secureStorage.update(storageData)
+    getClaudeAIOAuthTokens.cache?.clear?.()
+    logEvent('tengu_oauth_refresh_token_cleared_invalid_grant', {})
+  } catch (error) {
+    logError(error)
+  }
+}
+
 let lastCredentialsMtimeMs = 0
 
 // Cross-process staleness: another CC instance may write fresh tokens to
@@ -1611,6 +1649,9 @@ async function checkAndRefreshOAuthTokenIfNeededImpl(
     if (currentTokens && !isOAuthTokenExpired(currentTokens.expiresAt)) {
       logEvent('tengu_oauth_token_refresh_race_recovered', {})
       return true
+    }
+    if (isInvalidGrantRefreshError(error) && currentTokens?.refreshToken) {
+      clearOAuthRefreshTokenIfCurrent(currentTokens.refreshToken)
     }
 
     return false

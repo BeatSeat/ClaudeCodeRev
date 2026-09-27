@@ -66,6 +66,12 @@ export const SDKControlInitializeRequestSchema = lazySchema(() =>
       systemPrompt: z.string().optional(),
       appendSystemPrompt: z.string().optional(),
       agents: z.record(z.string(), AgentDefinitionSchema()).optional(),
+      webSearchIsolationExemptMcpServers: z
+        .array(z.string())
+        .optional()
+        .describe(
+          '@internal Additional MCP server names exempt from the web search / connector isolation latch. Unioned with the built-in infra-server list.',
+        ),
       promptSuggestions: z.boolean().optional(),
       agentProgressSummaries: z.boolean().optional(),
     })

@@ -63,6 +63,7 @@ export function deriveFirstPrompt(
  * readFile + parseJSONL of the whole file.
  */
 async function createFork(
+  liveMessages: readonly { uuid: string }[],
   customTitle?: string,
   extraMessages?: TranscriptMessage[],
 ): Promise<{
@@ -102,9 +103,8 @@ async function createFork(
   })
 
   const rl = createInterface({ input, crlfDelay: Infinity })
-  let parentUuid: UUID | null = null
-  let lastOriginal: TranscriptMessage | null = null
-  const serializedMessages: SerializedMessage[] = []
+  const liveUuids = new Set(liveMessages.map(m => m.uuid))
+  const byUuid = new Map<string, TranscriptMessage>()
   const contentReplacementRecords: ContentReplacementEntry['replacements'] = []
 
   const cleanup = async () => {
@@ -146,11 +146,29 @@ async function createFork(
       }
       if (
         !isTranscriptMessage(rec as TranscriptMessage) ||
-        (rec as TranscriptMessage).isSidechain
+        (rec as TranscriptMessage).isSidechain ||
+        !liveUuids.has((rec as TranscriptMessage).uuid)
       ) {
         continue
       }
       const original = rec as TranscriptMessage
+      byUuid.set(original.uuid, original)
+    }
+  } catch (error) {
+    await cleanup()
+    throw error
+  } finally {
+    rl.close()
+    input.destroy()
+  }
+
+  let parentUuid: UUID | null = null
+  let lastOriginal: TranscriptMessage | null = null
+  const serializedMessages: SerializedMessage[] = []
+  try {
+    for (const live of liveMessages) {
+      const original = byUuid.get(live.uuid)
+      if (!original) continue
       const forkedEntry: TranscriptEntry = {
         ...original,
         sessionId: forkSessionId,
@@ -174,9 +192,6 @@ async function createFork(
   } catch (error) {
     await cleanup()
     throw error
-  } finally {
-    rl.close()
-    input.destroy()
   }
 
   if (lastOriginal === null) {
@@ -297,7 +312,7 @@ export async function call(
       forkPath,
       serializedMessages,
       contentReplacementRecords,
-    } = await createFork(customTitle)
+      } = await createFork(context.messages, customTitle)
 
     // Build LogOption for resume
     const now = new Date()

@@ -3,7 +3,10 @@ import React, { useCallback, useState } from 'react'
 import type { CommandResultDisplay } from '../../commands.js'
 import { Box, color, Link, Text, useTheme } from '../../ink.js'
 import { useKeybindings } from '../../keybindings/useKeybinding.js'
-import type { ConfigScope } from '../../services/mcp/types.js'
+import type {
+  ConfigScope,
+  SuppressedClaudeAiConnector,
+} from '../../services/mcp/types.js'
 import { describeMcpConfigFilePath } from '../../services/mcp/utils.js'
 import { isDebugMode } from '../../utils/debug.js'
 import { plural } from '../../utils/stringUtils.js'
@@ -16,6 +19,7 @@ import type { AgentMcpServerInfo, ServerInfo } from './types.js'
 
 type Props = {
   servers: ServerInfo[]
+  suppressedClaudeAiConnectors?: SuppressedClaudeAiConnector[]
   agentServers?: AgentMcpServerInfo[]
   onSelectServer: (server: ServerInfo) => void
   onSelectAgentServer?: (agentServer: AgentMcpServerInfo) => void
@@ -71,8 +75,73 @@ function groupServersByScope(
   return groups
 }
 
+function HiddenConnectorHint({
+  s,
+}: {
+  s: SuppressedClaudeAiConnector
+}): React.ReactNode {
+  if (s.duplicateOf.startsWith('plugin:')) {
+    return (
+      <Text dimColor>
+        To use this connector instead, disable the plugin server in /plugins
+      </Text>
+    )
+  }
+  switch (s.duplicateOfScope) {
+    case 'local':
+    case 'user':
+    case 'project':
+      return (
+        <Text dimColor>
+          To use this connector instead:{' '}
+          <Text bold>claude mcp remove {s.duplicateOf}</Text>
+        </Text>
+      )
+    case 'dynamic':
+      return (
+        <Text dimColor>
+          To use this connector instead, drop it from your --mcp-config flag
+        </Text>
+      )
+    case 'enterprise':
+    case 'managed':
+      return (
+        <Text dimColor>An admin-managed server takes precedence here</Text>
+      )
+    default:
+      return (
+        <Text dimColor>
+          To use this connector instead, remove the duplicate server from your configuration
+        </Text>
+      )
+  }
+}
+
+function HiddenConnectorRow({
+  connector,
+}: {
+  connector: SuppressedClaudeAiConnector
+}): React.ReactNode {
+  return (
+    <Box flexDirection="column">
+      <Box>
+        <Text>  </Text>
+        <Text>{connector.name}</Text>
+        <Text dimColor>
+          {' '}
+          · {figures.radioOff} hidden — same URL as your server '{connector.duplicateOf}'
+        </Text>
+      </Box>
+      <Box paddingLeft={4}>
+        <HiddenConnectorHint s={connector} />
+      </Box>
+    </Box>
+  )
+}
+
 export function MCPListPanel({
   servers,
+  suppressedClaudeAiConnectors,
   agentServers = [],
   onSelectServer,
   onSelectAgentServer,
@@ -80,6 +149,7 @@ export function MCPListPanel({
 }: Props): React.ReactNode {
   const [theme] = useTheme()
   const [selectedIndex, setSelectedIndex] = useState(0)
+  const hiddenConnectors = suppressedClaudeAiConnectors ?? []
 
   // Non-claudeai servers grouped by scope
   const serversByScope = React.useMemo(() => {
@@ -180,7 +250,11 @@ export function MCPListPanel({
   const debugMode = isDebugMode()
   const hasFailedClients = servers.some(s => s.client.type === 'failed')
 
-  if (servers.length === 0 && agentServers.length === 0) {
+  if (
+    servers.length === 0 &&
+    agentServers.length === 0 &&
+    hiddenConnectors.length === 0
+  ) {
     return null
   }
 
@@ -277,13 +351,19 @@ export function MCPListPanel({
             )
           })}
 
-          {/* Claude.ai servers section */}
-          {claudeAiServers.length > 0 && (
+          {/* Claude.ai servers section — includes same-URL hidden connectors */}
+          {(claudeAiServers.length > 0 || hiddenConnectors.length > 0) && (
             <Box flexDirection="column" marginBottom={1}>
               <Box paddingLeft={2}>
                 <Text bold>claude.ai</Text>
               </Box>
               {claudeAiServers.map(server => renderServerItem(server))}
+              {hiddenConnectors.map(connector => (
+                <HiddenConnectorRow
+                  key={connector.name}
+                  connector={connector}
+                />
+              ))}
             </Box>
           )}
 
