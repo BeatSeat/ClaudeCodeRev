@@ -1,0 +1,14 @@
+{
+  "version": "2.1.112",
+  "fromVersion": "2.1.111",
+  "expectedFunctionCount": 0,
+  "functions": [],
+  "changelogCoverage": [
+    {
+      "item": "Fixed \"claude-opus-4-7 is temporarily unavailable\" for auto mode",
+      "status": "located",
+      "evidence": "Official WV8: !getCanonicalName(model).includes('claude-opus-4-7'). Omit temperature in claude.ts paramsFromContext and sideQuery dR. Dk6 auto-mode allowlist unchanged (still allows opus-4-7)."
+    }
+  ],
+  "notes": "astdiff 111→112: similarity 100.0%, +4/-3, 3854 structural / 57 string-only. Partition: 4 added-product (only WV8 is product-real; vDz/SiY/y$A are rename twins), 7 genuine-structural after pass-2 (vendor/docs). Do not start 113 without unpatched SEA cli.js."
+}

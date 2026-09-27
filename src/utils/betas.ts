@@ -163,6 +163,11 @@ export function modelSupportsStructuredOutputs(model: string): boolean {
   )
 }
 
+/** Official 2.1.112 `WV8`: Opus 4.7 rejects a client temperature and surfaces as temporarily unavailable in auto mode. */
+export function modelSupportsRequestTemperature(model: string): boolean {
+  return !getCanonicalName(model).includes('claude-opus-4-7')
+}
+
 // @[MODEL LAUNCH]: Add the new model if it supports auto mode (specifically PI probes) — ask in #proj-claude-code-safety-research.
 export function modelSupportsAutoMode(model: string): boolean {
   if (feature('TRANSCRIPT_CLASSIFIER')) {

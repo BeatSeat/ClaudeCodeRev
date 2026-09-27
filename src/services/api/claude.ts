@@ -60,6 +60,7 @@ import {
   getBedrockExtraBodyParamsBetas,
   getMergedBetas,
   getModelBetas,
+  modelSupportsRequestTemperature,
 } from '../../utils/betas.js'
 import { getOrCreateUserID } from '../../utils/config.js'
 import {
@@ -1698,9 +1699,11 @@ async function* queryModel(
 
     // Only send temperature when thinking is disabled — the API requires
     // temperature: 1 when thinking is enabled, which is already the default.
-    const temperature = !hasThinking
-      ? (options.temperatureOverride ?? 1)
-      : undefined
+    // Official 2.1.112 WV8: omit temperature on Opus 4.7 (auto-mode 503).
+    const temperature =
+      !hasThinking && modelSupportsRequestTemperature(options.model)
+        ? (options.temperatureOverride ?? 1)
+        : undefined
 
     lastRequestBetas = betasParams
 
