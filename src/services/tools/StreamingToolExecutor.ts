@@ -6,7 +6,7 @@ import {
 } from 'src/utils/messages.js'
 import type { CanUseToolFn } from '../../hooks/useCanUseTool.js'
 import { findToolByName, type Tools, type ToolUseContext } from '../../Tool.js'
-import { BASH_TOOL_NAME } from '../../tools/BashTool/toolName.js'
+import { SHELL_TOOL_NAMES } from '../../utils/shell/shellToolUtils.js'
 import type { AssistantMessage, Message } from '../../types/message.js'
 import { createChildAbortController } from '../../utils/abortController.js'
 import { runToolUse } from './toolExecution.js'
@@ -359,10 +359,14 @@ export class StreamingToolExecutor {
 
         if (isErrorResult) {
           thisToolErrored = true
-          // Only Bash errors cancel siblings. Bash commands often have implicit
-          // dependency chains (e.g. mkdir fails → subsequent commands pointless).
-          // Read/WebFetch/etc are independent — one failure shouldn't nuke the rest.
-          if (tool.block.name === BASH_TOOL_NAME) {
+          // Official 2.1.128: only non-concurrency-safe shell errors cancel
+          // siblings. Read-only Bash/PowerShell (grep / git diff / ls) is
+          // concurrency-safe — a failing grep must not abort parallel calls.
+          // Write/mutating shell still cascades (mkdir fails → later cmds pointless).
+          if (
+            SHELL_TOOL_NAMES.includes(tool.block.name) &&
+            !tool.isConcurrencySafe
+          ) {
             this.hasErrored = true
             this.erroredToolDescription = this.getToolDescription(tool)
             this.siblingAbortController.abort('sibling_error')

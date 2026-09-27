@@ -704,6 +704,8 @@ export type Attachment =
       addedNames: string[]
       addedLines: string[]
       removedNames: string[]
+      readdedNames?: string[]
+      pendingMcpServers?: string[]
     }
   | {
       type: 'agent_listing_delta'
@@ -1485,6 +1487,7 @@ export function getDeferredToolsDeltaAttachment(
   model: string,
   messages: Message[] | undefined,
   scanContext?: DeferredToolsDeltaScanContext,
+  pendingMcpServers?: string[],
 ): Attachment[] {
   if (!isDeferredToolsDeltaEnabled()) return []
   // These three checks mirror the sync parts of isToolSearchEnabled —
@@ -1497,7 +1500,12 @@ export function getDeferredToolsDeltaAttachment(
   if (!isToolSearchEnabledOptimistic()) return []
   if (!modelSupportsToolReference(model)) return []
   if (!isToolSearchToolAvailable(tools)) return []
-  const delta = getDeferredToolsDelta(tools, messages ?? [], scanContext)
+  const delta = getDeferredToolsDelta(
+    tools,
+    messages ?? [],
+    scanContext,
+    pendingMcpServers,
+  )
   if (!delta) return []
   return [{ type: 'deferred_tools_delta', ...delta }]
 }

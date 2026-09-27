@@ -11,9 +11,14 @@
  */
 
 import type { TaskContext } from '../../Task.js'
+import {
+  type AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
+  logEvent,
+} from '../analytics/index.js'
 import { updateAgentSummary } from '../../tasks/LocalAgentTask/LocalAgentTask.js'
 import { filterIncompleteToolCalls } from '../../tools/AgentTool/runAgent.js'
 import type { AgentId } from '../../types/ids.js'
+import type { Message } from '../../types/message.js'
 import { logForDebugging } from '../../utils/debug.js'
 import {
   type CacheSafeParams,
@@ -21,7 +26,6 @@ import {
 } from '../../utils/forkedAgent.js'
 import { logError } from '../../utils/log.js'
 import { createUserMessage } from '../../utils/messages.js'
-import { getAgentTranscript } from '../../utils/sessionStorage.js'
 
 const SUMMARY_INTERVAL_MS = 30_000
 
@@ -47,16 +51,20 @@ export function startAgentSummarization(
   taskId: string,
   agentId: AgentId,
   cacheSafeParams: CacheSafeParams,
+  getMessages: () => Message[],
   setAppState: TaskContext['setAppState'],
+  options?: { intervalMs?: number },
 ): { stop: () => void } {
   // Drop forkContextMessages from the closure — runSummary rebuilds it each
-  // tick from getAgentTranscript(). Without this, the original fork messages
-  // (passed from AgentTool.tsx) are pinned for the lifetime of the timer.
+  // tick from getMessages() (live agent transcript, same cache prefix).
+  const intervalMs = options?.intervalMs ?? SUMMARY_INTERVAL_MS
   const { forkContextMessages: _drop, ...baseParams } = cacheSafeParams
   let summaryAbortController: AbortController | null = null
   let timeoutId: ReturnType<typeof setTimeout> | null = null
   let stopped = false
   let previousSummary: string | null = null
+  let lastFingerprint: string | null = null
+  let loggedUnchangedSkip = false
 
   async function runSummary(): Promise<void> {
     if (stopped) return
@@ -64,20 +72,32 @@ export function startAgentSummarization(
     logForDebugging(`[AgentSummary] Timer fired for agent ${agentId}`)
 
     try {
-      // Read current messages from transcript
-      const transcript = await getAgentTranscript(agentId)
-      if (!transcript || transcript.messages.length < 3) {
-        // Not enough context yet — finally block will schedule next attempt
+      const messages = getMessages()
+      if (messages.length < 3) {
         logForDebugging(
-          `[AgentSummary] Skipping summary for ${taskId}: not enough messages (${transcript?.messages.length ?? 0})`,
+          `[AgentSummary] Skipping summary for ${taskId}: not enough messages (${messages.length})`,
         )
         return
       }
 
-      // Filter to clean message state
-      const cleanMessages = filterIncompleteToolCalls(transcript.messages)
+      const cleanMessages = filterIncompleteToolCalls(messages)
+      const fingerprint = `${cleanMessages.length}:${cleanMessages.at(-1)?.uuid ?? ''}`
+      if (fingerprint === lastFingerprint) {
+        logForDebugging(
+          `[AgentSummary] Skipping summary for ${taskId}: transcript unchanged (${cleanMessages.length} messages)`,
+        )
+        if (!loggedUnchangedSkip) {
+          logEvent('tengu_agent_summary_skipped', {
+            reason:
+              'unchanged' as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
+          })
+          loggedUnchangedSkip = true
+        }
+        return
+      }
+      loggedUnchangedSkip = false
+      lastFingerprint = fingerprint
 
-      // Build fork params with current messages
       const forkParams: CacheSafeParams = {
         ...baseParams,
         forkContextMessages: cleanMessages,
@@ -116,6 +136,7 @@ export function startAgentSummarization(
         forkLabel: 'agent_summary',
         overrides: { abortController: summaryAbortController },
         skipTranscript: true,
+        skipCacheWrite: true,
       })
 
       if (stopped) return
@@ -156,7 +177,7 @@ export function startAgentSummarization(
 
   function scheduleNext(): void {
     if (stopped) return
-    timeoutId = setTimeout(runSummary, SUMMARY_INTERVAL_MS)
+    timeoutId = setTimeout(runSummary, intervalMs)
   }
 
   function stop(): void {

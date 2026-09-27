@@ -11,9 +11,8 @@
  * with (the channel's MCP tool, SendUserMessage, or both).
  *
  * feature('KAIROS') || feature('KAIROS_CHANNELS'). Runtime gate tengu_harbor.
- * Requires claude.ai OAuth auth — API key users are blocked until
- * console gets a channelsEnabled admin surface. Teams/Enterprise orgs
- * must explicitly opt in via channelsEnabled: true in managed settings.
+ * First-party only (console API key or OAuth). Bedrock/Vertex/Foundry are
+ * skipped. Console orgs with managed settings must set channelsEnabled: true.
  */
 
 import type { ServerCapabilities } from '@modelcontextprotocol/sdk/types.js'
@@ -21,9 +20,10 @@ import { z } from 'zod/v4'
 import { type ChannelEntry, getAllowedChannels } from '../../bootstrap/state.js'
 import { CHANNEL_TAG } from '../../constants/xml.js'
 import {
-  getClaudeAIOAuthTokens,
   getSubscriptionType,
+  isClaudeAISubscriber,
 } from '../../utils/auth.js'
+import { getAPIProvider } from '../../utils/model/providers.js'
 import { lazySchema } from '../../utils/lazySchema.js'
 import { parsePluginIdentifier } from '../../utils/plugins/pluginIdentifier.js'
 import { getSettingsForSource } from '../../utils/settings/settings.js'
@@ -125,16 +125,33 @@ export function wrapChannelMessage(
  * avoid double-reading getSettingsForSource (uncached).
  */
 export function getEffectiveChannelAllowlist(
-  sub: ReturnType<typeof getSubscriptionType>,
   orgList: ChannelAllowlistEntry[] | undefined,
 ): {
   entries: ChannelAllowlistEntry[]
   source: 'org' | 'ledger'
 } {
-  if ((sub === 'team' || sub === 'enterprise') && orgList) {
+  // Official 2.1.128 GY8: any policy allowlist (including []) replaces ledger.
+  if (orgList) {
     return { entries: orgList, source: 'org' }
   }
   return { entries: getChannelAllowlist(), source: 'ledger' }
+}
+
+/**
+ * Official 2.1.128 ZY8. Claude.ai team/enterprise still need
+ * channelsEnabled: true. Console (API key) is blocked only when managed
+ * settings exist and channelsEnabled is not true.
+ */
+export function isChannelsPolicyBlocked(
+  policy: { channelsEnabled?: boolean } | null | undefined,
+): boolean {
+  if (isClaudeAISubscriber()) {
+    const sub = getSubscriptionType()
+    return (
+      (sub === 'team' || sub === 'enterprise') && policy?.channelsEnabled !== true
+    )
+  }
+  return policy !== null && policy !== undefined && policy.channelsEnabled !== true
 }
 
 export type ChannelGateResult =
@@ -144,7 +161,7 @@ export type ChannelGateResult =
       kind:
         | 'capability'
         | 'disabled'
-        | 'auth'
+        | 'provider'
         | 'policy'
         | 'session'
         | 'marketplace'
@@ -175,10 +192,9 @@ export function findChannelEntry(
 /**
  * Gate an MCP server's channel-notification path. Caller checks
  * feature('KAIROS') || feature('KAIROS_CHANNELS') first (build-time
- * elimination). Gate order: capability → runtime gate (tengu_harbor) →
- * auth (OAuth only) → org policy → session --channels → allowlist.
- * API key users are blocked at the auth layer — channels requires
- * claude.ai auth; console orgs have no admin opt-in surface yet.
+ * elimination). Gate order: capability → provider (firstParty) →
+ * runtime gate (tengu_harbor) → org policy → session --channels →
+ * allowlist. Console API key is allowed; 3P providers are not.
  *
  *   skip      Not a channel server, or managed org hasn't opted in, or
  *             not in session --channels. Connection stays up; handler
@@ -205,8 +221,17 @@ export function gateChannelServer(
     }
   }
 
+  // Official 2.1.128 OlH: firstParty only. Console API key is allowed.
+  if (getAPIProvider() !== 'firstParty') {
+    return {
+      action: 'skip',
+      kind: 'provider',
+      reason: 'channels are not available on Bedrock, Vertex, or Foundry',
+    }
+  }
+
   // Overall runtime gate. After capability so normal MCP servers never hit
-  // this path. Before auth/policy so the killswitch works regardless of
+  // this path. Before policy so the killswitch works regardless of
   // session state.
   if (!isChannelsEnabled()) {
     return {
@@ -216,26 +241,11 @@ export function gateChannelServer(
     }
   }
 
-  // OAuth-only. API key users (console) are blocked — there's no
-  // channelsEnabled admin surface in console yet, so the policy opt-in
-  // flow doesn't exist for them. Drop this when console parity lands.
-  if (!getClaudeAIOAuthTokens()?.accessToken) {
-    return {
-      action: 'skip',
-      kind: 'auth',
-      reason: 'channels requires claude.ai authentication (run /login)',
-    }
-  }
-
-  // Teams/Enterprise opt-in. Managed orgs must explicitly enable channels.
-  // Default OFF — absent or false blocks. Keyed off subscription tier, not
-  // "policy settings exist" — a team org with zero configured policy keys
-  // (remote endpoint returns 404) is still a managed org and must not fall
-  // through to the unmanaged path.
-  const sub = getSubscriptionType()
-  const managed = sub === 'team' || sub === 'enterprise'
-  const policy = managed ? getSettingsForSource('policySettings') : undefined
-  if (managed && policy?.channelsEnabled !== true) {
+  // Official 2.1.128 ZY8: always read policySettings. Claude.ai
+  // team/enterprise still require channelsEnabled. Console is blocked
+  // only when managed settings exist without channelsEnabled: true.
+  const policy = getSettingsForSource('policySettings')
+  if (isChannelsPolicyBlocked(policy)) {
     return {
       action: 'skip',
       kind: 'policy',
@@ -281,7 +291,6 @@ export function gateChannelServer(
     // one entry doesn't leak allowlist-bypass to --channels entries.
     if (!entry.dev) {
       const { entries, source } = getEffectiveChannelAllowlist(
-        sub,
         policy?.allowedChannelPlugins,
       )
       if (

@@ -1,4 +1,5 @@
 import chalk from 'chalk'
+import stripAnsi from 'strip-ansi'
 import { supportsHyperlinks } from '../ink/supports-hyperlinks.js'
 
 // OSC 8 hyperlink escape sequences
@@ -28,6 +29,17 @@ export function createHyperlink(
 ): string {
   const hasSupport = options?.supportsHyperlinks ?? supportsHyperlinks()
   if (!hasSupport) {
+    // Official 2.1.128 `rB`: no-OSC-8 terminals keep the label, then the URL.
+    if (content !== undefined) {
+      const stripped = stripAnsi(content)
+      if (
+        stripped !== url &&
+        url !== `http://${stripped}` &&
+        url !== `https://${stripped}`
+      ) {
+        return `${content} (${url})`
+      }
+    }
     return url
   }
 

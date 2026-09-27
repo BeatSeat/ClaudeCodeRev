@@ -3,7 +3,12 @@
 
 export type MCPViewState = 'list' | 'detail' | 'settings'
 export type MCPClientState =
-  | { type: 'connected'; tools: unknown[]; resources?: unknown[] }
+  | {
+      type: 'connected'
+      tools: unknown[]
+      resources?: unknown[]
+      capabilities?: { tools?: unknown }
+    }
   | { type: 'pending' }
   | { type: 'failed'; error: string }
   | { type: 'disabled' }

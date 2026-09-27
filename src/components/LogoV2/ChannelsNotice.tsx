@@ -13,12 +13,12 @@ import {
 } from '../../bootstrap/state.js'
 import { Box, Text } from '../../ink.js'
 import { isChannelsEnabled } from '../../services/mcp/channelAllowlist.js'
-import { getEffectiveChannelAllowlist } from '../../services/mcp/channelNotification.js'
-import { getMcpConfigsByScope } from '../../services/mcp/config.js'
 import {
-  getClaudeAIOAuthTokens,
-  getSubscriptionType,
-} from '../../utils/auth.js'
+  getEffectiveChannelAllowlist,
+  isChannelsPolicyBlocked,
+} from '../../services/mcp/channelNotification.js'
+import { getMcpConfigsByScope } from '../../services/mcp/config.js'
+import { getAPIProvider } from '../../utils/model/providers.js'
 import { loadInstalledPluginsV2 } from '../../utils/plugins/installedPluginsManager.js'
 import { getSettingsForSource } from '../../utils/settings/settings.js'
 
@@ -29,31 +29,28 @@ export function ChannelsNotice(): React.ReactNode {
   // (session cache updated by background polling / /login), and
   // isChannelsEnabled (GrowthBook 5-min refresh) must be captured once
   // so a later re-render cannot flip branches.
-  const [{ channels, disabled, noAuth, policyBlocked, list, unmatched }] =
+  const [{ channels, disabled, is3P, policyBlocked, list, unmatched }] =
     useState(() => {
       const ch = getAllowedChannels()
       if (ch.length === 0)
         return {
           channels: ch,
           disabled: false,
-          noAuth: false,
+          is3P: false,
           policyBlocked: false,
           list: '',
           unmatched: [] as Unmatched[],
         }
       const l = ch.map(formatEntry).join(', ')
-      const sub = getSubscriptionType()
-      const managed = sub === 'team' || sub === 'enterprise'
       const policy = getSettingsForSource('policySettings')
       const allowlist = getEffectiveChannelAllowlist(
-        sub,
         policy?.allowedChannelPlugins,
       )
       return {
         channels: ch,
         disabled: !isChannelsEnabled(),
-        noAuth: !getClaudeAIOAuthTokens()?.accessToken,
-        policyBlocked: managed && policy?.channelsEnabled !== true,
+        is3P: getAPIProvider() !== 'firstParty',
+        policyBlocked: isChannelsPolicyBlocked(policy),
         list: l,
         unmatched: findUnmatched(ch, allowlist),
       }
@@ -70,6 +67,19 @@ export function ChannelsNotice(): React.ReactNode {
         ? '--dangerously-load-development-channels'
         : '--channels'
 
+  if (is3P) {
+    return (
+      <Box paddingLeft={2} flexDirection="column">
+        <Text color="error">
+          {flag} ignored ({list})
+        </Text>
+        <Text dimColor>
+          Channels are not available on Bedrock, Vertex, or Foundry
+        </Text>
+      </Box>
+    )
+  }
+
   if (disabled) {
     return (
       <Box paddingLeft={2} flexDirection="column">
@@ -77,19 +87,6 @@ export function ChannelsNotice(): React.ReactNode {
           {flag} ignored ({list})
         </Text>
         <Text dimColor>Channels are not currently available</Text>
-      </Box>
-    )
-  }
-
-  if (noAuth) {
-    return (
-      <Box paddingLeft={2} flexDirection="column">
-        <Text color="error">
-          {flag} ignored ({list})
-        </Text>
-        <Text dimColor>
-          Channels require claude.ai authentication · run /login, then restart
-        </Text>
       </Box>
     )
   }
