@@ -70,7 +70,10 @@ import {
   onIndexBuildComplete,
   startBackgroundCacheRefresh,
 } from './fileSuggestions.js'
-import { generateUnifiedSuggestions } from './unifiedSuggestions.js'
+import {
+  generateMcpResourceTemplateCompletions,
+  generateUnifiedSuggestions,
+} from './unifiedSuggestions.js'
 
 // Unicode-aware character class for file path tokens:
 // \p{L} = letters (CJK, Latin, Cyrillic, etc.)
@@ -206,6 +209,19 @@ export function extractSearchToken(completionToken: {
  * @param options.isComplete Whether this is a complete suggestion (adds trailing space)
  * @returns The formatted replacement value
  */
+function suggestionApplyText(suggestion: SuggestionItem): {
+  text: string
+  partial: boolean
+} {
+  const meta = suggestion.metadata as
+    | { replacement?: string; partial?: boolean }
+    | undefined
+  return {
+    text: meta?.replacement ?? suggestion.displayText,
+    partial: meta?.partial === true,
+  }
+}
+
 export function formatReplacementValue(options: {
   displayText: string
   mode: string
@@ -493,6 +509,7 @@ export function useTypeahead({
     undefined,
   )
   const mcpResources = useAppState(s => s.mcp.resources)
+  const mcpResourceTemplates = useAppState(s => s.mcp.resourceTemplates)
   const store = useAppStateStore()
   const promptSuggestion = useAppState(s => s.promptSuggestion)
   // PromptInput hides suggestion ghost text in teammate view — mirror that
@@ -564,14 +581,36 @@ export function useTypeahead({
     setInlineGhostText(undefined)
   }, [setSuggestionsState])
 
+  const fetchUnifiedOrTemplateSuggestions = useCallback(
+    async (
+      searchToken: string,
+      isAtSymbol: boolean,
+    ): Promise<SuggestionItem[]> => {
+      if (isAtSymbol) {
+        const templateItems = await generateMcpResourceTemplateCompletions(
+          searchToken,
+          mcpResourceTemplates,
+          store.getState().mcp.clients,
+        )
+        if (templateItems) return templateItems
+      }
+      return generateUnifiedSuggestions(
+        searchToken,
+        mcpResources,
+        agents,
+        isAtSymbol,
+        mcpResourceTemplates,
+      )
+    },
+    [agents, mcpResources, mcpResourceTemplates, store],
+  )
+
   // Expensive async operation to fetch file/resource suggestions
   const fetchFileSuggestions = useCallback(
     async (searchToken: string, isAtSymbol = false): Promise<void> => {
       latestSearchTokenRef.current = searchToken
-      const combinedItems = await generateUnifiedSuggestions(
+      const combinedItems = await fetchUnifiedOrTemplateSuggestions(
         searchToken,
-        mcpResources,
-        agents,
         isAtSymbol,
       )
       // Discard stale results if a newer query was initiated while waiting
@@ -602,11 +641,10 @@ export function useTypeahead({
       setMaxColumnWidth(undefined) // No fixed width for file suggestions
     },
     [
-      mcpResources,
+      fetchUnifiedOrTemplateSuggestions,
       setSuggestionsState,
       setSuggestionType,
       setMaxColumnWidth,
-      agents,
     ],
   )
 
@@ -1357,8 +1395,14 @@ export function useTypeahead({
           return
         }
 
-        // Check if all suggestions share a common prefix longer than the current input
-        const commonPrefix = findLongestCommonPrefix(suggestions)
+        // Official 2.1.98: skip common-prefix when any item supplies a replacement
+        // (template-arg values are not a shared path prefix).
+        const commonPrefix = suggestions.some(item => {
+          const meta = item.metadata as { replacement?: string } | undefined
+          return Boolean(meta?.replacement)
+        })
+          ? ''
+          : findLongestCommonPrefix(suggestions)
 
         // Determine if token starts with @ to preserve it during replacement
         const hasAtPrefix = completionToken.token.startsWith('@')
@@ -1405,14 +1449,15 @@ export function useTypeahead({
           // Otherwise, apply the selected suggestion
           const suggestion = suggestions[index]
           if (suggestion) {
-            const needsQuotes = suggestion.displayText.includes(' ')
+            const { text, partial } = suggestionApplyText(suggestion)
+            const needsQuotes = text.includes(' ')
             const replacementValue = formatReplacementValue({
-              displayText: suggestion.displayText,
+              displayText: text,
               mode,
               hasAtPrefix,
               needsQuotes,
               isQuoted: completionToken.isQuoted,
-              isComplete: true, // complete suggestion
+              isComplete: !partial,
             })
 
             applyFileSuggestion(
@@ -1469,10 +1514,8 @@ export function useTypeahead({
             ? completionInfo.token.substring(1)
             : completionInfo.token
 
-          suggestionItems = await generateUnifiedSuggestions(
+          suggestionItems = await fetchUnifiedOrTemplateSuggestions(
             searchToken,
-            mcpResources,
-            agents,
             isAtSymbol,
           )
         } else {
@@ -1508,9 +1551,8 @@ export function useTypeahead({
     clearSuggestions,
     cursorOffset,
     updateSuggestions,
-    mcpResources,
+    fetchUnifiedOrTemplateSuggestions,
     setSuggestionsState,
-    agents,
     debouncedFetchFileSuggestions,
     debouncedFetchSlackChannels,
     effectiveGhostText,
@@ -1611,14 +1653,15 @@ export function useTypeahead({
       if (completionInfo) {
         if (suggestion) {
           const hasAtPrefix = completionInfo.token.startsWith('@')
-          const needsQuotes = suggestion.displayText.includes(' ')
+          const { text, partial } = suggestionApplyText(suggestion)
+          const needsQuotes = text.includes(' ')
           const replacementValue = formatReplacementValue({
-            displayText: suggestion.displayText,
+            displayText: text,
             mode,
             hasAtPrefix,
             needsQuotes,
             isQuoted: completionInfo.isQuoted,
-            isComplete: true, // complete suggestion
+            isComplete: !partial,
           })
 
           applyFileSuggestion(

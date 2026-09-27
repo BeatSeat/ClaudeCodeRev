@@ -15,6 +15,7 @@ import type { AgentDefinition } from '../../tools/AgentTool/loadAgentsDir.js'
 import { count } from '../../utils/array.js'
 import { Dialog } from '../design-system/Dialog.js'
 import { Divider } from '../design-system/Divider.js'
+import { useTabHeaderFocus } from '../design-system/Tabs.js'
 import { getAgentSourceDisplayName } from './utils.js'
 
 type Props = {
@@ -25,6 +26,10 @@ type Props = {
   onCreateNew?: () => void
   changes?: string[]
   runningCounts?: Map<string, number>
+  /** Official 2.1.98: types spawned this session sort first on the Library tab. */
+  usedThisSession?: Set<string>
+  /** Render list body only — parent Dialog/Tabs own chrome. */
+  embedded?: boolean
 }
 
 export function AgentsList({
@@ -35,16 +40,27 @@ export function AgentsList({
   onCreateNew,
   changes,
   runningCounts,
+  usedThisSession,
+  embedded = false,
 }: Props): React.ReactNode {
   const [selectedAgent, setSelectedAgent] =
     React.useState<ResolvedAgent | null>(null)
   const [isCreateNewSelected, setIsCreateNewSelected] = React.useState(true)
+  const { headerFocused, focusHeader } = useTabHeaderFocus()
 
-  // Sort agents alphabetically by name within each source group
-  const sortedAgents = React.useMemo(
-    () => [...agents].sort(compareAgentsByName),
-    [agents],
-  )
+  // Sort agents alphabetically by name within each source group.
+  // Official 2.1.98 ddK: when viewing all + usedThisSession, used types float first.
+  const sortedAgents = React.useMemo(() => {
+    const byName = [...agents].sort(compareAgentsByName)
+    if (source !== 'all' || !usedThisSession || usedThisSession.size === 0) {
+      return byName
+    }
+    return byName.sort((a, b) => {
+      const aUsed = usedThisSession.has(a.agentType) ? 0 : 1
+      const bUsed = usedThisSession.has(b.agentType) ? 0 : 1
+      return aUsed - bUsed
+    })
+  }, [agents, source, usedThisSession])
 
   const getOverrideInfo = (agent: ResolvedAgent) => {
     return {
@@ -149,6 +165,7 @@ export function AgentsList({
   }, [selectableAgentsInOrder, selectedAgent, isCreateNewSelected, onCreateNew])
 
   const handleKeyDown = (e: KeyboardEvent) => {
+    if (embedded && headerFocused) return
     if (e.key === 'return') {
       e.preventDefault()
       if (isCreateNewSelected && onCreateNew) {
@@ -182,7 +199,13 @@ export function AgentsList({
       }
     }
 
-    // Calculate new position with wrap-around
+    // Embedded Library tab: up from the first row returns focus to the tab header.
+    if (embedded && e.key === 'up' && currentPosition === 0) {
+      focusHeader()
+      return
+    }
+
+    // Calculate new position with wrap-around (standalone dialog).
     const newPosition =
       e.key === 'up'
         ? currentPosition === 0
@@ -246,14 +269,26 @@ export function AgentsList({
     !sortedAgents.length ||
     (source !== 'built-in' && !sortedAgents.some(a => a.source !== 'built-in'))
 
-  if (hasNoAgents) {
+  const wrap = (children: React.ReactNode): React.ReactNode => {
+    if (embedded) return children
     return (
       <Dialog
         title={sourceTitle}
-        subtitle="No agents found"
+        subtitle={
+          hasNoAgents
+            ? 'No agents found'
+            : `${count(sortedAgents, a => !a.overriddenBy)} agents`
+        }
         onCancel={onBack}
         hideInputGuide
       >
+        {children}
+      </Dialog>
+    )
+  }
+
+  if (hasNoAgents) {
+    return wrap(
         <Box
           flexDirection="column"
           gap={1}
@@ -281,18 +316,12 @@ export function AgentsList({
                 {renderBuiltInAgentsSection()}
               </>
             )}
-        </Box>
-      </Dialog>
+        </Box>,
     )
   }
 
-  return (
-    <Dialog
-      title={sourceTitle}
-      subtitle={`${count(sortedAgents, a => !a.overriddenBy)} agents`}
-      onCancel={onBack}
-      hideInputGuide
-    >
+  return wrap(
+    <>
       {changes && changes.length > 0 && (
         <Box marginTop={1}>
           <Text dimColor>{changes[changes.length - 1]}</Text>
@@ -349,6 +378,6 @@ export function AgentsList({
           </>
         )}
       </Box>
-    </Dialog>
+    </>,
   )
 }

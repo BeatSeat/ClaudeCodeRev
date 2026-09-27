@@ -268,6 +268,8 @@ export type GlobalConfig = {
 
   /** Official 2.1.94: per-tier Bedrock upgrade the user already declined. */
   bedrockDeclinedUpgrades?: Record<string, string>
+  /** Official 2.1.98: per-tier Vertex upgrade the user already declined. */
+  vertexDeclinedUpgrades?: Record<string, string>
 
   // /buddy companion soul — bones regenerated from userId on read. See src/buddy/.
   companion?: import('../buddy/types.js').StoredCompanion

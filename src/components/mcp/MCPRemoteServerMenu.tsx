@@ -176,6 +176,10 @@ export function MCPRemoteServerMenu({
         prev.mcp.resources,
         server.name,
       )
+      const newResourceTemplates = excludeResourcesByServer(
+        prev.mcp.resourceTemplates,
+        server.name,
+      )
 
       return {
         ...prev,
@@ -185,6 +189,7 @@ export function MCPRemoteServerMenu({
           tools: newTools,
           commands: newCommands,
           resources: newResources,
+          resourceTemplates: newResourceTemplates,
         },
       }
     })
@@ -454,6 +459,10 @@ export function MCPRemoteServerMenu({
           prev.mcp.resources,
           server.name,
         )
+        const newResourceTemplates = excludeResourcesByServer(
+          prev.mcp.resourceTemplates,
+          server.name,
+        )
 
         return {
           ...prev,
@@ -463,6 +472,7 @@ export function MCPRemoteServerMenu({
             tools: newTools,
             commands: newCommands,
             resources: newResources,
+            resourceTemplates: newResourceTemplates,
           },
         }
       })

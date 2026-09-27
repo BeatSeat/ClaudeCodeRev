@@ -33,7 +33,9 @@ export const OVERLAY_MAX_ITEMS = 5
  */
 function getIcon(itemId: string): string {
   if (itemId.startsWith('file-')) return '+'
-  if (itemId.startsWith('mcp-resource-')) return '◇'
+  if (itemId.startsWith('mcp-resource-') || itemId.startsWith('mcp-template')) {
+    return '◇'
+  }
   if (itemId.startsWith('agent-')) return '*'
   return '+'
 }
@@ -45,6 +47,7 @@ function isUnifiedSuggestion(itemId: string): boolean {
   return (
     itemId.startsWith('file-') ||
     itemId.startsWith('mcp-resource-') ||
+    itemId.startsWith('mcp-template') ||
     itemId.startsWith('agent-')
   )
 }
@@ -69,8 +72,10 @@ const SuggestionItemRow = memo(function SuggestionItemRow({
       : undefined
     const dimColor = !isSelected
 
-    const isFile = item.id.startsWith('file-')
+    const isFile =
+      item.id.startsWith('file-') || item.id.startsWith('mcp-template::')
     const isMcpResource = item.id.startsWith('mcp-resource-')
+    const isMcpTemplateValue = item.id.startsWith('mcp-template-value::')
 
     // Calculate layout widths
     // Layout: "X " (2) + displayText + " – " (3) + description + padding (4)
@@ -82,14 +87,16 @@ const SuggestionItemRow = memo(function SuggestionItemRow({
     // For MCP resources, limit displayText to 30 chars (truncate from end)
     // For agents, no truncation
     let displayText: string
-    if (isFile) {
+    if (isFile || isMcpTemplateValue) {
       // Reserve space for description if present, otherwise use all available space
       const descReserve = item.description
         ? Math.min(20, stringWidth(item.description))
         : 0
       const maxPathLength =
         columns - iconWidth - paddingWidth - separatorWidth - descReserve
-      displayText = truncatePathMiddle(item.displayText, maxPathLength)
+      displayText = isMcpTemplateValue
+        ? truncateToWidth(item.displayText, maxPathLength)
+        : truncatePathMiddle(item.displayText, maxPathLength)
     } else if (isMcpResource) {
       const maxDisplayTextLength = 30
       displayText = truncateToWidth(item.displayText, maxDisplayTextLength)

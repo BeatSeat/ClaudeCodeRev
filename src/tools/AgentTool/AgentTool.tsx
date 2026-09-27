@@ -642,6 +642,17 @@ export const AgentTool = buildTool({
       permissionMode,
     )
 
+    rootSetAppState(prev =>
+      prev.agentTypesInvokedThisSession.has(selectedAgent.agentType)
+        ? prev
+        : {
+            ...prev,
+            agentTypesInvokedThisSession: new Set(
+              prev.agentTypesInvokedThisSession,
+            ).add(selectedAgent.agentType),
+          },
+    )
+
     logEvent('tengu_agent_tool_selected', {
       agent_type:
         selectedAgent.agentType as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,

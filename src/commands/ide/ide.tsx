@@ -16,6 +16,7 @@ import {
 } from '../../components/IdeAutoConnectDialog.js'
 import { Box, Text } from '../../ink.js'
 import { clearServerCache } from '../../services/mcp/client.js'
+import { excludeResourcesByServer } from '../../services/mcp/utils.js'
 import type { ScopedMcpServerConfig } from '../../services/mcp/types.js'
 import { useAppState, useSetAppState } from '../../state/AppState.js'
 import { getCwd } from '../../utils/cwd.js'
@@ -529,6 +530,11 @@ function IDECommandFlow({
               ),
               commands: prev.mcp.commands.filter(
                 c => !c.name?.startsWith('mcp__ide__'),
+              ),
+              resources: excludeResourcesByServer(prev.mcp.resources, 'ide'),
+              resourceTemplates: excludeResourcesByServer(
+                prev.mcp.resourceTemplates,
+                'ide',
               ),
             },
           }))
