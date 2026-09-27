@@ -32,6 +32,7 @@ import {
 } from './nativeInstaller/packageManagers.js'
 import { getPlatform } from './platform.js'
 import { getRipgrepStatus } from './ripgrep.js'
+import { getUsername } from './secureStorage/macOsKeychainHelpers.js'
 import { SandboxManager } from './sandbox/sandbox-adapter.js'
 import { getManagedFilePath } from './settings/managedPath.js'
 import { CUSTOMIZATION_SURFACES } from './settings/types.js'
@@ -511,7 +512,44 @@ export function detectLinuxGlobPatternWarnings(): Array<{
   return warnings
 }
 
-export async function getDoctorDiagnostic(): Promise<DiagnosticInfo> {
+async function probeMacOSKeychainWritable(): Promise<{
+  issue: string
+  fix: string
+} | null> {
+  if (process.platform !== 'darwin') {
+    return null
+  }
+  const service = 'Claude Code-doctor-probe'
+  const username = getUsername()
+  const hexValue = Buffer.from('probe', 'utf-8').toString('hex')
+  const command = `add-generic-password -U -a "${username}" -s "${service}" -X "${hexValue}"\n`
+  const result = await execa('security', ['-i'], {
+    input: command,
+    reject: false,
+    timeout: 5000,
+  })
+  if (result.exitCode === 0) {
+    await execa(
+      'security',
+      ['delete-generic-password', '-a', username, '-s', service],
+      { reject: false, timeout: 5000 },
+    )
+    return null
+  }
+  const err = (result.stderr || result.stdout || '')
+    .trim()
+    .replace(/\s*\n\s*/g, '; ')
+  return {
+    issue: `macOS Keychain is not writable${err ? ` (${err})` : ''}. Console login will fail to save your API key.`,
+    fix: "Run: security unlock-keychain ~/Library/Keychains/login.keychain-db — if that doesn't fix it, your login keychain password may be out of sync with your account password: open Keychain Access, select the 'login' keychain, then Edit → Change Password for Keychain 'login'.",
+  }
+}
+
+export async function getDoctorDiagnostic({
+  probeKeychain = false,
+}: {
+  probeKeychain?: boolean
+} = {}): Promise<DiagnosticInfo> {
   const installationType = await getCurrentInstallationType()
   const version =
     typeof MACRO !== 'undefined' && MACRO.VERSION ? MACRO.VERSION : 'unknown'
@@ -522,6 +560,13 @@ export async function getDoctorDiagnostic(): Promise<DiagnosticInfo> {
 
   // Add glob pattern warnings for Linux sandboxing
   warnings.push(...detectLinuxGlobPatternWarnings())
+
+  if (probeKeychain) {
+    const keychainWarning = await probeMacOSKeychainWritable()
+    if (keychainWarning) {
+      warnings.push(keychainWarning)
+    }
+  }
 
   // Add warnings for leftover npm installations when running native
   if (installationType === 'native') {

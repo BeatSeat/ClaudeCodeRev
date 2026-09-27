@@ -1,10 +1,6 @@
 import React, { useCallback, useEffect, useRef } from 'react'
 import { Box, Text } from '../ink.js'
-import {
-  isMaxSubscriber,
-  isProSubscriber,
-  isTeamSubscriber,
-} from '../utils/auth.js'
+import { isMaxSubscriber, isProSubscriber } from '../utils/auth.js'
 import { getGlobalConfig, saveGlobalConfig } from '../utils/config.js'
 import type { EffortLevel } from '../utils/effort.js'
 import {
@@ -160,7 +156,7 @@ export function shouldShowEffortCallout(model: string): boolean {
   // Max/Team are the target of the tengu_grey_step2 config.
   // Don't mark dismissed when config is disabled — they should see the dialog
   // once it's enabled for them.
-  if (isMaxSubscriber() || isTeamSubscriber()) {
+  if (isMaxSubscriber()) {
     return getOpusDefaultEffortConfig().enabled
   }
 

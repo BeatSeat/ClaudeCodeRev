@@ -3,6 +3,7 @@ import { updateLastInteractionTime } from '../../bootstrap/state.js'
 import { logForDebugging } from '../../utils/debug.js'
 import { stopCapturingEarlyInput } from '../../utils/earlyInput.js'
 import { isEnvTruthy } from '../../utils/envUtils.js'
+import { execFileNoThrow } from '../../utils/execFileNoThrow.js'
 import { isMouseClicksDisabled } from '../../utils/fullscreen.js'
 import { logError } from '../../utils/log.js'
 import { EventEmitter } from '../events/emitter.js'
@@ -321,10 +322,22 @@ export default class App extends PureComponent<Props, State> {
           void Promise.all([
             this.querier.send(xtversion()),
             this.querier.flush(),
-          ]).then(([r]) => {
+          ]).then(async ([r]) => {
             if (r) {
-              setXtversionName(r.name)
-              logForDebugging(`XTVERSION: terminal identified as "${r.name}"`)
+              let name = r.name
+              if (process.env.TMUX && name.startsWith('tmux ')) {
+                const { stdout } = await execFileNoThrow(
+                  'tmux',
+                  ['display-message', '-p', '#{client_termtype}'],
+                  { timeout: 1000, useCwd: false },
+                )
+                const termtype = stdout.trim()
+                if (termtype) {
+                  name = termtype
+                }
+              }
+              setXtversionName(name)
+              logForDebugging(`XTVERSION: terminal identified as "${name}"`)
             } else {
               logForDebugging('XTVERSION: no reply (terminal ignored query)')
             }
