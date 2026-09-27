@@ -18,6 +18,7 @@ import { accumulateUsage, updateUsage } from 'src/services/api/claude.js'
 import type { NonNullableUsage } from 'src/services/api/logging.js'
 import { EMPTY_USAGE } from 'src/services/api/logging.js'
 import stripAnsi from 'strip-ansi'
+import type { InboundAttachment } from './bridge/inboundAttachments.js'
 import type { Command } from './commands.js'
 import { getSlashCommandToolSkills } from './commands.js'
 import {
@@ -36,11 +37,17 @@ import { query } from './query.js'
 import { categorizeRetryableAPIError } from './services/api/errors.js'
 import type { MCPServerConnection } from './services/mcp/types.js'
 import type { AppState } from './state/AppState.js'
-import { type Tools, type ToolUseContext, toolMatchesName } from './Tool.js'
+import {
+  findToolByName,
+  type Tools,
+  type ToolUseContext,
+  toolMatchesName,
+} from './Tool.js'
 import type { AgentDefinition } from './tools/AgentTool/loadAgentsDir.js'
 import { SYNTHETIC_OUTPUT_TOOL_NAME } from './tools/SyntheticOutputTool/SyntheticOutputTool.js'
 import type { Message } from './types/message.js'
 import type { OrphanedPermission } from './types/textInputTypes.js'
+import type { HookDeferredToolAttachment } from './utils/attachments.js'
 import { createAbortController } from './utils/abortController.js'
 import type { AttributionState } from './utils/commitAttribution.js'
 import { getGlobalConfig } from './utils/config.js'
@@ -58,6 +65,7 @@ import {
 } from './utils/fileStateCache.js'
 import { headlessProfilerCheckpoint } from './utils/headlessProfiler.js'
 import { registerStructuredOutputEnforcement } from './utils/hooks/hookHelpers.js'
+import { logForDebugging } from './utils/debug.js'
 import { getInMemoryErrors } from './utils/log.js'
 import { countToolCalls, SYNTHETIC_MESSAGES } from './utils/messages.js'
 import {
@@ -102,6 +110,7 @@ import {
 } from './utils/permissions/filesystem.js'
 /* eslint-enable @typescript-eslint/no-require-imports */
 import {
+  handleDeferredToolResume,
   handleOrphanedPermission,
   isResultSuccessful,
   normalizeMessage,
@@ -155,6 +164,7 @@ export type QueryEngineConfig = {
   setSDKStatus?: (status: SDKStatus) => void
   abortController?: AbortController
   orphanedPermission?: OrphanedPermission
+  deferredToolUse?: HookDeferredToolAttachment
   /**
    * Snip-boundary handler: receives each yielded system message plus the
    * current mutableMessages store. Returns undefined if the message is not a
@@ -188,6 +198,7 @@ export class QueryEngine {
   private permissionDenials: SDKPermissionDenial[]
   private totalUsage: NonNullableUsage
   private hasHandledOrphanedPermission = false
+  private hasHandledDeferredToolResume = false
   private readFileState: FileStateCache
   // Turn-scoped skill discovery tracking (feeds was_discovered on
   // tengu_skill_tool_invocation). Must persist across the two
@@ -208,7 +219,7 @@ export class QueryEngine {
 
   async *submitMessage(
     prompt: string | ContentBlockParam[],
-    options?: { uuid?: string; isMeta?: boolean },
+    options?: { uuid?: string; isMeta?: boolean; fileAttachments?: InboundAttachment[] },
   ): AsyncGenerator<SDKMessage, void, unknown> {
     const {
       cwd,
@@ -233,6 +244,7 @@ export class QueryEngine {
       agents = [],
       setSDKStatus,
       orphanedPermission,
+      deferredToolUse,
     } = this.config
 
     this.discoveredSkillNames.clear()
@@ -334,6 +346,7 @@ export class QueryEngine {
 
     let processUserInputContext: ProcessUserInputContext = {
       messages: this.mutableMessages,
+      turnStartIndex: 0,
       // Slash commands that mutate the message array (e.g. /force-snip)
       // call setMessages(fn).  In interactive mode this writes back to
       // AppState; in print mode we write back to mutableMessages so the
@@ -404,6 +417,89 @@ export class QueryEngine {
         processUserInputContext,
       )) {
         yield message
+      }
+    }
+
+    if (deferredToolUse && !this.hasHandledDeferredToolResume) {
+      this.hasHandledDeferredToolResume = true
+      if (!findToolByName(tools, deferredToolUse.toolName)) {
+        logForDebugging(
+          `Deferred tool resume: tool '${deferredToolUse.toolName}' is no longer available (MCP server disconnected or tool removed)`,
+          { level: 'warn' },
+        )
+        yield {
+          type: 'result',
+          subtype: 'success',
+          is_error: true,
+          duration_ms: Date.now() - startTime,
+          duration_api_ms: getTotalAPIDuration(),
+          num_turns: this.mutableMessages.length,
+          result: '',
+          stop_reason: 'tool_deferred_unavailable',
+          session_id: getSessionId(),
+          total_cost_usd: getTotalCost(),
+          usage: this.totalUsage,
+          modelUsage: getModelUsage(),
+          permission_denials: this.permissionDenials,
+          deferred_tool_use: {
+            id: deferredToolUse.toolUseID,
+            name: deferredToolUse.toolName,
+            input: deferredToolUse.toolInput,
+          },
+          fast_mode_state: getFastModeState(
+            initialMainLoopModel,
+            initialAppState.fastMode,
+          ),
+          uuid: randomUUID(),
+        } as SDKMessage
+        return
+      }
+      let resumeRedeferred: HookDeferredToolAttachment | undefined
+      for await (const message of handleDeferredToolResume(
+        deferredToolUse,
+        wrappedCanUseTool,
+        this.mutableMessages,
+        processUserInputContext,
+      )) {
+        const attachment =
+          'attachment' in message
+            ? message.attachment as HookDeferredToolAttachment | undefined
+            : undefined
+        if (attachment?.type === 'hook_deferred_tool') {
+          resumeRedeferred = attachment
+        }
+        yield message
+      }
+      if (resumeRedeferred) {
+        if (persistSession) {
+          await recordTranscript(this.mutableMessages)
+        }
+        yield {
+          type: 'result',
+          subtype: 'success',
+          is_error: false,
+          duration_ms: Date.now() - startTime,
+          duration_api_ms: getTotalAPIDuration(),
+          num_turns: this.mutableMessages.length,
+          result: '',
+          stop_reason: 'tool_deferred',
+          session_id: getSessionId(),
+          total_cost_usd: getTotalCost(),
+          usage: this.totalUsage,
+          modelUsage: getModelUsage(),
+          permission_denials: this.permissionDenials,
+          deferred_tool_use: {
+            id: resumeRedeferred.toolUseID,
+            name: resumeRedeferred.toolName,
+            input: resumeRedeferred.toolInput,
+          },
+          fast_mode_state: getFastModeState(
+            initialMainLoopModel,
+            initialAppState.fastMode,
+          ),
+          uuid: randomUUID(),
+        } as SDKMessage
+        return
       }
     }
 
@@ -491,6 +587,7 @@ export class QueryEngine {
     // model (from slash commands).
     processUserInputContext = {
       messages,
+      turnStartIndex: 0,
       setMessages: () => {},
       onChangeAPIKey: () => {},
       handleElicitation: this.config.handleElicitation,
@@ -662,6 +759,9 @@ export class QueryEngine {
     let structuredOutputFromTool: unknown
     // Track the last stop_reason from assistant messages
     let lastStopReason: string | null = null
+    let deferredToolUseFromQuery:
+      | { id: string; name: string; input: Record<string, unknown> }
+      | undefined
     // Reference-based watermark so error_during_execution's errors[] is
     // turn-scoped. A length-based index breaks when the 100-entry ring buffer
     // shift()s during the turn — the index slides. If this entry is rotated
@@ -736,6 +836,10 @@ export class QueryEngine {
           hasAcknowledgedInitialMessages = true
           for (const msgToAck of messagesToAck) {
             if (msgToAck.type === 'user') {
+              const fileAttachments =
+                options?.uuid && msgToAck.uuid === options.uuid
+                  ? options.fileAttachments
+                  : undefined
               yield {
                 type: 'user',
                 message: msgToAck.message,
@@ -744,6 +848,7 @@ export class QueryEngine {
                 uuid: msgToAck.uuid,
                 timestamp: msgToAck.timestamp,
                 isReplay: true,
+                ...(fileAttachments?.length ? { file_attachments: fileAttachments } : {}),
               } as SDKUserMessageReplay
             }
           }
@@ -837,6 +942,13 @@ export class QueryEngine {
           // Extract structured output from StructuredOutput tool calls
           if (message.attachment.type === 'structured_output') {
             structuredOutputFromTool = message.attachment.data
+          } else if (message.attachment.type === 'hook_deferred_tool') {
+            const deferred = message.attachment as HookDeferredToolAttachment
+            deferredToolUseFromQuery = {
+              id: deferred.toolUseID,
+              name: deferred.toolName,
+              input: deferred.toolInput,
+            }
           }
           // Handle max turns reached signal from query.ts
           else if (message.attachment.type === 'max_turns_reached') {
@@ -888,6 +1000,9 @@ export class QueryEngine {
               uuid: message.attachment.source_uuid || message.uuid,
               timestamp: message.timestamp,
               isReplay: true,
+              ...((message.attachment.fileAttachments as InboundAttachment[] | undefined)?.length
+                ? { file_attachments: message.attachment.fileAttachments }
+                : {}),
             } as SDKUserMessageReplay
           }
           break
@@ -1079,6 +1194,31 @@ export class QueryEngine {
       }
     }
 
+    if (deferredToolUseFromQuery) {
+      yield {
+        type: 'result',
+        subtype: 'success',
+        is_error: false,
+        duration_ms: Date.now() - startTime,
+        duration_api_ms: getTotalAPIDuration(),
+        num_turns: turnCount,
+        result: '',
+        stop_reason: 'tool_deferred',
+        session_id: getSessionId(),
+        total_cost_usd: getTotalCost(),
+        usage: this.totalUsage,
+        modelUsage: getModelUsage(),
+        permission_denials: this.permissionDenials,
+        deferred_tool_use: deferredToolUseFromQuery,
+        fast_mode_state: getFastModeState(
+          mainLoopModel,
+          initialAppState.fastMode,
+        ),
+        uuid: randomUUID(),
+      } as SDKMessage
+      return
+    }
+
     if (!isResultSuccessful(result, lastStopReason)) {
       yield {
         type: 'result',
@@ -1188,6 +1328,7 @@ export async function* ask({
   prompt,
   promptUuid,
   isMeta,
+  fileAttachments,
   cwd,
   tools,
   mcpClients,
@@ -1214,11 +1355,13 @@ export async function* ask({
   agents = [],
   setSDKStatus,
   orphanedPermission,
+  deferredToolUse,
 }: {
   commands: Command[]
   prompt: string | Array<ContentBlockParam>
   promptUuid?: string
   isMeta?: boolean
+  fileAttachments?: InboundAttachment[]
   cwd: string
   tools: Tools
   verbose?: boolean
@@ -1245,6 +1388,7 @@ export async function* ask({
   agents?: AgentDefinition[]
   setSDKStatus?: (status: SDKStatus) => void
   orphanedPermission?: OrphanedPermission
+  deferredToolUse?: HookDeferredToolAttachment
 }): AsyncGenerator<SDKMessage, void, unknown> {
   const engine = new QueryEngine({
     cwd,
@@ -1273,6 +1417,7 @@ export async function* ask({
     setSDKStatus,
     abortController,
     orphanedPermission,
+    deferredToolUse,
     ...(feature('HISTORY_SNIP')
       ? {
           snipReplay: (yielded: Message, store: Message[]) => {
@@ -1288,6 +1433,7 @@ export async function* ask({
     yield* engine.submitMessage(prompt, {
       uuid: promptUuid,
       isMeta,
+      fileAttachments,
     })
   } finally {
     setReadFileCache(engine.getReadFileState())

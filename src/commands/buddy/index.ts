@@ -1,3 +1,13 @@
-// @generated-stub — missing from sourcemap, see scripts/gen-stubs.ts
+import type { Command } from '../../commands.js'
+import { isBuddyLive } from '../../buddy/useBuddyNotification.js'
 
-export {}
+const buddy = {
+  type: 'local-jsx',
+  name: 'buddy',
+  description: 'Hatch a coding companion · pet, off',
+  isHidden: !isBuddyLive(),
+  immediate: true,
+  load: () => import('./buddy.js'),
+} satisfies Command
+
+export default buddy

@@ -1,4 +1,5 @@
 // biome-ignore-all assist/source/organizeImports: ANT-ONLY import markers must not be reordered
+import type { InboundAttachment } from '../bridge/inboundAttachments.js'
 import {
   logEvent,
   type AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
@@ -377,12 +378,23 @@ export type HookAttachment =
     }
   | HookSystemMessageAttachment
   | HookPermissionDecisionAttachment
+  | HookDeferredToolAttachment
 
 export type HookPermissionDecisionAttachment = {
   type: 'hook_permission_decision'
   decision: 'allow' | 'deny'
   toolUseID: string
   hookEvent: HookEvent
+}
+
+export type HookDeferredToolAttachment = {
+  type: 'hook_deferred_tool'
+  toolUseID: string
+  toolName: string
+  toolInput: Record<string, unknown>
+  hookName: string
+  hookEvent: HookEvent
+  permissionMode: string
 }
 
 export type HookSystemMessageAttachment = {
@@ -545,6 +557,7 @@ export type Attachment =
       prompt: string | Array<ContentBlockParam>
       source_uuid?: UUID
       imagePasteIds?: number[]
+      fileAttachments?: InboundAttachment[]
       /** Original queue mode — 'prompt' for user messages, 'task-notification' for system events */
       commandMode?: string
       /** Provenance carried from QueuedCommand so mid-turn drains preserve it */
@@ -1074,6 +1087,7 @@ export async function getQueuedCommandAttachments(
         prompt,
         source_uuid: _.uuid,
         imagePasteIds: getImagePasteIds(_.pastedContents),
+        fileAttachments: _.fileAttachments,
         commandMode: _.mode,
         origin: _.origin,
         isMeta: _.isMeta,

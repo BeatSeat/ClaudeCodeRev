@@ -71,17 +71,26 @@ const FEATURE_FLAGS: Record<string, boolean> = {
   MESSAGE_ACTIONS: true,
   SKILL_IMPROVEMENT: true,
   EXPERIMENTAL_SKILL_SEARCH: true,
-  RUN_SKILL_GENERATOR: true,
+  // Internal-only: official external 2.1.89 ships no run-skill-generator skill
+  // (prompt-text mention only) and src/skills/bundled/runSkillGenerator.ts is a
+  // @generated-stub (empty exports) -> registerRunSkillGeneratorSkill() would
+  // TypeError at startup when called from initBundledSkills().
+  RUN_SKILL_GENERATOR: false,
   BASH_CLASSIFIER: true,
   TRANSCRIPT_CLASSIFIER: true,
-  WORKFLOW_SCRIPTS: true,
+  // Internal-only workflow entrypoints are absent from the external 2.1.89 build.
+  WORKFLOW_SCRIPTS: false,
   AGENT_MEMORY_SNAPSHOT: true,
   AWAY_SUMMARY: true,
   AGENT_TRIGGERS: true,
   AGENT_TRIGGERS_REMOTE: true,
   POWERSHELL_AUTO_MODE: true,
   TEAMMEM: true,
-  REVIEW_ARTIFACT: true,
+  // Internal-only: official external 2.1.89 contains no ReviewArtifact tool or
+  // hunter skill, and src/skills/bundled/hunter.ts +
+  // src/tools/ReviewArtifactTool are @generated-stubs (empty exports) ->
+  // registerHunterSkill() would TypeError at startup (same class as WORKFLOW_SCRIPTS).
+  REVIEW_ARTIFACT: false,
   ULTRAPLAN: true,
   ULTRATHINK: true,
   TORCH: true,
@@ -101,8 +110,8 @@ const FEATURE_FLAGS: Record<string, boolean> = {
   BYOC_ENVIRONMENT_RUNNER: isDev,
   CHICAGO_MCP: isDev,
   WEB_BROWSER_TOOL: isDev,
-  VOICE_MODE: isDev,
-  BUDDY: isDev,
+  VOICE_MODE: true,
+  BUDDY: true,
   KAIROS: isDev,
   KAIROS_BRIEF: isDev,
   KAIROS_CHANNELS: isDev,
@@ -164,17 +173,39 @@ const MACROS: Record<string, string> = {
  * Bun plugin that intercepts `bun:bundle` imports and replaces feature()
  * calls with boolean literals for dead code elimination.
  */
+function featureCallLoader(path: string): 'tsx' | 'ts' | 'jsx' | 'js' {
+  if (path.endsWith('.tsx')) return 'tsx'
+  if (path.endsWith('.jsx')) return 'jsx'
+  if (path.endsWith('.ts')) return 'ts'
+  return 'js'
+}
+
 const bunBundlePlugin: import('bun').BunPlugin = {
   name: 'bun-bundle-shim',
   setup(build) {
-    // Provide a virtual module for `bun:bundle`
+    // Fold feature('FLAG') to a boolean literal in source so Bun DCE can
+    // keep or drop `feature('X') ? require(...)` at bundle time.
+    build.onLoad({ filter: /\.(tsx?|jsx?)$/ }, async args => {
+      const normalized = args.path.replace(/\\/g, '/')
+      if (normalized.includes('/node_modules/')) return
+      let contents = await Bun.file(args.path).text()
+      if (contents.includes('feature(')) {
+        contents = contents.replace(
+          /\bfeature\((['"])([^'"]+)\1\)/g,
+          (_match, _quote, flag) => String(Boolean(FEATURE_FLAGS[flag])),
+        )
+      }
+      return { contents, loader: featureCallLoader(args.path) }
+    })
+
+    // Provide a virtual module for leftover `import { feature } from 'bun:bundle'`
     build.onResolve({ filter: /^bun:bundle$/ }, () => ({
       path: 'bun:bundle',
       namespace: 'bun-bundle-shim',
     }))
 
     build.onLoad({ filter: /.*/, namespace: 'bun-bundle-shim' }, () => ({
-      contents: `export function feature(name) { return false; }`,
+      contents: `export function feature(_name) { return false; }`,
       loader: 'js',
     }))
   },
@@ -213,6 +244,7 @@ async function main() {
     // Externalize Node builtins (they're loaded via createRequire at runtime)
     external: [
       'bun:ffi',  // guarded by typeof Bun at runtime
+      'audio-capture-napi', // optional native mic; loaded on first voice keypress
     ],
   })
 

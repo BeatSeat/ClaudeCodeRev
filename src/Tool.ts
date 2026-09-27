@@ -248,6 +248,13 @@ export type ToolUseContext = {
    *  Used by speculation for overlay file path rewriting. */
   requireCanUseTool?: boolean
   messages: Message[]
+  /**
+   * Index of the first message of the current turn — the last non-meta,
+   * non-tool-result user message (see getTurnStartIndex in query.ts).
+   * Refreshed after compaction; 'turn'-scoped fork contexts
+   * (AgentDefinition.forksParentContext: 'turn') slice messages from here.
+   */
+  turnStartIndex: number
   fileReadingLimits?: {
     maxTokens?: number
     maxSizeBytes?: number
@@ -574,7 +581,7 @@ export type Tool<
       isTranscriptMode?: boolean
       isBriefOnly?: boolean
       /** Original tool_use input, when available. Useful for compact result
-       * summaries that reference what was requested (e.g. "Sent to #foo"). */
+       * summaries that reference what was requested (e.g., "Sent to #foo"). */
       input?: unknown
     },
   ): React.ReactNode

@@ -222,6 +222,19 @@ export function stripReinjectedAttachments(messages: Message[]): Message[] {
   return messages
 }
 
+/**
+ * Cold-compact path: strip all attachment messages except queued_command
+ * from the summarize input. When the session has been idle long enough that
+ * the prompt cache is cold, the cache-sharing fork is disabled and file /
+ * skill / plan attachments are noise for the summary (their content is
+ * re-injected post-compact anyway).
+ */
+function stripNonEssentialAttachments(messages: Message[]): Message[] {
+  return messages.filter(
+    m => m.type !== 'attachment' || m.attachment.type === 'queued_command',
+  )
+}
+
 export const ERROR_MESSAGE_NOT_ENOUGH_MESSAGES =
   'Not enough messages to compact.'
 const MAX_PTL_RETRIES = 3
@@ -392,6 +405,7 @@ export async function compactConversation(
   customInstructions?: string,
   isAutoCompact: boolean = false,
   recompactionInfo?: RecompactionInfo,
+  stripNonEssential: boolean = false,
 ): Promise<CompactionResult> {
   try {
     if (messages.length === 0) {
@@ -455,6 +469,7 @@ export async function compactConversation(
         context,
         preCompactTokenCount,
         cacheSafeParams: retryCacheSafeParams,
+        stripNonEssential,
       })
       summary = getAssistantMessageText(summaryResponse)
       if (!summary?.startsWith(PROMPT_TOO_LONG_ERROR_MESSAGE)) break
@@ -649,6 +664,7 @@ export async function compactConversation(
 
     logEvent('tengu_compact', {
       preCompactTokenCount,
+      stripNonEssential,
       // Kept for continuity — semantically the compact API call's total usage
       postCompactTokenCount: compactionCallTotalTokens,
       truePostCompactTokenCount,
@@ -1054,6 +1070,9 @@ export async function partialCompactConversation(
 
     // Re-append session metadata (custom title, tag) so it stays within
     // the 16KB tail window that readLiteMetadata reads for --resume display.
+    // Without this, enough post-compaction messages push the metadata entry
+    // out of the window, causing --resume to show the auto-generated title
+    // instead of the user-set session name.
     reAppendSessionMetadata()
 
     if (feature('KAIROS')) {
@@ -1140,6 +1159,7 @@ async function streamCompactSummary({
   context,
   preCompactTokenCount,
   cacheSafeParams,
+  stripNonEssential = false,
 }: {
   messages: Message[]
   summaryRequest: UserMessage
@@ -1147,15 +1167,15 @@ async function streamCompactSummary({
   context: ToolUseContext
   preCompactTokenCount: number
   cacheSafeParams: CacheSafeParams
+  stripNonEssential?: boolean
 }): Promise<AssistantMessage> {
   // When prompt cache sharing is enabled, use forked agent to reuse the
   // main conversation's cached prefix (system prompt, tools, context messages).
   // Falls back to regular streaming path on failure.
   // 3P default: true — see comment at the other tengu_compact_cache_prefix read above.
-  const promptCacheSharingEnabled = getFeatureValue_CACHED_MAY_BE_STALE(
-    'tengu_compact_cache_prefix',
-    true,
-  )
+  const promptCacheSharingEnabled =
+    !stripNonEssential &&
+    getFeatureValue_CACHED_MAY_BE_STALE('tengu_compact_cache_prefix', true)
   // Send keep-alive signals during compaction to prevent remote session
   // WebSocket idle timeouts from dropping bridge connections. Compaction
   // API calls can take 5-10+ seconds, during which no other messages
@@ -1275,7 +1295,7 @@ async function streamCompactSummary({
       // of system_prompt_tools before token counting (see api/token_count_api/counting.py:188
       // and api/public_api/messages/handler.py:324).
       // Filter MCP tools from context.options.tools (not appState.mcp.tools) so we
-      // get the permission-filtered set from useMergedTools — same source used for
+      // get the permission-filtered set from useMergedTools — same source used by
       // isToolSearchEnabled above and normalizeMessagesForAPI below.
       // Deduplicate by name to avoid API errors when MCP tools share names with built-in tools.
       const tools: Tool[] = useToolSearch
@@ -1292,10 +1312,17 @@ async function streamCompactSummary({
       const streamingGen = queryModelWithStreaming({
         messages: normalizeMessagesForAPI(
           stripImagesFromMessages(
-            stripReinjectedAttachments([
-              ...getMessagesAfterCompactBoundary(messages),
-              summaryRequest,
-            ]),
+            stripReinjectedAttachments(
+              stripNonEssential
+                ? stripNonEssentialAttachments([
+                    ...getMessagesAfterCompactBoundary(messages),
+                    summaryRequest,
+                  ])
+                : [
+                    ...getMessagesAfterCompactBoundary(messages),
+                    summaryRequest,
+                  ],
+            ),
           ),
           context.options.tools,
         ),
@@ -1488,8 +1515,8 @@ export function createPlanAttachmentIfNeeded(
 /**
  * Creates an attachment for invoked skills to preserve their content across compaction.
  * Only includes skills scoped to the given agent (or main session when agentId is null/undefined).
- * This ensures skill guidelines remain available after the conversation is summarized
- * without leaking skills from other agent contexts.
+ * This ensures skill guidelines remain available to the model after the conversation
+ * is summarized without leaking skills from other agent contexts.
  */
 export function createSkillAttachmentIfNeeded(
   agentId?: string,

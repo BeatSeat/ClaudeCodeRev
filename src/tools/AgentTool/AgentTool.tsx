@@ -904,7 +904,16 @@ export const AgentTool = buildTool({
       availableTools: isForkPath ? toolUseContext.options.tools : workerTools,
       // Pass parent conversation when the fork-subagent path needs full
       // context. useExactTools inherits thinkingConfig (runAgent.ts:624).
-      forkContextMessages: isForkPath ? toolUseContext.messages : undefined,
+      // Non-fork agents may scope the inherited context via
+      // AgentDefinition.forksParentContext: 'turn' slices from the current
+      // turn start (ToolUseContext.turnStartIndex), true inherits all.
+      forkContextMessages: isForkPath
+        ? toolUseContext.messages
+        : selectedAgent.forksParentContext === 'turn'
+          ? toolUseContext.messages.slice(toolUseContext.turnStartIndex)
+          : selectedAgent.forksParentContext === true
+            ? toolUseContext.messages
+            : undefined,
       ...(isForkPath && { useExactTools: true }),
       worktreePath: worktreeInfo?.worktreePath,
       description,

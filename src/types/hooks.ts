@@ -71,7 +71,9 @@ export const syncHookResponseSchema = lazySchema(() =>
       .union([
         z.object({
           hookEventName: z.literal('PreToolUse'),
-          permissionDecision: permissionBehaviorSchema().optional(),
+          permissionDecision: z
+            .enum(['allow', 'deny', 'ask', 'defer'])
+            .optional(),
           permissionDecisionReason: z.string().optional(),
           updatedInput: z.record(z.string(), z.unknown()).optional(),
           additionalContext: z.string().optional(),

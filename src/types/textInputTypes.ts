@@ -1,6 +1,7 @@
 import type { ContentBlockParam } from '@anthropic-ai/sdk/resources/messages.mjs'
 import type { UUID } from 'crypto'
 import type React from 'react'
+import type { InboundAttachment } from '../bridge/inboundAttachments.js'
 import type { PermissionResult } from '../entrypoints/agentSdkTypes.js'
 import type { Key } from '../ink.js'
 import type { PastedContent } from '../utils/config.js'
@@ -305,6 +306,13 @@ export type QueuedCommand = {
   orphanedPermission?: OrphanedPermission
   /** Raw pasted contents including images. Images are resized at execution time. */
   pastedContents?: Record<number, PastedContent>
+  /**
+   * File attachments sent alongside the command (web composer uploads file
+   * UUIDs via the bridge). Resolved to @path refs at execution time;
+   * replayed to the SDK as file_attachments. Official 2.1.89 addition
+   * (fileAttachments SDK passthrough).
+   */
+  fileAttachments?: InboundAttachment[]
   /**
    * The input string before [Pasted text #N] placeholders were expanded.
    * Used for ultraplan keyword detection so pasted content containing the

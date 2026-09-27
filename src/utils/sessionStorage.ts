@@ -4361,6 +4361,9 @@ export function isLoggableMessage(m: Message): boolean {
     ) {
       return true
     }
+    if (m.attachment.type === 'hook_deferred_tool') {
+      return true
+    }
     return false
   }
   return true

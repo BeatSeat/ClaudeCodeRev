@@ -122,6 +122,11 @@ export type BaseAgentDefinition = {
   requiredMcpServers?: string[] // MCP server name patterns that must be configured for agent to be available
   background?: boolean // Always run as background task when spawned
   initialPrompt?: string // Prepended to the first user turn (slash commands work)
+  /** Parent context to inherit when this agent spawns (non-fork path):
+   * 'turn' slices parent messages from the current turn start
+   * (ToolUseContext.turnStartIndex); true inherits the full conversation;
+   * omitted inherits no parent context. */
+  forksParentContext?: boolean | 'turn'
   memory?: AgentMemoryScope // Persistent memory scope
   isolation?: 'worktree' | 'remote' // Run in an isolated git worktree, or remotely in CCR (ant-only)
   pendingSnapshotUpdate?: { snapshotTimestamp: string }

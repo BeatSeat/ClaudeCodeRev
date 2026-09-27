@@ -185,9 +185,11 @@ export async function generateUnifiedSuggestions(
 
     const fuseResults = fuse.search(query, { limit: MAX_UNIFIED_SUGGESTIONS })
     for (const result of fuseResults) {
+      // Official 2.1.89+: deprioritize MCP resources vs files/agents.
+      const mcpPenalty = result.item.type === 'mcp_resource' ? 0.15 : 0
       scoredResults.push({
         source: result.item,
-        score: result.score ?? 0.5,
+        score: (result.score ?? 0.5) + mcpPenalty,
       })
     }
   }

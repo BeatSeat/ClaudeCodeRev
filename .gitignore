@@ -3,4 +3,7 @@ dist/
 .DS_Store
 *.log
 restore-work/artifacts/
+restore-work/ledgers/*.fp.json
+restore-work/ledgers/_*.mjs
+restore-work/ledgers/_*.txt
 .cursor/skills/incremental-ts-restore/node_modules/

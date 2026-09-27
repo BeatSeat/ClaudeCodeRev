@@ -66,6 +66,7 @@ import {
 } from 'src/utils/process.js'
 import type { Stream } from 'src/utils/stream.js'
 import { EMPTY_USAGE } from 'src/services/api/logging.js'
+import type { HookDeferredToolAttachment } from 'src/utils/attachments.js'
 import {
   loadConversationForResume,
   type TurnInterruptionState,
@@ -138,7 +139,7 @@ import type { ReplBridgeHandle } from 'src/bridge/replBridge.js'
 import { getRemoteSessionUrl } from 'src/constants/product.js'
 import { buildBridgeConnectUrl } from 'src/bridge/bridgeStatusUtil.js'
 import { extractInboundMessageFields } from 'src/bridge/inboundMessages.js'
-import { resolveAndPrepend } from 'src/bridge/inboundAttachments.js'
+import { extractInboundAttachments, resolveAndPrepend } from 'src/bridge/inboundAttachments.js'
 import type { CanUseToolFn } from 'src/hooks/useCanUseTool.js'
 import { hasPermissionsToUseTool } from 'src/utils/permissions/permissions.js'
 import { safeParseJSON } from 'src/utils/json.js'
@@ -683,6 +684,7 @@ export async function runHeadless(
     messages: initialMessages,
     turnInterruptionState,
     agentSetting: resumedAgentSetting,
+    deferredToolUse,
   } = await loadInitialMessages(setAppState, {
     continue: options.continue,
     teleport: options.teleport,
@@ -874,6 +876,7 @@ export async function runHeadless(
     agents,
     options,
     turnInterruptionState,
+    deferredToolUse,
   )) {
     if (transformToStreamlined) {
       // Streamlined mode: transform messages and stream immediately
@@ -1006,7 +1009,9 @@ function runHeadlessStreaming(
     workload?: string | undefined
   },
   turnInterruptionState?: TurnInterruptionState,
+  deferredToolUse?: HookDeferredToolAttachment,
 ): AsyncIterable<StdoutMessage> {
+  let pendingDeferredToolUse = deferredToolUse
   let running = false
   let runPhase:
     | 'draining_commands'
@@ -1956,6 +1961,7 @@ function runHeadlessStreaming(
                 ...command,
                 value: joinPromptValues(batch.map(c => c.value)),
                 uuid: batch.findLast(c => c.uuid)?.uuid ?? command.uuid,
+                fileAttachments: batch.flatMap(c => c.fileAttachments ?? []),
               }
             }
           }
@@ -1976,6 +1982,9 @@ function runHeadlessStreaming(
                   parent_tool_use_id: null,
                   uuid: c.uuid,
                   isReplay: true,
+                  ...(c.fileAttachments?.length
+                    ? { file_attachments: c.fileAttachments }
+                    : {}),
                 } satisfies SDKUserMessageReplay)
               }
             }
@@ -2152,6 +2161,7 @@ function runHeadlessStreaming(
               prompt: input,
               promptUuid: cmd.uuid,
               isMeta: cmd.isMeta,
+              fileAttachments: cmd.fileAttachments,
               cwd: cwd(),
               tools: allTools,
               verbose: options.verbose,
@@ -2198,6 +2208,7 @@ function runHeadlessStreaming(
                 ),
               agents: currentAgents,
               orphanedPermission: cmd.orphanedPermission,
+              deferredToolUse: pendingDeferredToolUse,
               setSDKStatus: status => {
                 output.enqueue({
                   type: 'system',
@@ -2243,6 +2254,7 @@ function runHeadlessStreaming(
                 output.enqueue(message)
               }
             }
+            pendingDeferredToolUse = undefined
           }) // end runWithWorkload
 
           for (const uuid of batchUuids) {
@@ -4075,6 +4087,7 @@ function runHeadlessStreaming(
             logForDebugging(
               `Sending acknowledgment for duplicate user message: ${message.uuid}`,
             )
+            const fileAttachments = extractInboundAttachments(message)
             output.enqueue({
               type: 'user',
               message: message.message,
@@ -4083,6 +4096,9 @@ function runHeadlessStreaming(
               uuid: message.uuid,
               timestamp: message.timestamp,
               isReplay: true,
+              ...(fileAttachments.length > 0
+                ? { file_attachments: fileAttachments }
+                : {}),
             } as SDKUserMessageReplay)
           }
           // Historical dup = transcript already has this turn's output, so it
@@ -4099,6 +4115,7 @@ function runHeadlessStreaming(
         trackReceivedMessageUuid(message.uuid)
       }
 
+      const fileAttachments = extractInboundAttachments(message)
       enqueue({
         mode: 'prompt' as const,
         // file_attachments rides the protobuf catchall from the web composer.
@@ -4106,6 +4123,7 @@ function runHeadlessStreaming(
         value: await resolveAndPrepend(message, message.message.content),
         uuid: message.uuid,
         priority: message.priority,
+        ...(fileAttachments.length > 0 ? { fileAttachments } : {}),
       })
       // Increment prompt count for attribution tracking and save snapshot
       // The snapshot persists promptCount so it survives compaction
@@ -4888,6 +4906,7 @@ type LoadInitialMessagesResult = {
   messages: Message[]
   turnInterruptionState?: TurnInterruptionState
   agentSetting?: string
+  deferredToolUse?: HookDeferredToolAttachment
 }
 
 async function loadInitialMessages(
@@ -4976,6 +4995,7 @@ async function loadInitialMessages(
           messages: result.messages,
           turnInterruptionState: result.turnInterruptionState,
           agentSetting: result.agentSetting,
+          deferredToolUse: result.deferredToolUse,
         }
       }
     } catch (error) {
@@ -5174,6 +5194,7 @@ async function loadInitialMessages(
         messages: result.messages,
         turnInterruptionState: result.turnInterruptionState,
         agentSetting: result.agentSetting,
+        deferredToolUse: result.deferredToolUse,
       }
     } catch (error) {
       logError(error)
