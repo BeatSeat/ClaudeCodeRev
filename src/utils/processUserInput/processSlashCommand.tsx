@@ -856,7 +856,9 @@ async function getMessagesForSlashCommand(
 
           void command
             .load()
-            .then(mod => mod.call(onDone, { ...context, canUseTool }, args))
+            .then(mod =>
+              mod.call(onDone, { ...context, canUseTool }, args, commandName),
+            )
             .then(jsx => {
               if (jsx == null) return
               if (context.options.isNonInteractiveSession) {

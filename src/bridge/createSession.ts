@@ -338,6 +338,90 @@ export async function archiveBridgeSession(
  *
  * Errors are swallowed — title sync is best-effort.
  */
+export const SESSION_COLOR_TAG_PREFIX = 'color:'
+
+/**
+ * Official 2.1.118 QD6: sync session accent color to claude.ai/code via
+ * add_tags/remove_tags on PATCH /v1/sessions/{id}.
+ */
+export async function updateBridgeSessionColorTag(
+  sessionId: string,
+  color: string,
+  agentColors: readonly string[],
+  opts?: { baseUrl?: string; getAccessToken?: () => string | undefined },
+): Promise<void> {
+  const isDefault = color === 'default'
+  const remove_tags = agentColors
+    .filter(c => isDefault || c !== color)
+    .map(c => SESSION_COLOR_TAG_PREFIX + c)
+  const add_tags = isDefault
+    ? undefined
+    : [SESSION_COLOR_TAG_PREFIX + color]
+  return patchBridgeSession(
+    sessionId,
+    { add_tags, remove_tags },
+    'color tag',
+    opts,
+  )
+}
+
+async function patchBridgeSession(
+  sessionId: string,
+  body: Record<string, unknown>,
+  kind: string,
+  opts?: { baseUrl?: string; getAccessToken?: () => string | undefined },
+): Promise<void> {
+  const { getClaudeAIOAuthTokens } = await import('../utils/auth.js')
+  const { getOrganizationUUID } = await import('../services/oauth/client.js')
+  const { getOauthConfig } = await import('../constants/oauth.js')
+  const { getOAuthHeaders } = await import('../utils/teleport/api.js')
+  const { default: axios } = await import('axios')
+
+  const accessToken =
+    opts?.getAccessToken?.() ?? getClaudeAIOAuthTokens()?.accessToken
+  if (!accessToken) {
+    logForDebugging(`[bridge] No access token for session ${kind} update`)
+    return
+  }
+
+  const orgUUID = await getOrganizationUUID()
+  if (!orgUUID) {
+    logForDebugging(`[bridge] No org UUID for session ${kind} update`)
+    return
+  }
+
+  const headers = {
+    ...getOAuthHeaders(accessToken),
+    'anthropic-beta': 'ccr-byoc-2025-07-29',
+    'x-organization-uuid': orgUUID,
+  }
+
+  const compatId = toCompatSessionId(sessionId)
+  const url = `${opts?.baseUrl ?? getOauthConfig().BASE_API_URL}/v1/sessions/${compatId}`
+  logForDebugging(`[bridge] Updating session ${kind}: ${compatId}`)
+
+  try {
+    const response = await axios.patch(url, body, {
+      headers,
+      timeout: 10_000,
+      validateStatus: s => s < 500,
+    })
+
+    if (response.status === 200) {
+      logForDebugging(`[bridge] Session ${kind} updated successfully`)
+    } else {
+      const detail = extractErrorDetail(response.data)
+      logForDebugging(
+        `[bridge] Session ${kind} update failed with status ${response.status}${detail ? `: ${detail}` : ''}`,
+      )
+    }
+  } catch (err: unknown) {
+    logForDebugging(
+      `[bridge] Session ${kind} update request failed: ${errorMessage(err)}`,
+    )
+  }
+}
+
 export async function updateBridgeSessionTitle(
   sessionId: string,
   title: string,

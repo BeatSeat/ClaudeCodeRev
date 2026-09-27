@@ -2,8 +2,8 @@ import type { ReactNode } from 'react'
 import React, { useContext } from 'react'
 import Text from '../../ink/components/Text.js'
 import type { Color, Styles } from '../../ink/styles.js'
-import { getTheme, type Theme } from '../../utils/theme.js'
-import { useTheme } from './ThemeProvider.js'
+import type { Theme } from '../../utils/theme.js'
+import { useResolvedTheme } from './ThemeProvider.js'
 
 /** When true, hover is active: dimColor is suppressed so click-to-expand
  *  text stays readable on light themes. */
@@ -98,8 +98,7 @@ export default function ThemedText({
   wrap = 'wrap',
   children,
 }: Props): React.ReactNode {
-  const [themeName] = useTheme()
-  const theme = getTheme(themeName)
+  const theme = useResolvedTheme()
   const hovered = useContext(TextHoverColorContext)
 
   // Resolve theme keys to raw colors. Hover turns dim off so the text uses

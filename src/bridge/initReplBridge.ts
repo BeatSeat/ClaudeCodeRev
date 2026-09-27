@@ -89,6 +89,10 @@ export type InitBridgeOptions = {
   onFileSuggestions?: (
     query: string,
   ) => Promise<Array<{ path: string }>>
+  /** Official 2.1.118 set_color from claude.ai/code. */
+  onSetColor?: (
+    color: string,
+  ) => { ok: true } | { ok: false; error: string }
   onStateChange?: (state: BridgeState, detail?: string) => void
   initialMessages?: Message[]
   // Explicit session name from `/remote-control <name>`. When set, overrides
@@ -126,6 +130,7 @@ export async function initReplBridge(
     onSetMaxThinkingTokens,
     onSetPermissionMode,
     onFileSuggestions,
+    onSetColor,
     onStateChange,
     initialMessages,
     getMessages,
@@ -452,12 +457,26 @@ export async function initReplBridge(
       '[bridge:repl] Using env-less bridge path (tengu_bridge_repl_v2)',
     )
     const { initEnvLessBridgeCore } = await import('./remoteBridgeCore.js')
+    const reattachSessionId = process.env.CLAUDE_BRIDGE_REATTACH_SESSION
+    const reattachSeqRaw = process.env.CLAUDE_BRIDGE_REATTACH_SEQ
+    if (reattachSessionId) {
+      delete process.env.CLAUDE_BRIDGE_REATTACH_SESSION
+      delete process.env.CLAUDE_BRIDGE_REATTACH_SEQ
+    }
+    const reattachSequenceNum = reattachSeqRaw
+      ? Number.parseInt(reattachSeqRaw, 10) || undefined
+      : undefined
     return initEnvLessBridgeCore({
       baseUrl,
       orgUUID,
       title,
       getAccessToken: getBridgeAccessToken,
       onAuth401: handleOAuth401Error,
+      onProactiveRefresh: async () => {
+        await checkAndRefreshOAuthTokenIfNeeded()
+      },
+      reattachSessionId,
+      reattachSequenceNum,
       toSDKMessages,
       initialHistoryCap,
       initialMessages,
@@ -476,6 +495,7 @@ export async function initReplBridge(
       onSetMaxThinkingTokens,
       onSetPermissionMode,
       onRenameSession,
+      onSetColor,
       onFileSuggestions,
       onStateChange,
       outboundOnly,
@@ -572,6 +592,7 @@ export async function initReplBridge(
     onSetMaxThinkingTokens,
     onSetPermissionMode,
     onRenameSession,
+    onSetColor,
     onFileSuggestions,
     onStateChange,
     perpetual,

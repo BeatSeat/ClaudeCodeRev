@@ -68,6 +68,7 @@ import {
   getSlackChannelSuggestions,
   hasSlackMcpServer,
 } from '../utils/suggestions/slackChannelSuggestions.js'
+import { looksLikeCommand } from '../utils/processUserInput/processSlashCommand.js'
 import { TEAM_LEAD_NAME } from '../utils/swarm/constants.js'
 import {
   applyFileSuggestion,
@@ -1072,7 +1073,14 @@ export function useTypeahead({
           suggestions: commandItems,
           selectedSuggestion: commandItems.length > 0 ? 0 : -1,
           suggestionsEmptyMessage:
-            commandItems.length === 0 && value.length > 1
+            commandItems.length === 0 &&
+            value.length > 1 &&
+            // Official 2.1.118 Ua$(K$): charset-test the first token after `/`
+            // (`_4(nH.slice(1)," ")`). Paths containing `/` fail.
+            looksLikeCommand(
+              (value.startsWith('/') ? value.slice(1) : value).split(' ')[0] ??
+                '',
+            )
               ? `No commands match "${value}"`
               : undefined,
         }))

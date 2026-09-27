@@ -446,6 +446,11 @@ export function createCronScheduler(
       awaitWriteFinish: { stabilityThreshold: FILE_STABILITY_MS },
       ignorePermissionErrors: true,
     })
+    watcher.on('error', err =>
+      logForDebugging(`[ScheduledTasks] watcher error: ${err}`, {
+        level: 'warn',
+      }),
+    )
     watcher.on('add', () => void load(false))
     watcher.on('change', () => void load(false))
     watcher.on('unlink', () => {

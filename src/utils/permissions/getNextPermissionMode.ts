@@ -1,9 +1,11 @@
 import { feature } from 'bun:bundle'
 import type { ToolPermissionContext } from '../../Tool.js'
+import { getGlobalConfig } from '../config.js'
 import { logForDebugging } from '../debug.js'
 import type { PermissionMode } from './PermissionMode.js'
 import {
   getAutoModeUnavailableReason,
+  hasAutoModeOptInAnySource,
   isAutoModeGateEnabled,
   transitionPermissionMode,
 } from './permissionSetup.js'
@@ -14,13 +16,22 @@ import {
 // live check prevents transitionPermissionMode from throwing
 // (permissionSetup.ts:~559), which would silently crash the shift+tab handler
 // and leave the user stuck at the current mode.
+function isAutoModeOptInDismissed(): boolean {
+  // Official 2.1.118 vZ6: dismissed unless CLI flag / prior opt-in (lpH).
+  return (
+    Boolean(getGlobalConfig().autoModeOptInDismissed) &&
+    !hasAutoModeOptInAnySource()
+  )
+}
+
 function canCycleToAuto(ctx: ToolPermissionContext): boolean {
   if (feature('TRANSCRIPT_CLASSIFIER')) {
     const gateEnabled = isAutoModeGateEnabled()
-    const can = !!ctx.isAutoModeAvailable && gateEnabled
+    const dismissed = isAutoModeOptInDismissed()
+    const can = !!ctx.isAutoModeAvailable && gateEnabled && !dismissed
     if (!can) {
       logForDebugging(
-        `[auto-mode] canCycleToAuto=false: ctx.isAutoModeAvailable=${ctx.isAutoModeAvailable} isAutoModeGateEnabled=${gateEnabled} reason=${getAutoModeUnavailableReason()}`,
+        `[auto-mode] canCycleToAuto=false: ctx.isAutoModeAvailable=${ctx.isAutoModeAvailable} isAutoModeGateEnabled=${gateEnabled} dismissed=${dismissed} reason=${getAutoModeUnavailableReason()}`,
       )
     }
     return can

@@ -350,16 +350,27 @@ export function hasMcpDiscoveryButNoToken(
   serverName: string,
   serverConfig: McpSSEServerConfig | McpHTTPServerConfig,
 ): boolean {
-  // XAA servers can silently re-auth via cached id_token even without an
-  // access/refresh token — tokens() fires the xaaRefresh path. Skipping the
-  // connection here would make that auto-auth branch unreachable after
-  // invalidateCredentials('tokens') clears the stored tokens.
+  // Official 2.1.118 Iv7: XAA can silently re-auth via cached id_token.
   if (isXaaEnabled() && serverConfig.oauth?.xaa) {
+    return false
+  }
+  // Official 2.1.118 Iv7: do not hide Authenticate / skip-as-cached-needs-auth
+  // for headersHelper-only or static-headers servers. A 401 after custom
+  // headers must stay retryable — otherwise HTTP/SSE stays stuck needs-auth.
+  if (
+    serverConfig.headersHelper ||
+    (serverConfig.headers && Object.keys(serverConfig.headers).length > 0)
+  ) {
     return false
   }
   const serverKey = getServerKey(serverName, serverConfig)
   const entry = getSecureStorage().read()?.mcpOAuth?.[serverKey]
-  return entry !== undefined && !entry.accessToken && !entry.refreshToken
+  return (
+    entry !== undefined &&
+    !entry.accessToken &&
+    !entry.refreshToken &&
+    entry.discoveryState?.oauthMetadataFound === true
+  )
 }
 
 /**
@@ -808,7 +819,10 @@ async function performMCPXaaAuth(
           accessToken: tokens.access_token,
           // AS may omit refresh_token on jwt-bearer — preserve any existing one
           refreshToken: tokens.refresh_token ?? prev?.refreshToken,
-          expiresAt: Date.now() + (tokens.expires_in || 3600) * 1000,
+          expiresAt:
+            tokens.expires_in != null
+              ? Date.now() + tokens.expires_in * 1000
+              : undefined,
           scope: tokens.scope,
           clientId,
           clientSecret,
@@ -1721,7 +1735,10 @@ export class ClaudeAuthProvider implements OAuthClientProvider {
           serverUrl: this.serverConfig.url,
           accessToken: tokens.access_token,
           refreshToken: tokens.refresh_token,
-          expiresAt: Date.now() + (tokens.expires_in || 3600) * 1000,
+          expiresAt:
+            tokens.expires_in != null
+              ? Date.now() + tokens.expires_in * 1000
+              : undefined,
           scope: tokens.scope,
         },
       },
@@ -1820,7 +1837,10 @@ export class ClaudeAuthProvider implements OAuthClientProvider {
             serverUrl: this.serverConfig.url,
             accessToken: tokens.access_token,
             refreshToken: tokens.refresh_token ?? prev?.refreshToken,
-            expiresAt: Date.now() + (tokens.expires_in || 3600) * 1000,
+            expiresAt:
+            tokens.expires_in != null
+              ? Date.now() + tokens.expires_in * 1000
+              : undefined,
             scope: tokens.scope,
             clientId,
             clientSecret: clientConfig.clientSecret,

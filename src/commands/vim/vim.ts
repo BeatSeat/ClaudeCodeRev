@@ -31,7 +31,7 @@ export const call: LocalCommandCall = async () => {
     type: 'text',
     value: `Editor mode set to ${newMode}. ${
       newMode === 'vim'
-        ? 'Use Escape key to toggle between INSERT and NORMAL modes.'
+        ? 'Use Escape key to toggle between INSERT and NORMAL modes. v/V enter VISUAL / VISUAL LINE.'
         : 'Using standard (readline) keyboard bindings.'
     }`,
   }

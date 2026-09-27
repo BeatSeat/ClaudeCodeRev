@@ -10,7 +10,7 @@
  */
 
 import { execFile } from 'child_process'
-import { existsSync } from 'fs'
+import { existsSync, readFileSync } from 'fs'
 import {
   getMacOSPlistPaths,
   MDM_SUBPROCESS_TIMEOUT_MS,
@@ -19,6 +19,7 @@ import {
   WINDOWS_REGISTRY_KEY_PATH_HKCU,
   WINDOWS_REGISTRY_KEY_PATH_HKLM,
   WINDOWS_REGISTRY_VALUE_NAME,
+  WSL_WINDOWS_REG_EXE,
 } from './constants.js'
 
 export type RawReadResult = {
@@ -28,6 +29,22 @@ export type RawReadResult = {
 }
 
 let rawReadPromise: Promise<RawReadResult> | null = null
+
+/**
+ * 118 `pnH` — WSL_DISTRO_NAME first, then `/proc/version` microsoft/wsl.
+ * Not `getPlatform()==='wsl'` (that skips WSL_DISTRO_NAME).
+ */
+export function isWsl(): boolean {
+  if (process.env.WSL_DISTRO_NAME) {
+    return true
+  }
+  try {
+    const version = readFileSync('/proc/version', 'utf8').toLowerCase()
+    return version.includes('microsoft') || version.includes('wsl')
+  } catch {
+    return false
+  }
+}
 
 function execFilePromise(
   cmd: string,
@@ -54,6 +71,30 @@ function execFilePromise(
  */
 export function fireRawRead(): Promise<RawReadResult> {
   return (async (): Promise<RawReadResult> => {
+    // 118 `$W$`: WSL reads HKLM/HKCU via Windows reg.exe. Keep darwin/win32
+    // (118 Linux package DCE'd them; this tree still ships those hosts).
+    if (isWsl()) {
+      const [hklm, hkcu] = await Promise.all([
+        execFilePromise(WSL_WINDOWS_REG_EXE, [
+          'query',
+          WINDOWS_REGISTRY_KEY_PATH_HKLM,
+          '/v',
+          WINDOWS_REGISTRY_VALUE_NAME,
+        ]),
+        execFilePromise(WSL_WINDOWS_REG_EXE, [
+          'query',
+          WINDOWS_REGISTRY_KEY_PATH_HKCU,
+          '/v',
+          WINDOWS_REGISTRY_VALUE_NAME,
+        ]),
+      ])
+      return {
+        plistStdouts: null,
+        hklmStdout: hklm.code === 0 ? hklm.stdout : null,
+        hkcuStdout: hkcu.code === 0 ? hkcu.stdout : null,
+      }
+    }
+
     if (process.platform === 'darwin') {
       const plistPaths = getMacOSPlistPaths()
 

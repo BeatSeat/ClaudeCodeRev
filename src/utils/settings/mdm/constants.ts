@@ -37,6 +37,12 @@ export const PLUTIL_ARGS_PREFIX = ['-convert', 'json', '-o', '-', '--'] as const
 /** Subprocess timeout in milliseconds. */
 export const MDM_SUBPROCESS_TIMEOUT_MS = 5000
 
+/** 118 `IW8` — WSL DrvFs path to Windows `reg.exe` for HKLM/HKCU policy. */
+export const WSL_WINDOWS_REG_EXE = '/mnt/c/Windows/System32/reg.exe'
+
+/** 118 `Vv` — Windows managed-settings dir via WSL DrvFs. */
+export const WSL_WINDOWS_MANAGED_DIR = '/mnt/c/Program Files/ClaudeCode'
+
 /**
  * Build the list of macOS plist paths in priority order (highest first).
  * Evaluates `process.env.USER_TYPE` at call time so ant-only paths are

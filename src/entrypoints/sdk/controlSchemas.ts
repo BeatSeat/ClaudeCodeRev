@@ -163,6 +163,17 @@ export const SDKControlRenameSessionRequestSchema = lazySchema(() =>
     .describe('Sets the user-facing title for the current session.'),
 )
 
+export const SDKControlSetColorRequestSchema = lazySchema(() =>
+  z
+    .object({
+      subtype: z.literal('set_color'),
+      color: z.string(),
+    })
+    .describe(
+      'Sets the session accent color. Accepts an agent color name or "default" to reset.',
+    ),
+)
+
 export const SDKControlFileSuggestionsRequestSchema = lazySchema(() =>
   z
     .object({
@@ -598,6 +609,7 @@ export const SDKControlRequestInnerSchema = lazySchema(() =>
     SDKControlSetModelRequestSchema(),
     SDKControlSetMaxThinkingTokensRequestSchema(),
     SDKControlRenameSessionRequestSchema(),
+    SDKControlSetColorRequestSchema(),
     SDKControlFileSuggestionsRequestSchema(),
     SDKControlMcpStatusRequestSchema(),
     SDKControlGetContextUsageRequestSchema(),

@@ -373,6 +373,7 @@ import {
   setCwdState,
   setDirectConnectServerUrl,
   setFlagSettingsPath,
+  setParentManagedSettings,
   setInitialMainLoopModel,
   setInlinePlugins,
   setIsInteractive,
@@ -781,6 +782,39 @@ function loadSettingsFromFlag(settingsFile: string): void {
   }
 }
 
+const SDK_PARENT_MANAGED_SETTINGS_ENTRYPOINTS = new Set([
+  'sdk-ts',
+  'sdk-py',
+  'claude-desktop',
+  'claude-desktop-3p',
+  'local-agent',
+  'claude-vscode',
+])
+
+/** 118 `uA5` — `--managed-settings` JSON only from an SDK parent. */
+function loadManagedSettingsFromFlag(json: string): void {
+  if (
+    !SDK_PARENT_MANAGED_SETTINGS_ENTRYPOINTS.has(
+      process.env.CLAUDE_CODE_ENTRYPOINT ?? '',
+    )
+  ) {
+    logForDebugging(
+      '--managed-settings ignored: only honored when spawned by an SDK parent',
+      { level: 'warn' },
+    )
+    return
+  }
+  const parsed = safeParseJSON(json.trim())
+  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+    logForDebugging('--managed-settings ignored: invalid JSON object', {
+      level: 'warn',
+    })
+    return
+  }
+  setParentManagedSettings(parsed)
+  resetSettingsCache()
+}
+
 function loadSettingSourcesFromFlag(settingSourcesArg: string): void {
   try {
     const sources = parseSettingSourcesFlag(settingSourcesArg)
@@ -807,6 +841,11 @@ function eagerLoadSettings(): void {
   const settingsFile = eagerParseCliFlag('--settings')
   if (settingsFile) {
     loadSettingsFromFlag(settingsFile)
+  }
+
+  const managedSettingsArg = eagerParseCliFlag('--managed-settings')
+  if (managedSettingsArg) {
+    loadManagedSettingsFromFlag(managedSettingsArg)
   }
 
   // Parse --setting-sources flag early to control which sources are loaded
@@ -6024,6 +6063,37 @@ async function run(): Promise<CommanderCommand> {
       )
       await pluginValidateHandler(manifestPath, options)
     })
+
+  // Official 2.1.118 pluginTagHandler
+  pluginCmd
+    .command('tag [path]')
+    .description('Create a {name}--v{version} git tag for a plugin')
+    .option('--push', 'Push the tag to the remote after creating it')
+    .option('--dry-run', 'Print what would be tagged without creating it')
+    .option(
+      '-f, --force',
+      'Skip the dirty-working-tree and tag-already-exists checks',
+    )
+    .option(
+      '-m, --message <msg>',
+      'Tag annotation message (use %s for the version)',
+    )
+    .option('--remote <name>', 'Remote to push to with --push', 'origin')
+    .action(
+      async (
+        pathArg: string | undefined,
+        options: {
+          push?: boolean
+          dryRun?: boolean
+          force?: boolean
+          message?: string
+          remote?: string
+        },
+      ) => {
+        const { pluginTagHandler } = await import('./cli/handlers/plugins.js')
+        await pluginTagHandler(pathArg, options)
+      },
+    )
 
   // Plugin list command
   pluginCmd

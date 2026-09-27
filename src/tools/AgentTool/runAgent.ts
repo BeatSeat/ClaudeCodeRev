@@ -60,6 +60,7 @@ import { getAgentModel } from '../../utils/model/agent.js'
 import type { ModelAlias } from '../../utils/model/aliases.js'
 import {
   clearAgentTranscriptSubdir,
+  recordForkContextRef,
   recordSidechainTranscript,
   setAgentTranscriptSubdir,
   writeAgentMetadata,
@@ -746,7 +747,30 @@ export async function* runAgent({
   // Record initial messages before the query loop starts, plus the agentType
   // so resume can route correctly when subagent_type is omitted. Both writes
   // are fire-and-forget — persistence failure shouldn't block the agent.
-  void recordSidechainTranscript(initialMessages, agentId).catch(_err =>
+  // 118: when forking the parent conversation, persist a pointer
+  // (`fork-context-ref`) instead of the full parent transcript.
+  let persistMessages = initialMessages
+  // 118 In(W$, B, nH): nH stays null on the fork-context-ref path. Parent
+  // prefix is the ref + WQ1 hydrate, not a sidechain parentUuid pointer.
+  if (
+    forkContextMessages !== undefined &&
+    forkContextMessages === toolUseContext.messages &&
+    toolUseContext.agentId === undefined
+  ) {
+    const parentLastUuid = contextMessages.at(-1)?.uuid
+    if (parentLastUuid !== undefined) {
+      persistMessages = initialMessages.slice(contextMessages.length)
+      void recordForkContextRef({
+        agentId,
+        parentSessionId: getSessionId(),
+        parentLastUuid,
+        contextLength: contextMessages.length,
+      }).catch(_err =>
+        logForDebugging(`Failed to record fork-context-ref: ${_err}`),
+      )
+    }
+  }
+  void recordSidechainTranscript(persistMessages, agentId, null).catch(_err =>
     logForDebugging(`Failed to record sidechain transcript: ${_err}`),
   )
   void writeAgentMetadata(agentId, {
@@ -756,7 +780,7 @@ export async function* runAgent({
   }).catch(_err => logForDebugging(`Failed to write agent metadata: ${_err}`))
 
   // Track the last recorded message UUID for parent chain continuity
-  let lastRecordedUuid: UUID | null = initialMessages.at(-1)?.uuid ?? null
+  let lastRecordedUuid: UUID | null = persistMessages.at(-1)?.uuid ?? null
 
   try {
     for await (const message of query({

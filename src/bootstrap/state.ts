@@ -84,6 +84,8 @@ type State = {
   questionPreviewFormat: 'markdown' | 'html' | undefined
   flagSettingsPath: string | undefined
   flagSettingsInline: Record<string, unknown> | null
+  /** 118 `parentManagedSettings` — SDK parent `--managed-settings` JSON. */
+  parentManagedSettings: Record<string, unknown> | null
   allowedSettingSources: SettingSource[]
   sessionIngressToken: string | null | undefined
   oauthTokenFromFd: string | null | undefined
@@ -315,6 +317,7 @@ function getInitialState(): State {
     apiKeyFromFd: undefined,
     flagSettingsPath: undefined,
     flagSettingsInline: null,
+    parentManagedSettings: null,
     allowedSettingSources: [
       'userSettings',
       'projectSettings',
@@ -1164,6 +1167,16 @@ export function setFlagSettingsInline(
   settings: Record<string, unknown> | null,
 ): void {
   STATE.flagSettingsInline = settings
+}
+
+export function getParentManagedSettings(): Record<string, unknown> | null {
+  return STATE.parentManagedSettings
+}
+
+export function setParentManagedSettings(
+  settings: Record<string, unknown> | null,
+): void {
+  STATE.parentManagedSettings = settings
 }
 
 export function getSessionIngressToken(): string | null | undefined {
