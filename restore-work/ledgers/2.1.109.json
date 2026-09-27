@@ -1,0 +1,14 @@
+{
+  "version": "2.1.109",
+  "fromVersion": "2.1.108",
+  "expectedFunctionCount": 0,
+  "functions": [],
+  "changelogCoverage": [
+    {
+      "item": "Improved the extended-thinking indicator with a rotating progress hint",
+      "status": "located",
+      "evidence": "Official 108 t_5 (5 hints from 10s, REPL showSpinner mount) replaced by 109 QgK (14 rotating hints from 1s) + dgK({isLoading}) mounted in Messages as showThinkingHint && <dgK/> after the list and before streaming text; REPL passes showThinkingHint:!viewedAgentTask. TS: src/components/ThinkingProgressHint.tsx (QgK copy + dgK tree); src/components/Messages.tsx showThinkingHint/isThinking; src/screens/REPL.tsx showThinkingHint={!viewedAgentTask} isThinking={streamMode==='thinking'}. 108 placeholder-adjacent hint deleted."
+    }
+  ],
+  "notes": "astdiff 2.1.108→2.1.109: structural similarity 100.0%, +8/-6, 6910 structural, 59 string-only. Product-real adds are dgK/cgK (QgK 14-hint wrapper); remaining added/removed are rename pairs. First pre-commit UI review FAIL: hint still on REPL showSpinner. Fixed: ThinkingProgressHint extracted; Messages mounts showThinkingHint after list before streamingText; REPL passes !viewedAgentTask. Re-review wave PASS (ui/tools/core/services). typecheck 2588 errors (pre-existing baseline; ThinkingProgressHint.tsx clean); build PASS 12.5MB; package.json → 2.1.109. Do not pull 110 /tui /focus or 111 Opus 4.7 xhigh."
+}
