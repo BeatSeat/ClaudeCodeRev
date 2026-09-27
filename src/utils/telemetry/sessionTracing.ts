@@ -447,6 +447,9 @@ export function endLLMRequestSpan(
     requestSetupMs?: number
     /** Timestamps (Date.now()) of each attempt start — used to emit retry sub-spans */
     attemptStartTimes?: number[]
+    requestId?: string
+    clientRequestId?: string
+    stopReason?: string | null
   },
 ): void {
   let llmSpanContext: SpanContext | undefined
@@ -521,6 +524,12 @@ export function endLLMRequestSpan(
       endAttributes['attempt'] = metadata.attempt
     if (metadata.hasToolCall !== undefined)
       endAttributes['response.has_tool_call'] = metadata.hasToolCall
+    if (metadata.requestId !== undefined) {
+      endAttributes['request_id'] = metadata.requestId
+      endAttributes['gen_ai.response.id'] = metadata.requestId
+    }
+    if (metadata.clientRequestId !== undefined)
+      endAttributes['client_request_id'] = metadata.clientRequestId
     if (metadata.ttftMs !== undefined)
       endAttributes['ttft_ms'] = metadata.ttftMs
 
@@ -529,6 +538,12 @@ export function endLLMRequestSpan(
   }
 
   llmSpanContext.span.setAttributes(endAttributes)
+  if (metadata?.stopReason !== undefined) {
+    llmSpanContext.span.setAttribute('stop_reason', metadata.stopReason)
+    llmSpanContext.span.setAttribute('gen_ai.response.finish_reasons', [
+      metadata.stopReason,
+    ])
+  }
   llmSpanContext.span.end()
 
   const spanId = getSpanId(llmSpanContext.span)

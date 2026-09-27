@@ -573,11 +573,16 @@ function hasSuspiciousWindowsPathPattern(path: string): boolean {
     return true
   }
 
-  // Check for trailing dots and spaces that Windows strips during path resolution
-  // Examples: .git., .claude , .bashrc..., settings.json.
-  // This can bypass string matching if ".git" is blocked but ".git." is used
-  if (/[.\s]+$/.test(path)) {
-    return true
+  // Official 2.1.121 N34: trailing dots/spaces that Windows strips are checked
+  // per path component (not the whole path), so `.git./file` is caught.
+  // Skip empty / `.` / `..` so `foo/../bar` does not false-positive on `..`.
+  for (const component of path.split(/[/\\]/)) {
+    if (component === '' || component === '.' || component === '..') {
+      continue
+    }
+    if (/[.\s]+$/.test(component)) {
+      return true
+    }
   }
 
   // Check for DOS device names that Windows treats as special devices

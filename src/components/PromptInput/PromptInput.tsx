@@ -39,6 +39,7 @@ import {
   findBuddyTriggerPositions,
   useBuddyNotification,
 } from '../../buddy/useBuddyNotification.js'
+import { getIsRemoteMode } from '../../bootstrap/state.js'
 import { FastModePicker } from '../../commands/fast/fast.js'
 import { isUltrareviewEnabled } from '../../commands/review/ultrareviewEnabled.js'
 import { getNativeCSIuTerminalDisplayName } from '../../commands/terminalSetup/terminalSetup.js'
@@ -1845,11 +1846,19 @@ function PromptInput({
 
   // Handler for chat:modelPicker - toggle model picker
   const handleModelPicker = useCallback(() => {
+    if (getIsRemoteMode()) {
+      addNotification({
+        key: 'remote-model-picker-unavailable',
+        text: 'Model picker shows local options in remote sessions \u2014 pass a model name, e.g. /model sonnet',
+        priority: 'medium',
+      })
+      return
+    }
     setShowModelPicker(prev => !prev)
     if (helpOpen) {
       setHelpOpen(false)
     }
-  }, [helpOpen])
+  }, [helpOpen, addNotification])
 
   // Handler for chat:fastMode - toggle fast mode picker
   const handleFastModePicker = useCallback(() => {

@@ -182,6 +182,39 @@ const ALLOWED_OAUTH_BASE_URLS = [
   'https://claude-staging.fedstart.com',
 ]
 
+/**
+ * Approved `--sdk-url` hosts. Headless SDK / Remote Control worker processes
+ * may only connect to Anthropic's first-party API endpoints, plus the
+ * FedStart/PubSec staging hosts permitted for OAuth (reused from
+ * ALLOWED_OAUTH_BASE_URLS). Any other host is rejected at startup.
+ */
+const SDK_URL_APPROVED_HOSTS = new Set([
+  'api.anthropic.com',
+  'api-staging.anthropic.com',
+  ...ALLOWED_OAUTH_BASE_URLS.map(url => new URL(url).hostname),
+])
+
+/**
+ * Validate a `--sdk-url` value. Returns null when the host is approved and the
+ * scheme is permitted (`wss://` or `https://`); otherwise returns a
+ * human-readable rejection reason. Mirrors official 2.1.121 `vD4`.
+ */
+export function validateSdkUrl(sdkUrl: string): string | null {
+  let parsed: URL
+  try {
+    parsed = new URL(sdkUrl)
+  } catch {
+    return `could not parse ${JSON.stringify(sdkUrl)} as a URL`
+  }
+  if (SDK_URL_APPROVED_HOSTS.has(parsed.hostname)) {
+    if (parsed.protocol !== 'wss:' && parsed.protocol !== 'https:') {
+      return `scheme ${JSON.stringify(parsed.protocol)} is not permitted for host ${JSON.stringify(parsed.hostname)}; only wss:// and https:// are accepted`
+    }
+    return null
+  }
+  return `host ${JSON.stringify(parsed.hostname)} is not an approved Anthropic endpoint`
+}
+
 // Default to prod config, override with test/staging if enabled
 export function getOauthConfig(): OauthConfig {
   let config: OauthConfig = (() => {

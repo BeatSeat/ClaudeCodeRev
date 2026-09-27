@@ -13,6 +13,7 @@ import type { PermissionRule } from '../../types/permissions.js'
 import { getCwd } from '../../utils/cwd.js'
 import {
   getFsImplementation,
+  getPathsForPermissionCheck,
   safeResolvePath,
 } from '../../utils/fsOperations.js'
 import { containsPathTraversal, getDirectoryForPath } from '../../utils/path.js'
@@ -897,17 +898,23 @@ function isPathAllowed(
 ): PathCheckResult {
   const permissionType = operationType === 'read' ? 'read' : 'edit'
 
+  // Official 2.1.121 M9$/xb7: deny rules walk every symlink-resolved path.
+  const pathsToCheck =
+    precomputedPathsToCheck ?? getPathsForPermissionCheck(resolvedPath)
+
   // 1. Check deny rules first
-  const denyRule = matchingRuleForInput(
-    resolvedPath,
-    context,
-    permissionType,
-    'deny',
-  )
-  if (denyRule !== null) {
-    return {
-      allowed: false,
-      decisionReason: { type: 'rule', rule: denyRule },
+  for (const pathToCheck of pathsToCheck) {
+    const denyRule = matchingRuleForInput(
+      pathToCheck,
+      context,
+      permissionType,
+      'deny',
+    )
+    if (denyRule !== null) {
+      return {
+        allowed: false,
+        decisionReason: { type: 'rule', rule: denyRule },
+      }
     }
   }
 
@@ -915,8 +922,15 @@ function isPathAllowed(
   // This MUST come before checkPathSafetyForAutoEdit since .claude is a dangerous directory
   // and internal editable paths live under ~/.claude/ — matching the ordering in
   // checkWritePermissionForTool (filesystem.ts step 1.5)
+  // Official 2.1.121 IAH: memory-toggled-off deny must surface here too.
   if (operationType !== 'read') {
     const internalEditResult = checkEditableInternalPath(resolvedPath, {})
+    if (internalEditResult.behavior === 'deny') {
+      return {
+        allowed: false,
+        decisionReason: internalEditResult.decisionReason,
+      }
+    }
     if (internalEditResult.behavior === 'allow') {
       return {
         allowed: true,
@@ -956,8 +970,15 @@ function isPathAllowed(
   }
 
   // 3.5. For read operations, check internal readable paths
+  // Official 2.1.121 DxH: deny from the internal helper is honored.
   if (operationType === 'read') {
     const internalReadResult = checkReadableInternalPath(resolvedPath, {})
+    if (internalReadResult.behavior === 'deny') {
+      return {
+        allowed: false,
+        decisionReason: internalReadResult.decisionReason,
+      }
+    }
     if (internalReadResult.behavior === 'allow') {
       return {
         allowed: true,

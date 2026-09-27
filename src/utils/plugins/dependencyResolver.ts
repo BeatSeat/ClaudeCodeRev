@@ -556,3 +556,74 @@ export function formatReverseDependentsSuffix(
   if (!rdeps || rdeps.length === 0) return ''
   return ` — warning: required by ${rdeps.join(', ')}`
 }
+
+export type OrphanAutoScan = {
+  orphans: Set<PluginId>
+  unloadable: string[]
+  autoCount: number
+}
+
+/**
+ * Official 2.1.121 `KSK`. Auto-installed plugins at `scope`/`projectPath`
+ * that are not in the dependency closure of any manually installed plugin.
+ */
+export function findOrphanedAutoDeps(
+  installed: Record<string, Array<{ scope: string; projectPath?: string; auto?: boolean }>>,
+  loaded: ReadonlyArray<Pick<LoadedPlugin, 'source' | 'manifest'>>,
+  scope: string,
+  projectPath: string | undefined,
+): OrphanAutoScan {
+  const manual = new Set<PluginId>()
+  const auto = new Set<PluginId>()
+  for (const [id, entries] of Object.entries(installed)) {
+    const entry = entries.find(
+      e => e.scope === scope && e.projectPath === projectPath,
+    )
+    if (!entry) continue
+    if (entry.auto === true) auto.add(id)
+    else manual.add(id)
+  }
+  if (auto.size === 0) {
+    return { orphans: new Set(), unloadable: [], autoCount: 0 }
+  }
+  const bySource = new Map(loaded.map(p => [p.source, p]))
+  const unloadable: string[] = []
+  for (const id of [...manual, ...auto]) {
+    if (!bySource.has(id)) unloadable.push(id)
+  }
+  if (unloadable.length > 0) {
+    return { orphans: new Set(), unloadable, autoCount: auto.size }
+  }
+  const needed = new Set<PluginId>()
+  function walk(id: PluginId): void {
+    if (needed.has(id)) return
+    needed.add(id)
+    const plugin = bySource.get(id)
+    if (!plugin) return
+    for (const raw of plugin.manifest.dependencies ?? []) {
+      walk(qualifyDependency(raw, plugin.source))
+    }
+  }
+  for (const id of manual) walk(id)
+  const orphans = new Set<PluginId>()
+  for (const id of auto) {
+    if (!needed.has(id)) orphans.add(id)
+  }
+  return { orphans, unloadable: [], autoCount: auto.size }
+}
+
+/**
+ * Official 2.1.121 `_SK`. Hint after uninstall when auto-deps are leftover.
+ */
+export function formatOrphanPruneHint(
+  orphans: ReadonlySet<string>,
+  scope: string,
+): string {
+  if (orphans.size === 0) return ''
+  const names = [...orphans].map(id => parsePluginIdentifier(id).name)
+  const max = 5
+  const listed =
+    names.length <= max ? names.join(', ') : `${names.slice(0, max).join(', ')}, …`
+  const scopeFlag = scope === 'user' ? '' : ` --scope ${scope}`
+  return `\n${orphans.size} auto-installed ${orphans.size === 1 ? 'dependency' : 'dependencies'} no longer needed: ${listed}. Run \`claude plugin prune${scopeFlag}\` to remove.`
+}

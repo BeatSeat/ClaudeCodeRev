@@ -7,6 +7,7 @@ import type { AgentId } from 'src/types/ids.js'
 import type { Message } from 'src/types/message.js'
 import { logForDebugging } from 'src/utils/debug.js'
 import { djb2Hash } from 'src/utils/hash.js'
+import { isEnvTruthy } from 'src/utils/envUtils.js'
 import { logError } from 'src/utils/log.js'
 import { getClaudeTempDir } from 'src/utils/permissions/filesystem.js'
 import { jsonStringify } from 'src/utils/slowOperations.js'
@@ -53,6 +54,14 @@ type PreviousState = {
   /** Cache-editing beta header presence — should NOT break cache anymore
    *  (sticky-on latched in claude.ts). Tracked to verify the fix. */
   cachedMCEnabled: boolean
+  /** 121: server-side prompt-cache diagnosis beta header presence (latched in
+   *  claude.ts). Diffed to verify the header toggle does not bust the cache. */
+  cacheDiagnosis: boolean
+  /** 121: resolved 1h cache TTL for this request (cacheTtl === '1h'). Stored
+   *  for the tengu_prompt_cache_break / diagnosis events, not diffed. */
+  is1hCacheTTL: boolean
+  /** 121: subagent query-tracking depth, echoed into cache events. */
+  queryDepth?: number
   /** Resolved effort (env → options → model default). Goes into output_config
    *  or anthropic_internal.effort_override. */
   effortValue: string
@@ -79,6 +88,8 @@ type PendingChanges = {
   autoModeChanged: boolean
   overageChanged: boolean
   cachedMCChanged: boolean
+  /** 121: server-side prompt-cache diagnosis beta header toggled this call. */
+  cacheDiagnosisChanged: boolean
   effortChanged: boolean
   extraBodyChanged: boolean
   addedToolCount: number
@@ -236,6 +247,9 @@ export type PromptStateSnapshot = {
   autoModeActive?: boolean
   isUsingOverage?: boolean
   cachedMCEnabled?: boolean
+  cacheDiagnosis?: boolean
+  is1hCacheTTL?: boolean
+  queryDepth?: number
   effortValue?: string | number
   extraBodyParams?: unknown
 }
@@ -258,6 +272,9 @@ export function recordPromptState(snapshot: PromptStateSnapshot): void {
       autoModeActive = false,
       isUsingOverage = false,
       cachedMCEnabled = false,
+      cacheDiagnosis = false,
+      is1hCacheTTL = false,
+      queryDepth,
       effortValue,
       extraBodyParams,
     } = snapshot
@@ -321,6 +338,9 @@ export function recordPromptState(snapshot: PromptStateSnapshot): void {
         pendingChanges: null,
         prevCacheReadTokens: null,
         cacheDeletionsPending: false,
+        cacheDiagnosis,
+        is1hCacheTTL,
+        queryDepth,
         buildDiffableContent: lazyDiffableContent,
         perToolHashes: computeToolHashes(),
       })
@@ -342,6 +362,7 @@ export function recordPromptState(snapshot: PromptStateSnapshot): void {
     const autoModeChanged = autoModeActive !== prev.autoModeActive
     const overageChanged = isUsingOverage !== prev.isUsingOverage
     const cachedMCChanged = cachedMCEnabled !== prev.cachedMCEnabled
+    const cacheDiagnosisChanged = cacheDiagnosis !== prev.cacheDiagnosis
     const effortChanged = effortStr !== prev.effortValue
     const extraBodyChanged = extraBodyHash !== prev.extraBodyHash
 
@@ -356,6 +377,7 @@ export function recordPromptState(snapshot: PromptStateSnapshot): void {
       autoModeChanged ||
       overageChanged ||
       cachedMCChanged ||
+      cacheDiagnosisChanged ||
       effortChanged ||
       extraBodyChanged
     ) {
@@ -387,6 +409,7 @@ export function recordPromptState(snapshot: PromptStateSnapshot): void {
         autoModeChanged,
         overageChanged,
         cachedMCChanged,
+        cacheDiagnosisChanged,
         effortChanged,
         extraBodyChanged,
         addedToolCount: addedTools.length,
@@ -421,6 +444,9 @@ export function recordPromptState(snapshot: PromptStateSnapshot): void {
     prev.autoModeActive = autoModeActive
     prev.isUsingOverage = isUsingOverage
     prev.cachedMCEnabled = cachedMCEnabled
+    prev.cacheDiagnosis = cacheDiagnosis
+    prev.is1hCacheTTL = is1hCacheTTL
+    prev.queryDepth = queryDepth
     prev.effortValue = effortStr
     prev.extraBodyHash = extraBodyHash
     prev.buildDiffableContent = lazyDiffableContent
@@ -552,6 +578,10 @@ export async function checkResponseForCacheBreak(
       if (changes.cachedMCChanged) {
         parts.push('cached microcompact toggled')
       }
+      // 121: server-side prompt-cache diagnosis beta header toggled.
+      if (changes.cacheDiagnosisChanged) {
+        parts.push('cache diagnosis toggled')
+      }
       if (changes.effortChanged) {
         parts.push(
           `effort changed (${changes.prevEffortValue || 'default'} → ${changes.newEffortValue || 'default'})`,
@@ -598,6 +628,7 @@ export async function checkResponseForCacheBreak(
       autoModeChanged: changes?.autoModeChanged ?? false,
       overageChanged: changes?.overageChanged ?? false,
       cachedMCChanged: changes?.cachedMCChanged ?? false,
+      cacheDiagnosisChanged: changes?.cacheDiagnosisChanged ?? false,
       effortChanged: changes?.effortChanged ?? false,
       extraBodyChanged: changes?.extraBodyChanged ?? false,
       addedToolCount: changes?.addedToolCount ?? 0,
@@ -639,6 +670,7 @@ export async function checkResponseForCacheBreak(
       timeSinceLastAssistantMsg: timeSinceLastAssistantMsg ?? -1,
       lastAssistantMsgOver5minAgo,
       lastAssistantMsgOver1hAgo,
+      is1hCacheTTL: state.is1hCacheTTL,
       requestId: (requestId ??
         '') as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
     })
@@ -663,6 +695,59 @@ export async function checkResponseForCacheBreak(
   } catch (e: unknown) {
     logError(e)
   }
+}
+
+/**
+ * 121 server-side prompt-cache diagnosis (bundle QEK).
+ *
+ * The server attaches diagnostics to the assistant message when it detects a
+ * cache miss it can explain (via the cache-diagnosis beta header). We forward
+ * it to tengu_prompt_cache_diagnosis_received so break attribution can be
+ * correlated against the client-side tengu_prompt_cache_break event.
+ */
+export type ServerCacheDiagnosis = {
+  type: string
+  cache_missed_input_tokens?: number
+}
+
+export function reportServerPromptCacheDiagnosis(
+  diagnosis: ServerCacheDiagnosis,
+  context: {
+    requestId?: string | null
+    previousMessageId?: string | null
+    model: string
+    is1hCacheTTL: boolean
+    querySource: QuerySource
+    queryDepth?: number
+  },
+): void {
+  try {
+    logEvent('tengu_prompt_cache_diagnosis_received', {
+      diagnosisType: diagnosis.type as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
+      tokensMissed: diagnosis.cache_missed_input_tokens ?? -1,
+      requestId: (context.requestId ??
+        '') as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
+      previousMessageId: (context.previousMessageId ??
+        '') as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
+      model: context.model as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
+      isCowork: isEnvTruthy(process.env.CLAUDE_CODE_IS_COWORK),
+      is1hCacheTTL: context.is1hCacheTTL,
+      querySource: (normalizeQuerySourceForTelemetry(context.querySource) ??
+        '') as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
+      queryDepth: context.queryDepth,
+    })
+  } catch (error: unknown) {
+    logError(error)
+  }
+}
+
+function normalizeQuerySourceForTelemetry(
+  querySource: QuerySource,
+): string {
+  if (querySource.startsWith('agent:custom:')) {
+    return 'agent:custom'
+  }
+  return querySource
 }
 
 /**

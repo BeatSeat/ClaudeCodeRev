@@ -160,6 +160,48 @@ export async function setupTerminal(theme: ThemeName): Promise<string> {
   return result
 }
 
+const ITERM2_CLIPBOARD_HINT =
+  'iTerm2 → Settings → General → Selection → check "Applications in terminal may access clipboard"'
+
+/**
+ * Official 121 VZK — /terminal-setup writes iTerm2 AllowClipboardAccess so
+ * /copy can use the native clipboard.
+ */
+export async function enableITerm2ClipboardAccess(
+  theme: ThemeName,
+): Promise<string> {
+  const hint = chalk.dim(ITERM2_CLIPBOARD_HINT)
+  try {
+    const { stdout, code } = await execFileNoThrow('defaults', [
+      'read',
+      'com.googlecode.iterm2',
+      'AllowClipboardAccess',
+    ])
+    if (code === 0 && stdout.trim() === '1') {
+      return `${color('success', theme)('iTerm2 clipboard access already enabled')}${EOL}${EOL}`
+    }
+    const { code: writeCode } = await execFileNoThrow('defaults', [
+      'write',
+      'com.googlecode.iterm2',
+      'AllowClipboardAccess',
+      '-bool',
+      'true',
+    ])
+    if (writeCode !== 0) {
+      return `${color('warning', theme)("Couldn't update iTerm2 clipboard setting.")}${EOL}${hint}${EOL}${EOL}`
+    }
+    return `${color(
+      'success',
+      theme,
+    )(
+      'Enabled "Applications in terminal may access clipboard" in iTerm2',
+    )}${EOL}${chalk.dim('Restart iTerm2 for this to take effect. Undo: defaults write com.googlecode.iterm2 AllowClipboardAccess -bool false')}${EOL}${EOL}`
+  } catch (error) {
+    logError(error)
+    return `${color('warning', theme)("Couldn't update iTerm2 clipboard setting.")}${EOL}${hint}${EOL}${EOL}`
+  }
+}
+
 export function isShiftEnterKeyBindingInstalled(): boolean {
   return getGlobalConfig().shiftEnterKeyBindingInstalled === true
 }
@@ -183,6 +225,21 @@ export async function call(
   context: ToolUseContext & LocalJSXCommandContext,
   _args: string,
 ): Promise<null> {
+  if (
+    platform() === 'darwin' &&
+    process.env.__CFBundleIdentifier === 'com.googlecode.iterm2' &&
+    (env.terminal === 'iTerm.app' ||
+      env.terminal === 'tmux' ||
+      env.terminal === 'screen' ||
+      env.terminal === null)
+  ) {
+    const message = `${await enableITerm2ClipboardAccess(context.options.theme)}Shift+Enter is natively supported in iTerm2.
+
+No configuration needed. Just use Shift+Enter to add newlines.`
+    onDone(message)
+    return null
+  }
+
   if (env.terminal && env.terminal in NATIVE_CSIU_TERMINALS) {
     const message = `Shift+Enter is natively supported in ${NATIVE_CSIU_TERMINALS[env.terminal]}.
 

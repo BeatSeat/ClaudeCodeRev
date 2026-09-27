@@ -865,7 +865,12 @@ export async function performMCPOAuthFlow(
   abortSignal?: AbortSignal,
   options?: {
     skipBrowserOpen?: boolean
-    onWaitingForCallback?: (submit: (callbackUrl: string) => void) => void
+    redirectUri?: string
+    onWaitingForCallback?: (
+      submit: (callbackUrl: string) => void,
+      port: number,
+      state: string,
+    ) => void
   },
 ): Promise<void> {
   // XAA (SEP-990): if configured, bypass the per-server consent dance.
@@ -970,13 +975,19 @@ export async function performMCPOAuthFlow(
   let authorizationCodeObtained = false
 
   try {
-    // Use configured callback port for pre-configured OAuth, otherwise find an available port
+    // Use configured callback port for pre-configured OAuth, otherwise find an available port.
+    // A caller-supplied redirectUri (SDK mcp_authenticate) skips the localhost listener.
     const configuredCallbackPort = serverConfig.oauth?.callbackPort
-    const port = configuredCallbackPort ?? (await findAvailablePort())
-    const redirectUri = buildRedirectUri(port)
+    const useCustomRedirect = !!options?.redirectUri
+    const port = useCustomRedirect
+      ? 0
+      : (configuredCallbackPort ?? (await findAvailablePort()))
+    const redirectUri = options?.redirectUri ?? buildRedirectUri(port)
     logMCPDebug(
       serverName,
-      `Using redirect port: ${port}${configuredCallbackPort ? ' (from config)' : ''}`,
+      useCustomRedirect
+        ? `Using custom redirectUri: ${redirectUri} (no localhost listener)`
+        : `Using redirect port: ${port}${configuredCallbackPort ? ' (from config)' : ''}`,
     )
 
     const provider = new ClaudeAuthProvider(
@@ -1068,48 +1079,80 @@ export async function performMCPOAuthFlow(
       // Allow manual callback URL paste for remote/browser-based environments
       // where localhost is not reachable from the user's browser.
       if (options?.onWaitingForCallback) {
-        options.onWaitingForCallback((callbackUrl: string) => {
-          try {
-            const parsed = new URL(callbackUrl)
-            const code = parsed.searchParams.get('code')
-            const state = parsed.searchParams.get('state')
-            const error = parsed.searchParams.get('error')
+        options.onWaitingForCallback(
+          (callbackUrl: string) => {
+            try {
+              const parsed = new URL(callbackUrl)
+              const code = parsed.searchParams.get('code')
+              const state = parsed.searchParams.get('state')
+              const error = parsed.searchParams.get('error')
 
-            if (error) {
-              const errorDescription =
-                parsed.searchParams.get('error_description') || ''
-              cleanup()
-              rejectOnce(
-                new Error(`OAuth error: ${error} - ${errorDescription}`),
+              if (error) {
+                const errorDescription =
+                  parsed.searchParams.get('error_description') || ''
+                cleanup()
+                rejectOnce(
+                  new Error(`OAuth error: ${error} - ${errorDescription}`),
+                )
+                return
+              }
+
+              if (!code) {
+                // Not a valid callback URL, ignore so the user can try again
+                return
+              }
+
+              if (state !== oauthState) {
+                cleanup()
+                rejectOnce(
+                  new Error('OAuth state mismatch - possible CSRF attack'),
+                )
+                return
+              }
+
+              logMCPDebug(
+                serverName,
+                `Received auth code via manual callback URL`,
               )
-              return
-            }
-
-            if (!code) {
-              // Not a valid callback URL, ignore so the user can try again
-              return
-            }
-
-            if (state !== oauthState) {
               cleanup()
-              rejectOnce(
-                new Error('OAuth state mismatch - possible CSRF attack'),
-              )
-              return
+              resolveOnce(code)
+            } catch {
+              // Invalid URL, ignore so the user can try again
             }
-
-            logMCPDebug(
-              serverName,
-              `Received auth code via manual callback URL`,
-            )
-            cleanup()
-            resolveOnce(code)
-          } catch {
-            // Invalid URL, ignore so the user can try again
-          }
-        })
+          },
+          port,
+          oauthState,
+        )
       }
 
+      const startSdkAuth = async () => {
+        try {
+          logMCPDebug(serverName, `Starting SDK auth`)
+          logMCPDebug(serverName, `Server URL: ${serverConfig.url}`)
+
+          const result = await sdkAuth(provider, {
+            serverUrl: serverConfig.url,
+            scope: wwwAuthParams.scope,
+            resourceMetadataUrl: wwwAuthParams.resourceMetadataUrl,
+          })
+          logMCPDebug(serverName, `Initial auth result: ${result}`)
+
+          if (result !== 'REDIRECT') {
+            logMCPDebug(
+              serverName,
+              `Unexpected auth result, expected REDIRECT: ${result}`,
+            )
+          }
+        } catch (error) {
+          logMCPDebug(serverName, `SDK auth error: ${error}`)
+          cleanup()
+          rejectOnce(new Error(`SDK auth failed: ${errorMessage(error)}`))
+        }
+      }
+
+      if (useCustomRedirect) {
+        void startSdkAuth()
+      } else {
       server = createServer((req, res) => {
         const parsedUrl = parse(req.url || '', true)
 
@@ -1182,31 +1225,8 @@ export async function performMCPOAuthFlow(
         }
       })
 
-      server.listen(port, '127.0.0.1', async () => {
-        try {
-          logMCPDebug(serverName, `Starting SDK auth`)
-          logMCPDebug(serverName, `Server URL: ${serverConfig.url}`)
-
-          // First call to start the auth flow - should redirect
-          // Pass the scope and resource_metadata from WWW-Authenticate header if available
-          const result = await sdkAuth(provider, {
-            serverUrl: serverConfig.url,
-            scope: wwwAuthParams.scope,
-            resourceMetadataUrl: wwwAuthParams.resourceMetadataUrl,
-          })
-          logMCPDebug(serverName, `Initial auth result: ${result}`)
-
-          if (result !== 'REDIRECT') {
-            logMCPDebug(
-              serverName,
-              `Unexpected auth result, expected REDIRECT: ${result}`,
-            )
-          }
-        } catch (error) {
-          logMCPDebug(serverName, `SDK auth error: ${error}`)
-          cleanup()
-          rejectOnce(new Error(`SDK auth failed: ${errorMessage(error)}`))
-        }
+      server.listen(port, '127.0.0.1', () => {
+        void startSdkAuth()
       })
 
       // Don't let the callback server or timeout pin the event loop — if the UI
@@ -1214,6 +1234,7 @@ export async function performMCPOAuthFlow(
       // rather let the process exit than stay alive for 5 minutes holding the
       // port. The abortSignal is the intended lifecycle management.
       server.unref()
+      }
 
       timeoutId = setTimeout(
         (cleanup, rejectOnce) => {
