@@ -79,10 +79,12 @@ import { maybeNotifyIDEConnected } from '../../utils/ide.js'
 import { maybeResizeAndDownsampleImageBuffer } from '../../utils/imageResizer.js'
 import { logMCPDebug, logMCPError } from '../../utils/log.js'
 import {
+  computeMcpOutputLineStats,
   getBinaryBlobSavedMessage,
   getFormatDescription,
   getLargeOutputInstructions,
   persistBinaryContent,
+  shouldUseMcpSubagentPrompt,
 } from '../../utils/mcpOutputStorage.js'
 import {
   getContentSizeEstimate,
@@ -1314,6 +1316,22 @@ export const connectToServer = memoize(
           } else {
             logMCPDebug(name, `Connection error: ${error.message}`)
           }
+        }
+
+        // Official 105: stdio malformed (non-JSON) output must fail-fast
+        // instead of hanging pending callTool() promises.
+        if (transportType === 'stdio') {
+          logMCPDebug(
+            name,
+            `stdio transport error: ${error.name || 'Error'}`,
+          )
+          closeTransportAndRejectPending(
+            `stdio transport error: ${error.name || 'Error'}`,
+          )
+          if (originalOnerror) {
+            originalOnerror(error)
+          }
+          return
         }
 
         // For HTTP transports, detect session expiry (404 + JSON-RPC -32001)
@@ -2864,9 +2882,28 @@ export async function processMCPResult(
   // Generate a unique ID for the persisted file (server__tool-timestamp)
   const timestamp = Date.now()
   const persistId = `mcp-${normalizeNameForMCP(name)}-${normalizeNameForMCP(tool)}-${timestamp}`
-  // Convert to string for persistence (persistToolResult expects string or specific block types)
+  const useNewPrompt = shouldUseMcpSubagentPrompt()
+  const firstBlock =
+    Array.isArray(content) && content.length === 1 ? content[0] : undefined
+  const singleText =
+    useNewPrompt &&
+    firstBlock &&
+    typeof firstBlock === 'object' &&
+    firstBlock.type === 'text' &&
+    typeof firstBlock.text === 'string' &&
+    !('annotations' in firstBlock) &&
+    !('_meta' in firstBlock)
+      ? firstBlock.text
+      : undefined
   const contentStr =
-    typeof content === 'string' ? content : jsonStringify(content, null, 2)
+    typeof content === 'string'
+      ? content
+      : (singleText ?? jsonStringify(content, null, 2))
+  const isTextLike = type === 'toolResult' || singleText !== undefined
+  const lineStats =
+    useNewPrompt && isTextLike
+      ? computeMcpOutputLineStats(contentStr)
+      : undefined
   const persistResult = await persistToolResult(contentStr, persistId)
 
   if (isPersistError(persistResult)) {
@@ -2887,11 +2924,16 @@ export async function processMCPResult(
     persistedSizeChars: persistResult.originalSize,
   } as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS)
 
-  const formatDescription = getFormatDescription(type, schema)
+  const formatDescription =
+    singleText !== undefined
+      ? getFormatDescription('toolResult')
+      : getFormatDescription(type, schema)
   return getLargeOutputInstructions(
     persistResult.filepath,
     persistResult.originalSize,
     formatDescription,
+    undefined,
+    lineStats,
   )
 }
 

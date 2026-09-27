@@ -25,6 +25,35 @@ function boostChalkLevelForXtermJs(): boolean {
   return false
 }
 
+/** Official Oy_ — terminals that speak truecolor but often report 16-color over SSH. */
+const TRUECOLOR_TERM = new Set([
+  'alacritty',
+  'contour',
+  'foot',
+  'ghostty',
+  'rio',
+  'wezterm',
+  'xterm-ghostty',
+  'xterm-kitty',
+])
+
+/** Official wy_: bump chalk to truecolor when TERM is a known truecolor emulator. */
+function boostChalkLevelForTruecolorTerm(): boolean {
+  if (
+    !process.stdout.isTTY ||
+    process.env.NO_COLOR ||
+    process.env.FORCE_COLOR !== undefined
+  ) {
+    return false
+  }
+  const term = process.env.TERM
+  if (term && TRUECOLOR_TERM.has(term) && chalk.level < 3) {
+    chalk.level = 3
+    return true
+  }
+  return false
+}
+
 /**
  * tmux parses truecolor SGR (\e[48;2;r;g;bm) into its cell buffer correctly,
  * but its client-side emitter only re-emits truecolor to the outer terminal if
@@ -59,6 +88,7 @@ function clampChalkLevelForTmux(): boolean {
 // Order matters: boost first so the tmux clamp can re-clamp if tmux is running
 // inside a VS Code terminal. Exported for debugging — tree-shaken if unused.
 export const CHALK_BOOSTED_FOR_XTERMJS = boostChalkLevelForXtermJs()
+export const CHALK_BOOSTED_FOR_TRUECOLOR_TERM = boostChalkLevelForTruecolorTerm()
 export const CHALK_CLAMPED_FOR_TMUX = clampChalkLevelForTmux()
 
 export type ColorType = 'foreground' | 'background'

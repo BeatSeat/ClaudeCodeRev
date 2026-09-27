@@ -21,6 +21,7 @@ import { getDisplayPath } from '../../utils/file.js'
 import { logError } from '../../utils/log.js'
 import { getPlansDirectory } from '../../utils/plans.js'
 import { openForScan, readCapped } from '../../utils/readEditContext.js'
+import { wrapText } from '../../utils/truncate.js'
 import type { Output } from './FileWriteTool.js'
 
 const MAX_LINES_TO_RENDER = 10
@@ -37,6 +38,17 @@ export function countLines(content: string): number {
   return content.endsWith(EOL) ? parts.length - 1 : parts.length
 }
 
+/** Official VPK: wrap-aware line count so minified JSON doesn't paginate. */
+function countWrappedLines(content: string, width: number): number {
+  const w = Math.max(1, width)
+  let height = 0
+  for (const part of content.split(EOL)) {
+    const wrapped = wrapText(part, w)
+    height += wrapped.length === 0 ? 1 : wrapped.length
+  }
+  return content.endsWith(EOL) ? height - 1 : height
+}
+
 function FileWriteToolCreatedMessage({
   filePath,
   content,
@@ -49,7 +61,19 @@ function FileWriteToolCreatedMessage({
   const { columns } = useTerminalSize()
   const contentWithFallback = content || '(No content)'
   const numLines = countLines(content)
-  const plusLines = numLines - MAX_LINES_TO_RENDER
+  const codeWidth = Math.max(1, columns - 12)
+  // Official gAY: first 10 newline slices, then cap chars so a single
+  // minified line cannot wrap into a multi-screen dump.
+  const displayCode = verbose
+    ? contentWithFallback
+    : contentWithFallback
+        .split(EOL)
+        .slice(0, MAX_LINES_TO_RENDER)
+        .join(EOL)
+        .slice(0, MAX_LINES_TO_RENDER * (codeWidth + 1))
+  const plusLines = verbose
+    ? 0
+    : countWrappedLines(contentWithFallback, codeWidth) - MAX_LINES_TO_RENDER
 
   return (
     <MessageResponse>
@@ -58,18 +82,15 @@ function FileWriteToolCreatedMessage({
           Wrote <Text bold>{numLines}</Text> lines to{' '}
           <Text bold>{verbose ? filePath : relative(getCwd(), filePath)}</Text>
         </Text>
-        <Box flexDirection="column">
+        <Box
+          flexDirection="column"
+          overflowY={verbose ? undefined : 'hidden'}
+          maxHeight={verbose ? undefined : MAX_LINES_TO_RENDER}
+        >
           <HighlightedCode
-            code={
-              verbose
-                ? contentWithFallback
-                : contentWithFallback
-                    .split('\n')
-                    .slice(0, MAX_LINES_TO_RENDER)
-                    .join('\n')
-            }
+            code={displayCode}
             filePath={filePath}
-            width={columns - 12}
+            width={codeWidth}
           />
         </Box>
         {!verbose && plusLines > 0 && (
@@ -98,6 +119,8 @@ export function userFacingName(
  *  (MAX+1)th line instead of splitting the whole (possibly huge) content. */
 export function isResultTruncated({ type, content }: Output): boolean {
   if (type !== 'create') return false
+  // Default width matches gAY's columns-12 when the caller has no layout.
+  if (countWrappedLines(content, 68) > MAX_LINES_TO_RENDER) return true
   let pos = 0
   for (let i = 0; i < MAX_LINES_TO_RENDER; i++) {
     pos = content.indexOf(EOL, pos)

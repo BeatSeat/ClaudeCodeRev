@@ -194,7 +194,7 @@ export type Styles = {
    * It makes possible to override the align-items value for specific flex items.
    * See [align-self](https://css-tricks.com/almanac/properties/a/align-self/).
    */
-  readonly alignSelf?: 'flex-start' | 'center' | 'flex-end' | 'auto'
+  readonly alignSelf?: 'flex-start' | 'center' | 'flex-end' | 'auto' | 'stretch'
 
   /**
    * It defines the alignment along the main axis.
@@ -605,6 +605,10 @@ const applyFlexStyles = (node: LayoutNode, style: Styles): void => {
 
     if (style.alignSelf === 'flex-end') {
       node.setAlignSelf(LayoutAlign.FlexEnd)
+    }
+
+    if (style.alignSelf === 'stretch') {
+      node.setAlignSelf(LayoutAlign.Stretch)
     }
   }
 

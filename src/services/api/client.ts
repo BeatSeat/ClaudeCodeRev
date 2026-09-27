@@ -25,9 +25,11 @@ import {
 } from '../../bootstrap/state.js'
 import { getOauthConfig } from '../../constants/oauth.js'
 import { isDebugToStdErr, logForDebugging } from '../../utils/debug.js'
+import { getFeatureValue_CACHED_MAY_BE_STALE } from '../analytics/growthbook.js'
 import {
   getAWSRegion,
   getVertexRegionForModel,
+  isEnvDefinedFalsy,
   isEnvTruthy,
 } from '../../utils/envUtils.js'
 
@@ -458,6 +460,23 @@ function getCustomHeaders(): Record<string, string> {
 
 export const CLIENT_REQUEST_ID_HEADER = 'x-client-request-id'
 
+/**
+ * Official 2.1.105 `WY_`: env override, else GrowthBook default-on.
+ * `CLAUDE_ENABLE_BYTE_WATCHDOG=0` disables; `=1` forces on.
+ */
+export function isByteLevelStreamWatchdogEnabled(): boolean {
+  if (isEnvDefinedFalsy(process.env.CLAUDE_ENABLE_BYTE_WATCHDOG)) {
+    return false
+  }
+  if (isEnvTruthy(process.env.CLAUDE_ENABLE_BYTE_WATCHDOG)) {
+    return true
+  }
+  return getFeatureValue_CACHED_MAY_BE_STALE(
+    'tengu_stream_watchdog_default_on',
+    true,
+  )
+}
+
 /** Byte-level SSE idle abort (official 2.1.104 `OV8`). */
 export class StreamIdleTimeoutError extends Error {
   idleMs: number
@@ -539,15 +558,17 @@ function buildFetch(
       // never let logging crash the fetch
     }
     const response = await inner(input, { ...init, headers })
-    // First-party SSE: abort if the byte stream goes silent (official 2.1.104 `m9_`).
+    // First-party SSE: abort if the byte stream goes silent (official 2.1.104 `m9_`,
+    // 2.1.105 `WY_` + 5-minute floor).
     if (
       injectClientRequestId &&
       response.body &&
-      response.headers.get('content-type')?.includes('text/event-stream')
+      response.headers.get('content-type')?.includes('text/event-stream') &&
+      isByteLevelStreamWatchdogEnabled()
     ) {
       const idleMs = Math.max(
         parseInt(process.env.CLAUDE_STREAM_IDLE_TIMEOUT_MS || '', 10) || 90_000,
-        15_000,
+        300_000,
       )
       const wrapped = new Response(
         withByteLevelStreamIdleTimeout(response.body, idleMs),

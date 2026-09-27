@@ -70,14 +70,6 @@ function editLineDelta(
   return { added: 0, removed: 0 }
 }
 
-function getOriginKind(origin: unknown): string | undefined {
-  if (origin && typeof origin === 'object' && 'kind' in origin) {
-    const kind = (origin as { kind?: unknown }).kind
-    return typeof kind === 'string' ? kind : undefined
-  }
-  return undefined
-}
-
 function firstContentBlock(
   content: unknown,
 ): { type?: string; name?: string; input?: unknown; text?: string } | undefined {
@@ -92,14 +84,29 @@ function firstContentBlock(
   }
 }
 
-/** Official Ld4: human-authored user prompt (not a tool_result). */
-function isHumanUserPrompt(msg: CollapsibleMessage): boolean {
-  if (msg.type !== 'user') return false
-  if (firstContentBlock(msg.message.content)?.type === 'tool_result') {
+/** Official ENK: queued human prompt (or inbound channel) as a turn boundary. */
+function isQueuedHumanPrompt(msg: CollapsibleMessage): boolean {
+  if (msg.type !== 'attachment') return false
+  const att = msg.attachment as {
+    type?: string
+    commandMode?: string
+    isMeta?: boolean
+    origin?: { kind?: string }
+  }
+  if (att.type !== 'queued_command' || att.commandMode !== 'prompt') {
     return false
   }
-  const kind = getOriginKind(msg.origin)
-  return kind === undefined || kind === 'human'
+  const origin = att.origin
+  if (!att.isMeta && origin === undefined) return true
+  return origin?.kind === 'channel'
+}
+
+/** Official fNK: human-authored user prompt or queued_command attachment. */
+function isHumanUserPrompt(msg: CollapsibleMessage): boolean {
+  if (msg.type === 'user') {
+    return firstContentBlock(msg.message.content)?.type !== 'tool_result'
+  }
+  return isQueuedHumanPrompt(msg)
 }
 
 /** Official Rd4: assistant message whose first block is non-empty text. */
