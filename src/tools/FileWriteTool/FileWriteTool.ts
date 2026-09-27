@@ -3,7 +3,10 @@ import { logEvent } from 'src/services/analytics/index.js'
 import { z } from 'zod/v4'
 import { getFeatureValue_CACHED_MAY_BE_STALE } from '../../services/analytics/growthbook.js'
 import { diagnosticTracker } from '../../services/diagnosticTracking.js'
-import { clearDeliveredDiagnosticsForFile } from '../../services/lsp/LSPDiagnosticRegistry.js'
+import {
+  clearDeliveredDiagnosticsForFile,
+  clearPendingLSPDiagnosticsForFile,
+} from '../../services/lsp/LSPDiagnosticRegistry.js'
 import { getLspServerManager } from '../../services/lsp/manager.js'
 import { notifyVscodeFileUpdated } from '../../services/mcp/vscodeSdkMcp.js'
 import { checkTeamMemSecrets } from '../../services/teamMemorySync/teamMemSecretGuard.js'
@@ -298,6 +301,9 @@ export const FileWriteTool = buildTool({
     activateConditionalSkillsForPaths([fullFilePath], cwd)
 
     await diagnosticTracker.beforeFileEdited(fullFilePath)
+    // Drop pre-edit pending LSP diagnostics before any await that can
+    // interleave delivery (official 2.1.111: they were shown after the edit).
+    clearPendingLSPDiagnosticsForFile(`file://${fullFilePath}`)
 
     // Ensure parent directory exists before the atomic read-modify-write section.
     // Must stay OUTSIDE the critical section below (a yield between the staleness
@@ -367,8 +373,12 @@ export const FileWriteTool = buildTool({
     // Notify LSP servers about file modification (didChange) and save (didSave)
     const lspManager = getLspServerManager()
     if (lspManager) {
-      // Clear previously delivered diagnostics so new ones will be shown
-      clearDeliveredDiagnosticsForFile(`file://${fullFilePath}`)
+      // Clear previously delivered diagnostics so new ones will be shown.
+      // Also drop pending pre-edit diagnostics so they are not delivered
+      // after this write (official 2.1.111).
+      const writtenFileUri = `file://${fullFilePath}`
+      clearPendingLSPDiagnosticsForFile(writtenFileUri)
+      clearDeliveredDiagnosticsForFile(writtenFileUri)
       // didChange: Content has been modified
       lspManager.changeFile(fullFilePath, newContent).catch((err: Error) => {
         logForDebugging(

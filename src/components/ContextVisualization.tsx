@@ -157,24 +157,29 @@ export function ContextVisualization({ data }: Props): React.ReactNode {
         {/* Fixed size grid */}
         <Box flexDirection="column" flexShrink={0}>
           {gridRows.map((row, rowIndex) => (
-            <Box key={rowIndex} flexDirection="row" marginLeft={-1}>
+            <Box
+              key={rowIndex}
+              flexDirection="row"
+              height={1}
+              marginLeft={-1}
+            >
               {row.map((square, colIndex) => {
                 if (square.categoryName === 'Free space') {
                   return (
-                    <Text key={colIndex} dimColor>
+                    <Text key={colIndex} dimColor wrap="truncate">
                       {'⛶ '}
                     </Text>
                   )
                 }
                 if (square.categoryName === RESERVED_CATEGORY_NAME) {
                   return (
-                    <Text key={colIndex} color={square.color}>
+                    <Text key={colIndex} color={square.color} wrap="truncate">
                       {'⛝ '}
                     </Text>
                   )
                 }
                 return (
-                  <Text key={colIndex} color={square.color}>
+                  <Text key={colIndex} color={square.color} wrap="truncate">
                     {square.squareFullness >= 0.7 ? '⛁ ' : '⛀ '}
                   </Text>
                 )

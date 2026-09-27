@@ -4,7 +4,11 @@ import {
   logEvent,
 } from 'src/services/analytics/index.js'
 import { Box, Text } from '../../../ink.js'
-import { updateSettingsForSource } from '../../../utils/settings/settings.js'
+import { getDisplayPath } from '../../../utils/file.js'
+import {
+  getSettingsFilePathForSource,
+  updateSettingsForSource,
+} from '../../../utils/settings/settings.js'
 import { Select } from '../../CustomSelect/select.js'
 import { StatusIcon } from '../../design-system/StatusIcon.js'
 import { useWizard } from '../../wizard/index.js'
@@ -21,6 +25,9 @@ export function ConfirmStep({ onComplete }: Props): React.ReactNode {
   const [error, setError] = useState<string | null>(null)
   const env = buildBedrockEnv(wizardData)
   const entries = Object.entries(env).filter(([, value]) => value !== undefined)
+  const settingsPath = getDisplayPath(
+    getSettingsFilePathForSource('userSettings') ?? '~/.claude/settings.json',
+  )
 
   const save = () => {
     const { error: writeError } = updateSettingsForSource('userSettings', {
@@ -43,7 +50,7 @@ export function ConfirmStep({ onComplete }: Props): React.ReactNode {
       ) as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
     })
     onComplete(
-      `Bedrock configuration saved to ~/.claude/settings.json. Restart Claude Code to apply.${
+      `Bedrock configuration saved to ${settingsPath}.${
         wizardData.authMethod === 'profile'
           ? ` When your SSO session expires (typically 8 hours), run \`aws sso login --profile ${wizardData.awsProfile}\` — Claude Code picks up refreshed credentials automatically.`
           : ''
@@ -54,7 +61,7 @@ export function ConfirmStep({ onComplete }: Props): React.ReactNode {
   return (
     <WizardDialogLayout subtitle="Confirm and save">
       <Box flexDirection="column" gap={1}>
-        <Text>These will be written to ~/.claude/settings.json under env:</Text>
+        <Text>These will be written to {settingsPath} under env:</Text>
         <Box flexDirection="column">
           {entries.map(([key, value]) => (
             <EnvLine key={key} name={key} value={value!} />

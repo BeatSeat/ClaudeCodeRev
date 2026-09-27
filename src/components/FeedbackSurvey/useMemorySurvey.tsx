@@ -59,7 +59,10 @@ export function useMemorySurvey(
   messages: Message[],
   isLoading: boolean,
   hasActivePrompt = false,
-  { enabled = true }: { enabled?: boolean } = {},
+  {
+    enabled = true,
+    otherSurveyActive = false,
+  }: { enabled?: boolean; otherSurveyActive?: boolean } = {},
 ): {
   state:
     | 'closed'
@@ -196,6 +199,7 @@ export function useMemorySurvey(
 
   const { state, lastResponse, open, handleSelect, handleTranscriptSelect } =
     useSurveyState({
+      otherSurveyActive,
       hideThanksAfterMs: HIDE_THANKS_AFTER_MS,
       onOpen,
       onSelect,
@@ -221,6 +225,10 @@ export function useMemorySurvey(
     }
 
     if (state !== 'closed' || isLoading || hasActivePrompt) {
+      return
+    }
+
+    if (otherSurveyActive) {
       return
     }
 
@@ -271,6 +279,7 @@ export function useMemorySurvey(
     }
   }, [
     enabled,
+    otherSurveyActive,
     state,
     isLoading,
     hasActivePrompt,

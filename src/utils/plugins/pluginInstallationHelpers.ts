@@ -6,7 +6,7 @@
  */
 
 import { randomBytes } from 'crypto'
-import { rename, rm } from 'fs/promises'
+import { readdir, rename, rm } from 'fs/promises'
 import { dirname, join, resolve, sep } from 'path'
 import {
   type AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
@@ -26,7 +26,10 @@ import { buildPluginTelemetryFields } from '../telemetry/pluginTelemetry.js'
 import { clearAllCaches } from './cacheUtils.js'
 import {
   formatDependencyCountSuffix,
+  formatNoMatchingTagError,
+  formatVersionRequirementError,
   getEnabledPluginIdsForScope,
+  intersectConstraints,
   qualifyDependency,
   type ResolutionResult,
   resolveDependencyClosure,
@@ -46,6 +49,7 @@ import {
   cachePlugin,
   getVersionedCachePath,
   getVersionedZipCachePath,
+  loadAllPluginsCacheOnly,
 } from './pluginLoader.js'
 import { isPluginBlockedByPolicy } from './pluginPolicy.js'
 import { calculatePluginVersion } from './pluginVersioning.js'
@@ -108,6 +112,28 @@ export function validatePathWithinBase(
   return resolvedPath
 }
 
+/** Official 2.1.111: leftover `.claude-plugin-temp-*` from a crashed rename. */
+async function removeLeftoverPluginTempDirs(
+  parentDir: string | undefined,
+): Promise<void> {
+  if (!parentDir) return
+  let entries: string[]
+  try {
+    entries = await readdir(parentDir)
+  } catch {
+    return
+  }
+  await Promise.all(
+    entries
+      .filter(name => name.startsWith('.claude-plugin-temp-'))
+      .map(name =>
+        rm(join(parentDir, name), { recursive: true, force: true }).catch(
+          () => {},
+        ),
+      ),
+  )
+}
+
 /**
  * Cache a plugin (local or external) and add it to installed_plugins.json
  *
@@ -133,7 +159,11 @@ export async function cacheAndRegisterPlugin(
   scope: PluginScope = 'user',
   projectPath?: string,
   localSourcePath?: string,
-): Promise<{ path: string; dependencies?: string[] }> {
+): Promise<{
+  path: string
+  dependencies?: string[]
+  depConstraints?: import('../../types/plugin.js').LoadedPlugin['depConstraints']
+}> {
   // For local plugins, we need the resolved absolute path
   // Cast to PluginSource since cachePlugin handles any string path at runtime
   const source: PluginSource =
@@ -144,6 +174,10 @@ export async function cacheAndRegisterPlugin(
   const cacheResult = await cachePlugin(source, {
     manifest: entry as PluginMarketplaceEntry,
   })
+
+  // Official 2.1.111: recover from an interrupted prior install that left
+  // `.claude-plugin-temp-*` behind after a crash mid-rename.
+  await removeLeftoverPluginTempDirs(dirname(cacheResult.path))
 
   // For local plugins, use the original source path for Git SHA calculation
   // because the cached temp directory doesn't have .git (it's copied from a
@@ -227,6 +261,7 @@ export async function cacheAndRegisterPlugin(
   return {
     path: finalPath,
     dependencies: cacheResult.manifest.dependencies,
+    depConstraints: cacheResult.depConstraints,
   }
 }
 
@@ -300,6 +335,14 @@ export type InstallCoreResult =
       pluginName: string
       blockedDependency: string
     }
+  | {
+      ok: false
+      reason: 'range-conflict'
+      dep: string
+      ranges: string[]
+      why: 'disjoint' | 'too-complex' | 'invalid'
+    }
+  | { ok: false; reason: 'no-matching-tag'; dep: string; range: string }
 
 /**
  * Format a failed ResolutionResult into a user-facing message. Unified on
@@ -507,7 +550,44 @@ export async function installResolvedPlugin({
   const projectPath = scope !== 'user' ? getCwd() : undefined
   const closureIds = [...resolution.closure]
   let rootManifestDeps: string[] | undefined
-  async function materializeOne(id: string): Promise<boolean> {
+
+  // Official 2.1.111 `wd1`: intersect version ranges from already-loaded
+  // plugins (outside this closure) plus constraints discovered while
+  // materializing. Distinguish conflicting / invalid / too-complex.
+  const fromLoaded = new Map<string, string[]>()
+  const fromClosure = new Map<string, string[]>()
+  const closureSet = new Set(resolution.closure)
+  try {
+    const loaded = await loadAllPluginsCacheOnly()
+    for (const plugin of loaded.enabled.concat(loaded.disabled)) {
+      if (!plugin.depConstraints || closureSet.has(plugin.source)) continue
+      for (const [raw, constraint] of Object.entries(plugin.depConstraints)) {
+        if (constraint.version === undefined) continue
+        const dep = qualifyDependency(raw, plugin.source)
+        const list = fromLoaded.get(dep)
+        if (list) list.push(constraint.version)
+        else fromLoaded.set(dep, [constraint.version])
+      }
+    }
+  } catch (error) {
+    logForDebugging(
+      `installResolvedPlugin: could not load existing plugins for version-range checks: ${toError(error).message}`,
+      { level: 'warn' },
+    )
+  }
+
+  async function materializeOne(
+    id: string,
+  ): Promise<
+    | { ok: true }
+    | {
+        ok: false
+        reason: 'range-conflict'
+        dep: string
+        ranges: string[]
+        why: 'disjoint' | 'too-complex' | 'invalid'
+      }
+  > {
     let info = depInfo.get(id)
     // Root wasn't pre-seeded (caller didn't pass marketplaceInstallLocation
     // for a non-local source). Fetch now; it's needed for the cache write.
@@ -515,7 +595,26 @@ export async function installResolvedPlugin({
       const mktLocation = (await getPluginById(id))?.marketplaceInstallLocation
       if (mktLocation) info = { entry, marketplaceInstallLocation: mktLocation }
     }
-    if (!info) return false
+    if (!info) return { ok: true }
+
+    const ranges = [
+      ...(fromClosure.get(id) ?? []),
+      ...(fromLoaded.get(id) ?? []),
+    ]
+    if (ranges.length > 0) {
+      const intersected = intersectConstraints(ranges)
+      if (intersected.ok === false) {
+        return {
+          ok: false,
+          reason: 'range-conflict',
+          dep: id,
+          ranges,
+          why: intersected.reason,
+        }
+      }
+      // Official 111 then pins a git tag when range !== '*'. This tree
+      // still lacks the 109/110 tag-lookup path; keep the existing cache.
+    }
 
     let localSourcePath: string | undefined
     const { source } = info.entry
@@ -535,11 +634,25 @@ export async function installResolvedPlugin({
     if (id === pluginId) {
       rootManifestDeps = cached.dependencies
     }
-    return true
+    if (cached.depConstraints) {
+      for (const [raw, constraint] of Object.entries(cached.depConstraints)) {
+        if (constraint.version === undefined) continue
+        const dep = qualifyDependency(raw, id)
+        const list = fromClosure.get(dep)
+        if (list) list.push(constraint.version)
+        else fromClosure.set(dep, [constraint.version])
+      }
+    }
+    return { ok: true }
   }
 
-  for (const id of resolution.closure) {
-    await materializeOne(id)
+  // Official 2.1.111 materializes the closure back-to-front so already-
+  // installed members can contribute constraints onto later members.
+  for (let i = resolution.closure.length - 1; i >= 0; i--) {
+    const id = resolution.closure[i]
+    if (id === undefined) continue
+    const materialized = await materializeOne(id)
+    if (materialized.ok === false) return materialized
   }
 
   // Official 2.1.110 `Y3z`: honor plugin.json dependencies the marketplace
@@ -581,7 +694,8 @@ export async function installResolvedPlugin({
       }
     }
     for (const id of extra.ids) {
-      await materializeOne(id)
+      const materialized = await materializeOne(id)
+      if (materialized.ok === false) return materialized
     }
   }
 
@@ -651,7 +765,7 @@ export async function installPluginFromMarketplace({
       marketplaceInstallLocation,
     })
 
-    if (!result.ok) {
+    if (result.ok === false) {
       switch (result.reason) {
         case 'local-source-no-location':
           return {
@@ -677,6 +791,25 @@ export async function installPluginFromMarketplace({
           return {
             success: false,
             error: `Cannot install "${result.pluginName}": dependency "${result.blockedDependency}" is blocked by your organization's policy`,
+          }
+        case 'range-conflict':
+          return {
+            success: false,
+            error: formatVersionRequirementError(
+              result.dep === pluginId ? 'Plugin' : 'Dependency',
+              result.dep,
+              result.ranges,
+              result.why,
+            ),
+          }
+        case 'no-matching-tag':
+          return {
+            success: false,
+            error: formatNoMatchingTagError(
+              result.dep === pluginId ? 'Plugin' : 'Dependency',
+              result.dep,
+              result.range,
+            ),
           }
       }
     }

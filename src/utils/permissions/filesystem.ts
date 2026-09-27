@@ -879,11 +879,12 @@ function patternWithRoot(
       // Keep the pattern in POSIX format since relativePath returns POSIX paths
       const pathAfterDrive = patternWithoutDoubleSlash.slice(2)
 
-      // Extract the drive root (C:\) and the rest of the pattern
+      // Official 111 YeY: keep or add leading / so ignore root-anchors on the drive.
+      // 110 stripped that slash (Users/foo); 111 keeps /Users/foo.
       const driveRoot = `${driveLetter}:\\`
       const relativeFromDrive = pathAfterDrive.startsWith('/')
-        ? pathAfterDrive.slice(1)
-        : pathAfterDrive
+        ? pathAfterDrive
+        : `/${pathAfterDrive}`
 
       return {
         relativePattern: relativeFromDrive,

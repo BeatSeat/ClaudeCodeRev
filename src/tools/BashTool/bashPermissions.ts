@@ -1,5 +1,6 @@
 import { feature } from 'bun:bundle'
 import { APIUserAbortError } from '@anthropic-ai/sdk'
+import { isAbsolute } from 'path'
 import type { z } from 'zod/v4'
 import { getFeatureValue_CACHED_MAY_BE_STALE } from '../../services/analytics/growthbook.js'
 import {
@@ -48,7 +49,9 @@ import type {
   PermissionRule,
   PermissionRuleValue,
 } from '../../utils/permissions/PermissionRule.js'
+import { pathInAllowedWorkingPath } from '../../utils/permissions/filesystem.js'
 import { extractRules } from '../../utils/permissions/PermissionUpdate.js'
+import { validatePath } from '../../utils/permissions/pathValidation.js'
 import type { PermissionUpdate } from '../../utils/permissions/PermissionUpdateSchema.js'
 import { permissionRuleValueToString } from '../../utils/permissions/permissionRuleParser.js'
 import {
@@ -1124,6 +1127,7 @@ export const bashToolCheckPermission = (
   toolPermissionContext: ToolPermissionContext,
   compoundCommandHasCd?: boolean,
   astCommand?: SimpleCommand,
+  cwd: string = getCwd(),
 ): PermissionResult => {
   const command = input.command.trim()
 
@@ -1183,7 +1187,7 @@ export const bashToolCheckPermission = (
   // parseCommandArguments to return [] and silently skip path validation).
   const pathResult = checkPathConstraints(
     input,
-    getCwd(),
+    cwd,
     toolPermissionContext,
     compoundCommandHasCd,
     astCommand?.redirects,
@@ -1262,6 +1266,7 @@ export async function checkCommandAndSuggestRules(
   commandPrefixResult: CommandPrefixResult | null | undefined,
   compoundCommandHasCd?: boolean,
   astParseSucceeded?: boolean,
+  cwd: string = getCwd(),
 ): Promise<PermissionResult> {
   // 1. Check exact match first
   const exactMatchResult = bashToolCheckExactMatchPermission(
@@ -1277,6 +1282,8 @@ export async function checkCommandAndSuggestRules(
     input,
     toolPermissionContext,
     compoundCommandHasCd,
+    undefined,
+    cwd,
   )
   // 2a. Deny/ask if command was explictly denied/asked
   if (
@@ -1457,6 +1464,87 @@ function filterCdCwdSubcommands(
     astCommandsByIdx.push(astCommands?.[i])
   }
   return { subcommands, astCommandsByIdx }
+}
+
+/**
+ * Official 2.1.111 `fkY`: only `&&` chains (no `||`, `;`, or bare `&`).
+ * Used to decide whether a leading relative `cd` can rewrite path-check cwd.
+ */
+function isAndOnlyCompound(command: string): boolean {
+  if (command.includes('||') || command.includes(';')) {
+    return false
+  }
+  if (command.replaceAll('&&', '').includes('&')) {
+    return false
+  }
+  return true
+}
+
+/**
+ * Official 2.1.111 `GkY`: if the first remaining subcommand is
+ * `cd <dest>` with dest absolute or `./`/`../`, dest readable and inside
+ * the working path, return the resolved directory. Bare relatives like
+ * `cd src` are rejected (same polarity as official `isAbsolute`).
+ */
+function resolveLeadingSafeCd(
+  astCmd: SimpleCommand | undefined,
+  cwd: string,
+  ctx: ToolPermissionContext,
+): string | null {
+  if (!astCmd) {
+    return null
+  }
+  if (astCmd.envVars.length > 0 || astCmd.redirects.length > 0) {
+    return null
+  }
+  if (astCmd.argv.length !== 2 || astCmd.argv[0] !== 'cd') {
+    return null
+  }
+  const dest = astCmd.argv[1]
+  if (dest === undefined || dest.startsWith('-')) {
+    return null
+  }
+  if (!isAbsolute(dest) && !dest.startsWith('./') && !dest.startsWith('../')) {
+    return null
+  }
+  const { allowed, resolvedPath } = validatePath(dest, cwd, ctx, 'read')
+  if (!allowed) {
+    return null
+  }
+  if (!pathInAllowedWorkingPath(resolvedPath, ctx, [resolvedPath])) {
+    return null
+  }
+  return resolvedPath
+}
+
+/**
+ * Official 2.1.111: when a compound `cd <rel> && …` dest is a safe path
+ * inside the working tree, subsequent path checks use that directory and
+ * the compound is no longer treated as "has cd" for path constraints.
+ * The cd+git ask still uses the original has-cd flag.
+ */
+function tryResolveLeadingSafeCdCwd(
+  command: string,
+  subcommands: string[],
+  rawSubcommandCount: number,
+  astCmd: SimpleCommand | undefined,
+  cwd: string,
+  ctx: ToolPermissionContext,
+  compoundCommandHasCd: boolean,
+): { cwd: string; compoundCommandHasCd: boolean } {
+  if (
+    compoundCommandHasCd &&
+    subcommands.length > 1 &&
+    subcommands.length === rawSubcommandCount &&
+    isNormalizedCdCommand(subcommands[0]!) &&
+    isAndOnlyCompound(command)
+  ) {
+    const resolved = resolveLeadingSafeCd(astCmd, cwd, ctx)
+    if (resolved !== null) {
+      return { cwd: resolved, compoundCommandHasCd: false }
+    }
+  }
+  return { cwd, compoundCommandHasCd }
 }
 
 /**
@@ -2279,6 +2367,20 @@ export async function bashToolHasPermission(
   // This prevents bypassing path checks via: cd .claude/ && mv test.txt settings.json
   const compoundCommandHasCd = cdCommands.length > 0
 
+  // Official 2.1.111 GkY: a leading `cd <abs|./|../…> &&` inside the
+  // working path rewrites path-check cwd and clears the cd flag for
+  // subsequent path constraints. cd+git below still uses the original flag.
+  const { cwd: pathCheckCwd, compoundCommandHasCd: cdAffectsCompound } =
+    tryResolveLeadingSafeCdCwd(
+      input.command,
+      subcommands,
+      rawSubcommands.length,
+      astCommandsByIdx[0],
+      cwd,
+      appState.toolPermissionContext,
+      compoundCommandHasCd,
+    )
+
   // SECURITY: Block compound commands that have both cd AND git
   // This prevents sandbox escape via: cd /malicious/dir && git status
   // where the malicious directory contains a bare git repo with core.fsmonitor.
@@ -2320,8 +2422,9 @@ export async function bashToolHasPermission(
     bashToolCheckPermission(
       { command },
       appState.toolPermissionContext,
-      compoundCommandHasCd,
+      cdAffectsCompound,
       astCommandsByIdx[i],
+      pathCheckCwd,
     ),
   )
 
@@ -2355,9 +2458,9 @@ export async function bashToolHasPermission(
   // that can silently hide redirect operators).
   const pathResult = checkPathConstraints(
     input,
-    getCwd(),
+    pathCheckCwd,
     appState.toolPermissionContext,
-    compoundCommandHasCd,
+    cdAffectsCompound,
     astRedirects,
     astCommands,
   )
@@ -2488,8 +2591,9 @@ export async function bashToolHasPermission(
       { command: subcommands[0]! },
       appState.toolPermissionContext,
       commandSubcommandPrefix,
-      compoundCommandHasCd,
+      cdAffectsCompound,
       astSubcommands !== null,
+      pathCheckCwd,
     )
     // If command wasn't allowed, attach pending classifier check.
     // At this point, 'ask' can only come from bashCommandIsSafe (security check inside
@@ -2524,8 +2628,9 @@ export async function bashToolHasPermission(
         },
         appState.toolPermissionContext,
         commandSubcommandPrefix?.subcommandPrefixes.get(subcommand),
-        compoundCommandHasCd,
+        cdAffectsCompound,
         astSubcommands !== null,
+        pathCheckCwd,
       ),
     )
   }

@@ -15,6 +15,10 @@ import { getAnthropicApiKeyWithSource } from '../auth.js'
 import { getCwd } from '../cwd.js'
 import { getFastModeState } from '../fastMode.js'
 import { getSettings_DEPRECATED } from '../settings/settings.js'
+import {
+  getPluginErrorMessage,
+  type PluginError,
+} from '../../types/plugin.js'
 
 // TODO(next-minor): remove this translation once SDK consumers have migrated
 // to the 'Agent' tool name. The wire name was renamed Task → Agent in #19647,
@@ -35,7 +39,24 @@ export type SystemInitInputs = {
   agents: ReadonlyArray<{ agentType: string }>
   skills: ReadonlyArray<CommandLike>
   plugins: ReadonlyArray<{ name: string; path: string; source: string }>
+  pluginErrors?: ReadonlyArray<PluginError>
   fastMode: boolean | undefined
+}
+
+function toPluginErrorWire(error: PluginError): {
+  plugin: string
+  type: string
+  message: string
+} {
+  const plugin =
+    ('plugin' in error && error.plugin) ||
+    ('pluginId' in error && error.pluginId) ||
+    error.source
+  return {
+    plugin,
+    type: error.type,
+    message: getPluginErrorMessage(error),
+  }
 }
 
 /**
@@ -82,6 +103,10 @@ export function buildSystemInitMessage(inputs: SystemInitInputs): SDKMessage {
       path: plugin.path,
       source: plugin.source,
     })),
+    ...(inputs.pluginErrors &&
+      inputs.pluginErrors.length > 0 && {
+        plugin_errors: inputs.pluginErrors.map(toPluginErrorWire),
+      }),
     uuid: randomUUID(),
   }
   // Hidden from public SDK types — ant-only UDS messaging socket path

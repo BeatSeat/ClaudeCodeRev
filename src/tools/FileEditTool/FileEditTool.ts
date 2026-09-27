@@ -2,7 +2,10 @@ import { dirname, isAbsolute, sep } from 'path'
 import { logEvent } from 'src/services/analytics/index.js'
 import { getFeatureValue_CACHED_MAY_BE_STALE } from '../../services/analytics/growthbook.js'
 import { diagnosticTracker } from '../../services/diagnosticTracking.js'
-import { clearDeliveredDiagnosticsForFile } from '../../services/lsp/LSPDiagnosticRegistry.js'
+import {
+  clearDeliveredDiagnosticsForFile,
+  clearPendingLSPDiagnosticsForFile,
+} from '../../services/lsp/LSPDiagnosticRegistry.js'
 import { getLspServerManager } from '../../services/lsp/manager.js'
 import { notifyVscodeFileUpdated } from '../../services/mcp/vscodeSdkMcp.js'
 import { checkTeamMemSecrets } from '../../services/teamMemorySync/teamMemSecretGuard.js'
@@ -445,6 +448,9 @@ export const FileEditTool = buildTool({
     }
 
     await diagnosticTracker.beforeFileEdited(absoluteFilePath)
+    // Drop pre-edit pending LSP diagnostics before any await that can
+    // interleave delivery (official 2.1.111: they were shown after the edit).
+    clearPendingLSPDiagnosticsForFile(`file://${absoluteFilePath}`)
 
     // Ensure parent directory exists before the atomic read-modify-write section.
     // These awaits must stay OUTSIDE the critical section below — a yield between
@@ -515,8 +521,12 @@ export const FileEditTool = buildTool({
     // Notify LSP servers about file modification (didChange) and save (didSave)
     const lspManager = getLspServerManager()
     if (lspManager) {
-      // Clear previously delivered diagnostics so new ones will be shown
-      clearDeliveredDiagnosticsForFile(`file://${absoluteFilePath}`)
+      // Clear previously delivered diagnostics so new ones will be shown.
+      // Also drop pending pre-edit diagnostics so they are not delivered
+      // after this write (official 2.1.111).
+      const editedFileUri = `file://${absoluteFilePath}`
+      clearPendingLSPDiagnosticsForFile(editedFileUri)
+      clearDeliveredDiagnosticsForFile(editedFileUri)
       // didChange: Content has been modified
       lspManager
         .changeFile(absoluteFilePath, updatedFile)

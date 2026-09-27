@@ -39,7 +39,6 @@ export const DEFAULT_BINDINGS: KeybindingBlock[] = [
       // will show an error if users try to override these keys.
       'ctrl+c': 'app:interrupt',
       'ctrl+d': 'app:exit',
-      'ctrl+l': 'app:redraw',
       'ctrl+t': 'app:toggleTodos',
       'ctrl+o': 'app:toggleTranscript',
       ...(feature('KAIROS') || feature('KAIROS_BRIEF')
@@ -64,6 +63,8 @@ export const DEFAULT_BINDINGS: KeybindingBlock[] = [
     context: 'Chat',
     bindings: {
       escape: 'chat:cancel',
+      // Official 111: Ctrl+L clears the prompt and forces a full-screen redraw.
+      'ctrl+l': 'chat:clearInput',
       // ctrl+x chord prefix avoids shadowing readline editing keys (ctrl+a/b/e/f/...).
       'ctrl+x ctrl+k': 'chat:killAgents',
       [MODE_CYCLE_KEY]: 'chat:cycleMode',
@@ -126,6 +127,8 @@ export const DEFAULT_BINDINGS: KeybindingBlock[] = [
       '/': 'settings:search',
       // Retry loading usage data (only active on error)
       r: 'settings:retry',
+      // Official 111: /skills menu sort by estimated token count
+      t: 'settings:sortByTokens',
     },
   },
   {

@@ -115,3 +115,22 @@ export function createGuestPassesFeed(): FeedConfig {
     footer: '/passes',
   }
 }
+
+/** Official 2.1.111 `gdK`. */
+export function createOpus47LaunchFeed(): FeedConfig {
+  return {
+    title: 'Opus 4.7 is here',
+    lines: [],
+    customContent: {
+      content: (
+        <Box marginY={1}>
+          <Text bold color="claude">
+            Welcome to Opus 4.7 xhigh!
+          </Text>
+        </Box>
+      ),
+      width: 48,
+    },
+    footer: '/effort to tune speed vs. intelligence',
+  }
+}
