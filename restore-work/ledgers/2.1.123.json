@@ -1,0 +1,10 @@
+{
+  "version": "2.1.123",
+  "fromVersion": "2.1.122",
+  "expectedFunctionCount": 0,
+  "functions": [],
+  "changelogCoverage": [
+    {"item": "OAuth 401 retry loop when CLAUDE_CODE_DISABLE_EXPERIMENTAL_BETAS=1", "status": "located", "evidence": "split Tb into an8 provider-only + bp kill-switch; getAllModelBetas push oauth-2025-04-20 via an8()"}
+  ],
+  "notes": "astdiff cometix 122→123: similarity 99.98%, 4 genuine-structural (minify p0/Ue/GA8/j$K classified-skip), 4 added-product (bp + VERSION stamps). No unique-token strings. P1–P9 / bfs/ugrep not landed. Four-domain reviews PASS. Did not start 2.1.126."
+}

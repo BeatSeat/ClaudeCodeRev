@@ -22,7 +22,11 @@ import {
   WEB_SEARCH_BETA_HEADER,
 } from '../constants/betas.js'
 import { OAUTH_BETA_HEADER } from '../constants/oauth.js'
-import { isClaudeAISubscriber, isMaxSubscriber } from './auth.js'
+import {
+  getAnthropicApiKey,
+  isClaudeAISubscriber,
+  isMaxSubscriber,
+} from './auth.js'
 import { has1mContext } from './context.js'
 import { isEnvDefinedFalsy, isEnvTruthy } from './envUtils.js'
 import { getCanonicalName } from './model/model.js'
@@ -225,14 +229,23 @@ export function getToolSearchBetaHeader(): string {
 }
 
 /**
- * Check if experimental betas should be included.
- * These are betas that are only available on firstParty provider
- * and may not be supported by proxies or other providers.
+ * 123 `an8` (was the provider half of 122 `Tb`): firstParty | anthropicAws |
+ * foundry. Does **not** consult CLAUDE_CODE_DISABLE_EXPERIMENTAL_BETAS.
+ */
+export function isFirstPartyBetaProvider(): boolean {
+  const provider = getAPIProvider()
+  return isFirstPartyApiFamily(provider) || provider === 'foundry'
+}
+
+/**
+ * 123 `bp` (122 `Tb`): provider gate plus the experimental-beta kill-switch.
+ * Still gates experimental betas / SDK 3P filter. OAuth `oauth-2025-04-20`
+ * is pushed from getAllModelBetas via `isFirstPartyBetaProvider()` (`an8`),
+ * not this function.
  */
 export function shouldIncludeFirstPartyOnlyBetas(): boolean {
-  const provider = getAPIProvider()
   return (
-    (isFirstPartyApiFamily(provider) || provider === 'foundry') &&
+    isFirstPartyBetaProvider() &&
     !isEnvTruthy(process.env.CLAUDE_CODE_DISABLE_EXPERIMENTAL_BETAS)
   )
 }
@@ -270,7 +283,15 @@ export const getAllModelBetas = memoize((model: string): string[] => {
       }
     }
   }
-  if (isClaudeAISubscriber()) {
+  // 122: if (Iq() || Tb() && !eL() && oI()) push(Lw)
+  // 123: if (Iq() || an8() && !eL() && oI()) push(Lw)
+  // Iq = isClaudeAISubscriber; eL = getAnthropicApiKey; oI = shouldUseWIFAuth
+  // (WIF module is no-host in this tree — 122 classified. Do not invent the
+  // WIF 401 retry). Provider half must be an8(), not bp()/Tb().
+  if (
+    isClaudeAISubscriber() ||
+    (isFirstPartyBetaProvider() && !getAnthropicApiKey())
+  ) {
     betaHeaders.push(OAUTH_BETA_HEADER)
   }
   if (has1mContext(model)) {
