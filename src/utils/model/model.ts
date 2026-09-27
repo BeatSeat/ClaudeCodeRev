@@ -331,6 +331,22 @@ export function isOpus1mMergeEnabled(): boolean {
   return true
 }
 
+/**
+ * Official 2.1.107 nc4: when opus-1m merge is on, resolved opus-4-6 agent
+ * models that lack an explicit [1m] suffix get one. Applied after
+ * parseUserSpecifiedModel in getAgentModel.
+ */
+export function applyOpus1mMergeIfNeeded(model: string): string {
+  if (
+    isOpus1mMergeEnabled() &&
+    !has1mContext(model) &&
+    getCanonicalName(model).includes('opus-4-6')
+  ) {
+    return model + '[1m]'
+  }
+  return model
+}
+
 export function renderModelSetting(setting: ModelName | ModelAlias): string {
   if (setting === 'opusplan') {
     return 'Opus Plan'

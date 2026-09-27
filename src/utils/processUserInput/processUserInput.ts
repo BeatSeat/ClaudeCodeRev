@@ -60,6 +60,10 @@ import {
   replaceUltraplanKeyword,
 } from '../ultraplan/keyword.js'
 import { processTextPrompt } from './processTextPrompt.js'
+import {
+  isThinkingGuidanceEnabled,
+  THINKING_FREQUENCY_REMINDER,
+} from '../thinking.js'
 export type ProcessUserInputContext = ToolUseContext & LocalJSXCommandContext
 
 export type ProcessUserInputBaseResult = {
@@ -569,7 +573,7 @@ async function processUserInputBase(
   }
 
   // Regular user prompt
-  return addImageMetadataMessage(
+  const result = addImageMetadataMessage(
     processTextPrompt(
       normalizedInput,
       imageContentBlocks,
@@ -581,6 +585,27 @@ async function processUserInputBase(
     ),
     imageMetadataTexts,
   )
+
+  // Official 2.1.107 F_A/meK: after the first assistant turn, append a
+  // thinking-frequency hint so long operations skip unnecessary thinking
+  // blocks (changelog: "Show thinking hints sooner during long operations").
+  if (
+    mode === 'prompt' &&
+    !isMeta &&
+    context.options.customSystemPrompt === undefined &&
+    context.options.thinkingConfig?.type !== 'disabled' &&
+    isThinkingGuidanceEnabled(context.options.mainLoopModel) &&
+    messages?.some(m => m.type === 'assistant')
+  ) {
+    result.messages.push(
+      createUserMessage({
+        content: THINKING_FREQUENCY_REMINDER,
+        isMeta: true,
+      }),
+    )
+  }
+
+  return result
 }
 
 // Adds image metadata texts as isMeta message to result

@@ -1,0 +1,14 @@
+{
+  "version": "2.1.107",
+  "fromVersion": "2.1.105",
+  "expectedFunctionCount": 0,
+  "functions": [],
+  "changelogCoverage": [
+    {
+      "item": "Show thinking hints sooner during long operations",
+      "status": "located",
+      "evidence": "Official 105→107 astdiff is 100% structurally similar (+7/-3). Real product adds: FH7 (opus-4-6 + clientDataCache.loud_sugary_rock), NeY thinking_guidance system-prompt section, meK isMeta reminder injected from F_A/processUserInput after the first assistant turn when thinking is on and customSystemPrompt is unset. Engineered in src/utils/thinking.ts + prompts.ts thinking_guidance + processUserInput.ts. Spinner THINKING_DELAY_MS stays 3000 (uwK unchanged). Also wired official nc4: applyOpus1mMergeIfNeeded in getAgentModel."
+    }
+  ],
+  "notes": "astdiff 2.1.105→2.1.107: structural similarity 100.0%, +7/-3, 3445 structural, 58 string-only. No new tengu_/CLAUDE_ strings. New clientDataCache key: loud_sugary_rock. Reviewed all 49 product + added/removed pairs: meK/FH7/NeY/nc4 are the real adds; vXz=GXz (computer-use timeout), R2A=N2A (onboarding VERSION 2.1.107), onY=nnY, remaining structural/string-only hits are minify rename or VERSION/BUILD_TIME. Do not pull 2.1.108 /recap or 1h prompt cache into this hop."
+}
