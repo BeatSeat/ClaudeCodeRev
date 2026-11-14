@@ -1,0 +1,8 @@
+{
+  "name": "incremental-ts-restore-skill",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "acorn": "^8.16.0"
+  }
+}

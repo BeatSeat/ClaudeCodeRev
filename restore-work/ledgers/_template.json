@@ -1,0 +1,8 @@
+{
+  "version": "2.1.89",
+  "fromVersion": "2.1.88",
+  "expectedFunctionCount": 0,
+  "functions": [],
+  "changelogCoverage": [],
+  "notes": "Copy this file to restore-work/ledgers/<version>.json. Every function from the target fingerprint must appear exactly once. changelogCoverage must cover every official CHANGELOG item for this version."
+}
