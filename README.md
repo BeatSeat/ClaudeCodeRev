@@ -1,5 +1,9 @@
 # Claude Code 2.1.88 Rebuild
 
+> **Integrated restoration history (2.1.88 → 2.1.190):** see [INTEGRATION.md](INTEGRATION.md).
+> Branch layout, per-version commit/tree map, and the comparison with the legacy and candidate lines
+> are in [integration/manifest.json](integration/manifest.json).
+
 Recovered source tree of `@anthropic-ai/claude-code@2.1.88`, rebuilt from the published npm package's sourcemap.
 
 ### *What you read with your own eyes becomes yours. What AIGC generates always belongs to someone else. — To a restless world.*

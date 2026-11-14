@@ -1,0 +1,1860 @@
+{
+  "schema": "ccr-integration-manifest/1",
+  "generated_at": "2026-11-14T11:46:45Z",
+  "base": {
+    "version": "2.1.88",
+    "commit": "0f326e7a8775b288677fc384b7d3f520d601fec3",
+    "tree": "52c7f820abbefbbf9d5b1139a20f34984361451d"
+  },
+  "lines": {
+    "integrated": {
+      "source": "/root/projects/ClaudeCodeRev",
+      "ref": "rule10-rebase",
+      "commit_count": 78,
+      "versions": {
+        "2.1.89": {
+          "version": "2.1.89",
+          "commit": "daa5c4ffcabf1b73785062d41e0457b789595170",
+          "tree": "e476652fbb4088fa881d711d7993fff1602b794f",
+          "parent": "f53c7724f39fc207d82f2adb80f2d392afd361fc",
+          "subject": "restore: align TypeScript tree with official 2.1.89"
+        },
+        "2.1.90": {
+          "version": "2.1.90",
+          "commit": "c610c1d6d38609eddba3229b694239afd5f5faad",
+          "tree": "4907632db730dfd29ba7b97270e1543b236123bd",
+          "parent": "daa5c4ffcabf1b73785062d41e0457b789595170",
+          "subject": "restore: align TypeScript tree with official 2.1.90"
+        },
+        "2.1.91": {
+          "version": "2.1.91",
+          "commit": "c0cc026a4b4110e4842e5d42715d063011b81776",
+          "tree": "06896b161df9c1281ead11590a92e14879dadac1",
+          "parent": "c610c1d6d38609eddba3229b694239afd5f5faad",
+          "subject": "restore: align TypeScript tree with official 2.1.91"
+        },
+        "2.1.92": {
+          "version": "2.1.92",
+          "commit": "a656e453f475ddeee5ea21ea7666e468b9ab8ac9",
+          "tree": "fe7921af5f4b6973856f9ce50da0bb3343c6a0b7",
+          "parent": "c0cc026a4b4110e4842e5d42715d063011b81776",
+          "subject": "restore: align TypeScript tree with official 2.1.92"
+        },
+        "2.1.94": {
+          "version": "2.1.94",
+          "commit": "a448ce4fb49d8b1ee111e5b01fa809c750e75887",
+          "tree": "863af17c79d026d56a52f780ada1d1581240514a",
+          "parent": "a656e453f475ddeee5ea21ea7666e468b9ab8ac9",
+          "subject": "restore: align TypeScript tree with official 2.1.94"
+        },
+        "2.1.96": {
+          "version": "2.1.96",
+          "commit": "a0673abb979f3a5a5550af77ca449f038ed16cf1",
+          "tree": "2eda69b10d1e91f7a14600c5a001439d19467b98",
+          "parent": "a448ce4fb49d8b1ee111e5b01fa809c750e75887",
+          "subject": "restore: align TypeScript tree with official 2.1.96"
+        },
+        "2.1.97": {
+          "version": "2.1.97",
+          "commit": "18e932682e457955f0c43d536468079f0e3cca85",
+          "tree": "05ee91758e6427d8688e9e5c77676436ed239bcb",
+          "parent": "a0673abb979f3a5a5550af77ca449f038ed16cf1",
+          "subject": "restore: align TypeScript tree with official 2.1.97"
+        },
+        "2.1.98": {
+          "version": "2.1.98",
+          "commit": "056c20afba393baa263a0f9ba3b2d4989b4e6324",
+          "tree": "365b12099db0b622a84f5ce183279f7f9466abba",
+          "parent": "18e932682e457955f0c43d536468079f0e3cca85",
+          "subject": "restore: align TypeScript tree with official 2.1.98"
+        },
+        "2.1.100": {
+          "version": "2.1.100",
+          "commit": "6a583f8e8b8a42fa1aebffde7640610b2e95da0e",
+          "tree": "b7b846f2e0114f60b97b016362247191e711c89c",
+          "parent": "056c20afba393baa263a0f9ba3b2d4989b4e6324",
+          "subject": "restore: align TypeScript tree with official 2.1.100"
+        },
+        "2.1.101": {
+          "version": "2.1.101",
+          "commit": "75c7f13e333ec9ffdc4aae234bdf99ba3c0074d9",
+          "tree": "71abf348e70441ac0f17d9b3e06911385404e816",
+          "parent": "6a583f8e8b8a42fa1aebffde7640610b2e95da0e",
+          "subject": "restore: align TypeScript tree with official 2.1.101"
+        },
+        "2.1.104": {
+          "version": "2.1.104",
+          "commit": "3157bdfad37322246c22f7cd0ee1055543074655",
+          "tree": "90aef975a78696519820c3685a6b3b8b799af669",
+          "parent": "75c7f13e333ec9ffdc4aae234bdf99ba3c0074d9",
+          "subject": "restore: align TypeScript tree with official 2.1.104"
+        },
+        "2.1.105": {
+          "version": "2.1.105",
+          "commit": "20dbdeee042db1e1c3fb82f5dc329219e6ccec16",
+          "tree": "d11102b57a895dfef0022e7f836085b501669109",
+          "parent": "3157bdfad37322246c22f7cd0ee1055543074655",
+          "subject": "restore: align TypeScript tree with official 2.1.105"
+        },
+        "2.1.107": {
+          "version": "2.1.107",
+          "commit": "d0331411f23356c2ae69c6df385da31657faeb2e",
+          "tree": "f8da53b9796a6652558f8ab6adcbfdb66ce6bd8d",
+          "parent": "20dbdeee042db1e1c3fb82f5dc329219e6ccec16",
+          "subject": "restore: align TypeScript tree with official 2.1.107"
+        },
+        "2.1.108": {
+          "version": "2.1.108",
+          "commit": "ba66c9d4a07d68b55086b335456f6d73424b36d8",
+          "tree": "beaf7d543dcc826e7174640f851726928712bb4d",
+          "parent": "d0331411f23356c2ae69c6df385da31657faeb2e",
+          "subject": "restore: align TypeScript tree with official 2.1.108"
+        },
+        "2.1.109": {
+          "version": "2.1.109",
+          "commit": "adf9bffb2611e553b16376677f686367b23a690c",
+          "tree": "47d77dffa48354e2cf6652ce74b9b3b28719e6c2",
+          "parent": "ba66c9d4a07d68b55086b335456f6d73424b36d8",
+          "subject": "restore: align TypeScript tree with official 2.1.109"
+        },
+        "2.1.110": {
+          "version": "2.1.110",
+          "commit": "3263b6e182b1957e491db3210897c8f562db19a9",
+          "tree": "c3101d3f8d4a078f41bf8e82610238df46d5e5c8",
+          "parent": "adf9bffb2611e553b16376677f686367b23a690c",
+          "subject": "restore: align TypeScript tree with official 2.1.110"
+        },
+        "2.1.111": {
+          "version": "2.1.111",
+          "commit": "06d860c6acf27e8e4bf64548ba62ac186cacc13c",
+          "tree": "e4d6d5975bc926a10b9970c7a3a23746b2001e7c",
+          "parent": "3263b6e182b1957e491db3210897c8f562db19a9",
+          "subject": "restore: align TypeScript tree with official 2.1.111"
+        },
+        "2.1.112": {
+          "version": "2.1.112",
+          "commit": "f8ecd0dd4d22eaf4c310d8fb15e4274f8f2b937a",
+          "tree": "e596c759ff063993e8d968bde363c3cf6b47e86b",
+          "parent": "06d860c6acf27e8e4bf64548ba62ac186cacc13c",
+          "subject": "restore: align TypeScript tree with official 2.1.112"
+        },
+        "2.1.113": {
+          "version": "2.1.113",
+          "commit": "a109d4de46ce35d6bf6eb925be767ea616c23733",
+          "tree": "9b41696f800e97c7dae6e6f4c941f2b020c6785e",
+          "parent": "f8ecd0dd4d22eaf4c310d8fb15e4274f8f2b937a",
+          "subject": "restore: align TypeScript tree with official 2.1.113"
+        },
+        "2.1.114": {
+          "version": "2.1.114",
+          "commit": "1fc8524665c633db92925a16be578d090c014aaf",
+          "tree": "d703e901f58e07fb6504baabbf2a04991fdb7a44",
+          "parent": "a109d4de46ce35d6bf6eb925be767ea616c23733",
+          "subject": "restore: align TypeScript tree with official 2.1.114"
+        },
+        "2.1.116": {
+          "version": "2.1.116",
+          "commit": "b7563e7926a9d06fab3c4a9f15c89f57ed6b3011",
+          "tree": "822bd6b32509eda2e61cda0e50520c1874b2349e",
+          "parent": "1fc8524665c633db92925a16be578d090c014aaf",
+          "subject": "restore: align TypeScript tree with official 2.1.116"
+        },
+        "2.1.117": {
+          "version": "2.1.117",
+          "commit": "106eadbd8abc277794c61296d221080b42a58555",
+          "tree": "e3fd26cecf62321fb11f3449a481955e5288e036",
+          "parent": "b7563e7926a9d06fab3c4a9f15c89f57ed6b3011",
+          "subject": "restore: align TypeScript tree with official 2.1.117"
+        },
+        "2.1.118": {
+          "version": "2.1.118",
+          "commit": "a3e2d9b970c5a71cfbaf02a9e4b160326f9f08e1",
+          "tree": "41c0f4291672fc48583bd5fd2250e89c65abb1c0",
+          "parent": "106eadbd8abc277794c61296d221080b42a58555",
+          "subject": "restore: align TypeScript tree with official 2.1.118"
+        },
+        "2.1.119": {
+          "version": "2.1.119",
+          "commit": "30b8937b4f6f00b468961f2538d62d3953a059b3",
+          "tree": "872ade0b6d8c3ece86ff009af93bd2d71a31c841",
+          "parent": "a3e2d9b970c5a71cfbaf02a9e4b160326f9f08e1",
+          "subject": "restore: align TypeScript tree with official 2.1.119"
+        },
+        "2.1.120": {
+          "version": "2.1.120",
+          "commit": "7f272fb3cec002f0a5690b2e3c3b8f364b4df8a7",
+          "tree": "07d72ead6a6d58e5f0d84f8a36477afa2ea6eca7",
+          "parent": "30b8937b4f6f00b468961f2538d62d3953a059b3",
+          "subject": "restore: align TypeScript tree with official 2.1.120"
+        },
+        "2.1.121": {
+          "version": "2.1.121",
+          "commit": "6475c86ea5609628335c448548dbcf0efb6858c4",
+          "tree": "93435e40fc0d687bdda243cb8f3fe240757518de",
+          "parent": "7f272fb3cec002f0a5690b2e3c3b8f364b4df8a7",
+          "subject": "restore: align TypeScript tree with official 2.1.121"
+        },
+        "2.1.122": {
+          "version": "2.1.122",
+          "commit": "b73f4d7a992fa2811938deb1604210685577054b",
+          "tree": "a9b9d1ba9f55b5d23461792d756d01dac91a9fff",
+          "parent": "6475c86ea5609628335c448548dbcf0efb6858c4",
+          "subject": "restore: align TypeScript tree with official 2.1.122"
+        },
+        "2.1.123": {
+          "version": "2.1.123",
+          "commit": "e861813ee163709ce0d27fb4f17964e7ec33649c",
+          "tree": "9d066ae9f716a4857140a4288ef904fb8c5de5ef",
+          "parent": "b73f4d7a992fa2811938deb1604210685577054b",
+          "subject": "restore: align TypeScript tree with official 2.1.123"
+        },
+        "2.1.126": {
+          "version": "2.1.126",
+          "commit": "cd4e4cc42abeb1aa042c6c5777a0f36609ec86d3",
+          "tree": "9a5dd7b13e345eb1326e8691b8af72efc5c80ba4",
+          "parent": "e861813ee163709ce0d27fb4f17964e7ec33649c",
+          "subject": "restore: align TypeScript tree with official 2.1.126"
+        },
+        "2.1.128": {
+          "version": "2.1.128",
+          "commit": "01faa3ca99f6362114c2dcd404aec3940548c20a",
+          "tree": "4f9648b85faa4a09bb0263a22f51db775195d210",
+          "parent": "cd4e4cc42abeb1aa042c6c5777a0f36609ec86d3",
+          "subject": "restore: align TypeScript tree with official 2.1.128"
+        },
+        "2.1.129": {
+          "version": "2.1.129",
+          "commit": "1aaff895cf1fb619ffd9d63324df07c3af5e8628",
+          "tree": "71166456bf1b095b4002faf3a206e02f7733134c",
+          "parent": "01faa3ca99f6362114c2dcd404aec3940548c20a",
+          "subject": "restore: align TypeScript tree with official 2.1.129"
+        },
+        "2.1.131": {
+          "version": "2.1.131",
+          "commit": "9bb8747a95abee76f3ed79b90903808053732b0a",
+          "tree": "64fe6e0f3d47ff5c70b9e2bf0dcad9650eb91685",
+          "parent": "1aaff895cf1fb619ffd9d63324df07c3af5e8628",
+          "subject": "restore: align TypeScript tree with official 2.1.131"
+        },
+        "2.1.132": {
+          "version": "2.1.132",
+          "commit": "561790cca51988ca8b616273e00448a8451a4004",
+          "tree": "1d9b1e1d9d29f9639b0d56a18c2911a0a761c761",
+          "parent": "9bb8747a95abee76f3ed79b90903808053732b0a",
+          "subject": "restore: align TypeScript tree with official 2.1.132"
+        },
+        "2.1.133": {
+          "version": "2.1.133",
+          "commit": "e5450eef800792e6506fd164deb7dfc9411d215e",
+          "tree": "6f0b029c36c2010ff0025e90f54f870bbf2d5e46",
+          "parent": "561790cca51988ca8b616273e00448a8451a4004",
+          "subject": "restore: align TypeScript tree with official 2.1.133"
+        },
+        "2.1.136": {
+          "version": "2.1.136",
+          "commit": "d42daf120a48c67779f02d324ef6300896532a51",
+          "tree": "c277069b72c9dae1dc4e5a58b80ce5751bd0c343",
+          "parent": "e5450eef800792e6506fd164deb7dfc9411d215e",
+          "subject": "restore: align TypeScript tree with official 2.1.136"
+        },
+        "2.1.137": {
+          "version": "2.1.137",
+          "commit": "5eddac2ea0631ab14e47fd921774660ef1da2fdd",
+          "tree": "5c76477a50651d9722e5b55196e0481da39b839e",
+          "parent": "d42daf120a48c67779f02d324ef6300896532a51",
+          "subject": "restore: align TypeScript tree with official 2.1.137"
+        },
+        "2.1.138": {
+          "version": "2.1.138",
+          "commit": "67425b617a47a8e7a1391348f022e69742d95bd5",
+          "tree": "a7f19dc06a0362b3e06d3f950b262000428661f5",
+          "parent": "5eddac2ea0631ab14e47fd921774660ef1da2fdd",
+          "subject": "restore: align TypeScript tree with official 2.1.138"
+        },
+        "2.1.139": {
+          "version": "2.1.139",
+          "commit": "ca58d13588aff2ec71111fd25d9a5068a1339169",
+          "tree": "2166d276aef5a8f051b8c4c58ee64b7bc5f7b9f7",
+          "parent": "67425b617a47a8e7a1391348f022e69742d95bd5",
+          "subject": "restore: align TypeScript tree with official 2.1.139"
+        },
+        "2.1.140": {
+          "version": "2.1.140",
+          "commit": "88694f90b8308e6651756647ad1b24da5a7eb399",
+          "tree": "b65ca192708d637e539b8cae1cef87387a6fb89a",
+          "parent": "ca58d13588aff2ec71111fd25d9a5068a1339169",
+          "subject": "restore: align TypeScript tree with official 2.1.140"
+        },
+        "2.1.141": {
+          "version": "2.1.141",
+          "commit": "6e73ef17e3761dee2fdc1958250c15c04b355240",
+          "tree": "e5dc74dbda6ab6b828ea6a859e1a8d0027b141ab",
+          "parent": "88694f90b8308e6651756647ad1b24da5a7eb399",
+          "subject": "restore: align TypeScript tree with official 2.1.141"
+        },
+        "2.1.142": {
+          "version": "2.1.142",
+          "commit": "b808d7bc446c4a771a8d07fa730855172ff8de21",
+          "tree": "986ed9ad1f799e8ce9ca500add44f68cc26850de",
+          "parent": "6e73ef17e3761dee2fdc1958250c15c04b355240",
+          "subject": "restore: align TypeScript tree with official 2.1.142"
+        },
+        "2.1.143": {
+          "version": "2.1.143",
+          "commit": "344bf492d305c2d36548f551fbfed588e10afb8b",
+          "tree": "7e8b7fd0151ae661869afb73788b718f86038092",
+          "parent": "b808d7bc446c4a771a8d07fa730855172ff8de21",
+          "subject": "restore: align TypeScript tree with official 2.1.143"
+        },
+        "2.1.144": {
+          "version": "2.1.144",
+          "commit": "181eea635b12bb625828c7e4669a6346040e0ecb",
+          "tree": "860b3b2fe187c9994e990f4147728abf8904002c",
+          "parent": "344bf492d305c2d36548f551fbfed588e10afb8b",
+          "subject": "restore: align TypeScript tree with official 2.1.144"
+        },
+        "2.1.145": {
+          "version": "2.1.145",
+          "commit": "b1a4205cbc6c8cbaa1fba1548d753557f7ffec97",
+          "tree": "c92a0c9e885f00a9b0d17829352ff9448c0dbf3f",
+          "parent": "181eea635b12bb625828c7e4669a6346040e0ecb",
+          "subject": "restore: align TypeScript tree with official 2.1.145"
+        },
+        "2.1.146": {
+          "version": "2.1.146",
+          "commit": "2c5895ec1550a0e30fcdeccd338cd12bce274759",
+          "tree": "57edd938ad6a0ba26bce8d1f4efe109a7c2e4239",
+          "parent": "b1a4205cbc6c8cbaa1fba1548d753557f7ffec97",
+          "subject": "restore: align TypeScript tree with official 2.1.146"
+        },
+        "2.1.147": {
+          "version": "2.1.147",
+          "commit": "56fb706534353d79d74ae2ced1ad463621ffeefe",
+          "tree": "6a7804a62dd8c552976cea68a1ebef65b0b501f9",
+          "parent": "2c5895ec1550a0e30fcdeccd338cd12bce274759",
+          "subject": "restore: align TypeScript tree with official 2.1.147"
+        },
+        "2.1.148": {
+          "version": "2.1.148",
+          "commit": "3d7586894a5c8d12f965e3af1186730f5a685f24",
+          "tree": "1b689c6837074732e9d5cbe1fd3d80f63c0f42d4",
+          "parent": "56fb706534353d79d74ae2ced1ad463621ffeefe",
+          "subject": "restore: align TypeScript tree with official 2.1.148"
+        },
+        "2.1.149": {
+          "version": "2.1.149",
+          "commit": "8d9057176d437d6498cedb6a5fc281e739a9a72d",
+          "tree": "0f8ec30d5915e036aa79e22e181cc7a1b8e2059e",
+          "parent": "3d7586894a5c8d12f965e3af1186730f5a685f24",
+          "subject": "restore: align TypeScript tree with official 2.1.149"
+        },
+        "2.1.150": {
+          "version": "2.1.150",
+          "commit": "4a58c47dcce68d646a6124c8685af02b749f387e",
+          "tree": "464d13b2f98e97983a326d3a3a5cc60d5c8bea8a",
+          "parent": "8d9057176d437d6498cedb6a5fc281e739a9a72d",
+          "subject": "restore: align TypeScript tree with official 2.1.150"
+        },
+        "2.1.152": {
+          "version": "2.1.152",
+          "commit": "fb79f33731677f2a69d99b61f06a95003fd6c45d",
+          "tree": "71fe580f8935fa59a3d2f39cacfe982b316f4546",
+          "parent": "4a58c47dcce68d646a6124c8685af02b749f387e",
+          "subject": "restore: align TypeScript tree with official 2.1.152"
+        },
+        "2.1.153": {
+          "version": "2.1.153",
+          "commit": "fb447907d139c181eeb38feb6faa77cf32af5448",
+          "tree": "115d20adacb634519362080cb3cc4df6ef707535",
+          "parent": "fb79f33731677f2a69d99b61f06a95003fd6c45d",
+          "subject": "restore: align TypeScript tree with official 2.1.153"
+        },
+        "2.1.154": {
+          "version": "2.1.154",
+          "commit": "5493847097ee29674428ab9a28c01ee82648bcd0",
+          "tree": "54778b6ffc537a77ded4bb82e11366c285344ddc",
+          "parent": "fb447907d139c181eeb38feb6faa77cf32af5448",
+          "subject": "restore: align TypeScript tree with official 2.1.154"
+        },
+        "2.1.156": {
+          "version": "2.1.156",
+          "commit": "7a9ac1e619888c347e5caadae6e82d3a3985035e",
+          "tree": "6ba58b5f6282fafb7aeccc91147d4aab07d762b4",
+          "parent": "5493847097ee29674428ab9a28c01ee82648bcd0",
+          "subject": "restore: align TypeScript tree with official 2.1.156"
+        },
+        "2.1.157": {
+          "version": "2.1.157",
+          "commit": "253c383ea2895c919153f2021a9ad52500e24023",
+          "tree": "c47cf74bda0a7f8e43a101e99e5261ed286a2e6d",
+          "parent": "7a9ac1e619888c347e5caadae6e82d3a3985035e",
+          "subject": "restore: align TypeScript tree with official 2.1.157"
+        },
+        "2.1.158": {
+          "version": "2.1.158",
+          "commit": "06c305630983e4435862006d19636ae19e1169d5",
+          "tree": "ac177beffb3caa1d95ec4e579f0661b401377179",
+          "parent": "253c383ea2895c919153f2021a9ad52500e24023",
+          "subject": "restore: align TypeScript tree with official 2.1.158"
+        },
+        "2.1.159": {
+          "version": "2.1.159",
+          "commit": "aa8df186d2b5652d6b4e143fd0e236bc6d2b9158",
+          "tree": "5c7075887fb63f11847c1302b3537bf9ee6a73b0",
+          "parent": "06c305630983e4435862006d19636ae19e1169d5",
+          "subject": "restore: align TypeScript tree with official 2.1.159"
+        },
+        "2.1.160": {
+          "version": "2.1.160",
+          "commit": "895e0d7a5a16996a47714769e7780c847f7555f6",
+          "tree": "72b821715f81da4b3041e90604e77c546e1e384a",
+          "parent": "aa8df186d2b5652d6b4e143fd0e236bc6d2b9158",
+          "subject": "restore: align TypeScript tree with official 2.1.160"
+        },
+        "2.1.161": {
+          "version": "2.1.161",
+          "commit": "771b3984dc3ba13c8b7b921239c65b95d8d97b61",
+          "tree": "e8a5d69609fb5b7b4b831128f8b83b3b641064f1",
+          "parent": "cefb6ff78d3759e3751aa12c2a4a63d03c672995",
+          "subject": "restore: align TypeScript tree with official 2.1.161"
+        },
+        "2.1.162": {
+          "version": "2.1.162",
+          "commit": "01ed5667c540a660d8bd2342ace6a60c16470688",
+          "tree": "e57719c9719b98a53fe716b051a16d29b8e32a0c",
+          "parent": "771b3984dc3ba13c8b7b921239c65b95d8d97b61",
+          "subject": "restore: align TypeScript tree with official 2.1.162"
+        },
+        "2.1.163": {
+          "version": "2.1.163",
+          "commit": "2380c1fd594318b6994ba0769825e3e0d4d41acd",
+          "tree": "66208fbe9bac3beabb0c24f4fcfc87281d0a279e",
+          "parent": "01ed5667c540a660d8bd2342ace6a60c16470688",
+          "subject": "restore: align TypeScript tree with official 2.1.163"
+        },
+        "2.1.165": {
+          "version": "2.1.165",
+          "commit": "3d83b020426415b1009127d2b45196ef9aac939a",
+          "tree": "d07121e547a6308846954fa4a20f1610420e606b",
+          "parent": "2380c1fd594318b6994ba0769825e3e0d4d41acd",
+          "subject": "restore: align TypeScript tree with official 2.1.165"
+        },
+        "2.1.166": {
+          "version": "2.1.166",
+          "commit": "d8860312a118e518d4f9111649fb26df655da304",
+          "tree": "8ca262d3a4a9ab33e93ebb4c58d979c570adc790",
+          "parent": "3d83b020426415b1009127d2b45196ef9aac939a",
+          "subject": "restore: align TypeScript tree with official 2.1.166"
+        },
+        "2.1.167": {
+          "version": "2.1.167",
+          "commit": "277097e3a133bde4d48bbbc30ddeb35af8000f06",
+          "tree": "23799ea477ba7025940c83b40eb01844e9c0a2d7",
+          "parent": "d8860312a118e518d4f9111649fb26df655da304",
+          "subject": "restore: align TypeScript tree with official 2.1.167"
+        },
+        "2.1.169": {
+          "version": "2.1.169",
+          "commit": "39e5c2d69e7ebf6e7f6c8f9e77de1266f5d8d546",
+          "tree": "162f54add3258ff8033de84530cb77bfad0baff7",
+          "parent": "0a8e529f5f548d7d13d4449511b097f509121179",
+          "subject": "restore: align TypeScript tree with official 2.1.169"
+        },
+        "2.1.170": {
+          "version": "2.1.170",
+          "commit": "ef5e5074a0b8521b48084f5a7f16bac862c2329b",
+          "tree": "b8a70c1081bf7c6cde0c5988c06d79a946e84d83",
+          "parent": "39e5c2d69e7ebf6e7f6c8f9e77de1266f5d8d546",
+          "subject": "restore: align TypeScript tree with official 2.1.170"
+        },
+        "2.1.172": {
+          "version": "2.1.172",
+          "commit": "c7e5441317a1a639505b5a7c3d39fedfb12a3af1",
+          "tree": "70c554fa2c00acbd17f23c7e49c19ed6e09da61b",
+          "parent": "ef5e5074a0b8521b48084f5a7f16bac862c2329b",
+          "subject": "restore: align TypeScript tree with official 2.1.172"
+        },
+        "2.1.173": {
+          "version": "2.1.173",
+          "commit": "91eb81d5a0849498a3a7d1184bb800a2e8a195ea",
+          "tree": "f480cd2142a255141528b9f2847d255e3f530cf5",
+          "parent": "c7e5441317a1a639505b5a7c3d39fedfb12a3af1",
+          "subject": "restore: align TypeScript tree with official 2.1.173"
+        },
+        "2.1.174": {
+          "version": "2.1.174",
+          "commit": "1f7cfcac3fb1a945f33671e8abc43572f7ab2764",
+          "tree": "5b00761afdcac8aa567abdfa9201d659edf938b3",
+          "parent": "91eb81d5a0849498a3a7d1184bb800a2e8a195ea",
+          "subject": "restore: align TypeScript tree with official 2.1.174"
+        },
+        "2.1.175": {
+          "version": "2.1.175",
+          "commit": "c4e899f7896815158bc682703588cae5c656db0f",
+          "tree": "2dc15964ac432f389eabfc211c636eab468b58da",
+          "parent": "f47b5e9dac9e2697f14ec2e968a7336a9fa8a42a",
+          "subject": "restore: align TypeScript tree with official 2.1.175"
+        },
+        "2.1.176": {
+          "version": "2.1.176",
+          "commit": "642b22057b3f8b41a7ff7c26edf708ce3402205d",
+          "tree": "6fa0554f20502cb8412496f3e1ceb8091c9ee8f0",
+          "parent": "c4e899f7896815158bc682703588cae5c656db0f",
+          "subject": "restore: align TypeScript tree with official 2.1.176"
+        },
+        "2.1.178": {
+          "version": "2.1.178",
+          "commit": "9aa2ceb10c11611cd15a5adafd4b7cb2a63734c2",
+          "tree": "80b5161ec319c850133a2d5a6a089a6a6a50d779",
+          "parent": "642b22057b3f8b41a7ff7c26edf708ce3402205d",
+          "subject": "restore: align TypeScript tree with official 2.1.178"
+        },
+        "2.1.179": {
+          "version": "2.1.179",
+          "commit": "e09e8c96926bdf0158dc733cc42993841ed3b234",
+          "tree": "05ad2c85080c79a65fde1cbf09b29b0891a8b39d",
+          "parent": "9aa2ceb10c11611cd15a5adafd4b7cb2a63734c2",
+          "subject": "restore: align TypeScript tree with official 2.1.179"
+        },
+        "2.1.181": {
+          "version": "2.1.181",
+          "commit": "920fe8049b111a6e201e6fda278db4f3654c5c45",
+          "tree": "af1950ed6c8f8e5fd1d2298e205fcaed043b4a35",
+          "parent": "e09e8c96926bdf0158dc733cc42993841ed3b234",
+          "subject": "restore: align TypeScript tree with official 2.1.181"
+        },
+        "2.1.183": {
+          "version": "2.1.183",
+          "commit": "7ea235e2600b1518c715044d56a000f0dad38000",
+          "tree": "31e761961ebcf369b9a526f72b99ce07171bc90f",
+          "parent": "920fe8049b111a6e201e6fda278db4f3654c5c45",
+          "subject": "restore: align TypeScript tree with official 2.1.183"
+        },
+        "2.1.185": {
+          "version": "2.1.185",
+          "commit": "33fa315da4d0379e41eae6ea45d79c6c25d5e224",
+          "tree": "e64823f93b9808a0e3e431f0d2a8043370a71c55",
+          "parent": "7ea235e2600b1518c715044d56a000f0dad38000",
+          "subject": "restore: align TypeScript tree with official 2.1.185"
+        },
+        "2.1.186": {
+          "version": "2.1.186",
+          "commit": "b0663162aa021e4374252629230271654cc821d4",
+          "tree": "610609799cdaac9ad8b06f294618629426b6cd0e",
+          "parent": "f904d4e064ba8f8b5d6080f52c7838e43f607d92",
+          "subject": "restore: align TypeScript tree with official 2.1.186"
+        },
+        "2.1.187": {
+          "version": "2.1.187",
+          "commit": "94642df692dd1663b058f19b0859d2a73c3366f6",
+          "tree": "5195299fe16460f6df39190cecb9d9e6d8e9e85a",
+          "parent": "b0663162aa021e4374252629230271654cc821d4",
+          "subject": "restore: align TypeScript tree with official 2.1.187"
+        },
+        "2.1.190": {
+          "version": "2.1.190",
+          "commit": "e0a957b26f65f4f1d94bf577f4edebd71c323394",
+          "tree": "219d09e59e00e0be576dbcc2703202960f651563",
+          "parent": "94642df692dd1663b058f19b0859d2a73c3366f6",
+          "subject": "restore: align TypeScript tree with official 2.1.190"
+        }
+      }
+    },
+    "legacy_github_master": {
+      "source": "github.com/BeatSeat/ClaudeCodeRev master as of 2026-09-07",
+      "ref": "master",
+      "commit_count": 74,
+      "versions": {
+        "2.1.89": {
+          "version": "2.1.89",
+          "commit": "daa5c4ffcabf1b73785062d41e0457b789595170",
+          "tree": "e476652fbb4088fa881d711d7993fff1602b794f",
+          "parent": "f53c7724f39fc207d82f2adb80f2d392afd361fc",
+          "subject": "restore: align TypeScript tree with official 2.1.89"
+        },
+        "2.1.90": {
+          "version": "2.1.90",
+          "commit": "c610c1d6d38609eddba3229b694239afd5f5faad",
+          "tree": "4907632db730dfd29ba7b97270e1543b236123bd",
+          "parent": "daa5c4ffcabf1b73785062d41e0457b789595170",
+          "subject": "restore: align TypeScript tree with official 2.1.90"
+        },
+        "2.1.91": {
+          "version": "2.1.91",
+          "commit": "c0cc026a4b4110e4842e5d42715d063011b81776",
+          "tree": "06896b161df9c1281ead11590a92e14879dadac1",
+          "parent": "c610c1d6d38609eddba3229b694239afd5f5faad",
+          "subject": "restore: align TypeScript tree with official 2.1.91"
+        },
+        "2.1.92": {
+          "version": "2.1.92",
+          "commit": "a656e453f475ddeee5ea21ea7666e468b9ab8ac9",
+          "tree": "fe7921af5f4b6973856f9ce50da0bb3343c6a0b7",
+          "parent": "c0cc026a4b4110e4842e5d42715d063011b81776",
+          "subject": "restore: align TypeScript tree with official 2.1.92"
+        },
+        "2.1.94": {
+          "version": "2.1.94",
+          "commit": "a448ce4fb49d8b1ee111e5b01fa809c750e75887",
+          "tree": "863af17c79d026d56a52f780ada1d1581240514a",
+          "parent": "a656e453f475ddeee5ea21ea7666e468b9ab8ac9",
+          "subject": "restore: align TypeScript tree with official 2.1.94"
+        },
+        "2.1.96": {
+          "version": "2.1.96",
+          "commit": "a0673abb979f3a5a5550af77ca449f038ed16cf1",
+          "tree": "2eda69b10d1e91f7a14600c5a001439d19467b98",
+          "parent": "a448ce4fb49d8b1ee111e5b01fa809c750e75887",
+          "subject": "restore: align TypeScript tree with official 2.1.96"
+        },
+        "2.1.97": {
+          "version": "2.1.97",
+          "commit": "18e932682e457955f0c43d536468079f0e3cca85",
+          "tree": "05ee91758e6427d8688e9e5c77676436ed239bcb",
+          "parent": "a0673abb979f3a5a5550af77ca449f038ed16cf1",
+          "subject": "restore: align TypeScript tree with official 2.1.97"
+        },
+        "2.1.98": {
+          "version": "2.1.98",
+          "commit": "056c20afba393baa263a0f9ba3b2d4989b4e6324",
+          "tree": "365b12099db0b622a84f5ce183279f7f9466abba",
+          "parent": "18e932682e457955f0c43d536468079f0e3cca85",
+          "subject": "restore: align TypeScript tree with official 2.1.98"
+        },
+        "2.1.100": {
+          "version": "2.1.100",
+          "commit": "6a583f8e8b8a42fa1aebffde7640610b2e95da0e",
+          "tree": "b7b846f2e0114f60b97b016362247191e711c89c",
+          "parent": "056c20afba393baa263a0f9ba3b2d4989b4e6324",
+          "subject": "restore: align TypeScript tree with official 2.1.100"
+        },
+        "2.1.101": {
+          "version": "2.1.101",
+          "commit": "75c7f13e333ec9ffdc4aae234bdf99ba3c0074d9",
+          "tree": "71abf348e70441ac0f17d9b3e06911385404e816",
+          "parent": "6a583f8e8b8a42fa1aebffde7640610b2e95da0e",
+          "subject": "restore: align TypeScript tree with official 2.1.101"
+        },
+        "2.1.104": {
+          "version": "2.1.104",
+          "commit": "3157bdfad37322246c22f7cd0ee1055543074655",
+          "tree": "90aef975a78696519820c3685a6b3b8b799af669",
+          "parent": "75c7f13e333ec9ffdc4aae234bdf99ba3c0074d9",
+          "subject": "restore: align TypeScript tree with official 2.1.104"
+        },
+        "2.1.105": {
+          "version": "2.1.105",
+          "commit": "20dbdeee042db1e1c3fb82f5dc329219e6ccec16",
+          "tree": "d11102b57a895dfef0022e7f836085b501669109",
+          "parent": "3157bdfad37322246c22f7cd0ee1055543074655",
+          "subject": "restore: align TypeScript tree with official 2.1.105"
+        },
+        "2.1.107": {
+          "version": "2.1.107",
+          "commit": "d0331411f23356c2ae69c6df385da31657faeb2e",
+          "tree": "f8da53b9796a6652558f8ab6adcbfdb66ce6bd8d",
+          "parent": "20dbdeee042db1e1c3fb82f5dc329219e6ccec16",
+          "subject": "restore: align TypeScript tree with official 2.1.107"
+        },
+        "2.1.108": {
+          "version": "2.1.108",
+          "commit": "ba66c9d4a07d68b55086b335456f6d73424b36d8",
+          "tree": "beaf7d543dcc826e7174640f851726928712bb4d",
+          "parent": "d0331411f23356c2ae69c6df385da31657faeb2e",
+          "subject": "restore: align TypeScript tree with official 2.1.108"
+        },
+        "2.1.109": {
+          "version": "2.1.109",
+          "commit": "adf9bffb2611e553b16376677f686367b23a690c",
+          "tree": "47d77dffa48354e2cf6652ce74b9b3b28719e6c2",
+          "parent": "ba66c9d4a07d68b55086b335456f6d73424b36d8",
+          "subject": "restore: align TypeScript tree with official 2.1.109"
+        },
+        "2.1.110": {
+          "version": "2.1.110",
+          "commit": "3263b6e182b1957e491db3210897c8f562db19a9",
+          "tree": "c3101d3f8d4a078f41bf8e82610238df46d5e5c8",
+          "parent": "adf9bffb2611e553b16376677f686367b23a690c",
+          "subject": "restore: align TypeScript tree with official 2.1.110"
+        },
+        "2.1.111": {
+          "version": "2.1.111",
+          "commit": "06d860c6acf27e8e4bf64548ba62ac186cacc13c",
+          "tree": "e4d6d5975bc926a10b9970c7a3a23746b2001e7c",
+          "parent": "3263b6e182b1957e491db3210897c8f562db19a9",
+          "subject": "restore: align TypeScript tree with official 2.1.111"
+        },
+        "2.1.112": {
+          "version": "2.1.112",
+          "commit": "f8ecd0dd4d22eaf4c310d8fb15e4274f8f2b937a",
+          "tree": "e596c759ff063993e8d968bde363c3cf6b47e86b",
+          "parent": "06d860c6acf27e8e4bf64548ba62ac186cacc13c",
+          "subject": "restore: align TypeScript tree with official 2.1.112"
+        },
+        "2.1.113": {
+          "version": "2.1.113",
+          "commit": "a109d4de46ce35d6bf6eb925be767ea616c23733",
+          "tree": "9b41696f800e97c7dae6e6f4c941f2b020c6785e",
+          "parent": "f8ecd0dd4d22eaf4c310d8fb15e4274f8f2b937a",
+          "subject": "restore: align TypeScript tree with official 2.1.113"
+        },
+        "2.1.114": {
+          "version": "2.1.114",
+          "commit": "1fc8524665c633db92925a16be578d090c014aaf",
+          "tree": "d703e901f58e07fb6504baabbf2a04991fdb7a44",
+          "parent": "a109d4de46ce35d6bf6eb925be767ea616c23733",
+          "subject": "restore: align TypeScript tree with official 2.1.114"
+        },
+        "2.1.116": {
+          "version": "2.1.116",
+          "commit": "b7563e7926a9d06fab3c4a9f15c89f57ed6b3011",
+          "tree": "822bd6b32509eda2e61cda0e50520c1874b2349e",
+          "parent": "1fc8524665c633db92925a16be578d090c014aaf",
+          "subject": "restore: align TypeScript tree with official 2.1.116"
+        },
+        "2.1.117": {
+          "version": "2.1.117",
+          "commit": "106eadbd8abc277794c61296d221080b42a58555",
+          "tree": "e3fd26cecf62321fb11f3449a481955e5288e036",
+          "parent": "b7563e7926a9d06fab3c4a9f15c89f57ed6b3011",
+          "subject": "restore: align TypeScript tree with official 2.1.117"
+        },
+        "2.1.118": {
+          "version": "2.1.118",
+          "commit": "a3e2d9b970c5a71cfbaf02a9e4b160326f9f08e1",
+          "tree": "41c0f4291672fc48583bd5fd2250e89c65abb1c0",
+          "parent": "106eadbd8abc277794c61296d221080b42a58555",
+          "subject": "restore: align TypeScript tree with official 2.1.118"
+        },
+        "2.1.119": {
+          "version": "2.1.119",
+          "commit": "30b8937b4f6f00b468961f2538d62d3953a059b3",
+          "tree": "872ade0b6d8c3ece86ff009af93bd2d71a31c841",
+          "parent": "a3e2d9b970c5a71cfbaf02a9e4b160326f9f08e1",
+          "subject": "restore: align TypeScript tree with official 2.1.119"
+        },
+        "2.1.120": {
+          "version": "2.1.120",
+          "commit": "6e870c9d4d408888dd9aa40b603c1dcd36b4e7d3",
+          "tree": "ed749f188833dc0ea012ee01f095bca0dbdc645d",
+          "parent": "30b8937b4f6f00b468961f2538d62d3953a059b3",
+          "subject": "restore: align TypeScript tree with official 2.1.120"
+        },
+        "2.1.121": {
+          "version": "2.1.121",
+          "commit": "85b49f27969d2e02079e3c8e0201bd43a8dbe41c",
+          "tree": "93d8870453f45f53fcd237a80b8e79e92abd6436",
+          "parent": "6e870c9d4d408888dd9aa40b603c1dcd36b4e7d3",
+          "subject": "restore: align TypeScript tree with official 2.1.121"
+        },
+        "2.1.122": {
+          "version": "2.1.122",
+          "commit": "f34a239e298faf677bf2238d6558729180e7f20d",
+          "tree": "76d6ec2459268265e76e14a98375ae23c0de6de9",
+          "parent": "85b49f27969d2e02079e3c8e0201bd43a8dbe41c",
+          "subject": "restore: align TypeScript tree with official 2.1.122"
+        },
+        "2.1.123": {
+          "version": "2.1.123",
+          "commit": "f1701484096ca55d71ebe884dfc901dd56862194",
+          "tree": "737b6d6762ff3bd5abd37fe66b704492c518c859",
+          "parent": "f34a239e298faf677bf2238d6558729180e7f20d",
+          "subject": "restore: align TypeScript tree with official 2.1.123"
+        },
+        "2.1.126": {
+          "version": "2.1.126",
+          "commit": "973565ce23fe9410c731730354747d0690dfd4b8",
+          "tree": "ae60a39b6cc6f87582da9b482e181da2329f8b96",
+          "parent": "f1701484096ca55d71ebe884dfc901dd56862194",
+          "subject": "restore: align TypeScript tree with official 2.1.126"
+        },
+        "2.1.128": {
+          "version": "2.1.128",
+          "commit": "0003768c2ea91bdd3c03cf7f43a9aa77b0a6fe98",
+          "tree": "14dbfc093f7d3618ee4f7304d9858269ed43a356",
+          "parent": "973565ce23fe9410c731730354747d0690dfd4b8",
+          "subject": "restore: align TypeScript tree with official 2.1.128"
+        },
+        "2.1.129": {
+          "version": "2.1.129",
+          "commit": "ffe471c7e62530e0c485e435b8d3ac2b730f00fd",
+          "tree": "0de8231ffffe7032c9bc7a5410ecd5878972af8b",
+          "parent": "0003768c2ea91bdd3c03cf7f43a9aa77b0a6fe98",
+          "subject": "restore: align TypeScript tree with official 2.1.129"
+        },
+        "2.1.131": {
+          "version": "2.1.131",
+          "commit": "6038103f46d2b9390b3ac4f8ffb7f33a54a974f1",
+          "tree": "17d017975f133cb8c0f9e4b545bb6e43599c109c",
+          "parent": "ffe471c7e62530e0c485e435b8d3ac2b730f00fd",
+          "subject": "restore: align TypeScript tree with official 2.1.131"
+        },
+        "2.1.132": {
+          "version": "2.1.132",
+          "commit": "de4bc210dde5545450f1db957efb083b975076e5",
+          "tree": "2fc88dee1c328a9e0e8581f906100871825a32d6",
+          "parent": "6038103f46d2b9390b3ac4f8ffb7f33a54a974f1",
+          "subject": "restore: align TypeScript tree with official 2.1.132"
+        },
+        "2.1.133": {
+          "version": "2.1.133",
+          "commit": "011b88ed3777c28545ad17355f1793521af68f75",
+          "tree": "d73236971eaab5453d7e0e7e7c145b9d2f164f8e",
+          "parent": "de4bc210dde5545450f1db957efb083b975076e5",
+          "subject": "restore: align TypeScript tree with official 2.1.133"
+        },
+        "2.1.136": {
+          "version": "2.1.136",
+          "commit": "66208d240418f6f1b7ca1ee7a9ed2379dfb42739",
+          "tree": "fd5e935535dee58949587e0d5a3886bfcb2f5874",
+          "parent": "011b88ed3777c28545ad17355f1793521af68f75",
+          "subject": "restore: align TypeScript tree with official 2.1.136"
+        },
+        "2.1.137": {
+          "version": "2.1.137",
+          "commit": "0ef062d7ca3f6760dd6455204ad801e54871ce3a",
+          "tree": "ddaf6635279b2cd1030b2fd22945f6a3f5dc69b2",
+          "parent": "66208d240418f6f1b7ca1ee7a9ed2379dfb42739",
+          "subject": "restore: align TypeScript tree with official 2.1.137"
+        },
+        "2.1.138": {
+          "version": "2.1.138",
+          "commit": "7495c81e49d682055290fb59eac98e12cd5d0097",
+          "tree": "7119b854888ae8ad0f70a66e373ada142b4119af",
+          "parent": "0ef062d7ca3f6760dd6455204ad801e54871ce3a",
+          "subject": "restore: align TypeScript tree with official 2.1.138"
+        },
+        "2.1.139": {
+          "version": "2.1.139",
+          "commit": "bc54e160516afefa96c812c58b70349313ce7274",
+          "tree": "48fbc7d302aa44cdfbd67f4a53b0b4ea5a5871e5",
+          "parent": "7495c81e49d682055290fb59eac98e12cd5d0097",
+          "subject": "restore: align TypeScript tree with official 2.1.139"
+        },
+        "2.1.140": {
+          "version": "2.1.140",
+          "commit": "609cc244d39f4b87f9fb7ef8a721729d26ca47c7",
+          "tree": "5d0f188c602a56c56f9e215ce527d031958f1658",
+          "parent": "bc54e160516afefa96c812c58b70349313ce7274",
+          "subject": "restore: align TypeScript tree with official 2.1.140"
+        },
+        "2.1.141": {
+          "version": "2.1.141",
+          "commit": "6da148c3939c8f0d7161fbe5adf33c9bef5cde35",
+          "tree": "45c9445e9f6f945a4ca28590e99e1fb63f7dadfb",
+          "parent": "609cc244d39f4b87f9fb7ef8a721729d26ca47c7",
+          "subject": "restore: align TypeScript tree with official 2.1.141"
+        },
+        "2.1.142": {
+          "version": "2.1.142",
+          "commit": "2e8d0c4fcc30f2e44243b2fe895d4049164fc37c",
+          "tree": "404314227ee8f5ce01839ef6664523de6a59d86e",
+          "parent": "6da148c3939c8f0d7161fbe5adf33c9bef5cde35",
+          "subject": "restore: align TypeScript tree with official 2.1.142"
+        },
+        "2.1.143": {
+          "version": "2.1.143",
+          "commit": "c63ba3526b796a97b7c51c34c50580be7fa1c61d",
+          "tree": "0f608cc09c324844a11e9c61852a98f610a7663b",
+          "parent": "2e8d0c4fcc30f2e44243b2fe895d4049164fc37c",
+          "subject": "restore: align TypeScript tree with official 2.1.143"
+        },
+        "2.1.144": {
+          "version": "2.1.144",
+          "commit": "52819474d98df39dba30e3af724de83cfe25532d",
+          "tree": "e912b1cb6e9a6d7dc030f33f197b192a125fb299",
+          "parent": "c63ba3526b796a97b7c51c34c50580be7fa1c61d",
+          "subject": "restore: align TypeScript tree with official 2.1.144"
+        },
+        "2.1.145": {
+          "version": "2.1.145",
+          "commit": "2237cdc8b73a4357191744a105bce49f0e94b5d6",
+          "tree": "4a30aab4359fdf777e06f97a1157af0b3f60a785",
+          "parent": "52819474d98df39dba30e3af724de83cfe25532d",
+          "subject": "restore: align TypeScript tree with official 2.1.145"
+        },
+        "2.1.146": {
+          "version": "2.1.146",
+          "commit": "3e993c4fe562d1ce427a69575db34c673f78d318",
+          "tree": "df7123713ab43819f55743498d8bb46d8bb311dd",
+          "parent": "2237cdc8b73a4357191744a105bce49f0e94b5d6",
+          "subject": "restore: align TypeScript tree with official 2.1.146"
+        },
+        "2.1.147": {
+          "version": "2.1.147",
+          "commit": "d9302f8107109a934768af402cb198cb896674b3",
+          "tree": "8c0c1c060147386df43e47ab40462f571790905a",
+          "parent": "3e993c4fe562d1ce427a69575db34c673f78d318",
+          "subject": "restore: align TypeScript tree with official 2.1.147"
+        },
+        "2.1.148": {
+          "version": "2.1.148",
+          "commit": "1316e172b71cf557778511fc07fc77571c0f56f5",
+          "tree": "33464eca24b56cd3f5af3cedfe8b5301e0d3e46e",
+          "parent": "d9302f8107109a934768af402cb198cb896674b3",
+          "subject": "restore: align TypeScript tree with official 2.1.148"
+        },
+        "2.1.149": {
+          "version": "2.1.149",
+          "commit": "54036fb95615fff2619042b5df9d325542bb84c3",
+          "tree": "3ebd25c47dd62263a2f96bd81d8208ad78a5f66d",
+          "parent": "1316e172b71cf557778511fc07fc77571c0f56f5",
+          "subject": "restore: align TypeScript tree with official 2.1.149"
+        },
+        "2.1.150": {
+          "version": "2.1.150",
+          "commit": "d7d65a8703015ecaadd880d0954b8cad4c6760a0",
+          "tree": "5146555b635068cdf1bbfd86d40c3e29927b3dbc",
+          "parent": "54036fb95615fff2619042b5df9d325542bb84c3",
+          "subject": "restore: align TypeScript tree with official 2.1.150"
+        },
+        "2.1.152": {
+          "version": "2.1.152",
+          "commit": "2bdc18f00ee8589a05ce03893f7fd1631b14e170",
+          "tree": "0aa5d508695770df6bdda18efdd4fdcd19d8469d",
+          "parent": "d7d65a8703015ecaadd880d0954b8cad4c6760a0",
+          "subject": "restore: align TypeScript tree with official 2.1.152"
+        },
+        "2.1.153": {
+          "version": "2.1.153",
+          "commit": "10479768f09fb17cf33ea9f56a22ad8316961a1e",
+          "tree": "0737e09573c4ce83cf5ff3e05c7f886e56d6a1c5",
+          "parent": "2bdc18f00ee8589a05ce03893f7fd1631b14e170",
+          "subject": "restore: align TypeScript tree with official 2.1.153"
+        },
+        "2.1.154": {
+          "version": "2.1.154",
+          "commit": "d4da40fbacb2a23cae9739606aab0c444edf7811",
+          "tree": "3d9d620379e67e6bf27b384004cd0c066ed4dae1",
+          "parent": "10479768f09fb17cf33ea9f56a22ad8316961a1e",
+          "subject": "restore: align TypeScript tree with official 2.1.154"
+        },
+        "2.1.156": {
+          "version": "2.1.156",
+          "commit": "332b74ecb727e82a20ac3f0a3da93f4348727e74",
+          "tree": "46e7067690a52627bce419f675fca88acada6e3d",
+          "parent": "d4da40fbacb2a23cae9739606aab0c444edf7811",
+          "subject": "restore: align TypeScript tree with official 2.1.156"
+        },
+        "2.1.157": {
+          "version": "2.1.157",
+          "commit": "9d94bd6e5d8f694f5a39fd571c745228cf3d23de",
+          "tree": "03e25970b29e22600215fe71f8040d68c04c9502",
+          "parent": "332b74ecb727e82a20ac3f0a3da93f4348727e74",
+          "subject": "restore: align TypeScript tree with official 2.1.157"
+        },
+        "2.1.158": {
+          "version": "2.1.158",
+          "commit": "9d8d28a56f58c5f49ebbbab7337b13f664ee3d08",
+          "tree": "f4edcdb13e76c9e1d29247e566b800fd03f48e44",
+          "parent": "9d94bd6e5d8f694f5a39fd571c745228cf3d23de",
+          "subject": "restore: align TypeScript tree with official 2.1.158"
+        },
+        "2.1.159": {
+          "version": "2.1.159",
+          "commit": "011fe3bd44c6672a627793e61e9f5a186b239aa0",
+          "tree": "c74d571fbfbe1523172d533985537bb8391b9c80",
+          "parent": "9d8d28a56f58c5f49ebbbab7337b13f664ee3d08",
+          "subject": "restore: align TypeScript tree with official 2.1.159"
+        },
+        "2.1.160": {
+          "version": "2.1.160",
+          "commit": "a08d7b76073d438d1e3c1fde51a9fc00d1d6fe54",
+          "tree": "fe755622f8c2b9777bf8600bb1dc9329a1569db8",
+          "parent": "011fe3bd44c6672a627793e61e9f5a186b239aa0",
+          "subject": "restore: align TypeScript tree with official 2.1.160"
+        },
+        "2.1.161": {
+          "version": "2.1.161",
+          "commit": "5dd656b6568f944e637900e8fd025326f32930fd",
+          "tree": "6e82610372fa875ee3ca0942dfba20c3d5029366",
+          "parent": "2fc6894dd69d1c5e2c6021089c230d1a5216e425",
+          "subject": "restore: align TypeScript tree with official 2.1.161"
+        },
+        "2.1.162": {
+          "version": "2.1.162",
+          "commit": "3f09b59ec79c5710b09cc90634268f08d2ecd16b",
+          "tree": "7bfb9d93e2f807be801004a57dbaf1a2eeed6e27",
+          "parent": "5dd656b6568f944e637900e8fd025326f32930fd",
+          "subject": "restore: align TypeScript tree with official 2.1.162"
+        },
+        "2.1.163": {
+          "version": "2.1.163",
+          "commit": "cbb43b516d63028ae1bd49b6bf82d5e234504c8a",
+          "tree": "30d2f27d984689ef5b1bfc0138a775051b8210ef",
+          "parent": "3f09b59ec79c5710b09cc90634268f08d2ecd16b",
+          "subject": "restore: align TypeScript tree with official 2.1.163"
+        },
+        "2.1.165": {
+          "version": "2.1.165",
+          "commit": "a902020f52b4fdb0433480f947be3cb831e61530",
+          "tree": "ef48b8ba34a2a9c009a2166c2c24ecd3088fcca4",
+          "parent": "cbb43b516d63028ae1bd49b6bf82d5e234504c8a",
+          "subject": "restore: align TypeScript tree with official 2.1.165"
+        },
+        "2.1.166": {
+          "version": "2.1.166",
+          "commit": "95b67a9bfc4e6cc65d83200f43a2fdcde8e509a0",
+          "tree": "7dc59f735cab575c2b024fad1b811fd639c08356",
+          "parent": "a902020f52b4fdb0433480f947be3cb831e61530",
+          "subject": "restore: align TypeScript tree with official 2.1.166"
+        },
+        "2.1.167": {
+          "version": "2.1.167",
+          "commit": "b39ebbc6e6dd85c76094c54e7c85f65e563b04e2",
+          "tree": "6a0a8d59fb3a5d73b661d03e014b2185e9642603",
+          "parent": "95b67a9bfc4e6cc65d83200f43a2fdcde8e509a0",
+          "subject": "restore: align TypeScript tree with official 2.1.167"
+        },
+        "2.1.169": {
+          "version": "2.1.169",
+          "commit": "f396003efbc4061f51c0ae1552ac5d9c465336b6",
+          "tree": "6e104417c1a340ea933f7ab7e61679cf4f18f5c7",
+          "parent": "04f516e56b48a4e6d4b01c5b086fd77c7e4d62a7",
+          "subject": "restore: align TypeScript tree with official 2.1.169"
+        },
+        "2.1.170": {
+          "version": "2.1.170",
+          "commit": "23ea7cfa23e2c691cede580ec6b07f29407b1b5d",
+          "tree": "921df5b67ed3ba437784ca9d6026aa6900b09ba7",
+          "parent": "f396003efbc4061f51c0ae1552ac5d9c465336b6",
+          "subject": "restore: align TypeScript tree with official 2.1.170"
+        },
+        "2.1.172": {
+          "version": "2.1.172",
+          "commit": "bc86efb11f4367929d5a724788815ddd9a388f33",
+          "tree": "6adfd3a13884d523f771b6e6ac65608f3f08f21b",
+          "parent": "23ea7cfa23e2c691cede580ec6b07f29407b1b5d",
+          "subject": "restore: align TypeScript tree with official 2.1.172"
+        },
+        "2.1.173": {
+          "version": "2.1.173",
+          "commit": "aebe77011b588cc358a3100354c6205b5950140e",
+          "tree": "d7a1b126da8e9e5847f64a50acc89a62f813a753",
+          "parent": "bc86efb11f4367929d5a724788815ddd9a388f33",
+          "subject": "restore: align TypeScript tree with official 2.1.173"
+        },
+        "2.1.174": {
+          "version": "2.1.174",
+          "commit": "a1fd9464c529f3ff9b488b592ab37c8f5437b1f6",
+          "tree": "dd913461224982acd9b421d853355efe2f466a97",
+          "parent": "aebe77011b588cc358a3100354c6205b5950140e",
+          "subject": "restore: align TypeScript tree with official 2.1.174"
+        },
+        "2.1.175": {
+          "version": "2.1.175",
+          "commit": "c1b5f843d57cbc0154a4f2493b5a8f83240f95c3",
+          "tree": "78c25f184b095a39305f93992682c160876331b0",
+          "parent": "e8ce28667a82550aabbbb806183afb21d71e88ff",
+          "subject": "restore: align TypeScript tree with official 2.1.175"
+        },
+        "2.1.176": {
+          "version": "2.1.176",
+          "commit": "807135bf5f9eea79b50ddb266fb5903500255f13",
+          "tree": "3bc3c591c777d41aa669a7b27237b373b7c7d407",
+          "parent": "c1b5f843d57cbc0154a4f2493b5a8f83240f95c3",
+          "subject": "restore: align TypeScript tree with official 2.1.176"
+        },
+        "2.1.178": {
+          "version": "2.1.178",
+          "commit": "6366324f6c6ebe785e0d454af1c15fac716dced4",
+          "tree": "31a24ee9ff195f503b3f79b906eeffb3a20e7ff1",
+          "parent": "807135bf5f9eea79b50ddb266fb5903500255f13",
+          "subject": "restore: align TypeScript tree with official 2.1.178"
+        },
+        "2.1.179": {
+          "version": "2.1.179",
+          "commit": "4b174b86464fc7604b96ba4f84c496b9b3544d00",
+          "tree": "17b9458dab497c9561481f97006d327fd276bb14",
+          "parent": "6366324f6c6ebe785e0d454af1c15fac716dced4",
+          "subject": "restore: align TypeScript tree with official 2.1.179"
+        },
+        "2.1.181": {
+          "version": "2.1.181",
+          "commit": "69c63aa4b594fea882132c51e810961f686ec012",
+          "tree": "8e5e36e89817387238f99947696cc0e8b9552a9e",
+          "parent": "5e7138b3debd4a7f1816958b5e919129779fe416",
+          "subject": "restore: align TypeScript tree with official 2.1.181"
+        },
+        "2.1.183": {
+          "version": "2.1.183",
+          "commit": "a174353fa22b9460f0a4e2f459c15bb18be26b49",
+          "tree": "750d7267dbccdc497302b003290b0f3b8b454c92",
+          "parent": "69c63aa4b594fea882132c51e810961f686ec012",
+          "subject": "restore: align TypeScript tree with official 2.1.183"
+        }
+      }
+    },
+    "candidate_sprint30": {
+      "source": "/root/projects/Zhiman/projects/ccr-swarm/production/sprint-30/repo",
+      "ref": "ccr-swarm/candidates/sprint-30",
+      "commit_count": 30,
+      "versions": {
+        "2.1.89": {
+          "version": "2.1.89",
+          "commit": "ce736682f6341d3002c1bca9dc28830727bfc191",
+          "tree": "7663b8e57aa423b50bfffac9dcde7835373252f9",
+          "parent": "f53c7724f39fc207d82f2adb80f2d392afd361fc",
+          "subject": "candidate: align 2.1.89; certification pending"
+        },
+        "2.1.90": {
+          "version": "2.1.90",
+          "commit": "8583ae5b237c544d7842290cb7b205d0bf16cd0a",
+          "tree": "faa45ac2d14e892663e5d9f38924b5cc4432fe4f",
+          "parent": "ce736682f6341d3002c1bca9dc28830727bfc191",
+          "subject": "candidate: align 2.1.90; certification pending"
+        },
+        "2.1.91": {
+          "version": "2.1.91",
+          "commit": "6dfb254ac845a687dc73c42cbf1400e2086496b8",
+          "tree": "9d8f991df8b665ef622c7b83016d5e7ac6a2b5e5",
+          "parent": "8583ae5b237c544d7842290cb7b205d0bf16cd0a",
+          "subject": "candidate: align 2.1.91; certification pending"
+        },
+        "2.1.92": {
+          "version": "2.1.92",
+          "commit": "f075a73b7375dc703eb2c9ca8affede44b21d92e",
+          "tree": "37384def0dbd23134173d7a51316a5af12a7f616",
+          "parent": "6dfb254ac845a687dc73c42cbf1400e2086496b8",
+          "subject": "candidate: align 2.1.92; certification pending"
+        },
+        "2.1.94": {
+          "version": "2.1.94",
+          "commit": "79223e1d61d5ad6d5d66a9f80819a8a2d4e48a57",
+          "tree": "b5c074c68faea0b185658a587468e2e6c830c1a2",
+          "parent": "f075a73b7375dc703eb2c9ca8affede44b21d92e",
+          "subject": "candidate: align 2.1.94; certification pending"
+        },
+        "2.1.96": {
+          "version": "2.1.96",
+          "commit": "d1df36a53277998c38d8f0a2e0053728ffb12793",
+          "tree": "96a3dd16109bc7f88f744adfa07208c8a022eb18",
+          "parent": "79223e1d61d5ad6d5d66a9f80819a8a2d4e48a57",
+          "subject": "candidate: align 2.1.96; certification pending"
+        },
+        "2.1.97": {
+          "version": "2.1.97",
+          "commit": "443fd9bd44e9c30928dfe822dbb8b55076c51043",
+          "tree": "6cec202180f1e19e79d7173a35991d547da3fd9e",
+          "parent": "d1df36a53277998c38d8f0a2e0053728ffb12793",
+          "subject": "candidate: align 2.1.97; certification pending"
+        },
+        "2.1.98": {
+          "version": "2.1.98",
+          "commit": "82043db14aa9aa031544ad3e21aaab943b1de20c",
+          "tree": "c7d764692a4760e219345c655cb5521aada7ad9b",
+          "parent": "443fd9bd44e9c30928dfe822dbb8b55076c51043",
+          "subject": "candidate: align 2.1.98; certification pending"
+        },
+        "2.1.100": {
+          "version": "2.1.100",
+          "commit": "739bf1ee699ddd43f9dd478e51cd6664eed48c70",
+          "tree": "06b5ed9567c70a7831a2d37c32d4fd75aa9b0640",
+          "parent": "82043db14aa9aa031544ad3e21aaab943b1de20c",
+          "subject": "candidate: align 2.1.100; certification pending"
+        },
+        "2.1.101": {
+          "version": "2.1.101",
+          "commit": "3b35d618194411e25669af91d376eb9dfa79aa06",
+          "tree": "002f265c8c18a139484b2739f6f2fb26ba3eee99",
+          "parent": "739bf1ee699ddd43f9dd478e51cd6664eed48c70",
+          "subject": "candidate: align 2.1.101; certification pending"
+        },
+        "2.1.104": {
+          "version": "2.1.104",
+          "commit": "1829d235e3f7abc7434a50b30ba3a4d88724e953",
+          "tree": "a31ee08ad0ff519549f04d499ce88c83e41d5c94",
+          "parent": "3b35d618194411e25669af91d376eb9dfa79aa06",
+          "subject": "candidate: align 2.1.104; certification pending"
+        },
+        "2.1.105": {
+          "version": "2.1.105",
+          "commit": "ee139218f60628c3a55af937783e91279c45f014",
+          "tree": "cb7a17189b31bf1ddca0c97fd3579c2b0ae20269",
+          "parent": "1829d235e3f7abc7434a50b30ba3a4d88724e953",
+          "subject": "candidate: align 2.1.105; certification pending"
+        },
+        "2.1.107": {
+          "version": "2.1.107",
+          "commit": "d3e554ae9b52aac6c9587e22d4ded9602a723e5f",
+          "tree": "78b6219f7cde9e1fca506f3ff346ebb9ddff5397",
+          "parent": "ee139218f60628c3a55af937783e91279c45f014",
+          "subject": "candidate: align 2.1.107; certification pending"
+        },
+        "2.1.108": {
+          "version": "2.1.108",
+          "commit": "a64ab3c5cd6dba3037cc24f960acf0114e2310b0",
+          "tree": "8c02db4c8598de82dfe8fd939a6609d2449838a7",
+          "parent": "d3e554ae9b52aac6c9587e22d4ded9602a723e5f",
+          "subject": "candidate: align 2.1.108; certification pending"
+        },
+        "2.1.109": {
+          "version": "2.1.109",
+          "commit": "8e7c7d540f626ebf8b363fcce81f43ecd91239ce",
+          "tree": "e6f1bb4a3ec21f348b4956bc0b765f7ad0685f03",
+          "parent": "a64ab3c5cd6dba3037cc24f960acf0114e2310b0",
+          "subject": "candidate: align 2.1.109; certification pending"
+        },
+        "2.1.110": {
+          "version": "2.1.110",
+          "commit": "b27b730c253dae32e2516438c74c2b1a98e36d8a",
+          "tree": "532b993a980c91a5efc15e7ff2d9efe4bb08cdeb",
+          "parent": "8e7c7d540f626ebf8b363fcce81f43ecd91239ce",
+          "subject": "candidate: align 2.1.110; certification pending"
+        },
+        "2.1.111": {
+          "version": "2.1.111",
+          "commit": "0f29ea8d98f9deb09157ae2f15b6aada43134f26",
+          "tree": "cca30a8c9631889a0708a11df8a8c0104526d712",
+          "parent": "b27b730c253dae32e2516438c74c2b1a98e36d8a",
+          "subject": "candidate: align 2.1.111; certification pending"
+        },
+        "2.1.112": {
+          "version": "2.1.112",
+          "commit": "1f8d70b35c239a515b34530287c11cfde66253e7",
+          "tree": "0d3f57f48cb306d9bd9ec47b76e5909a442b5a5c",
+          "parent": "0f29ea8d98f9deb09157ae2f15b6aada43134f26",
+          "subject": "candidate: align 2.1.112; certification pending"
+        },
+        "2.1.113": {
+          "version": "2.1.113",
+          "commit": "f9ab3f9d53871c4752c2e1507a5fbc57880af34c",
+          "tree": "29c2756f636c90a138209fc284bfa13b6915672c",
+          "parent": "1f8d70b35c239a515b34530287c11cfde66253e7",
+          "subject": "candidate: align 2.1.113; certification pending"
+        },
+        "2.1.114": {
+          "version": "2.1.114",
+          "commit": "de32bc4ddc0a8905394b8da5ea150442e20165cb",
+          "tree": "306d23b95f65c6efb36aa6a65216130455c8f6ff",
+          "parent": "f9ab3f9d53871c4752c2e1507a5fbc57880af34c",
+          "subject": "candidate: align 2.1.114; certification pending"
+        },
+        "2.1.116": {
+          "version": "2.1.116",
+          "commit": "654c7a93f42bef1b7e5ce234e4ecbb624047cdc8",
+          "tree": "f3d17494f33969caa5e28c449ec5501fc5f51484",
+          "parent": "de32bc4ddc0a8905394b8da5ea150442e20165cb",
+          "subject": "candidate: align 2.1.116; certification pending"
+        },
+        "2.1.117": {
+          "version": "2.1.117",
+          "commit": "c7cc50f5d0acd2a7216fb9c0add292f5b83c61f6",
+          "tree": "edea0e9b80f8544570337102645247d2d74ca828",
+          "parent": "654c7a93f42bef1b7e5ce234e4ecbb624047cdc8",
+          "subject": "candidate: align 2.1.117; certification pending"
+        },
+        "2.1.118": {
+          "version": "2.1.118",
+          "commit": "f74c6ecac7776e3970ec138400e26f83177da595",
+          "tree": "996f8874fdc3e75af6c61718340f0fc4850b0a25",
+          "parent": "c7cc50f5d0acd2a7216fb9c0add292f5b83c61f6",
+          "subject": "candidate: align 2.1.118; certification pending"
+        },
+        "2.1.119": {
+          "version": "2.1.119",
+          "commit": "34ec0dec0e3991662e80994f1efb583eedbb92dd",
+          "tree": "0f885affc5b44278c82a4486d955f9f5d19405a9",
+          "parent": "f74c6ecac7776e3970ec138400e26f83177da595",
+          "subject": "candidate: align 2.1.119; certification pending"
+        },
+        "2.1.120": {
+          "version": "2.1.120",
+          "commit": "0c2e307cfabaec9077182828e2c6d0cacd1f419d",
+          "tree": "1b3d01a9d025f637bb602fd66498e02d175fc0cf",
+          "parent": "34ec0dec0e3991662e80994f1efb583eedbb92dd",
+          "subject": "candidate: align 2.1.120; certification pending"
+        },
+        "2.1.121": {
+          "version": "2.1.121",
+          "commit": "8212326fddea4d2465780583d3c92eaca1c3b9ef",
+          "tree": "c2e1fca417dbc5bfc04fe3e8345e36b74c299bb0",
+          "parent": "0c2e307cfabaec9077182828e2c6d0cacd1f419d",
+          "subject": "candidate: align 2.1.121; certification pending"
+        },
+        "2.1.122": {
+          "version": "2.1.122",
+          "commit": "8db0c60475cfed28494c0e65387c3d3b92fd3894",
+          "tree": "2a01237ea45da804bbc6007e80d84e6ec03289ec",
+          "parent": "8212326fddea4d2465780583d3c92eaca1c3b9ef",
+          "subject": "candidate: align 2.1.122; certification pending"
+        },
+        "2.1.123": {
+          "version": "2.1.123",
+          "commit": "345a4e743e4841fe6ae292e9f7ebdbb21a28a186",
+          "tree": "b9645e7ad89de9575f8a0ca70f834c9794a327b8",
+          "parent": "8db0c60475cfed28494c0e65387c3d3b92fd3894",
+          "subject": "candidate: align 2.1.123; certification pending"
+        },
+        "2.1.126": {
+          "version": "2.1.126",
+          "commit": "13962b0b2ccbcc89cbacbeff9f852a9ebabc1fca",
+          "tree": "53bf8d07692fdff62e6189fec06f5bece6575aab",
+          "parent": "345a4e743e4841fe6ae292e9f7ebdbb21a28a186",
+          "subject": "candidate: align 2.1.126; certification pending"
+        },
+        "2.1.128": {
+          "version": "2.1.128",
+          "commit": "2a57f86d4bae9a7911f126dc3c7871e4416d4d3c",
+          "tree": "c380e3c2753b8657ff9948ee80988a0f92ce6627",
+          "parent": "13962b0b2ccbcc89cbacbeff9f852a9ebabc1fca",
+          "subject": "candidate: align 2.1.128; certification pending"
+        }
+      }
+    },
+    "pilot_r23": {
+      "source": "pod ccr-r23-pilot-20261107 /state/work-repo",
+      "branches": 30,
+      "versions": {
+        "2.1.89": {
+          "version": "2.1.89",
+          "branch": "ccr-swarm/2.1.89",
+          "tip": "0987daadc985035369027a990447e5ecd27fb116",
+          "tree": "db6bd79f1b3bd86015304fedf0823e063c6cc478",
+          "parent": "abc4d023312a8836959bbb56cca23b1063c98d81",
+          "subject": "ledger: 2.1.89 lead loop r2 — first real candidate build + reconcile (fail, 81956 obligations registered)",
+          "candidate_commit": "79d17a917f9dad36c447ad868c5eef631d368efc",
+          "certified": false,
+          "reconcile_status": "fail",
+          "build_status": null,
+          "build_blocker": null,
+          "ledger_present": true
+        },
+        "2.1.90": {
+          "version": "2.1.90",
+          "branch": "ccr-swarm/2.1.90",
+          "tip": "dc4bfe4423ec035a163edde6c8b1fa9b2f906966",
+          "tree": "3344d6b76f17b45fadba38d28f70264029f900e2",
+          "parent": "9900134845d4e30709c9cc87aa45d7e7125834ce",
+          "subject": "ledger: 2.1.90 after lead loop r2 (fail, obligations 82217)",
+          "candidate_commit": "0ab8c130ccd9c0b343606d53fa85f8d3662b2a39",
+          "certified": false,
+          "reconcile_status": "fail",
+          "build_status": null,
+          "build_blocker": null,
+          "ledger_present": true
+        },
+        "2.1.91": {
+          "version": "2.1.91",
+          "branch": "ccr-swarm/2.1.91",
+          "tip": "cab543416dbc876895000225f60328bbee34c701",
+          "tree": "9d86f3d2ab4b164ca3c57ea0bd712d2648d09ff9",
+          "parent": "25aab0ce2c0acbfa3a076b46a996c0666a1ae6a7",
+          "subject": "ledger: 2.1.91 after lead loop r2 (fail, obligations 82494)",
+          "candidate_commit": "5ca3eeef028b3c9bff72f1acbe849a9b00c01964",
+          "certified": false,
+          "reconcile_status": "fail",
+          "build_status": null,
+          "build_blocker": null,
+          "ledger_present": true
+        },
+        "2.1.92": {
+          "version": "2.1.92",
+          "branch": "ccr-swarm/2.1.92",
+          "tip": "0ad8f237c66463446abe441bf3164776a9eb6138",
+          "tree": "a15a782054476e04976f5debce955941758d7e84",
+          "parent": "806633b30076df3285e8c8c8c9ade046bee16ae5",
+          "subject": "ledger: 2.1.92 after lead loop r2 (fail, obligations 83064)",
+          "candidate_commit": "80b67302f0d76020553e76c61dcbb970fe0e3ecf",
+          "certified": false,
+          "reconcile_status": "fail",
+          "build_status": null,
+          "build_blocker": null,
+          "ledger_present": true
+        },
+        "2.1.94": {
+          "version": "2.1.94",
+          "branch": "ccr-swarm/2.1.94",
+          "tip": "dbed206b296b60ef1bb7ec00e0f554ee083aaa74",
+          "tree": "527c02d6acfede27d5e523f6011ad8d31ee3e65d",
+          "parent": "5249248410245f43903258677225ec9665a1464b",
+          "subject": "ledger: version 2.1.94 candidate 5198244546ae (reconcile pending build)",
+          "candidate_commit": "5198244546aeb8da514c32ebef00a96b26e043f4",
+          "certified": false,
+          "reconcile_status": "pending_candidate_build",
+          "build_status": null,
+          "build_blocker": null,
+          "ledger_present": true
+        },
+        "2.1.96": {
+          "version": "2.1.96",
+          "branch": "ccr-swarm/2.1.96",
+          "tip": "daa1646e4abec6cef244e2fe13ee1862975e8ef5",
+          "tree": "55e4e00a7c62d1c2422c88b46ec3b1b0b00c9081",
+          "parent": "bd63a1718435509848492cc85a359e844b55c352",
+          "subject": "ledger: 2.1.96 after lead loop r2 (fail, obligations 83399)",
+          "candidate_commit": "6a0187e29275a6db070487880efef387b09b82a1",
+          "certified": false,
+          "reconcile_status": "fail",
+          "build_status": null,
+          "build_blocker": null,
+          "ledger_present": true
+        },
+        "2.1.97": {
+          "version": "2.1.97",
+          "branch": "ccr-swarm/2.1.97",
+          "tip": "6f222548b6676bfc73f4bae66eda2743ed0b8b2a",
+          "tree": "4fe5162177c40f3820b2a59a926955e279e00c81",
+          "parent": "67d1c1cce5dc920e50c9f0cb1e794691751ce9c7",
+          "subject": "ledger: version 2.1.97 candidate 0afe90913e3a (reconcile pending build)",
+          "candidate_commit": "0afe90913e3a96b28cc9bf3700e3e579997f0b82",
+          "certified": false,
+          "reconcile_status": "pending_candidate_build",
+          "build_status": null,
+          "build_blocker": null,
+          "ledger_present": true
+        },
+        "2.1.98": {
+          "version": "2.1.98",
+          "branch": "ccr-swarm/2.1.98",
+          "tip": "fe81e9b8a80b014eaf21479b23d14aa3b5fb4cf1",
+          "tree": "b7c736dc83dfa44c5e5d31242e061721d4e12587",
+          "parent": "fe516255b41a0385fdfa3378faa9ab3c76e92fe9",
+          "subject": "ledger: 2.1.98 after lead loop r2 (fail, obligations 84070)",
+          "candidate_commit": "7f3f13790034eb41de832b4f662a1702aa30826f",
+          "certified": false,
+          "reconcile_status": "fail",
+          "build_status": null,
+          "build_blocker": null,
+          "ledger_present": true
+        },
+        "2.1.100": {
+          "version": "2.1.100",
+          "branch": "ccr-swarm/2.1.100",
+          "tip": "daa2fca111268d2f6c219fe806ef37f4a2569d47",
+          "tree": "cfefe756cd88e5628dba1d4578f3a5d6e3bd6322",
+          "parent": "dd3dc06ad54954a839511a4ab3025dd5ed73b77c",
+          "subject": "ledger: version 2.1.100 candidate 953511aaf835 (reconcile pending build)",
+          "candidate_commit": "953511aaf8350a4d0062891e27e45f24cb6c70c9",
+          "certified": false,
+          "reconcile_status": "pending_candidate_build",
+          "build_status": null,
+          "build_blocker": null,
+          "ledger_present": true
+        },
+        "2.1.101": {
+          "version": "2.1.101",
+          "branch": "ccr-swarm/2.1.101",
+          "tip": "28ddf75a8ec2fedf6d0ae99f64122a763fe9be02",
+          "tree": "78b69c9048da39d8c9ad036c7156ded87437e38b",
+          "parent": "673183e7601362fda7952eaf0f5c8186ba51b951",
+          "subject": "ledger: 2.1.101 after lead loop r2 (fail, obligations 84761)",
+          "candidate_commit": "0e5411339070c895a819e822cf545c127bd372bc",
+          "certified": false,
+          "reconcile_status": "fail",
+          "build_status": null,
+          "build_blocker": null,
+          "ledger_present": true
+        },
+        "2.1.104": {
+          "version": "2.1.104",
+          "branch": "ccr-swarm/2.1.104",
+          "tip": "a6c25bb5f54fcb33472718bd984ceb3ddb6543a0",
+          "tree": "84ba0dbbf1c14a22048e3302bf9aecebc0dbf4a8",
+          "parent": "c57ab8291efcf4371e890c1b5e44fa19299ca82e",
+          "subject": "ledger: 2.1.104 after lead loop r2 (fail, obligations 84766)",
+          "candidate_commit": "55f9544017e15f03831f043eebedaa6438615e1e",
+          "certified": false,
+          "reconcile_status": "fail",
+          "build_status": null,
+          "build_blocker": null,
+          "ledger_present": true
+        },
+        "2.1.105": {
+          "version": "2.1.105",
+          "branch": "ccr-swarm/2.1.105",
+          "tip": "5ee5bfd7f845c58ede113942f9ea0f2bbd4d7749",
+          "tree": "ac44cfa47ffbcb9c6f23b65bd966e8131657d507",
+          "parent": "a5b870b6ae7d2565887868221b962a2b6ae95a95",
+          "subject": "ledger: version 2.1.105 candidate ceb96277c717 (reconcile pending build)",
+          "candidate_commit": "ceb96277c71791ca1672af1d51e79c9dc6863c3b",
+          "certified": false,
+          "reconcile_status": "pending_candidate_build",
+          "build_status": null,
+          "build_blocker": null,
+          "ledger_present": true
+        },
+        "2.1.107": {
+          "version": "2.1.107",
+          "branch": "ccr-swarm/2.1.107",
+          "tip": "c33241b1286a3526567912c67048349b50557bae",
+          "tree": "475ae1ae6aaab904384e2c0477797c7c2181e1ac",
+          "parent": "90959fe0a1a0b87591527a1cd39240040de19199",
+          "subject": "ledger: 2.1.107 after lead loop r2 (fail, obligations 85505)",
+          "candidate_commit": "bfae3fa6d199d0365373d5443e7e98858787027b",
+          "certified": false,
+          "reconcile_status": "fail",
+          "build_status": null,
+          "build_blocker": null,
+          "ledger_present": true
+        },
+        "2.1.108": {
+          "version": "2.1.108",
+          "branch": "ccr-swarm/2.1.108",
+          "tip": "f91975aa1caec516251420a9a0d74d6602992263",
+          "tree": "70e644d1b8ed591fb20cc38a747af279fe5d6a4c",
+          "parent": "0298f10a37a5ce39b7628e698cfd7e2d3e8c60b8",
+          "subject": "ledger: 2.1.108 lead loop r2 — apply ok, build blocked (chain export deadlock)",
+          "candidate_commit": "ebfd0c0fe57a0c2139089fad1b6f2e5cc4e0e0f5",
+          "certified": false,
+          "reconcile_status": null,
+          "build_status": "build_failed",
+          "build_blocker": "chain-wide MemoryWriteSurvey export deadlock (introduced after 2.1.98); MACRO fix intel delivered",
+          "ledger_present": true
+        },
+        "2.1.109": {
+          "version": "2.1.109",
+          "branch": "ccr-swarm/2.1.109",
+          "tip": "64a8202d46aefc3b49f7a24ed0179d7a39da64fd",
+          "tree": "b68926b71ef865e6949ad0f3cee7510c96fc3b5c",
+          "parent": "c2b43802f801e161628b11ef9b9d250eb47bac93",
+          "subject": "ledger: version 2.1.109 candidate ad962655afb2 (reconcile pending build)",
+          "candidate_commit": "ad962655afb20df7a79b0a166a7ca6572216f2f4",
+          "certified": false,
+          "reconcile_status": "pending_candidate_build",
+          "build_status": null,
+          "build_blocker": null,
+          "ledger_present": true
+        },
+        "2.1.110": {
+          "version": "2.1.110",
+          "branch": "ccr-swarm/2.1.110",
+          "tip": "072dbfdeb7c43ffea5f271788dea3b51091372e2",
+          "tree": "4c45c503375a160940638fd0557a1a380920c1e0",
+          "parent": "293497b0324e43ee2f4613693a8f696a6dead821",
+          "subject": "ledger: version 2.1.110 candidate 6c55ec4cf5c7 (reconcile pending build)",
+          "candidate_commit": "6c55ec4cf5c7a0dbb3729b3012a19d8c78f96bab",
+          "certified": false,
+          "reconcile_status": "pending_candidate_build",
+          "build_status": null,
+          "build_blocker": null,
+          "ledger_present": true
+        },
+        "2.1.111": {
+          "version": "2.1.111",
+          "branch": "ccr-swarm/2.1.111",
+          "tip": "fbff67e08937dabbb3b43cd0413ec74ea939618c",
+          "tree": "1f7aedcbb25341aa42d7039312eb87c88b1f603d",
+          "parent": "5689f77d3c772deaef8916d748ceca52ef236a37",
+          "subject": "ledger: version 2.1.111 candidate 89e5b8c2571d (reconcile pending build)",
+          "candidate_commit": "89e5b8c2571db41983d31212624e5c25f50f32a9",
+          "certified": false,
+          "reconcile_status": "pending_candidate_build",
+          "build_status": null,
+          "build_blocker": null,
+          "ledger_present": true
+        },
+        "2.1.112": {
+          "version": "2.1.112",
+          "branch": "ccr-swarm/2.1.112",
+          "tip": "9296ed174fdd02fa5a0b80c18e0aca7b337c2771",
+          "tree": "3f3a234279b7231dc2671c260bfcd58fe7b3820b",
+          "parent": "8bda32bc9e70fa15f3347a65c7f18c8e2591957b",
+          "subject": "ledger: version 2.1.112 candidate df580aaaac19 (reconcile pending build)",
+          "candidate_commit": "df580aaaac19223f76c4f5bc605cce31d4a3146a",
+          "certified": false,
+          "reconcile_status": "pending_candidate_build",
+          "build_status": null,
+          "build_blocker": null,
+          "ledger_present": true
+        },
+        "2.1.113": {
+          "version": "2.1.113",
+          "branch": "ccr-swarm/2.1.113",
+          "tip": "8bdef3450926aca56c73ac523186d226d26f4c02",
+          "tree": "82eaaff70439e8cfc0cb1feb9dfd844b23adc327",
+          "parent": "db084e445e86a2ff5a7420bed25d18dbf69cd880",
+          "subject": "ledger: version 2.1.113 candidate cadbffa38c28 (reconcile pending build)",
+          "candidate_commit": "cadbffa38c28b12f41f3e54c384192311d38f733",
+          "certified": false,
+          "reconcile_status": "pending_candidate_build",
+          "build_status": null,
+          "build_blocker": null,
+          "ledger_present": true
+        },
+        "2.1.114": {
+          "version": "2.1.114",
+          "branch": "ccr-swarm/2.1.114",
+          "tip": "0c203c65d35547448ba2194195f63a90b69b0356",
+          "tree": "7dd8bbe2ab230cd2933a7c34c61983f4f2f38cc5",
+          "parent": "c2bc9e0d9a4d00738c8783258e4b59606dfe204f",
+          "subject": "ledger: version 2.1.114 candidate 171935ecded7 (reconcile pending build)",
+          "candidate_commit": "171935ecded7dec1a4e268ffda101930d29e840f",
+          "certified": false,
+          "reconcile_status": "pending_candidate_build",
+          "build_status": null,
+          "build_blocker": null,
+          "ledger_present": true
+        },
+        "2.1.116": {
+          "version": "2.1.116",
+          "branch": "ccr-swarm/2.1.116",
+          "tip": "8b6f62fcc4e7df6138968fe0c96c808d7856bedd",
+          "tree": "d5dfabd11dda8df7a34f38c4d51eeae74587b50b",
+          "parent": "25a995e619cddfdb0b9d05fc582f5dda9ac9255a",
+          "subject": "ledger: version 2.1.116 candidate 68fb5ecf7641 (reconcile pending build)",
+          "candidate_commit": "68fb5ecf76417234c608b7200adae699eac4274f",
+          "certified": false,
+          "reconcile_status": "pending_candidate_build",
+          "build_status": null,
+          "build_blocker": null,
+          "ledger_present": true
+        },
+        "2.1.117": {
+          "version": "2.1.117",
+          "branch": "ccr-swarm/2.1.117",
+          "tip": "9e3cfd7b7234f06848729425594bccaaa44692f1",
+          "tree": "00e8ebc693557b174c57498ac07c87f9b75574e3",
+          "parent": "a04d2837d2df3b8aea167a4c1c04f5e2786d76c5",
+          "subject": "ledger: version 2.1.117 candidate 940a18626671 (reconcile pending build)",
+          "candidate_commit": "940a18626671bbd432708843e1524275e6c479c9",
+          "certified": false,
+          "reconcile_status": "pending_candidate_build",
+          "build_status": null,
+          "build_blocker": null,
+          "ledger_present": true
+        },
+        "2.1.118": {
+          "version": "2.1.118",
+          "branch": "ccr-swarm/2.1.118",
+          "tip": "7b7bc116da92eea81b2852bb9333a65cc0618849",
+          "tree": "f172c781bbe9e5e703ec003018d42ddfa36afe77",
+          "parent": "d278562f2a126a2c013b96fcfda9897716f0f811",
+          "subject": "ledger: version 2.1.118 candidate 70e11dd39f39 (reconcile pending build)",
+          "candidate_commit": "70e11dd39f395e59d613f88fa4c7d2f885e805c4",
+          "certified": false,
+          "reconcile_status": "pending_candidate_build",
+          "build_status": null,
+          "build_blocker": null,
+          "ledger_present": true
+        },
+        "2.1.119": {
+          "version": "2.1.119",
+          "branch": "ccr-swarm/2.1.119",
+          "tip": "8b715ac4f013c4433cade0c019927ecb42d80314",
+          "tree": "5583b024e47d2be8b65497fb7df765592ee1fd52",
+          "parent": "dbbd989d5be15bd0dfd6b39e5b52735feba12a09",
+          "subject": "ledger: version 2.1.119 candidate 91ecd7ec53b6 (reconcile pending build)",
+          "candidate_commit": "91ecd7ec53b652d7807a7465e6f1a13636b8a4bc",
+          "certified": false,
+          "reconcile_status": "pending_candidate_build",
+          "build_status": null,
+          "build_blocker": null,
+          "ledger_present": true
+        },
+        "2.1.120": {
+          "version": "2.1.120",
+          "branch": "ccr-swarm/2.1.120",
+          "tip": "6b85a96d3b24e378cb8625ec07d980c097f8dca5",
+          "tree": "39c89c0cfdff9ce9f8f100c8fe9e6f757afb77d0",
+          "parent": "6972c1d24c2779cac6b777354636cad9b4868727",
+          "subject": "ledger: 2.1.120 lead loop r2 — apply ok, build blocked (chain export deadlock)",
+          "candidate_commit": "5c0e1914f6b40600c50e0a71190bf9cbf6f09be9",
+          "certified": false,
+          "reconcile_status": null,
+          "build_status": "build_failed",
+          "build_blocker": "chain-wide MemoryWriteSurvey export deadlock (introduced after 2.1.98); MACRO fix intel delivered",
+          "ledger_present": true
+        },
+        "2.1.121": {
+          "version": "2.1.121",
+          "branch": "ccr-swarm/2.1.121",
+          "tip": "7c8b2d1372431290155e0497f54f45a4a9f116d0",
+          "tree": "1509a8a4a74bc3abb1b23fc8f776b0b5ba3d1fea",
+          "parent": "ec60d06ee5e5d22bce74c1a7f1a4cb90b5638fdc",
+          "subject": "ledger: version 2.1.121 candidate 09562d5c053e (reconcile pending build)",
+          "candidate_commit": "09562d5c053ed293d3b36b3a2d1c355bb878ad44",
+          "certified": false,
+          "reconcile_status": "pending_candidate_build",
+          "build_status": null,
+          "build_blocker": null,
+          "ledger_present": true
+        },
+        "2.1.122": {
+          "version": "2.1.122",
+          "branch": "ccr-swarm/2.1.122",
+          "tip": "76ac42b0359e5734e8061705406bbf4b453a9a06",
+          "tree": "c8e738691f9abd03b5c2b034ed7f0777ff4937fd",
+          "parent": "81dded3fa9d68ad03a7ac175f83bf6998d7a1644",
+          "subject": "ledger: 2.1.122 lead loop r2 — apply ok, build blocked (chain export deadlock)",
+          "candidate_commit": "5530da312c104d0d1f45afa35709a416feb228b8",
+          "certified": false,
+          "reconcile_status": null,
+          "build_status": "build_failed",
+          "build_blocker": "chain-wide MemoryWriteSurvey export deadlock; awaiting this team scripts/build.ts MACRO proposal (intel delivered)",
+          "ledger_present": true
+        },
+        "2.1.123": {
+          "version": "2.1.123",
+          "branch": "ccr-swarm/2.1.123",
+          "tip": "f92684b80b0d05566c1548f856cfa746bf9714f4",
+          "tree": "0f00a91c2c0adeb592c81ba88dbd25b0a5a2dee0",
+          "parent": "66c181731c2bc984b188860ffeef13bd67f117c0",
+          "subject": "ledger: version 2.1.123 candidate 5c599e62f46b (reconcile pending build)",
+          "candidate_commit": "5c599e62f46bf316b837ca7779d24ae755172e03",
+          "certified": false,
+          "reconcile_status": "pending_candidate_build",
+          "build_status": null,
+          "build_blocker": null,
+          "ledger_present": true
+        },
+        "2.1.126": {
+          "version": "2.1.126",
+          "branch": "ccr-swarm/2.1.126",
+          "tip": "c28c2fba550a1002f587ca2014d9dc6206909f14",
+          "tree": "35df48e0d6fbf7f3b97b3d72c0c7eed3d51c90d1",
+          "parent": "9be7870c92342293a577e110a7720ea8bb62c6d4",
+          "subject": "ledger: version 2.1.126 candidate 6aacd6de9c25 (reconcile pending build)",
+          "candidate_commit": "6aacd6de9c256d372e13ea42bf02cfa6627ee96a",
+          "certified": false,
+          "reconcile_status": "pending_candidate_build",
+          "build_status": null,
+          "build_blocker": null,
+          "ledger_present": true
+        },
+        "2.1.128": {
+          "version": "2.1.128",
+          "branch": "ccr-swarm/2.1.128",
+          "tip": "b68ed2efee3f57cf951ad7eb7fecab358bc2dc3f",
+          "tree": "b877a2d29297b257ad037326ca2dfc390b0cb624",
+          "parent": "3c0ce61156be81d8c90864cbf9ab338cff1f3490",
+          "subject": "ledger: version 2.1.128 candidate 0441f40dbf62 (reconcile pending build)",
+          "candidate_commit": "0441f40dbf624cda352861f3386ebfec9a69cbe1",
+          "certified": false,
+          "reconcile_status": "pending_candidate_build",
+          "build_status": null,
+          "build_blocker": null,
+          "ledger_present": true
+        }
+      },
+      "note": "branch trees are pruned preaudit materializations; not source trees; ledger commits only"
+    }
+  },
+  "comparisons": {
+    "integrated_vs_legacy_tree_equal": {
+      "2.1.89": true,
+      "2.1.90": true,
+      "2.1.91": true,
+      "2.1.92": true,
+      "2.1.94": true,
+      "2.1.96": true,
+      "2.1.97": true,
+      "2.1.98": true,
+      "2.1.100": true,
+      "2.1.101": true,
+      "2.1.104": true,
+      "2.1.105": true,
+      "2.1.107": true,
+      "2.1.108": true,
+      "2.1.109": true,
+      "2.1.110": true,
+      "2.1.111": true,
+      "2.1.112": true,
+      "2.1.113": true,
+      "2.1.114": true,
+      "2.1.116": true,
+      "2.1.117": true,
+      "2.1.118": true,
+      "2.1.119": true,
+      "2.1.120": false,
+      "2.1.121": false,
+      "2.1.122": false,
+      "2.1.123": false,
+      "2.1.126": false,
+      "2.1.128": false,
+      "2.1.129": false,
+      "2.1.131": false,
+      "2.1.132": false,
+      "2.1.133": false,
+      "2.1.136": false,
+      "2.1.137": false,
+      "2.1.138": false,
+      "2.1.139": false,
+      "2.1.140": false,
+      "2.1.141": false,
+      "2.1.142": false,
+      "2.1.143": false,
+      "2.1.144": false,
+      "2.1.145": false,
+      "2.1.146": false,
+      "2.1.147": false,
+      "2.1.148": false,
+      "2.1.149": false,
+      "2.1.150": false,
+      "2.1.152": false,
+      "2.1.153": false,
+      "2.1.154": false,
+      "2.1.156": false,
+      "2.1.157": false,
+      "2.1.158": false,
+      "2.1.159": false,
+      "2.1.160": false,
+      "2.1.161": false,
+      "2.1.162": false,
+      "2.1.163": false,
+      "2.1.165": false,
+      "2.1.166": false,
+      "2.1.167": false,
+      "2.1.169": false,
+      "2.1.170": false,
+      "2.1.172": false,
+      "2.1.173": false,
+      "2.1.174": false,
+      "2.1.175": false,
+      "2.1.176": false,
+      "2.1.178": false,
+      "2.1.179": false,
+      "2.1.181": false,
+      "2.1.183": false
+    },
+    "integrated_vs_sprint30_tree_equal": {
+      "2.1.89": false,
+      "2.1.90": false,
+      "2.1.91": false,
+      "2.1.92": false,
+      "2.1.94": false,
+      "2.1.96": false,
+      "2.1.97": false,
+      "2.1.98": false,
+      "2.1.100": false,
+      "2.1.101": false,
+      "2.1.104": false,
+      "2.1.105": false,
+      "2.1.107": false,
+      "2.1.108": false,
+      "2.1.109": false,
+      "2.1.110": false,
+      "2.1.111": false,
+      "2.1.112": false,
+      "2.1.113": false,
+      "2.1.114": false,
+      "2.1.116": false,
+      "2.1.117": false,
+      "2.1.118": false,
+      "2.1.119": false,
+      "2.1.120": false,
+      "2.1.121": false,
+      "2.1.122": false,
+      "2.1.123": false,
+      "2.1.126": false,
+      "2.1.128": false
+    },
+    "summary": {
+      "integrated_versions": 78,
+      "legacy_versions": 74,
+      "sprint30_versions": 30,
+      "pilot_versions": 30,
+      "integrated_vs_legacy_equal": 24,
+      "integrated_vs_legacy_compared": 74,
+      "integrated_vs_sprint30_equal": 0,
+      "integrated_vs_sprint30_compared": 30
+    }
+  },
+  "status": {
+    "certified_versions": 0,
+    "build_pass": 8,
+    "version_pass": 8,
+    "help_pass": 0,
+    "note": "from workspace/ccr_v2_20260912/summary-remote.json; no version is certified"
+  }
+}
